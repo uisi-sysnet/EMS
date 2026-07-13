@@ -27,7 +27,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${SCRIPT_DIR}/.env"
 REQ_FILE="${SCRIPT_DIR}/requirements.txt"
-VENV_DIR="${SCRIPT_DIR}/venv"
 PG_VERSION="${PG_VERSION:-16}"   # override: PG_VERSION=15 sudo -E ./deploy.sh
 
 log()  { echo -e "\033[1;32m[deploy]\033[0m $*"; }
@@ -84,9 +83,9 @@ done
 log "Updating apt package lists"
 apt-get update -y
 
-log "Installing base tools (python3, venv, pip, curl, gnupg)"
+log "Installing base tools (python3, pip, curl, gnupg)"
 apt-get install -y \
-    python3 python3-venv python3-pip \
+    python3 python3-pip \
     curl gnupg lsb-release ca-certificates apt-transport-https wget
 
 # ---- PostgreSQL + TimescaleDB -----------------------------------------
@@ -127,6 +126,21 @@ fi
 log "Configuring Mosquitto authentication for user '${MQTT_USER}'"
 touch /etc/mosquitto/passwd
 mosquitto_passwd -b /etc/mosquitto/passwd "${MQTT_USER}" "${MQTT_PASSWORD}"
+# Newer mosquitto builds refuse to load the password file unless it's
+# root-owned with tight permissions — enforce that explicitly rather than
+# relying on whatever ownership the file happened to have before.
+chown root:root /etc/mosquitto/passwd
+chmod 600 /etc/mosquitto/passwd
+
+# If /etc/mosquitto/mosquitto.conf already defines its own `listener`
+# directive, our conf.d/app.conf below would define a second listener on
+# the same port and mosquitto will fail to bind. Warn instead of silently
+# fighting an existing config.
+if grep -qE '^\s*listener\b' /etc/mosquitto/mosquitto.conf 2>/dev/null; then
+    warn "/etc/mosquitto/mosquitto.conf already defines a 'listener' directive."
+    warn "This may conflict with conf.d/app.conf below (duplicate listener on the same port)."
+    warn "If mosquitto fails to start, check: sudo journalctl -xeu mosquitto.service"
+fi
 
 cat > /etc/mosquitto/conf.d/app.conf <<EOF
 listener ${MQTT_BROKER_PORT:-1883}
@@ -134,8 +148,14 @@ allow_anonymous false
 password_file /etc/mosquitto/passwd
 EOF
 
-systemctl restart mosquitto
-systemctl enable mosquitto
+if ! systemctl restart mosquitto; then
+    warn "mosquitto failed to (re)start. Diagnose with:"
+    warn "  sudo systemctl status mosquitto.service"
+    warn "  sudo journalctl -xeu mosquitto.service --no-pager | tail -30"
+    warn "Continuing with the rest of deploy.sh — fix mosquitto separately once you see the real error."
+else
+    systemctl enable mosquitto
+fi
 
 # ----------------------------------------------------------------------
 # 2. Postgres roles (apps create their own DBs/tables on first run —
@@ -173,14 +193,14 @@ if [[ -f "$PG_HBA" ]] && ! grep -q "# added by deploy.sh" "$PG_HBA"; then
 fi
 
 # ----------------------------------------------------------------------
-# 3. Python virtual environment
+# 3. Python dependencies (installed system-wide, no venv)
 # ----------------------------------------------------------------------
-log "Creating Python virtual environment at ${VENV_DIR}"
-python3 -m venv "$VENV_DIR"
-
-log "Installing Python dependencies from requirements.txt"
-"${VENV_DIR}/bin/pip" install --upgrade pip -q
-"${VENV_DIR}/bin/pip" install -r "$REQ_FILE" -q
+log "Installing Python dependencies system-wide from requirements.txt"
+# --break-system-packages is required on Ubuntu 23.04+ (PEP 668) since pip
+# otherwise refuses to install into the system-managed Python environment.
+# This is intentional here — the project deliberately runs without a venv.
+pip3 install --upgrade pip -q --break-system-packages
+pip3 install -r "$REQ_FILE" -q --break-system-packages
 
 # ----------------------------------------------------------------------
 # 4. Wrap up
@@ -192,10 +212,10 @@ cat <<EOF
 
 Next steps:
   1. Review aq_stations.json for correct station config.
-  2. Run each service using the venv's python, e.g.:
-       ${VENV_DIR}/bin/python ${SCRIPT_DIR}/air_quality_ingest.py
-       ${VENV_DIR}/bin/python ${SCRIPT_DIR}/seismic_mqtt.py
-       ${VENV_DIR}/bin/python ${SCRIPT_DIR}/api_server.py
+  2. Run each service directly with system python3, e.g.:
+       python3 ${SCRIPT_DIR}/air_quality_ingest.py
+       python3 ${SCRIPT_DIR}/seismic_mqtt.py
+       python3 ${SCRIPT_DIR}/api_server.py
   3. For always-on deployment, wrap each in a systemd service
      (ask if you'd like these generated).
 
