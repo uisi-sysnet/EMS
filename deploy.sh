@@ -124,6 +124,21 @@ else
 fi
 
 log "Configuring Mosquitto authentication for user '${MQTT_USER}'"
+
+# Mosquitto only loads files in conf.d/ if `include_dir` is active in the
+# main mosquitto.conf. If it's missing or commented out, our app.conf
+# below is silently ignored and mosquitto falls back to its built-in
+# default: listening on localhost ONLY (a Mosquitto 2.x security default),
+# which looks like a working service but refuses all external connections.
+MOSQ_MAIN_CONF="/etc/mosquitto/mosquitto.conf"
+if grep -qE '^\s*#\s*include_dir\s+/etc/mosquitto/conf\.d' "$MOSQ_MAIN_CONF"; then
+    log "include_dir is commented out in mosquitto.conf — enabling it so conf.d/ is actually loaded"
+    sed -i 's/^\s*#\s*include_dir\s\+\/etc\/mosquitto\/conf\.d/include_dir \/etc\/mosquitto\/conf.d/' "$MOSQ_MAIN_CONF"
+elif ! grep -qE '^\s*include_dir\s+/etc/mosquitto/conf\.d' "$MOSQ_MAIN_CONF"; then
+    log "include_dir not found in mosquitto.conf — adding it so conf.d/ is loaded"
+    echo "include_dir /etc/mosquitto/conf.d" >> "$MOSQ_MAIN_CONF"
+fi
+
 touch /etc/mosquitto/passwd
 mosquitto_passwd -b /etc/mosquitto/passwd "${MQTT_USER}" "${MQTT_PASSWORD}"
 # Newer mosquitto builds refuse to load the password file unless it's
@@ -143,10 +158,21 @@ if grep -qE '^\s*listener\b' /etc/mosquitto/mosquitto.conf 2>/dev/null; then
 fi
 
 cat > /etc/mosquitto/conf.d/app.conf <<EOF
-listener ${MQTT_BROKER_PORT:-1883}
+listener ${MQTT_BROKER_PORT:-1883} 0.0.0.0
 allow_anonymous false
 password_file /etc/mosquitto/passwd
 EOF
+
+# Open the MQTT port to all networks if ufw is installed and active.
+# NOTE: authentication (allow_anonymous false, above) stays ON — exposing
+# this port without auth would let anyone reach the broker.
+if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
+    log "ufw is active — opening port ${MQTT_BROKER_PORT:-1883}/tcp for MQTT"
+    ufw allow "${MQTT_BROKER_PORT:-1883}/tcp" comment "MQTT broker"
+else
+    log "ufw not active/installed — skipping firewall rule (nothing to open at the OS level)"
+fi
+warn "If this server sits behind a cloud provider (AWS/GCP/Azure/etc.), also open port ${MQTT_BROKER_PORT:-1883}/tcp in its security group / firewall rules — ufw alone won't cover that."
 
 if ! systemctl restart mosquitto; then
     warn "mosquitto failed to (re)start. Diagnose with:"
