@@ -186,6 +186,63 @@ else
     systemctl enable mosquitto
 fi
 
+# ---- ntpsec (NTP time sync, reachable from all networks) --------------
+# Accurate, synced clocks matter here: seismic_mqtt.py timestamps events
+# from an MQTT feed and air_quality_ingest.py timestamps sensor readings,
+# so we install ntpsec as the system time daemon and open it up so other
+# hosts on any network can query this server for time too (not just sync
+# it locally).
+if ! command -v ntpd >/dev/null 2>&1 && ! dpkg -l | grep -q '^ii\s\+ntpsec\s'; then
+    log "Installing ntpsec"
+    apt-get install -y ntpsec
+else
+    log "ntpsec already installed, skipping"
+fi
+
+NTP_CONF="/etc/ntpsec/ntp.conf"
+if [[ -f "$NTP_CONF" ]]; then
+    cp "$NTP_CONF" "${NTP_CONF}.bak.$(date +%s)" 2>/dev/null || true
+
+    # By default ntpsec's "restrict default ... noquery" lines let this
+    # host sync outbound but refuse time *queries* from anyone else. Strip
+    # `noquery` from the default restrict lines (both IPv4 and IPv6) so
+    # any network can ask this server for the time, while leaving
+    # nomodify/notrap/nopeer in place so nobody can reconfigure it or use
+    # it as a peer.
+    log "Opening ntpsec to time queries from all networks (removing 'noquery' from default restrict rules)"
+    sed -i -E 's/^(restrict[[:space:]]+(default|-6[[:space:]]+default)[[:space:]]+.*)\bnoquery[[:space:]]*/\1/' "$NTP_CONF"
+
+    # If a prior config explicitly limits ntpd to specific interfaces
+    # (e.g. "interface ignore wildcard" / "interface listen 127.0.0.1"),
+    # that silently blocks queries from other networks even though the
+    # service looks like it's running fine. Comment those out so it binds
+    # to all interfaces (the ntpsec default).
+    if grep -qE '^\s*interface\s+(ignore\s+wildcard|listen\s+127\.0\.0\.1)' "$NTP_CONF"; then
+        log "Found an 'interface' restriction in ntp.conf pinning ntpsec to localhost — commenting it out"
+        sed -i -E 's/^(\s*interface\s+(ignore\s+wildcard|listen\s+127\.0\.0\.1).*)/# \1  # commented out by deploy.sh so all networks can reach ntpsec/' "$NTP_CONF"
+    fi
+else
+    warn "Expected ntpsec config at $NTP_CONF but it wasn't found — check the package installed correctly."
+fi
+
+if ! systemctl restart ntpsec; then
+    warn "ntpsec failed to (re)start. Diagnose with:"
+    warn "  sudo systemctl status ntpsec.service"
+    warn "  sudo journalctl -xeu ntpsec.service --no-pager | tail -30"
+    warn "Continuing with the rest of deploy.sh — fix ntpsec separately once you see the real error."
+else
+    systemctl enable ntpsec
+fi
+
+# NTP queries are UDP/123. Open it the same way we opened the MQTT port.
+if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
+    log "ufw is active — opening port 123/udp for NTP"
+    ufw allow 123/udp comment "NTP (ntpsec)"
+else
+    log "ufw not active/installed — skipping firewall rule (nothing to open at the OS level)"
+fi
+warn "If this server sits behind a cloud provider (AWS/GCP/Azure/etc.), also open port 123/udp (inbound AND outbound) in its security group / firewall rules — ufw alone won't cover that."
+
 # ----------------------------------------------------------------------
 # 2. Postgres roles (apps create their own DBs/tables on first run —
 #    these roles just need to exist with CREATEDB privilege)
@@ -235,7 +292,16 @@ log "Installing Python dependencies system-wide from requirements.txt"
 # copy first, which has no RECORD file (apt doesn't write one) — pip
 # refuses with "uninstall-no-record-file" and the whole script aborts.
 # The apt-provided pip is new enough to install our requirements as-is.
-pip3 install -r "$REQ_FILE" -q --break-system-packages
+#
+# --ignore-installed is needed for the same reason, one level down: several
+# of our requirements.txt deps (e.g. fastapi -> starlette) overlap with
+# packages Ubuntu also ships via apt (python3-starlette, python3-requests,
+# python3-jinja2, etc.), which likewise have no RECORD file. Without this
+# flag, pip tries to uninstall the apt-owned package before installing the
+# version we asked for and hits the same "uninstall-no-record-file" error.
+# --ignore-installed tells pip to install our versions fresh instead of
+# trying to remove the apt ones first.
+pip3 install -r "$REQ_FILE" -q --break-system-packages --ignore-installed
 
 # ----------------------------------------------------------------------
 # 4. Wrap up
