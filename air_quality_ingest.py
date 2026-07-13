@@ -42,6 +42,26 @@ LEAD_POLL_INTERVAL = int(os.getenv("AQ_LEAD_POLL_INTERVAL", 30))
 # behind by more than an hour under normal operation.
 MAX_SENSOR_CLOCK_DRIFT = timedelta(hours=int(os.getenv("AQ_MAX_SENSOR_CLOCK_DRIFT_HOURS", 1)))
 
+# ---- Active clock correction (HJ212 §6.6.5, CN=1012 设置现场机时间) ----
+# Off by default: this actively pushes a "set your clock" command to the
+# physical station over its live TCP connection, so it should be turned on
+# deliberately after confirming your station firmware implements CN=1012 as
+# the standard specifies (implementations vary by vendor).
+AQ_TIME_SYNC_ENABLED = os.getenv("AQ_TIME_SYNC_ENABLED", "false").strip().lower() == "true"
+# System code (ST) to use in outbound command frames — HJ212 Table 5.
+# 22 = 空气质量监测 (ambient air quality monitoring). If your stations are
+# regulatory emission-source monitors rather than ambient monitors, your
+# vendor may expect 31 (大气环境污染源) instead — check your station's manual.
+AQ_HJ212_ST = os.getenv("AQ_HJ212_ST", "22")
+# Access password (PW field) the station expects on commands sent to it.
+# This is a per-device credential configured on the station itself — it is
+# NOT necessarily the same as anything in this .env already. Ask your
+# station vendor/installer for it if you don't have it on hand.
+AQ_HJ212_PW = os.getenv("AQ_HJ212_PW", "123456")
+# Minimum time between time-sync attempts for the same station, so a
+# persistently drifting sensor doesn't get flooded with correction commands.
+AQ_TIME_SYNC_COOLDOWN_MIN = int(os.getenv("AQ_TIME_SYNC_COOLDOWN_MIN", 60))
+
 DB_HOST = os.getenv("AQ_DB_HOST", "127.0.0.1")
 DB_PORT = int(os.getenv("AQ_DB_PORT", 5432))
 DB_NAME = os.getenv("AQ_DB_NAME", "air_quality")
@@ -229,7 +249,7 @@ def create_tables():
             release_connection(conn)
 
 
-def insert_sensor_data(data, ip_address):
+def insert_sensor_data(data, ip_address, station_conn=None):
     conn = None
     try:
         conn = get_connection()
@@ -266,6 +286,8 @@ def insert_sensor_data(data, ip_address):
                         f"sensor's clock reset (dead RTC battery / power loss). Using "
                         f"server time for this reading instead; station needs a hardware check."
                     )
+                    if AQ_TIME_SYNC_ENABLED and station_conn is not None:
+                        request_sensor_time_sync(station_conn, mn)
             except ValueError:
                 logger.warning(f"Station {mn}: unparseable DataTime '{cp.get('DataTime')}' — using server time.")
 
@@ -366,6 +388,83 @@ def build_ack(frame: str) -> str:
     return f"##{len(body):04d}{body}{crc16(body)}\r\n"
 
 
+# ---- Outbound command: CN=1012 设置现场机时间 (HJ212 §6.6.5 Table 9,示例 C.3) ----
+# This is the monitoring center (us) actively telling a station to correct
+# its clock. Response comes back on the same connection as CN=9011
+# (request ack) then CN=9012 (execution result) — see _pending_time_syncs.
+_pending_time_syncs = {}
+_pending_time_syncs_lock = threading.Lock()
+_last_time_sync_attempt = {}  # mn -> monotonic time of last attempt, for cooldown
+
+
+def build_time_sync_command(mn: str) -> tuple:
+    """Builds a CN=1012 request frame that sets the station's clock to this
+    server's current (NTP-synced) local time. No PolId in CP means the
+    command targets the field machine's overall clock, not one instrument.
+    Returns (qn, frame_string)."""
+    qn = datetime.now().strftime("%Y%m%d%H%M%S") + f"{int(time.time() * 1000) % 1000:03d}"
+    philippines_tz = timezone(timedelta(hours=8))
+    system_time_str = datetime.now(philippines_tz).strftime("%Y%m%d%H%M%S")
+    body = (
+        f"QN={qn};ST={AQ_HJ212_ST};CN=1012;PW={AQ_HJ212_PW};MN={mn};Flag=5;"
+        f"CP=&&SystemTime={system_time_str}&&"
+    )
+    frame = f"##{len(body):04d}{body}{crc16(body)}\r\n"
+    return qn, frame
+
+
+def request_sensor_time_sync(conn, mn):
+    """Sends a CN=1012 time-correction command to the station over its live
+    connection, subject to a per-station cooldown so a persistently drifting
+    sensor doesn't get flooded with commands."""
+    now_mono = time.monotonic()
+    last = _last_time_sync_attempt.get(mn, 0)
+    if now_mono - last < AQ_TIME_SYNC_COOLDOWN_MIN * 60:
+        return
+    _last_time_sync_attempt[mn] = now_mono
+
+    qn, frame = build_time_sync_command(mn)
+    try:
+        conn.sendall(frame.encode())
+        with _pending_time_syncs_lock:
+            _pending_time_syncs[qn] = {"mn": mn, "sent_at": now_mono}
+        logger.info(f"Station {mn}: sent HJ212 CN=1012 time-sync command to correct its clock.")
+    except Exception as e:
+        logger.error(f"Station {mn}: failed to send time-sync command: {e}")
+
+
+def handle_command_response(frame: str):
+    """Handles CN=9011/9012 responses to our own outbound commands (currently
+    just the CN=1012 time-sync). Not a data frame, so it's routed separately
+    from process_frame() in handle_client()."""
+    cn = get_field(frame, "CN")
+    qn = get_field(frame, "QN")
+    with _pending_time_syncs_lock:
+        pending = _pending_time_syncs.get(qn)
+    if not pending:
+        return  # not one of ours (or already resolved)
+
+    mn = pending["mn"]
+    if cn == "9011":
+        qnrtn = get_field(frame, "QnRtn")
+        if qnrtn != "1":
+            logger.warning(f"Station {mn}: time-sync command rejected by station (QnRtn={qnrtn}).")
+            with _pending_time_syncs_lock:
+                _pending_time_syncs.pop(qn, None)
+        # QnRtn==1: station accepted the request, wait for CN=9012 execution result.
+    elif cn == "9012":
+        exertn = get_field(frame, "ExeRtn")
+        if exertn == "1":
+            logger.info(f"Station {mn}: sensor clock corrected successfully via HJ212 time-sync.")
+        else:
+            logger.warning(
+                f"Station {mn}: time-sync execution failed (ExeRtn={exertn}). "
+                f"If this keeps failing, the station's RTC/battery likely needs physical service."
+            )
+        with _pending_time_syncs_lock:
+            _pending_time_syncs.pop(qn, None)
+
+
 def parse_cp(cp_data: str):
     result = {}
     if not cp_data:
@@ -398,10 +497,10 @@ def parse_frame(frame: str):
             "CP": parse_cp(cp_match.group(1) if cp_match else "")}
 
 
-def process_frame(frame, ip_address):
+def process_frame(frame, ip_address, conn=None):
     data = parse_frame(frame)
     if data:
-        insert_sensor_data(data, ip_address)
+        insert_sensor_data(data, ip_address, station_conn=conn)
 
 
 # ==========================================================
@@ -461,7 +560,11 @@ def handle_client(conn, addr):
                     continue
                 cn = get_field(frame, "CN")
                 if cn == "2011":
-                    process_frame(frame, ip_address)
+                    process_frame(frame, ip_address, conn)
+                elif cn in ("9011", "9012"):
+                    # Station's response to a command WE sent it (e.g. our
+                    # CN=1012 time-sync request) — not something to ack.
+                    handle_command_response(frame)
                 if cn in SUPPORTED_CN:
                     conn.sendall(build_ack(frame).encode())
         except Exception:
