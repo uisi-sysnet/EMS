@@ -142,10 +142,13 @@ fi
 touch /etc/mosquitto/passwd
 mosquitto_passwd -b /etc/mosquitto/passwd "${MQTT_USER}" "${MQTT_PASSWORD}"
 # Newer mosquitto builds refuse to load the password file unless it's
-# root-owned with tight permissions — enforce that explicitly rather than
-# relying on whatever ownership the file happened to have before.
-chown root:root /etc/mosquitto/passwd
-chmod 600 /etc/mosquitto/passwd
+# root-owned. But the mosquitto *service* runs as the unprivileged
+# `mosquitto` user, so a strict root:root 600 file (no group/other read)
+# would let the file exist but be unreadable by the running service,
+# causing a silent-looking exit code 13 (permission denied) on start.
+# root:mosquitto + 640 satisfies both constraints.
+chown root:mosquitto /etc/mosquitto/passwd
+chmod 640 /etc/mosquitto/passwd
 
 # If /etc/mosquitto/mosquitto.conf already defines its own `listener`
 # directive, our conf.d/app.conf below would define a second listener on
