@@ -42,10 +42,37 @@ fi
 [[ -f "$REQ_FILE" ]] || die "requirements.txt not found at $REQ_FILE."
 
 log "Loading configuration from .env"
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
+
+# NOTE: we deliberately do NOT `source` .env. Sourcing treats the file as
+# executable bash, so any value containing spaces, semicolons, $(...), or
+# backticks (e.g. API_KEYS="token:Some Label, other:Another Label") either
+# breaks parsing or — worse — gets executed as a shell command. Instead we
+# parse it as plain KEY=VALUE data, one line at a time.
+load_env_file() {
+    local file="$1" line key value
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%$'\r'}"                          # strip trailing CR (Windows-saved files)
+        [[ -z "${line//[[:space:]]/}" ]] && continue   # skip blank lines
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue    # skip comment lines
+        [[ "$line" == *"="* ]] || continue              # must look like KEY=VALUE
+
+        key="${line%%=*}"
+        value="${line#*=}"
+        key="$(echo -n "$key" | xargs)"                # trim whitespace around key
+
+        # strip one layer of matching surrounding quotes, if present
+        if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+            value="${value:1:-1}"
+        elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+            value="${value:1:-1}"
+        fi
+
+        [[ -n "$key" ]] || continue
+        export "$key=$value"
+    done < "$file"
+}
+
+load_env_file "$ENV_FILE"
 
 for v in AQ_DB_USER AQ_DB_PASSWORD AQ_DB_NAME SEISMIC_DB_USER SEISMIC_DB_PASSWORD SEISMIC_DB_NAME MQTT_USER MQTT_PASSWORD; do
     [[ -n "${!v:-}" ]] || die "Missing required variable '$v' in .env"
