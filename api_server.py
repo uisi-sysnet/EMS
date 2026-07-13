@@ -11,6 +11,7 @@ import os
 import threading
 import time
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import psycopg2
@@ -310,11 +311,14 @@ logger.addHandler(file_handler)
 def format_api_datetime(dt: datetime) -> str:
     if not dt:
         return None
+    
+    manila_tz = ZoneInfo("Asia/Manila")
+
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=manila_tz)
     else:
-        dt = dt.astimezone(timezone.utc)
-    return dt.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        dt = dt.astimezone(manila_tz)
+    return dt.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "+08:00"
 
 
 # ==========================================================
