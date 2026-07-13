@@ -294,9 +294,9 @@ def insert_sensor_data(data, ip_address, station_conn=None):
         values = {"station_mn": mn, "ip_address": ip_address, "data_time": data_time}
 
         for code, sensor in SENSORS.items():
-            if sensor["name"] not in cp:
+            if code not in cp:
                 continue
-            sensor_data = cp[sensor["name"]]
+            sensor_data = cp[code]
             values[sensor["column"]] = sensor_data.get("Rtd") or sensor_data.get("Avg") or sensor_data.get("Value")
 
         columns = list(values.keys())
