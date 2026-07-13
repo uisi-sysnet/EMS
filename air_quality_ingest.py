@@ -36,6 +36,12 @@ VERIFY_CHECKSUM = False
 SUPPORTED_CN = ["2011", "9014"]
 LEAD_POLL_INTERVAL = int(os.getenv("AQ_LEAD_POLL_INTERVAL", 30))
 
+# How far a sensor's self-reported DataTime is allowed to drift from this
+# server's (NTP-synced) clock before we treat it as bogus and fall back to
+# server time. Override via .env if your sensors are expected to run ahead/
+# behind by more than an hour under normal operation.
+MAX_SENSOR_CLOCK_DRIFT = timedelta(hours=int(os.getenv("AQ_MAX_SENSOR_CLOCK_DRIFT_HOURS", 1)))
+
 DB_HOST = os.getenv("AQ_DB_HOST", "127.0.0.1")
 DB_PORT = int(os.getenv("AQ_DB_PORT", 5432))
 DB_NAME = os.getenv("AQ_DB_NAME", "air_quality")
@@ -231,16 +237,37 @@ def insert_sensor_data(data, ip_address):
         cp = data.get("CP", {})
         mn = data.get("MN")
 
-        data_time = datetime.now(timezone.utc)
+        data_time = datetime.now(timezone.utc)  # trusted default: this server's NTP-synced clock
 
         if "DataTime" in cp:
             try:
                 naive_dt = datetime.strptime(cp["DataTime"], "%Y%m%d%H%M%S")
                 philippines_tz = timezone(timedelta(hours=8))
                 localized_pht_dt = naive_dt.replace(tzinfo=philippines_tz)
-                data_time = localized_pht_dt.astimezone(timezone.utc)
+                candidate_time = localized_pht_dt.astimezone(timezone.utc)
+
+                # Sensors have their own onboard clock (usually backed by a
+                # coin-cell RTC battery) that's independent of this server's
+                # NTP-synced time. If that battery dies or the unit loses
+                # power, the sensor's clock resets to some default/epoch and
+                # every DataTime it reports afterward is garbage — silently
+                # mis-dating readings by months or years if we trust it as-is.
+                # Guard against that: only accept the sensor's timestamp if
+                # it's within MAX_SENSOR_CLOCK_DRIFT of our own clock; otherwise
+                # fall back to server time and flag it so the field team knows
+                # station `mn` needs its RTC/battery checked.
+                drift_secs = abs((candidate_time - data_time).total_seconds())
+                if drift_secs <= MAX_SENSOR_CLOCK_DRIFT.total_seconds():
+                    data_time = candidate_time
+                else:
+                    logger.warning(
+                        f"Station {mn}: sensor-reported DataTime '{cp['DataTime']}' is "
+                        f"{drift_secs / 3600:.1f}h off from server time — looks like the "
+                        f"sensor's clock reset (dead RTC battery / power loss). Using "
+                        f"server time for this reading instead; station needs a hardware check."
+                    )
             except ValueError:
-                pass
+                logger.warning(f"Station {mn}: unparseable DataTime '{cp.get('DataTime')}' — using server time.")
 
         values = {"station_mn": mn, "ip_address": ip_address, "data_time": data_time}
 
