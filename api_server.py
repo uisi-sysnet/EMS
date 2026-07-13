@@ -480,8 +480,13 @@ def map_aq_station_row_to_json(row, now):
     status = "offline"
     last_update_str = None
     if row['data_time']:
-        last_update_utc = row['data_time'].replace(tzinfo=timezone.utc)
-        last_update_str = format_api_datetime(last_update_utc)
+        # data_time is stored as naive Manila local time (Postgres session
+        # TimeZone converts tz-aware UTC values to local on insert into a
+        # `timestamp without time zone` column) — do NOT tag it as UTC.
+        manila_tz = ZoneInfo("Asia/Manila")
+        last_update_manila = row['data_time'].replace(tzinfo=manila_tz)
+        last_update_str = format_api_datetime(last_update_manila)
+        last_update_utc = last_update_manila.astimezone(timezone.utc)
         if (now - last_update_utc).total_seconds() < 900:
             status = "online"
 
@@ -542,11 +547,14 @@ def aq_latest_all(api_key: str = Depends(verify_api_key)):
 
         # Top-level "timestamp" = the actual latest saved reading across all
         # stations (max data_time), not the moment this request was handled.
-        data_times_utc = [
-            r['data_time'] if r['data_time'].tzinfo else r['data_time'].replace(tzinfo=timezone.utc)
-            for r in rows if r['data_time']
-        ]
-        response_timestamp = format_api_datetime(max(data_times_utc)) if data_times_utc else format_api_datetime(now)
+        # data_time is naive Manila local time — tag it as such, don't shift it.
+        manila_tz = ZoneInfo("Asia/Manila")
+        data_times = [r['data_time'] for r in rows if r['data_time']]
+        if data_times:
+            latest_manila = max(data_times).replace(tzinfo=manila_tz)
+            response_timestamp = format_api_datetime(latest_manila)
+        else:
+            response_timestamp = format_api_datetime(now)
 
         return {"timestamp": response_timestamp, "total_stations": len(stations_list), "stations": stations_list}
     except Exception as e:
