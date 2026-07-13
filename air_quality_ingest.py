@@ -6,6 +6,7 @@ Responsibility: receive station telemetry, parse it, write it to the
 `air_quality` TimescaleDB database. No API code lives here — see api_server.py.
 """
 
+import json
 import logging
 import os
 import re
@@ -44,29 +45,6 @@ DB_PASSWORD = os.getenv("AQ_DB_PASSWORD")
 
 LOG_FILE_NAME = "air_quality_ingest.log"
 
-# Registered station records — structural config, not secrets, so it stays in code.
-# Move to a JSON file later if you want to edit stations without touching source.
-STATIONS = {
-    "4101025U122041": {
-        "station_name": "AQM001",
-        "enabled": True,
-        "latitude": 14.5995,
-        "longitude": 120.9842,
-        "lead_ip": "192.168.55.11",
-        "lead_port": 8899,
-        "lead_slave": 1,
-    },
-    "4101025U122042": {
-        "station_name": "AQM002",
-        "enabled": True,
-        "latitude": 14.6095,
-        "longitude": 120.9942,
-        "lead_ip": "192.168.55.12",
-        "lead_port": 8899,
-        "lead_slave": 1,
-    },
-}
-
 logger = logging.getLogger("air_quality_ingest")
 logger.setLevel(logging.INFO)
 log_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(threadName)s: %(message)s")
@@ -78,6 +56,91 @@ logger.addHandler(console_handler)
 file_handler = logging.FileHandler(LOG_FILE_NAME, encoding="utf-8")
 file_handler.setFormatter(log_formatter)
 logger.addHandler(file_handler)
+
+# Registered station records — kept in aq_stations.json (same folder as this script)
+# so stations can be added/edited without touching source code.
+STATIONS_FILE = SCRIPT_DIR / "aq_stations.json"
+
+# What a station record must look like. Used to validate the JSON file so a
+# typo or bad edit fails loudly and specifically, instead of crashing the
+# whole service with a raw JSON/KeyError, or silently ingesting bad data.
+REQUIRED_STATION_FIELDS = {
+    "station_name": str,
+    "enabled": bool,
+    "latitude": (int, float),
+    "longitude": (int, float),
+    "lead_ip": str,
+    "lead_port": int,
+    "lead_slave": int,
+}
+
+
+def load_stations() -> dict:
+    """
+    Loads and validates station config from aq_stations.json.
+
+    Design intent: a mistake in this file should never crash ingestion for
+    ALL stations. A malformed individual station entry is logged and
+    skipped; only a broken/missing file (i.e. nothing usable at all) halts
+    the service, since running with zero stations is pointless.
+    """
+    if not STATIONS_FILE.exists():
+        logger.critical("=" * 70)
+        logger.critical(f"CONFIG ERROR: Station file not found: {STATIONS_FILE}")
+        logger.critical("Create aq_stations.json in this script's folder. See README/example format.")
+        logger.critical("=" * 70)
+        raise SystemExit(1)
+
+    try:
+        raw_text = STATIONS_FILE.read_text(encoding="utf-8")
+        raw_data = json.loads(raw_text)
+    except json.JSONDecodeError as e:
+        logger.critical("=" * 70)
+        logger.critical(f"CONFIG ERROR: aq_stations.json is not valid JSON: {e}")
+        logger.critical(f"Check line {e.lineno}, column {e.colno} — likely a missing comma, ")
+        logger.critical("bracket, or unquoted string near that location.")
+        logger.critical("=" * 70)
+        raise SystemExit(1)
+
+    if not isinstance(raw_data, dict) or not raw_data:
+        logger.critical("CONFIG ERROR: aq_stations.json must be a non-empty JSON object of stations.")
+        raise SystemExit(1)
+
+    validated = {}
+    for mn, info in raw_data.items():
+        if not isinstance(info, dict):
+            logger.error(f"Station '{mn}' skipped: expected an object, got {type(info).__name__}.")
+            continue
+
+        errors = []
+        for field, expected_type in REQUIRED_STATION_FIELDS.items():
+            if field not in info:
+                errors.append(f"missing field '{field}'")
+            elif not isinstance(info[field], expected_type):
+                errors.append(
+                    f"field '{field}' should be {expected_type}, got {type(info[field]).__name__}"
+                )
+
+        if errors:
+            logger.error(f"Station '{mn}' skipped due to invalid config: {'; '.join(errors)}")
+            continue
+
+        validated[mn] = info
+
+    if not validated:
+        logger.critical("CONFIG ERROR: No valid stations found in aq_stations.json after validation. Halting.")
+        raise SystemExit(1)
+
+    skipped = len(raw_data) - len(validated)
+    if skipped:
+        logger.warning(f"Loaded {len(validated)} station(s), skipped {skipped} invalid entr{'y' if skipped == 1 else 'ies'}.")
+    else:
+        logger.info(f"Loaded {len(validated)} station(s) from {STATIONS_FILE.name}.")
+
+    return validated
+
+
+STATIONS = load_stations()
 
 
 # ==========================================================
