@@ -1,0 +1,77 @@
+2026-07-08 10:35:19,816 [INFO] MainThread: Air quality DB pool ready.
+2026-07-08 10:35:19,890 [INFO] MainThread: Seismic DB pool ready.
+2026-07-08 10:35:19,992 [INFO] MainThread: Monitoring API starting on 0.0.0.0:8000
+2026-07-08 10:35:35,783 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 0.97ms
+2026-07-08 10:35:36,138 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 6.86ms
+2026-07-08 16:42:04,903 [INFO] MainThread: Air quality DB pool ready.
+2026-07-08 16:42:04,977 [INFO] MainThread: Seismic DB pool ready.
+2026-07-08 16:42:04,982 [INFO] MainThread: Monitoring API starting on 0.0.0.0:8000
+2026-07-08 16:42:13,885 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 1.53ms
+2026-07-08 16:42:14,140 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 21.62ms
+2026-07-08 16:44:51,598 [INFO] MainThread: Air quality DB pool ready.
+2026-07-08 16:44:51,669 [INFO] MainThread: Seismic DB pool ready.
+2026-07-08 16:44:51,675 [INFO] MainThread: Monitoring API starting on 0.0.0.0:8000
+2026-07-08 16:44:54,032 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 1.95ms
+2026-07-08 16:44:54,243 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 17.17ms
+2026-07-08 16:45:39,812 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 1.02ms
+2026-07-08 16:45:39,970 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 0.0ms
+2026-07-08 16:45:46,593 [INFO] MainThread: Air quality DB pool ready.
+2026-07-08 16:45:46,680 [INFO] MainThread: Seismic DB pool ready.
+2026-07-08 16:45:46,684 [INFO] MainThread: Monitoring API starting on 0.0.0.0:8000
+2026-07-08 16:45:49,771 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 1.89ms
+2026-07-08 16:45:49,916 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 20.47ms
+2026-07-10 08:24:49,740 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 9.77ms
+2026-07-10 08:24:49,926 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 1.95ms
+2026-07-10 08:26:07,630 [INFO] MainThread: Air quality DB pool ready.
+2026-07-10 08:26:07,727 [INFO] MainThread: Seismic DB pool ready.
+2026-07-10 08:26:07,734 [INFO] MainThread: Monitoring API starting on 0.0.0.0:8000
+2026-07-10 08:26:16,980 [INFO] MainThread: Air quality DB pool ready.
+2026-07-10 08:26:17,069 [INFO] MainThread: Seismic DB pool ready.
+2026-07-10 08:26:17,077 [INFO] MainThread: Monitoring API starting on 0.0.0.0:8000
+2026-07-10 08:26:20,795 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 0.0ms
+2026-07-10 08:26:20,967 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 20.72ms
+2026-07-10 08:26:46,612 [INFO] MainThread: [API] 127.0.0.1 (Internal Web Dashboard) -> GET /api/v1/air-quality/stations/latest | Status: 200 | 11.72ms
+2026-07-10 08:30:58,753 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /api/v1/air-quality/stations/latest | Status: 401 | 0.98ms
+2026-07-10 08:35:52,420 [INFO] MainThread: Air quality DB pool ready.
+2026-07-10 08:35:52,509 [INFO] MainThread: Seismic DB pool ready.
+2026-07-10 08:35:52,517 [INFO] MainThread: Monitoring API starting on 0.0.0.0:8000
+2026-07-10 08:35:55,757 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 0.97ms
+2026-07-10 08:35:55,941 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 21.43ms
+2026-07-10 08:37:56,284 [INFO] MainThread: Air quality DB pool ready.
+2026-07-10 08:37:56,461 [INFO] MainThread: Seismic DB pool ready.
+2026-07-10 08:37:56,467 [INFO] MainThread: Monitoring API starting on 0.0.0.0:8000
+2026-07-10 08:37:58,382 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 0.0ms
+2026-07-10 08:37:58,598 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 24.04ms
+2026-07-10 08:40:36,096 [INFO] MainThread: Air quality DB pool ready.
+2026-07-10 08:40:36,233 [INFO] MainThread: Seismic DB pool ready.
+2026-07-10 08:40:36,239 [INFO] MainThread: Monitoring API starting on 0.0.0.0:8000
+2026-07-10 08:40:38,353 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 1.07ms
+2026-07-10 08:40:38,784 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 195.23ms
+2026-07-10 08:47:01,050 [INFO] MainThread: Air quality DB pool ready.
+2026-07-10 08:47:01,206 [INFO] MainThread: Seismic DB pool ready.
+2026-07-10 08:47:01,215 [INFO] MainThread: Monitoring API starting on 0.0.0.0:8000
+2026-07-10 08:47:02,562 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 0.0ms
+2026-07-10 08:47:02,831 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 93.09ms
+2026-07-10 08:47:43,278 [INFO] MainThread: Air quality DB pool ready.
+2026-07-10 08:47:43,409 [INFO] MainThread: Seismic DB pool ready.
+2026-07-10 08:47:43,419 [INFO] MainThread: Monitoring API starting on 0.0.0.0:8000
+2026-07-10 08:47:44,595 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 1.03ms
+2026-07-10 08:47:44,885 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 102.41ms
+2026-07-10 08:48:06,855 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 0.0ms
+2026-07-10 08:48:06,936 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 0.98ms
+2026-07-10 08:48:08,621 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 0.92ms
+2026-07-10 08:48:08,715 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 1.13ms
+2026-07-10 08:48:15,957 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 1.97ms
+2026-07-10 08:48:16,080 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /favicon.ico | Status: 404 | 0.98ms
+2026-07-13 08:33:28,560 [INFO] MainThread: Air quality DB pool ready.
+2026-07-13 08:33:28,754 [INFO] MainThread: Seismic DB pool ready.
+2026-07-13 08:33:28,917 [INFO] MainThread: Monitoring API starting on 0.0.0.0:8000
+2026-07-13 08:33:55,062 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 0.98ms
+2026-07-13 08:33:55,632 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 220.7ms
+2026-07-13 08:36:24,222 [INFO] MainThread: Air quality DB pool ready.
+2026-07-13 08:36:24,333 [INFO] MainThread: Seismic DB pool ready.
+2026-07-13 08:36:24,344 [INFO] MainThread: Monitoring API starting on 0.0.0.0:8000
+2026-07-13 08:36:26,859 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /docs | Status: 200 | 0.98ms
+2026-07-13 08:36:27,217 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /openapi.json | Status: 200 | 243.24ms
+2026-07-13 08:36:44,901 [INFO] MainThread: [API] 127.0.0.1 (Internal Web Dashboard) -> GET /api/air-quality/stations/latest | Status: 200 | 38.61ms
+2026-07-13 08:37:03,414 [INFO] MainThread: [API] 127.0.0.1 (Unauthorized/None) -> GET /api/air-quality/stations/latest | Status: 401 | 0.98ms

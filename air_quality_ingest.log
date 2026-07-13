@@ -1,0 +1,5 @@
+2026-07-08 10:31:09,788 [CRITICAL] MainThread: ======================================================================
+2026-07-08 10:31:09,789 [CRITICAL] MainThread: CONFIG ERROR: AQ_DB_PASSWORD not loaded from .env
+2026-07-08 10:31:09,789 [CRITICAL] MainThread: Expected .env at: D:\User Files\Download\files\.env (exists: True)
+2026-07-08 10:31:09,789 [CRITICAL] MainThread: Check: file isn't secretly named '.env.txt', is in this script's folder, and is saved as UTF-8.
+2026-07-08 10:31:09,789 [CRITICAL] MainThread: ======================================================================

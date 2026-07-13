@@ -1,0 +1,14 @@
+# Shared
+python-dotenv>=1.0.0
+
+# air_quality_ingest.py
+psycopg2-binary>=2.9.9
+pymodbus>=3.6.0
+
+# seismic_mqtt.py
+paho-mqtt>=2.1.0
+psycopg>=3.1.0
+
+# api_server.py
+fastapi>=0.110.0
+uvicorn>=0.29.0
