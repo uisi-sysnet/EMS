@@ -228,7 +228,13 @@ log "Installing Python dependencies system-wide from requirements.txt"
 # --break-system-packages is required on Ubuntu 23.04+ (PEP 668) since pip
 # otherwise refuses to install into the system-managed Python environment.
 # This is intentional here — the project deliberately runs without a venv.
-pip3 install --upgrade pip -q --break-system-packages
+#
+# NOTE: we deliberately do NOT run `pip3 install --upgrade pip` here. On
+# Debian/Ubuntu, pip itself is installed via apt (python3-pip), not pip.
+# Asking pip to upgrade itself makes it try to uninstall the apt-installed
+# copy first, which has no RECORD file (apt doesn't write one) — pip
+# refuses with "uninstall-no-record-file" and the whole script aborts.
+# The apt-provided pip is new enough to install our requirements as-is.
 pip3 install -r "$REQ_FILE" -q --break-system-packages
 
 # ----------------------------------------------------------------------
