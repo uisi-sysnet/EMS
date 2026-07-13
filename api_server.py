@@ -539,7 +539,16 @@ def aq_latest_all(api_key: str = Depends(verify_api_key)):
         rows = cur.fetchall()
         now = datetime.now(timezone.utc)
         stations_list = [map_aq_station_row_to_json(r, now) for r in rows]
-        return {"timestamp": format_api_datetime(now), "total_stations": len(stations_list), "stations": stations_list}
+
+        # Top-level "timestamp" = the actual latest saved reading across all
+        # stations (max data_time), not the moment this request was handled.
+        data_times_utc = [
+            r['data_time'] if r['data_time'].tzinfo else r['data_time'].replace(tzinfo=timezone.utc)
+            for r in rows if r['data_time']
+        ]
+        response_timestamp = format_api_datetime(max(data_times_utc)) if data_times_utc else format_api_datetime(now)
+
+        return {"timestamp": response_timestamp, "total_stations": len(stations_list), "stations": stations_list}
     except Exception as e:
         logger.error(f"AQ latest error: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
@@ -576,7 +585,9 @@ def aq_latest_station(
         if not row:
             raise HTTPException(status_code=404, detail="Station Identifier not found in database records.")
         now = datetime.now(timezone.utc)
-        return {"timestamp": format_api_datetime(now), "station": map_aq_station_row_to_json(row, now)}
+        station_json = map_aq_station_row_to_json(row, now)
+        response_timestamp = station_json["last_update"] or format_api_datetime(now)
+        return {"timestamp": response_timestamp, "station": station_json}
     except HTTPException:
         raise
     except Exception as e:
