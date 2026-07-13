@@ -6,6 +6,7 @@ Responsibility: receive station telemetry, parse it, write it to the
 `air_quality` TimescaleDB database. No API code lives here — see api_server.py.
 """
 
+import json
 import logging
 import os
 import re
@@ -70,28 +71,43 @@ DB_PASSWORD = os.getenv("AQ_DB_PASSWORD")
 
 LOG_FILE_NAME = "air_quality_ingest.log"
 
-# Registered station records — structural config, not secrets, so it stays in code.
-# Move to a JSON file later if you want to edit stations without touching source.
-STATIONS = {
-    "4101025U122041": {
-        "station_name": "AQM001",
-        "enabled": True,
-        "latitude": 14.5995,
-        "longitude": 120.9842,
-        "lead_ip": "192.168.55.11",
-        "lead_port": 8899,
-        "lead_slave": 1,
-    },
-    "4101025U122042": {
-        "station_name": "AQM002",
-        "enabled": True,
-        "latitude": 14.6095,
-        "longitude": 120.9942,
-        "lead_ip": "192.168.55.12",
-        "lead_port": 8899,
-        "lead_slave": 1,
-    },
-}
+# Registered station records — structural config, not secrets, so it stays
+# out of .env. Lives in stations.json (same folder as this script) so
+# stations can be added/edited without touching source.
+STATIONS_FILE = SCRIPT_DIR / "stations.json"
+
+
+def load_stations() -> dict:
+    if not STATIONS_FILE.exists():
+        print("=" * 70)
+        print("CONFIG ERROR: stations.json not found")
+        print(f"Expected it at: {STATIONS_FILE}")
+        print("=" * 70)
+        raise SystemExit(1)
+    try:
+        with open(STATIONS_FILE, "r", encoding="utf-8") as f:
+            stations = json.load(f)
+    except json.JSONDecodeError as e:
+        print("=" * 70)
+        print("CONFIG ERROR: stations.json is not valid JSON")
+        print(f"File: {STATIONS_FILE}")
+        print(f"Details: {e}")
+        print("=" * 70)
+        raise SystemExit(1)
+
+    required_keys = {"station_name", "enabled", "latitude", "longitude", "lead_ip", "lead_port", "lead_slave"}
+    for mn, info in stations.items():
+        missing = required_keys - info.keys()
+        if missing:
+            print("=" * 70)
+            print(f"CONFIG ERROR: station '{mn}' in stations.json is missing: {', '.join(sorted(missing))}")
+            print("=" * 70)
+            raise SystemExit(1)
+
+    return stations
+
+
+STATIONS = load_stations()
 
 logger = logging.getLogger("air_quality_ingest")
 logger.setLevel(logging.INFO)
