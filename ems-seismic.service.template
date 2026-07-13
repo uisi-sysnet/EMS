@@ -1,0 +1,20 @@
+[Unit]
+Description=EMS Seismic MQTT Ingestion Service
+Documentation=file://__EMS_DIR__/seismic_mqtt.py
+After=network-online.target postgresql.service mosquitto.service
+Wants=network-online.target
+PartOf=ems.target
+
+[Service]
+Type=simple
+User=__EMS_USER__
+WorkingDirectory=__EMS_DIR__
+ExecStart=/usr/bin/python3 __EMS_DIR__/seismic_mqtt.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ems-seismic
+
+[Install]
+WantedBy=multi-user.target ems.target

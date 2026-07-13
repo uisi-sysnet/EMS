@@ -1,0 +1,7 @@
+[Unit]
+Description=EMS Full Stack (air quality + seismic + API)
+After=network-online.target postgresql.service mosquitto.service
+Wants=ems-air-quality.service ems-seismic.service ems-api.service
+
+[Install]
+WantedBy=multi-user.target

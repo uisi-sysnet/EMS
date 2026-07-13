@@ -1,0 +1,20 @@
+[Unit]
+Description=EMS Air Quality Ingestion Service
+Documentation=file://__EMS_DIR__/air_quality_ingest.py
+After=network-online.target postgresql.service
+Wants=network-online.target
+PartOf=ems.target
+
+[Service]
+Type=simple
+User=__EMS_USER__
+WorkingDirectory=__EMS_DIR__
+ExecStart=/usr/bin/python3 __EMS_DIR__/air_quality_ingest.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ems-air-quality
+
+[Install]
+WantedBy=multi-user.target ems.target
