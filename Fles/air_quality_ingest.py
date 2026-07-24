@@ -80,15 +80,13 @@ DB_POOL_MAX = int(os.getenv("SYSTEM_DB_POOL_MAX", 10))
 AQ_STATIONS_REFRESH_INTERVAL_SEC = int(os.getenv("AQ_STATIONS_REFRESH_INTERVAL_SEC", 300))
 
 # ---- Database-backed logging ----
-# All log records are mirrored into the `service_logs` table in the
-# separate IOT_service_logs database (shared with seismic_mqtt.py and
-# api_server.py, each tagging its own rows via the `service` column) so
-# logs are centrally queryable via SQL or the /api/system/logs endpoint,
-# instead of living only in per-host log files or mixed into sensor data.
-# Console output is kept and captured by systemd's journal.
+# All log records are mirrored into the `service_logs` table in this same
+# database (shared with seismic_mqtt.py and api_server.py, each tagging its
+# own rows via the `service` column) so logs are centrally queryable via SQL
+# or the /api/system/logs endpoint, instead of living only in per-host log
+# files. Console output is kept and captured by systemd's journal.
 DB_LOG_ENABLED = os.getenv("DB_LOG_ENABLED", "true").strip().lower() == "true"
 DB_LOG_TABLE = os.getenv("DB_LOG_TABLE", "service_logs")
-LOG_DB_NAME = os.getenv("LOG_DB_NAME", "IOT_service_logs")
 
 # Registered station records used to live only in stations.json. The database
 # `stations` table is now the source of truth: this service loads/refreshes
@@ -113,20 +111,7 @@ logger.addHandler(console_handler)
 
 if DB_LOG_ENABLED and DB_PASSWORD:
     from db_logging import attach_db_logging
-    try:
-        _bootstrap_conn = psycopg2.connect(host=DB_HOST, port=DB_PORT, database="postgres", user=DB_USER, password=DB_PASSWORD)
-        _bootstrap_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        _bootstrap_cur = _bootstrap_conn.cursor()
-        _bootstrap_cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (LOG_DB_NAME,))
-        if not _bootstrap_cur.fetchone():
-            _bootstrap_cur.execute(f'CREATE DATABASE "{LOG_DB_NAME}"')
-            logger.info(f"Database '{LOG_DB_NAME}' created successfully.")
-        _bootstrap_cur.close()
-        _bootstrap_conn.close()
-    except Exception as e:
-        logger.error(f"Could not ensure '{LOG_DB_NAME}' exists ahead of DB logging: {e}")
-
-    _log_dsn = f"host={DB_HOST} port={DB_PORT} dbname={LOG_DB_NAME} user={DB_USER} password={DB_PASSWORD}"
+    _log_dsn = f"host={DB_HOST} port={DB_PORT} dbname={DB_NAME} user={DB_USER} password={DB_PASSWORD}"
     attach_db_logging(logger, _log_dsn, service_name="air_quality_ingest", table=DB_LOG_TABLE)
 
 

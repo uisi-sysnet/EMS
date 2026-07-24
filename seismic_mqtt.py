@@ -34,7 +34,7 @@ DB_HOST = os.getenv("SYSTEM_DB_HOST", "localhost")
 DB_PORT = os.getenv("SYSTEM_DB_PORT", "5432")
 DB_USER = os.getenv("SYSTEM_DB_USER", "seismic_user")
 DB_PASSWORD = os.getenv("SYSTEM_DB_PASSWORD")
-DB_NAME = os.getenv("SEISMIC_DB_NAME", "IOT_seismic_sensor_data")
+DB_NAME = os.getenv("SEISMIC_DB_NAME", "seismic_sensor_data")
 
 # ---- MQTT config ----
 MQTT_BROKER_HOST = os.getenv("MQTT_BROKER_HOST", "localhost")
@@ -58,30 +58,37 @@ SMS_POLL_INTERVAL_SEC = int(os.getenv("SMS_POLL_INTERVAL_SEC", 30))
 # by the modem, typically E.164 like +639171234567). Blank = accept from any
 # sender (messages are still validated by format tag + checksum either way).
 SMS_ALLOWED_SENDERS = {s.strip() for s in os.getenv("SMS_ALLOWED_SENDERS", "").split(",") if s.strip()}
+# Raw SMS messages (sms_messages table) are stored in their own database,
+# separate from station_metrics — kept small/disposable and easy to prune
+# independently of the main TimescaleDB dataset.
+SMS_DB_NAME = os.getenv("SMS_DB_NAME", "IOT_sms_telemetry")
+# Connectivity test: sending this exact text (case-insensitive, whitespace
+# trimmed) to the module's SIM number gets an immediate SMS reply back —
+# lets you confirm the modem/GSM link is alive without needing a full
+# SEISMSG1 telemetry payload. Compared case-insensitively against the body.
+SMS_TEST_COMMAND = os.getenv("SMS_TEST_COMMAND", "PING").strip().upper()
+SMS_TEST_REPLY = os.getenv("SMS_TEST_REPLY", "OK")
 
 BASE_CONN_STRING = f"host={DB_HOST} user={DB_USER} password={DB_PASSWORD} port={DB_PORT}"
 APP_DB_CONN_STRING = f"{BASE_CONN_STRING} dbname={DB_NAME}"
+SMS_DB_CONN_STRING = f"{BASE_CONN_STRING} dbname={SMS_DB_NAME}"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # ---- Database-backed logging ----
-# Logs are mirrored into the `service_logs` table in the shared air_quality
-# database (same one air_quality_ingest.py and api_server.py use), tagged
-# service='seismic_mqtt', so all three services' logs live in one queryable
-# place instead of scattered log files. Console output (captured by
-# systemd's journal when run as a service) remains the fallback.
-DB_LOG_ENABLED = os.getenv("DB_LOG_ENABLED", "true").strip().lower() == "true"
-DB_LOG_TABLE = os.getenv("DB_LOG_TABLE", "service_logs")
-LOG_DB_HOST = os.getenv("AQ_DB_HOST", DB_HOST)
-LOG_DB_PORT = os.getenv("AQ_DB_PORT", DB_PORT)
-LOG_DB_NAME = os.getenv("AQ_DB_NAME", "air_quality")
-LOG_DB_USER = os.getenv("AQ_DB_USER", DB_USER)
-LOG_DB_PASSWORD = os.getenv("AQ_DB_PASSWORD", DB_PASSWORD)
+# Logs are mirrored into the `service_logs` table in the shared
+# IOT_service_logs database (same one air_quality_ingest.py and
+# api_server.py use), tagged service='seismic_mqtt', so all three services'
+# logs live in one queryable place instead of scattered log files. Console
+# output (captured by systemd's journal when run as a service) remains the
+# fallback. Same server/credentials as the main data DB — only the database
+# name differs.
+LOG_DB_NAME = os.getenv("LOG_DB_NAME", "IOT_service_logs")
 
-if DB_LOG_ENABLED and LOG_DB_PASSWORD:
+if DB_PASSWORD:
     from db_logging import attach_db_logging
-    _log_dsn = f"host={LOG_DB_HOST} port={LOG_DB_PORT} dbname={LOG_DB_NAME} user={LOG_DB_USER} password={LOG_DB_PASSWORD}"
-    attach_db_logging(logging.getLogger(), _log_dsn, service_name="seismic_mqtt", table=DB_LOG_TABLE)
+    _log_dsn = f"host={DB_HOST} port={DB_PORT} dbname={LOG_DB_NAME} user={DB_USER} password={DB_PASSWORD}"
+    attach_db_logging(logging.getLogger(), _log_dsn, service_name="seismic_mqtt", table="service_logs")
 
 
 def initialize_database():
@@ -89,12 +96,13 @@ def initialize_database():
     try:
         with psycopg.connect(f"{BASE_CONN_STRING} dbname=postgres", autocommit=True) as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (DB_NAME,))
-                if not cur.fetchone():
-                    logging.info(f"Target cluster '{DB_NAME}' missing. Initializing new storage block...")
-                    cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(DB_NAME)))
-                else:
-                    logging.info(f"Target cluster '{DB_NAME}' verified operational.")
+                for target_db in {DB_NAME, LOG_DB_NAME, SMS_DB_NAME}:
+                    cur.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (target_db,))
+                    if not cur.fetchone():
+                        logging.info(f"Target cluster '{target_db}' missing. Initializing new storage block...")
+                        cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(target_db)))
+                    else:
+                        logging.info(f"Target cluster '{target_db}' verified operational.")
     except Exception as e:
         logging.critical(f"Database structural setup failure: {e}")
         raise
@@ -146,11 +154,20 @@ def initialize_database():
                         )
                         cur.execute(alter_query)
 
-                # Raw SMS log — every message received via the SIM800L channel is
-                # stored here regardless of whether it parsed successfully, so
-                # nothing from the modem is ever silently lost. Successfully
-                # parsed messages ALSO land in station_metrics (source='sms') via
-                # insert_station_metrics(), same as MQTT readings.
+        logging.info("Storage clustering systems finalized and running cleanly.")
+    except Exception as e:
+        logging.critical(f"Storage architecture sync failed: {e}")
+        raise
+
+    # Raw SMS log — every message received via the SIM800L channel is
+    # stored here regardless of whether it parsed successfully, so
+    # nothing from the modem is ever silently lost. Successfully
+    # parsed messages ALSO land in station_metrics (source='sms') via
+    # insert_station_metrics(), same as MQTT readings. This table lives in
+    # its own SMS_DB_NAME database, separate from station_metrics.
+    try:
+        with psycopg.connect(SMS_DB_CONN_STRING, autocommit=True) as conn:
+            with conn.cursor() as cur:
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS sms_messages (
                         id SERIAL PRIMARY KEY,
@@ -167,21 +184,26 @@ def initialize_database():
                     CREATE INDEX IF NOT EXISTS idx_sms_messages_received_at
                     ON sms_messages (received_at DESC);
                 """)
-
-        logging.info("Storage clustering systems finalized and running cleanly.")
+        logging.info(f"SMS storage database '{SMS_DB_NAME}' finalized and running cleanly.")
     except Exception as e:
-        logging.critical(f"Storage architecture sync failed: {e}")
+        logging.critical(f"SMS storage database sync failed: {e}")
         raise
 
 
-# ---- Persistent data connection ----
+# ---- Persistent data connections ----
 # paho-mqtt's loop_forever() drives on_connect/on_message from a single
-# network thread, so a single reused connection (guarded by a lock, just in
-# case) is safe and avoids paying a fresh TCP-connect + auth handshake for
-# every incoming telemetry message — meaningful savings on a Raspberry Pi's
-# more limited CPU/network budget compared to Postgres running on a bigger box.
+# network thread, so a single reused connection per database (guarded by a
+# lock, just in case) is safe and avoids paying a fresh TCP-connect + auth
+# handshake for every incoming telemetry message — meaningful savings on a
+# Raspberry Pi's more limited CPU/network budget compared to Postgres
+# running on a bigger box.
 _data_conn = None
 _data_conn_lock = threading.Lock()
+
+# Separate connection/lock for the SMS database, since it's a distinct
+# database on the same server and psycopg connections are per-database.
+_sms_conn = None
+_sms_conn_lock = threading.Lock()
 
 
 def get_data_connection():
@@ -203,6 +225,27 @@ def reset_data_connection():
             except Exception:
                 pass
         _data_conn = None
+
+
+def get_sms_connection():
+    global _sms_conn
+    with _sms_conn_lock:
+        if _sms_conn is None or _sms_conn.closed:
+            _sms_conn = psycopg.connect(SMS_DB_CONN_STRING)
+        return _sms_conn
+
+
+def reset_sms_connection():
+    """Called after a failed sms_messages insert so the next message
+    reconnects instead of reusing a connection in an unknown/broken state."""
+    global _sms_conn
+    with _sms_conn_lock:
+        if _sms_conn is not None:
+            try:
+                _sms_conn.close()
+            except Exception:
+                pass
+        _sms_conn = None
 
 
 def insert_station_metrics(data: dict, source: str):
@@ -335,6 +378,14 @@ def on_message(client, userdata, msg):
 #
 # Example (no location, no checksum — shorter, for weak-signal areas):
 #   SEISMSG1,STN-004,1721818530,,,,0.012,-0.008,0.021,0.5,0.3,0.6,1.2,0.9,1.5,0.045,2
+#
+# CONNECTIVITY TEST — separate from the format above. Texting the module's
+# SIM number the exact word "PING" (case-insensitive, configurable via
+# SMS_TEST_COMMAND) gets an immediate "OK" reply (configurable via
+# SMS_TEST_REPLY) back to the sender. It's not telemetry — nothing is
+# written to station_metrics — but it is logged in sms_messages and is
+# still gated by SMS_ALLOWED_SENDERS. Use it to confirm the modem/SIM/GSM
+# signal chain is working end-to-end before troubleshooting real payloads.
 
 SMS_FORMAT_TAG = "SEISMSG1"
 
@@ -406,9 +457,11 @@ def parse_seismic_sms(body: str) -> dict:
 
 def _store_sms_record(sender, modem_timestamp, raw_body, parsed_ok, parse_error, station_id):
     """Stores every SMS received, regardless of whether it parsed as
-    telemetry — this is the "SMS is stored to the database" record."""
+    telemetry — this is the "SMS is stored to the database" record. Written
+    to the dedicated SMS_DB_NAME database via get_sms_connection(), not the
+    main station_metrics connection."""
     try:
-        conn = get_data_connection()
+        conn = get_sms_connection()
         with conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO sms_messages (sender, modem_timestamp, raw_body, parsed_ok, parse_error, station_id)
@@ -417,7 +470,20 @@ def _store_sms_record(sender, modem_timestamp, raw_body, parsed_ok, parse_error,
         conn.commit()
     except Exception as e:
         logging.error(f"Failed to store SMS record: {e}")
-        reset_data_connection()
+        reset_sms_connection()
+
+
+def _send_sms_reply(modem, number, text):
+    """Sends a reply SMS back to `number`. Used by the PING/OK connectivity
+    test; kept as its own helper in case other reply types are added later.
+    Requires the sim800l module to implement send_sms(number, text)."""
+    try:
+        modem.send_sms(number, text)
+        logging.info(f"Sent reply {text!r} to {number}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to send reply SMS to {number}: {e}")
+        return False
 
 
 def _handle_incoming_sms(modem, index, preloaded=None):
@@ -431,7 +497,24 @@ def _handle_incoming_sms(modem, index, preloaded=None):
     modem_ts = msg.get("timestamp")
     logging.info(f"SMS received from {sender}: {body[:60]!r}")
 
-    if SMS_ALLOWED_SENDERS and sender not in SMS_ALLOWED_SENDERS:
+    is_test_command = body.strip().upper() == SMS_TEST_COMMAND
+    sender_allowed = not SMS_ALLOWED_SENDERS or sender in SMS_ALLOWED_SENDERS
+
+    if is_test_command:
+        # Connectivity test — not telemetry, so it never touches
+        # station_metrics. Still logged to sms_messages (parsed_ok=False,
+        # tagged as a test) and still subject to SMS_ALLOWED_SENDERS so
+        # random numbers can't use it to fish for a reply / burn SMS credit.
+        if sender_allowed:
+            logging.info(f"Connectivity test SMS ('{SMS_TEST_COMMAND}') received from {sender} — replying '{SMS_TEST_REPLY}'.")
+            _send_sms_reply(modem, sender, SMS_TEST_REPLY)
+            _store_sms_record(sender, modem_ts, body, parsed_ok=False,
+                               parse_error="connectivity test command", station_id=None)
+        else:
+            logging.warning(f"Connectivity test SMS from sender '{sender}' not in SMS_ALLOWED_SENDERS — no reply sent.")
+            _store_sms_record(sender, modem_ts, body, parsed_ok=False,
+                               parse_error="connectivity test command from sender not in SMS_ALLOWED_SENDERS", station_id=None)
+    elif not sender_allowed:
         logging.warning(f"SMS from sender '{sender}' not in SMS_ALLOWED_SENDERS — storing but not processing as telemetry.")
         _store_sms_record(sender, modem_ts, body, parsed_ok=False,
                            parse_error="sender not in SMS_ALLOWED_SENDERS", station_id=None)
@@ -501,7 +584,7 @@ def _validate_config():
     env_path = SCRIPT_DIR / ".env"
     if not DB_PASSWORD:
         logging.critical("=" * 70)
-        logging.critical("CONFIG ERROR: SEISMIC_DB_PASSWORD not loaded from .env")
+        logging.critical("CONFIG ERROR: SYSTEM_DB_PASSWORD not loaded from .env")
         logging.critical(f"Expected .env at: {env_path} (exists: {env_path.exists()})")
         logging.critical("Check: file isn't secretly named '.env.txt', is in this script's folder, and is saved as UTF-8.")
         logging.critical("=" * 70)

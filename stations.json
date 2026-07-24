@@ -8,12 +8,48 @@
     "lead_port": 8899,
     "lead_slave": 1
   },
-  "4101025U122042": {
+  "4101025U122043": {
     "station_name": "AQM002",
     "enabled": true,
     "latitude": 14.6095,
     "longitude": 120.9942,
     "lead_ip": "192.168.55.12",
+    "lead_port": 8899,
+    "lead_slave": 1
+  },
+  "4101025U122022": {
+    "station_name": "AQM003",
+    "enabled": true,
+    "latitude": 14.6095,
+    "longitude": 120.9942,
+    "lead_ip": "192.168.55.13",
+    "lead_port": 8899,
+    "lead_slave": 1
+  },
+  "4101025U122342": {
+    "station_name": "AQM004",
+    "enabled": true,
+    "latitude": 14.6095,
+    "longitude": 120.9942,
+    "lead_ip": "192.168.55.14",
+    "lead_port": 8899,
+    "lead_slave": 1
+  },
+  "4101025U132042": {
+    "station_name": "AQM005",
+    "enabled": true,
+    "latitude": 14.6095,
+    "longitude": 120.9942,
+    "lead_ip": "192.168.55.15",
+    "lead_port": 8899,
+    "lead_slave": 1
+  },
+  "4101025U432042": {
+    "station_name": "AQM006",
+    "enabled": true,
+    "latitude": 14.6095,
+    "longitude": 120.9942,
+    "lead_ip": "192.168.55.16",
     "lead_port": 8899,
     "lead_slave": 1
   }

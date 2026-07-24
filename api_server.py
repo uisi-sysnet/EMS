@@ -296,7 +296,8 @@ load_dotenv(dotenv_path=SCRIPT_DIR / ".env")
 
 API_PORT = int(os.getenv("API_PORT", 8000))
 
-# Parse "token:label,token:label" into a dict
+# Parse "token:label,token:label" into a dict — used only for the one-time
+# migration into the api_keys table below; not read again after that.
 def _parse_api_keys(raw: str):
     keys = {}
     for pair in raw.split(","):
@@ -305,22 +306,50 @@ def _parse_api_keys(raw: str):
             keys[token.strip()] = label.strip()
     return keys
 
-AUTHORIZED_KEYS = _parse_api_keys(os.getenv("API_KEYS", ""))
+# ---- API key registry (DB-backed, IOT_api_keys) ----
+# API keys now live in the `api_keys` table in their own database instead of
+# the .env API_KEYS string, so keys can be added/revoked via SQL without
+# restarting this service. Loaded at startup and refreshed on a timer;
+# AUTHORIZED_KEYS itself is only ever touched through refresh_api_keys()/
+# get_authorized_keys() below, guarded by _api_keys_lock.
+AUTHORIZED_KEYS: Dict[str, str] = {}
+_api_keys_lock = threading.Lock()
+API_KEYS_REFRESH_INTERVAL_SEC = int(os.getenv("API_KEYS_REFRESH_INTERVAL_SEC", 300))
+
+API_DB = dict(
+    host=os.getenv("SYSTEM_DB_HOST", "127.0.0.1"),
+    port=int(os.getenv("SYSTEM_DB_PORT", 5432)),
+    dbname=os.getenv("API_DB_NAME", "IOT_api_keys"),
+    user=os.getenv("SYSTEM_DB_USER", "aq_user"),
+    password=os.getenv("SYSTEM_DB_PASSWORD"),
+)
 
 AQ_DB = dict(
-    host=os.getenv("AQ_DB_HOST", "127.0.0.1"),
-    port=int(os.getenv("AQ_DB_PORT", 5432)),
-    dbname=os.getenv("AQ_DB_NAME", "air_quality"),
-    user=os.getenv("AQ_DB_USER", "aq_user"),
-    password=os.getenv("AQ_DB_PASSWORD"),
+    host=os.getenv("SYSTEM_DB_HOST", "127.0.0.1"),
+    port=int(os.getenv("SYSTEM_DB_PORT", 5432)),
+    dbname=os.getenv("AQ_DB_NAME", "IOT_aq_sensor_data"),
+    user=os.getenv("SYSTEM_DB_USER", "aq_user"),
+    password=os.getenv("SYSTEM_DB_PASSWORD"),
 )
 
 SEISMIC_DB = dict(
-    host=os.getenv("SEISMIC_DB_HOST", "localhost"),
-    port=int(os.getenv("SEISMIC_DB_PORT", 5432)),
-    dbname=os.getenv("SEISMIC_DB_NAME", "seismic_sensor_data"),
-    user=os.getenv("SEISMIC_DB_USER", "seismic_user"),
-    password=os.getenv("SEISMIC_DB_PASSWORD"),
+    host=os.getenv("SYSTEM_DB_HOST", "127.0.0.1"),
+    port=int(os.getenv("SYSTEM_DB_PORT", 5432)),
+    dbname=os.getenv("SEISMIC_DB_NAME", "IOT_seismic_sensor_data"),
+    user=os.getenv("SYSTEM_DB_USER", "seismic_user"),
+    password=os.getenv("SYSTEM_DB_PASSWORD"),
+)
+
+# Separate log database (IOT_service_logs) — same server/credentials as the
+# other two, only the database name differs. This is what /api/system/logs
+# below actually queries, and where air_quality_ingest.py and seismic_mqtt.py
+# mirror their own logs.
+LOG_DB = dict(
+    host=os.getenv("SYSTEM_DB_HOST", "127.0.0.1"),
+    port=int(os.getenv("SYSTEM_DB_PORT", 5432)),
+    dbname=os.getenv("LOG_DB_NAME", "IOT_service_logs"),
+    user=os.getenv("SYSTEM_DB_USER", "aq_user"),
+    password=os.getenv("SYSTEM_DB_PASSWORD"),
 )
 
 # Connection pool sizing — kept modest by default since air_quality_ingest.py
@@ -329,6 +358,8 @@ AQ_DB_POOL_MIN = int(os.getenv("AQ_DB_POOL_MIN", 2))
 AQ_DB_POOL_MAX = int(os.getenv("AQ_DB_POOL_MAX", 10))
 SEISMIC_DB_POOL_MIN = int(os.getenv("SEISMIC_DB_POOL_MIN", 2))
 SEISMIC_DB_POOL_MAX = int(os.getenv("SEISMIC_DB_POOL_MAX", 10))
+LOG_DB_POOL_MIN = int(os.getenv("LOG_DB_POOL_MIN", 1))
+LOG_DB_POOL_MAX = int(os.getenv("LOG_DB_POOL_MAX", 5))
 
 logger = logging.getLogger("monitoring_api")
 logger.setLevel(logging.INFO)
@@ -338,18 +369,18 @@ console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
 # ---- Database-backed logging ----
-# Logs are mirrored into the `service_logs` table in the air_quality database
-# (shared with air_quality_ingest.py and seismic_mqtt.py, tagged
-# service='api_server') instead of a local log file — queryable via SQL or
-# GET /api/system/logs below. Console output remains, captured by systemd's
-# journal when this runs as a service.
+# Logs are mirrored into the `service_logs` table in the separate
+# IOT_service_logs database (shared with air_quality_ingest.py and
+# seismic_mqtt.py, tagged service='api_server') instead of a local log file
+# — queryable via SQL or GET /api/system/logs below. Console output remains,
+# captured by systemd's journal when this runs as a service.
 DB_LOG_ENABLED = os.getenv("DB_LOG_ENABLED", "true").strip().lower() == "true"
 DB_LOG_TABLE = os.getenv("DB_LOG_TABLE", "service_logs")
-if DB_LOG_ENABLED and AQ_DB.get("password"):
+if DB_LOG_ENABLED and LOG_DB.get("password"):
     from db_logging import attach_db_logging
     _log_dsn = (
-        f"host={AQ_DB['host']} port={AQ_DB['port']} dbname={AQ_DB['dbname']} "
-        f"user={AQ_DB['user']} password={AQ_DB['password']}"
+        f"host={LOG_DB['host']} port={LOG_DB['port']} dbname={LOG_DB['dbname']} "
+        f"user={LOG_DB['user']} password={LOG_DB['password']}"
     )
     attach_db_logging(logger, _log_dsn, service_name="api_server", table=DB_LOG_TABLE)
 
@@ -372,6 +403,7 @@ def format_api_datetime(dt: datetime) -> str:
 # ==========================================================
 _aq_pool = None
 _seismic_pool = None
+_log_pool = None
 _pool_lock = threading.Lock()
 
 
@@ -379,11 +411,7 @@ def _validate_config():
     env_path = SCRIPT_DIR / ".env"
     missing = []
     if not AQ_DB.get("password"):
-        missing.append("AQ_DB_PASSWORD")
-    if not SEISMIC_DB.get("password"):
-        missing.append("SEISMIC_DB_PASSWORD")
-    if not AUTHORIZED_KEYS:
-        missing.append("API_KEYS")
+        missing.append("SYSTEM_DB_PASSWORD")
 
     if missing:
         print("=" * 70)
@@ -399,8 +427,28 @@ def _validate_config():
         raise SystemExit(1)
 
 
+def _ensure_database_exists(db_config, label):
+    """Creates db_config['dbname'] if it doesn't exist yet, connecting via
+    the 'postgres' maintenance database first."""
+    try:
+        conn = psycopg2.connect(
+            host=db_config["host"], port=db_config["port"], database="postgres",
+            user=db_config["user"], password=db_config["password"],
+        )
+        conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_config["dbname"],))
+        if not cur.fetchone():
+            cur.execute(f'CREATE DATABASE "{db_config["dbname"]}"')
+            logger.info(f"Database '{db_config['dbname']}' created successfully.")
+        cur.close()
+        conn.close()
+    except Exception as e:
+        logger.error(f"Could not ensure '{db_config['dbname']}' exists ({label}): {e}")
+
+
 def initialize_pools():
-    global _aq_pool, _seismic_pool
+    global _aq_pool, _seismic_pool, _log_pool
     _validate_config()
     with _pool_lock:
         if _aq_pool is None:
@@ -409,6 +457,12 @@ def initialize_pools():
         if _seismic_pool is None:
             _seismic_pool = pool.ThreadedConnectionPool(minconn=SEISMIC_DB_POOL_MIN, maxconn=SEISMIC_DB_POOL_MAX, **SEISMIC_DB)
             logger.info("Seismic DB pool ready.")
+        if _log_pool is None:
+            # Ensure IOT_service_logs exists in case this process starts
+            # before air_quality_ingest.py / seismic_mqtt.py ever have.
+            _ensure_database_exists(LOG_DB, label="ahead of log pool init")
+            _log_pool = pool.ThreadedConnectionPool(minconn=LOG_DB_POOL_MIN, maxconn=LOG_DB_POOL_MAX, **LOG_DB)
+            logger.info("Log DB pool ready.")
 
         # Housekeeping table for API request logs, kept in the air quality DB
         conn = _aq_pool.getconn()
@@ -422,9 +476,17 @@ def initialize_pools():
                     status_code INT,
                     duration_ms DOUBLE PRECISION,
                     api_key_owner VARCHAR(100),
+                    api_key_used VARCHAR(100),
                     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
             """)
+            # Migration for tables created before api_key_used existed.
+            cur.execute("""
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name='api_request_logs' AND column_name='api_key_used';
+            """)
+            if not cur.fetchone():
+                cur.execute("ALTER TABLE api_request_logs ADD COLUMN api_key_used VARCHAR(100);")
             cur.execute("SELECT create_hypertable('api_request_logs', 'created_at', if_not_exists => TRUE, migrate_data => TRUE);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_api_logs_composite ON api_request_logs(path, created_at DESC);")
             conn.commit()
@@ -447,6 +509,103 @@ def release_aq_conn(conn):
             conn.close()
 
 
+# ==========================================================
+# API KEY REGISTRY (IOT_api_keys)
+# ==========================================================
+def _migrate_api_keys_from_env_if_needed(cur, conn):
+    """One-time bootstrap: if the api_keys table is empty and API_KEYS is
+    still set in .env, import it. Only fires on an empty table, so it never
+    overwrites keys that were added/edited/revoked through the database
+    afterwards."""
+    cur.execute("SELECT COUNT(*) FROM api_keys;")
+    if cur.fetchone()[0] > 0:
+        return
+    env_keys = _parse_api_keys(os.getenv("API_KEYS", ""))
+    if not env_keys:
+        return
+    logger.info(f"'api_keys' table is empty — importing {len(env_keys)} key(s) from .env's API_KEYS (one-time).")
+    for token, label in env_keys.items():
+        cur.execute("""
+            INSERT INTO api_keys (token, owner_label, enabled)
+            VALUES (%s, %s, TRUE)
+            ON CONFLICT (token) DO NOTHING;
+        """, (token, label))
+    conn.commit()
+    logger.info(
+        f"Migrated {len(env_keys)} API key(s) into the database. The database is now the source "
+        f"of truth for API keys — API_KEYS in .env won't be read again automatically. Manage keys "
+        f"by inserting/updating/deleting rows in the 'api_keys' table from here on."
+    )
+
+
+def initialize_api_keys_table():
+    """Ensures IOT_api_keys and its api_keys table exist, runs the one-time
+    .env migration if needed, then loads the initial key set into memory."""
+    _ensure_database_exists(API_DB, label="ahead of API key table init")
+    try:
+        conn = psycopg2.connect(**API_DB)
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS api_keys (
+                token VARCHAR(200) PRIMARY KEY,
+                owner_label VARCHAR(100) NOT NULL,
+                enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        """)
+        conn.commit()
+        _migrate_api_keys_from_env_if_needed(cur, conn)
+        cur.close()
+        conn.close()
+    except Exception as e:
+        logger.error(f"'api_keys' table setup failed: {e}")
+
+    refresh_api_keys(initial=True)
+    threading.Thread(target=api_keys_refresh_loop, daemon=True, name="ApiKeysRefresh").start()
+
+
+def load_api_keys_from_db() -> Dict[str, str]:
+    conn = psycopg2.connect(**API_DB)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT token, owner_label FROM api_keys WHERE enabled = TRUE;")
+        return {token: label for token, label in cur.fetchall()}
+    finally:
+        conn.close()
+
+
+def refresh_api_keys(initial=False):
+    global AUTHORIZED_KEYS
+    try:
+        keys = load_api_keys_from_db()
+        with _api_keys_lock:
+            AUTHORIZED_KEYS = keys
+        if initial:
+            if keys:
+                logger.info(f"Loaded {len(keys)} API key(s) from the database.")
+            else:
+                logger.warning(
+                    "No enabled API keys found in 'api_keys' — every request will be rejected "
+                    "until at least one row is added/enabled in that table."
+                )
+        else:
+            logger.info(f"API key registry refreshed from database ({len(keys)} key(s)).")
+    except Exception as e:
+        logger.error(f"Failed to refresh API key registry from database: {e}")
+
+
+def get_authorized_keys() -> Dict[str, str]:
+    """Thread-safe snapshot of the current API key registry."""
+    with _api_keys_lock:
+        return dict(AUTHORIZED_KEYS)
+
+
+def api_keys_refresh_loop():
+    while True:
+        time.sleep(API_KEYS_REFRESH_INTERVAL_SEC)
+        refresh_api_keys()
+
+
 def get_seismic_conn():
     return _seismic_pool.getconn()
 
@@ -459,15 +618,27 @@ def release_seismic_conn(conn):
             conn.close()
 
 
-def insert_api_log(client_ip, method, path, status_code, duration_ms, api_key_owner):
+def get_log_conn():
+    return _log_pool.getconn()
+
+
+def release_log_conn(conn):
+    if conn:
+        try:
+            _log_pool.putconn(conn)
+        except Exception:
+            conn.close()
+
+
+def insert_api_log(client_ip, method, path, status_code, duration_ms, api_key_owner, api_key_used):
     conn = None
     try:
         conn = get_aq_conn()
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO api_request_logs (client_ip, method, path, status_code, duration_ms, api_key_owner)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (client_ip, method, path, status_code, duration_ms, api_key_owner))
+            INSERT INTO api_request_logs (client_ip, method, path, status_code, duration_ms, api_key_owner, api_key_used)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (client_ip, method, path, status_code, duration_ms, api_key_owner, api_key_used))
         conn.commit()
     except Exception as e:
         if conn:
@@ -489,9 +660,20 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
 
 
 def verify_api_key(api_key: str = Security(api_key_header)):
-    if api_key not in AUTHORIZED_KEYS:
+    if api_key not in get_authorized_keys():
         raise HTTPException(status_code=403, detail="Unauthorized request: Invalid API Token")
     return api_key
+
+
+def _mask_token(raw_token):
+    """Never put a usable token in service_logs (queryable via the
+    /api/system/logs endpoint by any valid API client) — only the last 4
+    characters, enough to distinguish keys in logs without exposing them."""
+    if not raw_token:
+        return "None"
+    if len(raw_token) <= 4:
+        return "*" * len(raw_token)
+    return f"...{raw_token[-4:]}"
 
 
 @app.middleware("http")
@@ -501,18 +683,27 @@ async def monitor_and_log_api_requests(request: Request, call_next):
     method = request.method
     path = request.url.path
     raw_token = request.headers.get("X-API-Key")
-    api_key_owner = AUTHORIZED_KEYS.get(raw_token, "Unauthorized/None")
+    api_key_owner = get_authorized_keys().get(raw_token, "Unauthorized/None")
+    masked_token = _mask_token(raw_token)
 
     response = await call_next(request)
 
     duration_ms = round((time.time() - start_time) * 1000, 2)
     status_code = response.status_code
 
-    logger.info(f"[API] {client_ip} ({api_key_owner}) -> {method} {path} | Status: {status_code} | {duration_ms}ms")
+    if status_code == 403:
+        logger.error(
+            f"[API] INVALID API TOKEN from {client_ip} -> {method} {path} | token used: {masked_token}"
+        )
+    else:
+        logger.info(
+            f"[API] {client_ip} ({api_key_owner}, token: {masked_token}) -> {method} {path} | "
+            f"Status: {status_code} | {duration_ms}ms"
+        )
 
     threading.Thread(
         target=insert_api_log,
-        args=(client_ip, method, path, status_code, duration_ms, api_key_owner),
+        args=(client_ip, method, path, status_code, duration_ms, api_key_owner, raw_token),
         daemon=True,
     ).start()
 
@@ -992,7 +1183,7 @@ def system_logs(
     limit: int = Query(200, ge=1, le=1000, description="Max rows to return."),
     api_key: str = Depends(verify_api_key),
 ):
-    conn = get_aq_conn()
+    conn = get_log_conn()
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
         clauses = ["created_at >= NOW() - (%s || ' hours')::interval"]
@@ -1021,7 +1212,7 @@ def system_logs(
         logger.error(f"System logs query error: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
     finally:
-        release_aq_conn(conn)
+        release_log_conn(conn)
 
 
 # ----------------------------------------------------------
@@ -1048,5 +1239,6 @@ def system_health_check():
 
 if __name__ == "__main__":
     initialize_pools()
+    initialize_api_keys_table()
     logger.info(f"Monitoring API starting on 0.0.0.0:{API_PORT}")
     uvicorn.run(app, host="0.0.0.0", port=API_PORT, log_level="warning")

@@ -164,6 +164,53 @@ class SIM800L:
     def delete_message(self, index):
         self.send_at(f"AT+CMGD={index}")
 
+    def send_sms(self, number, text, timeout=None):
+        """Sends a text-mode SMS to `number`. Requires text mode (set by
+        AT+CMGF=1 in initialize()).
+
+        AT+CMGS doesn't fit send_at()/_read_until()'s line-based model: the
+        modem replies to 'AT+CMGS="<number>"' with a bare '>' prompt (not a
+        \\r\\n-terminated line) and then waits for the message body,
+        terminated by Ctrl+Z (0x1A) to send it or ESC (0x1B) to cancel.
+        Only after that does it respond with the usual '+CMGS: <ref>' /
+        'OK' (or 'ERROR') lines. So this sends the command, waits for the
+        prompt with _wait_for_prompt(), writes the body + Ctrl+Z, then
+        falls back to _read_until() for the final OK/ERROR — sending can
+        take a few seconds longer than a typical AT command, hence the
+        larger default timeout.
+        """
+        if not self.is_open:
+            raise SIM800LError("Serial port is not open — call initialize() first")
+
+        send_timeout = timeout or max(self.timeout * 3, 15)
+        with self._lock:
+            self._ser.reset_input_buffer()
+            self._write_line(f'AT+CMGS="{number}"')
+            self._wait_for_prompt(send_timeout)
+            self._ser.write(text.encode("ascii", errors="ignore"))
+            self._ser.write(bytes([0x1A]))  # Ctrl+Z — sends the message (ESC/0x1B would cancel)
+            return self._read_until("OK", send_timeout)
+
+    def _wait_for_prompt(self, timeout):
+        """Waits for the bare '>' prompt SIM800 sends after AT+CMGS,
+        before it will accept the SMS body. Needs its own read loop since
+        _read_until() only recognizes complete \\r\\n-terminated lines and
+        this prompt isn't one."""
+        deadline = time.time() + timeout
+        buf = ""
+        while time.time() < deadline:
+            waiting = self._ser.in_waiting
+            chunk = self._ser.read(waiting or 1)
+            if chunk:
+                buf += chunk.decode(errors="ignore")
+                if ">" in buf:
+                    return
+                if "ERROR" in buf:
+                    raise SIM800LError(f"Modem returned error before SMS prompt: {buf.strip()}")
+            else:
+                time.sleep(0.05)
+        raise SIM800LError(f"Timed out waiting for '>' prompt before AT+CMGS body — got: {buf!r}")
+
     @staticmethod
     def _parse_cmgl(lines, single_index=None):
         """Parses +CMGL/+CMGR response lines into

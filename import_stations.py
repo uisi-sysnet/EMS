@@ -31,11 +31,11 @@ from dotenv import load_dotenv
 SCRIPT_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=SCRIPT_DIR / ".env")
 
-DB_HOST = os.getenv("AQ_DB_HOST", "127.0.0.1")
-DB_PORT = int(os.getenv("AQ_DB_PORT", 5432))
+DB_HOST = os.getenv("SYSTEM_DB_HOST", "127.0.0.1")
+DB_PORT = int(os.getenv("SYSTEM_DB_PORT", 5432))
 DB_NAME = os.getenv("AQ_DB_NAME", "air_quality")
-DB_USER = os.getenv("AQ_DB_USER", "aq_user")
-DB_PASSWORD = os.getenv("AQ_DB_PASSWORD")
+DB_USER = os.getenv("SYSTEM_DB_USER", "aq_user")
+DB_PASSWORD = os.getenv("SYSTEM_DB_PASSWORD")
 
 # Keep in sync with the `stations` table schema in air_quality_ingest.py.
 REQUIRED_KEYS = {"station_name", "enabled", "latitude", "longitude", "lead_ip", "lead_port", "lead_slave"}
