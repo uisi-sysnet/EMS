@@ -50,6 +50,18 @@ VALIDATION_RESPONSES: Dict[int, Any] = {
 # ==========================================================
 class HTTPError(BaseModel):
     detail: str
+    
+SERVER_ERROR_RESPONSES: Dict[int, Any] = {
+    400: {
+        "model": HTTPError,
+        "description": "Bad Request (e.g. invalid query parameters)",
+        "content": {
+            "application/json": {
+                "example": {"detail": "Bad Request"}
+            }
+        },
+    },
+}
 
 AUTH_RESPONSES: Dict[int, Any] = {
     403: {
@@ -86,6 +98,8 @@ SERVER_ERROR_RESPONSES: Dict[int, Any] = {
         },
     },
 }
+
+
 
 # Combined response sets, ready to drop into any @app.get(..., responses=...)
 AUTHED_RESPONSES: Dict[int, Any] = {**VALIDATION_RESPONSES, **AUTH_RESPONSES, **SERVER_ERROR_RESPONSES}
