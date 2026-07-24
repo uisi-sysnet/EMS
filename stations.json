@@ -1,0 +1,20 @@
+{
+  "4101025U122041": {
+    "station_name": "AQM001",
+    "enabled": true,
+    "latitude": 14.5995,
+    "longitude": 120.9842,
+    "lead_ip": "192.168.55.11",
+    "lead_port": 8899,
+    "lead_slave": 1
+  },
+  "4101025U122042": {
+    "station_name": "AQM002",
+    "enabled": true,
+    "latitude": 14.6095,
+    "longitude": 120.9942,
+    "lead_ip": "192.168.55.12",
+    "lead_port": 8899,
+    "lead_slave": 1
+  }
+}
