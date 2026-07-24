@@ -112,7 +112,7 @@ console_handler.setFormatter(log_formatter)
 logger.addHandler(console_handler)
 
 if DB_LOG_ENABLED and DB_PASSWORD:
-    from db_logging import attach_db_logging
+    from Fles.db_logging import attach_db_logging
     try:
         _bootstrap_conn = psycopg2.connect(host=DB_HOST, port=DB_PORT, database="postgres", user=DB_USER, password=DB_PASSWORD)
         _bootstrap_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)

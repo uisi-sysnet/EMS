@@ -86,7 +86,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 LOG_DB_NAME = os.getenv("LOG_DB_NAME", "IOT_service_logs")
 
 if DB_PASSWORD:
-    from db_logging import attach_db_logging
+    from Fles.db_logging import attach_db_logging
     _log_dsn = f"host={DB_HOST} port={DB_PORT} dbname={LOG_DB_NAME} user={DB_USER} password={DB_PASSWORD}"
     attach_db_logging(logging.getLogger(), _log_dsn, service_name="seismic_mqtt", table="service_logs")
 

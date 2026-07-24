@@ -269,6 +269,7 @@ class SeismicEventsResponse(BaseModel):
 class SubsystemStatus(BaseModel):
     air_quality_db_pool: str = Field(..., examples=["initialized"])
     seismic_db_pool: str = Field(..., examples=["initialized"])
+    api_db_pool: str = Field(..., examples=["initialized"])
 
 class SystemStatusResponse(BaseModel):
     status: str = Field(..., examples=["operational"])
@@ -306,12 +307,12 @@ def _parse_api_keys(raw: str):
             keys[token.strip()] = label.strip()
     return keys
 
-# ---- API key registry (DB-backed, IOT_api_keys) ----
-# API keys now live in the `api_keys` table in their own database instead of
-# the .env API_KEYS string, so keys can be added/revoked via SQL without
-# restarting this service. Loaded at startup and refreshed on a timer;
-# AUTHORIZED_KEYS itself is only ever touched through refresh_api_keys()/
-# get_authorized_keys() below, guarded by _api_keys_lock.
+# ---- API database (IOT_api) ----
+# Houses everything that belongs to this API server itself rather than to
+# the sensor data it reads: the `api_keys` registry table AND the
+# `api_request_logs` table (moved here from the air quality database — see
+# insert_api_log()/initialize_pools() below). One database, two tables,
+# both API-server-owned housekeeping data.
 AUTHORIZED_KEYS: Dict[str, str] = {}
 _api_keys_lock = threading.Lock()
 API_KEYS_REFRESH_INTERVAL_SEC = int(os.getenv("API_KEYS_REFRESH_INTERVAL_SEC", 300))
@@ -319,7 +320,7 @@ API_KEYS_REFRESH_INTERVAL_SEC = int(os.getenv("API_KEYS_REFRESH_INTERVAL_SEC", 3
 API_DB = dict(
     host=os.getenv("SYSTEM_DB_HOST", "127.0.0.1"),
     port=int(os.getenv("SYSTEM_DB_PORT", 5432)),
-    dbname=os.getenv("API_DB_NAME", "IOT_api_keys"),
+    dbname=os.getenv("API_DB_NAME", "IOT_api"),
     user=os.getenv("SYSTEM_DB_USER", "aq_user"),
     password=os.getenv("SYSTEM_DB_PASSWORD"),
 )
@@ -360,6 +361,11 @@ SEISMIC_DB_POOL_MIN = int(os.getenv("SEISMIC_DB_POOL_MIN", 2))
 SEISMIC_DB_POOL_MAX = int(os.getenv("SEISMIC_DB_POOL_MAX", 10))
 LOG_DB_POOL_MIN = int(os.getenv("LOG_DB_POOL_MIN", 1))
 LOG_DB_POOL_MAX = int(os.getenv("LOG_DB_POOL_MAX", 5))
+# api_request_logs gets a write on every single request (via the middleware
+# below), same traffic pattern as the sensor DBs, so it gets its own
+# similarly-sized pool rather than sharing the smaller LOG_DB pool.
+API_DB_POOL_MIN = int(os.getenv("API_DB_POOL_MIN", 2))
+API_DB_POOL_MAX = int(os.getenv("API_DB_POOL_MAX", 10))
 
 logger = logging.getLogger("monitoring_api")
 logger.setLevel(logging.INFO)
@@ -377,7 +383,7 @@ logger.addHandler(console_handler)
 DB_LOG_ENABLED = os.getenv("DB_LOG_ENABLED", "true").strip().lower() == "true"
 DB_LOG_TABLE = os.getenv("DB_LOG_TABLE", "service_logs")
 if DB_LOG_ENABLED and LOG_DB.get("password"):
-    from db_logging import attach_db_logging
+    from Fles.db_logging import attach_db_logging
     _log_dsn = (
         f"host={LOG_DB['host']} port={LOG_DB['port']} dbname={LOG_DB['dbname']} "
         f"user={LOG_DB['user']} password={LOG_DB['password']}"
@@ -404,6 +410,7 @@ def format_api_datetime(dt: datetime) -> str:
 _aq_pool = None
 _seismic_pool = None
 _log_pool = None
+_api_pool = None
 _pool_lock = threading.Lock()
 
 
@@ -448,7 +455,7 @@ def _ensure_database_exists(db_config, label):
 
 
 def initialize_pools():
-    global _aq_pool, _seismic_pool, _log_pool
+    global _aq_pool, _seismic_pool, _log_pool, _api_pool
     _validate_config()
     with _pool_lock:
         if _aq_pool is None:
@@ -463,11 +470,24 @@ def initialize_pools():
             _ensure_database_exists(LOG_DB, label="ahead of log pool init")
             _log_pool = pool.ThreadedConnectionPool(minconn=LOG_DB_POOL_MIN, maxconn=LOG_DB_POOL_MAX, **LOG_DB)
             logger.info("Log DB pool ready.")
+        if _api_pool is None:
+            # Ensure IOT_api exists ahead of the pool — initialize_api_keys_table()
+            # also ensures it (for the api_keys table) but that runs after this,
+            # and this pool is what api_request_logs needs immediately below.
+            _ensure_database_exists(API_DB, label="ahead of API DB pool init")
+            _api_pool = pool.ThreadedConnectionPool(minconn=API_DB_POOL_MIN, maxconn=API_DB_POOL_MAX, **API_DB)
+            logger.info("API DB pool ready.")
 
-        # Housekeeping table for API request logs, kept in the air quality DB
-        conn = _aq_pool.getconn()
+        # api_request_logs lives in the API DB (IOT_api) — this server's own
+        # housekeeping data, not sensor data, so it doesn't belong in AQ_DB.
+        conn = _api_pool.getconn()
         try:
             cur = conn.cursor()
+            # IOT_api is a brand-new database the first time this runs, so
+            # unlike AQ_DB/SEISMIC_DB (which air_quality_ingest.py and
+            # seismic_mqtt.py already ran this against) it needs its own
+            # timescaledb extension before create_hypertable() below exists.
+            cur.execute("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;")
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS api_request_logs (
                     client_ip INET,
@@ -494,7 +514,7 @@ def initialize_pools():
             conn.rollback()
             logger.exception(f"API log table setup failed: {e}")
         finally:
-            _aq_pool.putconn(conn)
+            _api_pool.putconn(conn)
 
 
 def get_aq_conn():
@@ -509,8 +529,20 @@ def release_aq_conn(conn):
             conn.close()
 
 
+def get_api_conn():
+    return _api_pool.getconn()
+
+
+def release_api_conn(conn):
+    if conn:
+        try:
+            _api_pool.putconn(conn)
+        except Exception:
+            conn.close()
+
+
 # ==========================================================
-# API KEY REGISTRY (IOT_api_keys)
+# API KEY REGISTRY (IOT_api)
 # ==========================================================
 def _migrate_api_keys_from_env_if_needed(cur, conn):
     """One-time bootstrap: if the api_keys table is empty and API_KEYS is
@@ -539,7 +571,7 @@ def _migrate_api_keys_from_env_if_needed(cur, conn):
 
 
 def initialize_api_keys_table():
-    """Ensures IOT_api_keys and its api_keys table exist, runs the one-time
+    """Ensures IOT_api and its api_keys table exist, runs the one-time
     .env migration if needed, then loads the initial key set into memory."""
     _ensure_database_exists(API_DB, label="ahead of API key table init")
     try:
@@ -633,7 +665,7 @@ def release_log_conn(conn):
 def insert_api_log(client_ip, method, path, status_code, duration_ms, api_key_owner, api_key_used):
     conn = None
     try:
-        conn = get_aq_conn()
+        conn = get_api_conn()
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO api_request_logs (client_ip, method, path, status_code, duration_ms, api_key_owner, api_key_used)
@@ -645,7 +677,7 @@ def insert_api_log(client_ip, method, path, status_code, duration_ms, api_key_ow
             conn.rollback()
         logger.error(f"Error logging API request: {e}")
     finally:
-        release_aq_conn(conn)
+        release_api_conn(conn)
 
 
 # ==========================================================
@@ -1233,6 +1265,7 @@ def system_health_check():
         "subsystems": {
             "air_quality_db_pool": "initialized" if _aq_pool else "not initialized",
             "seismic_db_pool": "initialized" if _seismic_pool else "not initialized",
+            "api_db_pool": "initialized" if _api_pool else "not initialized",
         },
     }
 

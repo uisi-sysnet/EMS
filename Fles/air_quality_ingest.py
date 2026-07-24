@@ -110,7 +110,7 @@ console_handler.setFormatter(log_formatter)
 logger.addHandler(console_handler)
 
 if DB_LOG_ENABLED and DB_PASSWORD:
-    from db_logging import attach_db_logging
+    from Fles.db_logging import attach_db_logging
     _log_dsn = f"host={DB_HOST} port={DB_PORT} dbname={DB_NAME} user={DB_USER} password={DB_PASSWORD}"
     attach_db_logging(logger, _log_dsn, service_name="air_quality_ingest", table=DB_LOG_TABLE)
 
