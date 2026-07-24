@@ -1,0 +1,24 @@
+[Unit]
+Description=EMS REST API Server
+Documentation=file://__EMS_DIR__/api_server.py
+After=network-online.target postgresql.service ems-air-quality.service ems-seismic.service
+Wants=network-online.target
+PartOf=ems.target
+
+[Service]
+Type=simple
+User=__EMS_USER__
+WorkingDirectory=__EMS_DIR__
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 __EMS_DIR__/api_server.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ems-api
+# Uncomment to cap memory on a resource-constrained Pi; systemd kills and
+# restarts (Restart=on-failure, above) the service if it's exceeded.
+#MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target ems.target

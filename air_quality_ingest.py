@@ -17,7 +17,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import psycopg2
-from psycopg2 import pool
+from psycopg2 import pool, sql
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from pymodbus.client import ModbusTcpClient
 from pymodbus.framer import FramerType
@@ -69,45 +69,37 @@ DB_NAME = os.getenv("AQ_DB_NAME", "air_quality")
 DB_USER = os.getenv("AQ_DB_USER", "aq_user")
 DB_PASSWORD = os.getenv("AQ_DB_PASSWORD")
 
-LOG_FILE_NAME = "air_quality_ingest.log"
+# Connection pool sizing — kept modest by default since this, seismic_mqtt.py,
+# and api_server.py may all be running on the same low-memory Raspberry Pi.
+DB_POOL_MIN = int(os.getenv("AQ_DB_POOL_MIN", 2))
+DB_POOL_MAX = int(os.getenv("AQ_DB_POOL_MAX", 10))
 
-# Registered station records — structural config, not secrets, so it stays
-# out of .env. Lives in stations.json (same folder as this script) so
-# stations can be added/edited without touching source.
+# How often the in-memory station registry is reloaded from the database, so
+# stations added/edited/disabled in the DB (e.g. via import_stations.py or
+# direct SQL) are picked up without restarting this service.
+AQ_STATIONS_REFRESH_INTERVAL_SEC = int(os.getenv("AQ_STATIONS_REFRESH_INTERVAL_SEC", 300))
+
+# ---- Database-backed logging ----
+# All log records are mirrored into the `service_logs` table in this same
+# database (shared with seismic_mqtt.py and api_server.py, each tagging its
+# own rows via the `service` column) so logs are centrally queryable via SQL
+# or the /api/system/logs endpoint, instead of living only in per-host log
+# files. Console output is kept and captured by systemd's journal.
+DB_LOG_ENABLED = os.getenv("DB_LOG_ENABLED", "true").strip().lower() == "true"
+DB_LOG_TABLE = os.getenv("DB_LOG_TABLE", "service_logs")
+
+# Registered station records used to live only in stations.json. The database
+# `stations` table is now the source of truth: this service loads/refreshes
+# its working station list from the DB. stations.json is only ever consulted
+# once, automatically, to seed an empty `stations` table on a brand-new
+# deployment (see migrate_stations_from_json_if_needed()) — after that it's
+# not read again by this script. Use import_stations.py to (re-)apply a JSON
+# file to the database at any time.
 STATIONS_FILE = SCRIPT_DIR / "stations.json"
+REQUIRED_STATION_KEYS = {"station_name", "enabled", "latitude", "longitude", "lead_ip", "lead_port", "lead_slave"}
 
-
-def load_stations() -> dict:
-    if not STATIONS_FILE.exists():
-        print("=" * 70)
-        print("CONFIG ERROR: stations.json not found")
-        print(f"Expected it at: {STATIONS_FILE}")
-        print("=" * 70)
-        raise SystemExit(1)
-    try:
-        with open(STATIONS_FILE, "r", encoding="utf-8") as f:
-            stations = json.load(f)
-    except json.JSONDecodeError as e:
-        print("=" * 70)
-        print("CONFIG ERROR: stations.json is not valid JSON")
-        print(f"File: {STATIONS_FILE}")
-        print(f"Details: {e}")
-        print("=" * 70)
-        raise SystemExit(1)
-
-    required_keys = {"station_name", "enabled", "latitude", "longitude", "lead_ip", "lead_port", "lead_slave"}
-    for mn, info in stations.items():
-        missing = required_keys - info.keys()
-        if missing:
-            print("=" * 70)
-            print(f"CONFIG ERROR: station '{mn}' in stations.json is missing: {', '.join(sorted(missing))}")
-            print("=" * 70)
-            raise SystemExit(1)
-
-    return stations
-
-
-STATIONS = load_stations()
+STATIONS = {}
+_stations_lock = threading.RLock()
 
 logger = logging.getLogger("air_quality_ingest")
 logger.setLevel(logging.INFO)
@@ -117,9 +109,10 @@ console_handler = logging.StreamHandler()
 console_handler.setFormatter(log_formatter)
 logger.addHandler(console_handler)
 
-file_handler = logging.FileHandler(LOG_FILE_NAME, encoding="utf-8")
-file_handler.setFormatter(log_formatter)
-logger.addHandler(file_handler)
+if DB_LOG_ENABLED and DB_PASSWORD:
+    from db_logging import attach_db_logging
+    _log_dsn = f"host={DB_HOST} port={DB_PORT} dbname={DB_NAME} user={DB_USER} password={DB_PASSWORD}"
+    attach_db_logging(logger, _log_dsn, service_name="air_quality_ingest", table=DB_LOG_TABLE)
 
 
 # ==========================================================
@@ -179,7 +172,8 @@ def initialize_database():
             return False
         try:
             _connection_pool = pool.ThreadedConnectionPool(
-                minconn=2, maxconn=20, host=DB_HOST, port=DB_PORT, database=DB_NAME, user=DB_USER, password=DB_PASSWORD
+                minconn=DB_POOL_MIN, maxconn=DB_POOL_MAX,
+                host=DB_HOST, port=DB_PORT, database=DB_NAME, user=DB_USER, password=DB_PASSWORD
             )
             create_tables()
             return True
@@ -202,6 +196,118 @@ def release_connection(conn):
             conn.close()
 
 
+def _load_stations_json_for_migration() -> dict:
+    """Best-effort read of stations.json for the one-time DB migration.
+    Unlike the old load_stations(), this never raises SystemExit — an empty
+    or invalid file is fine, the DB is the real config now."""
+    if not STATIONS_FILE.exists():
+        return {}
+    try:
+        with open(STATIONS_FILE, "r", encoding="utf-8") as f:
+            stations = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        logger.error(f"Could not read {STATIONS_FILE.name} for migration: {e}")
+        return {}
+
+    valid = {}
+    for mn, info in stations.items():
+        missing = REQUIRED_STATION_KEYS - info.keys()
+        if missing:
+            logger.warning(
+                f"Skipping station '{mn}' in {STATIONS_FILE.name} during migration — "
+                f"missing: {', '.join(sorted(missing))}"
+            )
+            continue
+        valid[mn] = info
+    return valid
+
+
+def migrate_stations_from_json_if_needed(cur, conn):
+    """One-time bootstrap: if the `stations` table is empty and stations.json
+    is present, import it. Only fires on an empty table, so it never
+    overwrites stations that were added/edited through the database
+    afterwards. Re-run/re-apply a JSON file at any time with
+    import_stations.py instead."""
+    cur.execute("SELECT COUNT(*) FROM stations;")
+    existing_count = cur.fetchone()[0]
+    if existing_count > 0:
+        return
+    if not STATIONS_FILE.exists():
+        return
+
+    json_stations = _load_stations_json_for_migration()
+    if not json_stations:
+        return
+
+    logger.info(f"'stations' table is empty — importing {len(json_stations)} station(s) from {STATIONS_FILE.name} (one-time).")
+    for mn, info in json_stations.items():
+        cur.execute("""
+            INSERT INTO stations (station_mn, station_name, enabled, latitude, longitude, lead_ip, lead_port, lead_slave)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (station_mn) DO NOTHING;
+        """, (mn, info.get("station_name", mn), info.get("enabled", True), info.get("latitude"),
+              info.get("longitude"), info.get("lead_ip"), info.get("lead_port"), info.get("lead_slave")))
+    conn.commit()
+    logger.info(
+        f"Migrated {len(json_stations)} station(s) into the database. The database is now the "
+        f"source of truth — {STATIONS_FILE.name} won't be read again automatically. It's safe to "
+        f"archive it; use import_stations.py if you want to (re-)apply a JSON file later."
+    )
+
+
+def load_stations_from_db() -> dict:
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT station_mn, station_name, enabled, latitude, longitude, lead_ip, lead_port, lead_slave
+            FROM stations;
+        """)
+        rows = cur.fetchall()
+        stations = {}
+        for mn, name, enabled, lat, lon, lead_ip, lead_port, lead_slave in rows:
+            stations[mn] = {
+                "station_name": name,
+                "enabled": enabled,
+                "latitude": lat,
+                "longitude": lon,
+                "lead_ip": lead_ip,
+                "lead_port": lead_port,
+                "lead_slave": lead_slave,
+            }
+        return stations
+    finally:
+        if conn:
+            release_connection(conn)
+
+
+def refresh_stations(initial=False):
+    global STATIONS
+    try:
+        stations = load_stations_from_db()
+        with _stations_lock:
+            STATIONS = stations
+        if initial:
+            logger.info(f"Loaded {len(stations)} station(s) from the database.")
+        else:
+            logger.info(f"Station registry refreshed from database ({len(stations)} station(s)).")
+    except Exception as e:
+        logger.error(f"Failed to refresh station registry from database: {e}")
+
+
+def get_stations() -> dict:
+    """Thread-safe snapshot of the current station registry."""
+    with _stations_lock:
+        return dict(STATIONS)
+
+
+def stations_refresh_loop():
+    while True:
+        time.sleep(AQ_STATIONS_REFRESH_INTERVAL_SEC)
+        refresh_stations()
+
+
 def create_tables():
     conn = None
     try:
@@ -214,22 +320,36 @@ def create_tables():
         CREATE TABLE IF NOT EXISTS stations (
             station_mn VARCHAR(32) PRIMARY KEY,
             station_name VARCHAR(100),
+            enabled BOOLEAN NOT NULL DEFAULT TRUE,
             latitude DOUBLE PRECISION,
             longitude DOUBLE PRECISION,
+            lead_ip VARCHAR(64),
+            lead_port INTEGER,
+            lead_slave INTEGER,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
 
-        for mn, info in STATIONS.items():
+        # Migration path for deployments that already have a `stations` table
+        # from before enabled/lead_ip/lead_port/lead_slave lived in the DB.
+        required_station_columns = {
+            "enabled": "BOOLEAN NOT NULL DEFAULT TRUE",
+            "lead_ip": "VARCHAR(64)",
+            "lead_port": "INTEGER",
+            "lead_slave": "INTEGER",
+        }
+        for col_name, col_type in required_station_columns.items():
             cur.execute("""
-                INSERT INTO stations (station_mn, station_name, latitude, longitude)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (station_mn) DO UPDATE
-                SET station_name = EXCLUDED.station_name,
-                    latitude = EXCLUDED.latitude,
-                    longitude = EXCLUDED.longitude,
-                    updated_at = CURRENT_TIMESTAMP;
-            """, (mn, info.get("station_name", mn), info.get("latitude"), info.get("longitude")))
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name='stations' AND column_name=%s;
+            """, (col_name,))
+            if not cur.fetchone():
+                logger.info(f"Migrating 'stations' table: adding column '{col_name}'")
+                cur.execute(sql.SQL("ALTER TABLE stations ADD COLUMN {} {}").format(
+                    sql.Identifier(col_name), sql.SQL(col_type)
+                ))
+
+        migrate_stations_from_json_if_needed(cur, conn)
 
         cur.execute("""
         CREATE TABLE IF NOT EXISTS sensor_data (
@@ -547,7 +667,7 @@ def poll_station(mn, station):
 
 def lead_service():
     while True:
-        for mn, station in STATIONS.items():
+        for mn, station in get_stations().items():
             if station["enabled"]:
                 poll_station(mn, station)
         time.sleep(LEAD_POLL_INTERVAL)
@@ -616,6 +736,9 @@ def main():
     if not initialize_database():
         logger.critical("Database initialization failed. Halting.")
         return
+
+    refresh_stations(initial=True)
+    threading.Thread(target=stations_refresh_loop, daemon=True, name="StationsRefresh").start()
 
     start_lead_service()
     start_tcp_server()  # blocks the main thread

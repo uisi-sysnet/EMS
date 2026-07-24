@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
 #
 # deploy.sh — sets up everything needed to run air_quality_ingest.py,
-# seismic_mqtt.py, and api_server.py on a fresh Ubuntu server.
+# seismic_mqtt.py, and api_server.py on a fresh Ubuntu OR Raspberry Pi OS
+# (Raspbian) server. Both are Debian-based/apt/systemd, so the same script
+# covers both — it auto-detects distro/codename/CPU architecture and adjusts
+# where it matters (see detect_platform() below).
 #
 # Installs / configures:
 #   1. System packages (Python, PostgreSQL, TimescaleDB, Mosquitto MQTT broker)
-#   2. A Python virtual environment with requirements.txt
+#   2. Python dependencies from requirements.txt (system-wide, no venv)
 #   3. Postgres roles + CREATEDB privilege for AQ_DB_USER / SEISMIC_DB_USER
 #      (the apps create their own databases/tables on first run)
 #   4. Mosquitto authentication (password file for MQTT_USER)
 #
 # ASSUMPTIONS (adjust the variables below if these don't match your box):
-#   - Ubuntu 22.04 or 24.04 LTS
+#   - Ubuntu 22.04/24.04 LTS, OR Raspberry Pi OS (Debian bookworm or newer),
+#     64-bit (arm64) STRONGLY recommended on a Pi — see detect_platform().
 #   - PostgreSQL 16 (auto-detected where possible, override with PG_VERSION)
 #   - This script, .env, requirements.txt, and the three *.py files all
 #     live in the same directory
@@ -35,6 +39,58 @@ die()  { echo -e "\033[1;31m[deploy][ERROR]\033[0m $*" >&2; exit 1; }
 
 if [[ $EUID -ne 0 ]]; then
     die "Run this with sudo: sudo ./deploy.sh"
+fi
+
+# ----------------------------------------------------------------------
+# 0b. Platform detection (Ubuntu vs Raspberry Pi OS, and CPU architecture)
+# ----------------------------------------------------------------------
+# TimescaleDB's official apt packages are published for amd64 and arm64
+# only — there are no armhf (32-bit Raspberry Pi OS) builds. Everything
+# else in this script (Postgres itself, Mosquitto, ntpsec, Python deps) is
+# fine on 32-bit, so we only hard-warn about that one piece here rather
+# than refusing to run.
+ARCH="$(dpkg --print-architecture)"
+OS_ID="unknown"
+OS_CODENAME="unknown"
+if [[ -f /etc/os-release ]]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    OS_ID="${ID:-unknown}"
+    OS_CODENAME="${VERSION_CODENAME:-unknown}"
+fi
+
+log "Detected platform: ID=${OS_ID} codename=${OS_CODENAME} arch=${ARCH}"
+
+TIMESCALEDB_ARCH_SUPPORTED=true
+if [[ "$ARCH" != "amd64" && "$ARCH" != "arm64" ]]; then
+    TIMESCALEDB_ARCH_SUPPORTED=false
+    warn "Architecture '${ARCH}' detected (looks like 32-bit Raspberry Pi OS/armhf)."
+    warn "TimescaleDB does not publish official apt packages for this architecture."
+    warn "The TimescaleDB install step below will likely fail. Recommended fix:"
+    warn "  re-flash with 64-bit Raspberry Pi OS (arm64) — it runs fine on the same"
+    warn "  Pi hardware and is what this project is tested against."
+    warn "Continuing anyway in case you have your own TimescaleDB build available..."
+fi
+
+if [[ "$OS_ID" == "raspbian" || "$OS_ID" == "debian" ]] && [[ "$ARCH" == "arm64" || "$ARCH" == "armhf" ]]; then
+    log "Raspberry Pi OS detected — applying SD-card-friendly install options (--no-install-recommends, etc.)"
+    ON_RASPBERRY_PI=true
+else
+    ON_RASPBERRY_PI=false
+fi
+
+# A Pi with 1-2GB RAM can run out of memory during `apt-get install` /
+# `pip install` builds if it has little/no swap. This is informational
+# only — we don't modify swap automatically since dphys-swapfile config
+# varies by image and isn't ours to rewrite silently.
+if [[ "$ON_RASPBERRY_PI" == true ]] && command -v free >/dev/null 2>&1; then
+    SWAP_TOTAL_MB=$(free -m | awk '/^Swap:/{print $2}')
+    MEM_TOTAL_MB=$(free -m | awk '/^Mem:/{print $2}')
+    if [[ "${SWAP_TOTAL_MB:-0}" -lt 512 && "${MEM_TOTAL_MB:-0}" -lt 2048 ]]; then
+        warn "Low RAM (${MEM_TOTAL_MB}MB) and little/no swap (${SWAP_TOTAL_MB}MB) detected."
+        warn "If package installs below get killed (OOM), increase swap first, e.g.:"
+        warn "  sudo dphys-swapfile swapoff; sudo sed -i 's/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=1024/' /etc/dphys-swapfile; sudo dphys-swapfile setup; sudo dphys-swapfile swapon"
+    fi
 fi
 
 [[ -f "$ENV_FILE" ]] || die ".env not found at $ENV_FILE — copy it here first."
@@ -84,27 +140,55 @@ log "Updating apt package lists"
 apt-get update -y
 
 log "Installing base tools (python3, pip, curl, gnupg)"
-apt-get install -y \
-    python3 python3-pip \
-    curl gnupg lsb-release ca-certificates apt-transport-https wget
+# --no-install-recommends keeps the footprint (disk + install time) down —
+# worth doing on a Pi's SD card / slower storage, harmless on Ubuntu.
+apt-get install -y --no-install-recommends \
+    python3 python3-pip python3-dev \
+    curl gnupg lsb-release ca-certificates apt-transport-https wget \
+    build-essential libpq-dev
+
+# python3-dev/build-essential/libpq-dev let pip fall back to building
+# psycopg2-binary/psycopg from source if a precompiled wheel isn't available
+# for this exact Python/architecture combo. On Raspberry Pi OS, pip is
+# normally already pointed at piwheels.org (prebuilt ARM wheels) via
+# /etc/pip.conf, so this is a safety net rather than the common path.
 
 # ---- PostgreSQL + TimescaleDB -----------------------------------------
 if ! command -v psql >/dev/null 2>&1; then
     log "Installing PostgreSQL ${PG_VERSION} via the official PGDG repo"
-    apt-get install -y postgresql-common
+    apt-get install -y --no-install-recommends postgresql-common
     /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-    apt-get install -y "postgresql-${PG_VERSION}"
+    apt-get install -y --no-install-recommends "postgresql-${PG_VERSION}"
 else
     log "PostgreSQL already installed, skipping"
 fi
 
-if ! dpkg -l | grep -q "timescaledb-2-postgresql-${PG_VERSION}"; then
+if [[ "$TIMESCALEDB_ARCH_SUPPORTED" == false ]]; then
+    warn "Skipping TimescaleDB install — unsupported architecture (${ARCH}). See warning above."
+    warn "Postgres itself is installed and usable, but the apps' create_hypertable() calls will fail"
+    warn "until TimescaleDB is available (i.e. until you're on amd64 or arm64)."
+elif ! dpkg -l | grep -q "timescaledb-2-postgresql-${PG_VERSION}"; then
     log "Installing TimescaleDB extension for PostgreSQL ${PG_VERSION}"
-    echo "deb https://packagecloud.io/timescale/timescaledb/ubuntu/ $(lsb_release -c -s) main" \
+    # packagecloud's repo keys off the OS codename; Raspberry Pi OS reports
+    # its Debian codename (e.g. bookworm) via lsb_release/os-release just
+    # like Debian itself, so the debian path below covers both.
+    if [[ "$OS_ID" == "ubuntu" ]]; then
+        TIMESCALE_REPO_OS="ubuntu"
+    else
+        TIMESCALE_REPO_OS="debian"
+    fi
+    echo "deb https://packagecloud.io/timescale/timescaledb/${TIMESCALE_REPO_OS}/ $(lsb_release -c -s) main" \
         > /etc/apt/sources.list.d/timescaledb.list
     wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | apt-key add -
     apt-get update -y
-    apt-get install -y "timescaledb-2-postgresql-${PG_VERSION}"
+    if ! apt-get install -y --no-install-recommends "timescaledb-2-postgresql-${PG_VERSION}"; then
+        die "TimescaleDB package install failed. If you're on Raspberry Pi OS, confirm you're running" \
+            "the 64-bit (arm64) image and that '$(lsb_release -c -s)' is a codename TimescaleDB has" \
+            "published packages for yet — check https://docs.timescale.com/self-hosted/latest/install/installation-debian/"
+    fi
+    # timescaledb-tune sizes shared_buffers/work_mem/etc. from detected system
+    # RAM, which works in the Pi's favor automatically (a 1-2GB Pi gets much
+    # smaller settings than a 16GB server) — no separate low-memory branch needed.
     timescaledb-tune --quiet --yes --pg-config="/usr/lib/postgresql/${PG_VERSION}/bin/pg_config" || \
         warn "timescaledb-tune failed/skipped — check config manually if needed"
 else
@@ -118,7 +202,7 @@ systemctl enable postgresql
 # ---- Mosquitto MQTT broker --------------------------------------------
 if ! command -v mosquitto >/dev/null 2>&1; then
     log "Installing Mosquitto MQTT broker"
-    apt-get install -y mosquitto mosquitto-clients
+    apt-get install -y --no-install-recommends mosquitto mosquitto-clients
 else
     log "Mosquitto already installed, skipping"
 fi
@@ -194,7 +278,7 @@ fi
 # it locally).
 if ! command -v ntpd >/dev/null 2>&1 && ! dpkg -l | grep -q '^ii\s\+ntpsec\s'; then
     log "Installing ntpsec"
-    apt-get install -y ntpsec
+    apt-get install -y --no-install-recommends ntpsec
 else
     log "ntpsec already installed, skipping"
 fi
@@ -279,12 +363,41 @@ if [[ -f "$PG_HBA" ]] && ! grep -q "# added by deploy.sh" "$PG_HBA"; then
 fi
 
 # ----------------------------------------------------------------------
+# 2b. Raspberry Pi UART enablement (for the SIM800L SMS ingestion channel)
+# ----------------------------------------------------------------------
+# By default, Raspberry Pi OS uses the primary UART as a serial login
+# console — which fights over the same pins/device with anything else
+# (like a SIM800L) trying to send it AT commands. raspi-config's
+# non-interactive mode disables the console and enables the UART hardware.
+# This only applies on an actual Pi (raspi-config doesn't exist on Ubuntu).
+if command -v raspi-config >/dev/null 2>&1; then
+    log "Raspberry Pi detected — configuring UART for SIM800L SMS ingestion"
+    # Disable the serial console (frees the UART for our own use)...
+    raspi-config nonint do_serial_cons 1 2>/dev/null || \
+        raspi-config nonint do_serial 1 2>/dev/null || \
+        warn "Could not disable the serial console automatically — if SMS ingestion doesn't work, run 'sudo raspi-config' -> Interface Options -> Serial Port -> 'login shell over serial: No'."
+    # ...and enable the UART hardware itself.
+    raspi-config nonint do_serial_hw 0 2>/dev/null || \
+        warn "Could not enable UART hardware automatically — if SMS ingestion doesn't work, run 'sudo raspi-config' -> Interface Options -> Serial Port -> 'serial port hardware: Yes', then reboot."
+    warn "UART settings only take effect after a reboot. Run 'sudo reboot' once deploy.sh finishes, before starting the seismic service."
+else
+    log "raspi-config not found — skipping UART enablement (not a Raspberry Pi, or SIM800L not in use)."
+fi
+
+# ----------------------------------------------------------------------
 # 3. Python dependencies (installed system-wide, no venv)
 # ----------------------------------------------------------------------
 log "Installing Python dependencies system-wide from requirements.txt"
-# --break-system-packages is required on Ubuntu 23.04+ (PEP 668) since pip
-# otherwise refuses to install into the system-managed Python environment.
-# This is intentional here — the project deliberately runs without a venv.
+if [[ "$ON_RASPBERRY_PI" == true ]]; then
+    log "Raspberry Pi OS detected — pip should already be pointed at piwheels.org (prebuilt ARM wheels) via"
+    log "/etc/pip.conf on the standard Raspberry Pi OS image, so this should be quick. If a package has no"
+    log "piwheels build yet, pip falls back to compiling from source using the build-essential/libpq-dev/"
+    log "python3-dev packages installed above — that step is much slower on a Pi, but it will work."
+fi
+# --break-system-packages is required on Ubuntu 23.04+ / Debian 12+ (PEP 668)
+# since pip otherwise refuses to install into the system-managed Python
+# environment. This is intentional here — the project deliberately runs
+# without a venv.
 #
 # NOTE: we deliberately do NOT run `pip3 install --upgrade pip` here. On
 # Debian/Ubuntu, pip itself is installed via apt (python3-pip), not pip.
@@ -312,12 +425,16 @@ log "Done."
 cat <<EOF
 
 Next steps:
-  1. Review aq_stations.json for correct station config.
+  1. Review stations.json for correct station config. air_quality_ingest.py
+     imports it into the database automatically on its first run (only if
+     the 'stations' table is empty). To (re-)apply stations.json later —
+     e.g. after editing it, or on an already-running deployment — run:
+       python3 ${SCRIPT_DIR}/import_stations.py
   2. Run each service directly with system python3, e.g.:
        python3 ${SCRIPT_DIR}/air_quality_ingest.py
        python3 ${SCRIPT_DIR}/seismic_mqtt.py
        python3 ${SCRIPT_DIR}/api_server.py
-  3. For always-on deployment, wrap each in a systemd service
-     (ask if you'd like these generated).
+  3. For always-on deployment, run: sudo ./install_services.sh
+     (installs+starts the ems.target systemd unit for all three services).
 
 EOF

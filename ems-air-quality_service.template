@@ -1,0 +1,24 @@
+[Unit]
+Description=EMS Air Quality Ingestion Service
+Documentation=file://__EMS_DIR__/air_quality_ingest.py
+After=network-online.target postgresql.service
+Wants=network-online.target
+PartOf=ems.target
+
+[Service]
+Type=simple
+User=__EMS_USER__
+WorkingDirectory=__EMS_DIR__
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 __EMS_DIR__/air_quality_ingest.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ems-air-quality
+# Uncomment to cap memory on a resource-constrained Pi; systemd kills and
+# restarts (Restart=on-failure, above) the service if it's exceeded.
+#MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target ems.target

@@ -261,6 +261,18 @@ class SystemStatusResponse(BaseModel):
     timestamp: str = Field(..., examples=["2026-07-10T09:16:00.000Z"])
     subsystems: SubsystemStatus
 
+class ServiceLogEntry(BaseModel):
+    created_at: str = Field(..., examples=["2026-07-10T09:16:00.000Z"])
+    service: str = Field(..., examples=["air_quality_ingest"])
+    level: str = Field(..., examples=["INFO"])
+    logger_name: Optional[str] = Field(None, examples=["air_quality_ingest"])
+    thread_name: Optional[str] = Field(None, examples=["MainThread"])
+    message: str = Field(..., examples=["Ingested air quality reading for station 4101025U122041"])
+
+class ServiceLogsResponse(BaseModel):
+    total: int = Field(..., examples=[42])
+    logs: List[ServiceLogEntry]
+
 
 # ==========================================================
 # CONFIG
@@ -297,15 +309,35 @@ SEISMIC_DB = dict(
     password=os.getenv("SEISMIC_DB_PASSWORD"),
 )
 
+# Connection pool sizing — kept modest by default since air_quality_ingest.py
+# and seismic_mqtt.py may all be running on the same low-memory Raspberry Pi.
+AQ_DB_POOL_MIN = int(os.getenv("AQ_DB_POOL_MIN", 2))
+AQ_DB_POOL_MAX = int(os.getenv("AQ_DB_POOL_MAX", 10))
+SEISMIC_DB_POOL_MIN = int(os.getenv("SEISMIC_DB_POOL_MIN", 2))
+SEISMIC_DB_POOL_MAX = int(os.getenv("SEISMIC_DB_POOL_MAX", 10))
+
 logger = logging.getLogger("monitoring_api")
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(threadName)s: %(message)s")
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
-file_handler = logging.FileHandler("api_server.log", encoding="utf-8")
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+
+# ---- Database-backed logging ----
+# Logs are mirrored into the `service_logs` table in the air_quality database
+# (shared with air_quality_ingest.py and seismic_mqtt.py, tagged
+# service='api_server') instead of a local log file — queryable via SQL or
+# GET /api/system/logs below. Console output remains, captured by systemd's
+# journal when this runs as a service.
+DB_LOG_ENABLED = os.getenv("DB_LOG_ENABLED", "true").strip().lower() == "true"
+DB_LOG_TABLE = os.getenv("DB_LOG_TABLE", "service_logs")
+if DB_LOG_ENABLED and AQ_DB.get("password"):
+    from db_logging import attach_db_logging
+    _log_dsn = (
+        f"host={AQ_DB['host']} port={AQ_DB['port']} dbname={AQ_DB['dbname']} "
+        f"user={AQ_DB['user']} password={AQ_DB['password']}"
+    )
+    attach_db_logging(logger, _log_dsn, service_name="api_server", table=DB_LOG_TABLE)
 
 
 def format_api_datetime(dt: datetime) -> str:
@@ -358,10 +390,10 @@ def initialize_pools():
     _validate_config()
     with _pool_lock:
         if _aq_pool is None:
-            _aq_pool = pool.ThreadedConnectionPool(minconn=2, maxconn=20, **AQ_DB)
+            _aq_pool = pool.ThreadedConnectionPool(minconn=AQ_DB_POOL_MIN, maxconn=AQ_DB_POOL_MAX, **AQ_DB)
             logger.info("Air quality DB pool ready.")
         if _seismic_pool is None:
-            _seismic_pool = pool.ThreadedConnectionPool(minconn=2, maxconn=20, **SEISMIC_DB)
+            _seismic_pool = pool.ThreadedConnectionPool(minconn=SEISMIC_DB_POOL_MIN, maxconn=SEISMIC_DB_POOL_MAX, **SEISMIC_DB)
             logger.info("Seismic DB pool ready.")
 
         # Housekeeping table for API request logs, kept in the air quality DB
@@ -923,6 +955,59 @@ def seismic_events(
         raise HTTPException(status_code=500, detail="Internal Server Error")
     finally:
         release_seismic_conn(conn)
+
+
+# ----------------------------------------------------------
+# SYSTEM LOGS
+# ----------------------------------------------------------
+@app.get(
+    "/api/system/logs",
+    tags=["System"],
+    summary="Query centralized service logs",
+    description=(
+        "Returns log records written by air_quality_ingest, seismic_mqtt, and api_server "
+        "into the shared `service_logs` table."
+    ),
+    response_model=ServiceLogsResponse,
+    responses=AUTHED_RESPONSES,
+)
+def system_logs(
+    service: Optional[str] = Query(None, description="Filter to one service: air_quality_ingest, seismic_mqtt, or api_server."),
+    level: Optional[str] = Query(None, description="Filter to one log level: INFO, WARNING, ERROR, CRITICAL."),
+    hours: int = Query(24, ge=1, le=168, description="Lookback window in hours. Minimum 1, maximum 168 (7 days)."),
+    limit: int = Query(200, ge=1, le=1000, description="Max rows to return."),
+    api_key: str = Depends(verify_api_key),
+):
+    conn = get_aq_conn()
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        clauses = ["created_at >= NOW() - (%s || ' hours')::interval"]
+        params: list = [hours]
+        if service:
+            clauses.append("service = %s")
+            params.append(service)
+        if level:
+            clauses.append("level = %s")
+            params.append(level.upper())
+        where = " AND ".join(clauses)
+        params.append(limit)
+        cur.execute(f"""
+            SELECT created_at, service, level, logger_name, thread_name, message
+            FROM service_logs
+            WHERE {where}
+            ORDER BY created_at DESC
+            LIMIT %s;
+        """, params)
+        rows = cur.fetchall()
+        for r in rows:
+            if r['created_at']:
+                r['created_at'] = format_api_datetime(r['created_at'])
+        return {"total": len(rows), "logs": rows}
+    except Exception as e:
+        logger.error(f"System logs query error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    finally:
+        release_aq_conn(conn)
 
 
 # ----------------------------------------------------------

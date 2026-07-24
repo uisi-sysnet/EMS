@@ -1,3 +1,10 @@
+# On Raspberry Pi OS (arm64/armhf), pip is normally already configured to
+# pull prebuilt ARM wheels from piwheels.org (see /etc/pip.conf on the
+# standard Raspberry Pi OS image) so these install quickly without compiling.
+# If a package has no piwheels build yet, pip falls back to compiling from
+# source — deploy.sh installs build-essential/libpq-dev/python3-dev so that
+# fallback works, it's just slower on a Pi than on a bigger box.
+
 # Shared
 python-dotenv>=1.0.0
 
@@ -8,6 +15,7 @@ pymodbus>=3.6.0
 # seismic_mqtt.py
 paho-mqtt>=2.1.0
 psycopg>=3.1.0
+pyserial>=3.5   # SIM800L AT-command SMS ingestion channel
 
 # api_server.py
 fastapi>=0.110.0
