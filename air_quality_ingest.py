@@ -63,16 +63,16 @@ AQ_HJ212_PW = os.getenv("AQ_HJ212_PW", "123456")
 # persistently drifting sensor doesn't get flooded with correction commands.
 AQ_TIME_SYNC_COOLDOWN_MIN = int(os.getenv("AQ_TIME_SYNC_COOLDOWN_MIN", 60))
 
-DB_HOST = os.getenv("AQ_DB_HOST", "127.0.0.1")
-DB_PORT = int(os.getenv("AQ_DB_PORT", 5432))
-DB_NAME = os.getenv("AQ_DB_NAME", "air_quality")
-DB_USER = os.getenv("AQ_DB_USER", "aq_user")
-DB_PASSWORD = os.getenv("AQ_DB_PASSWORD")
+DB_HOST = os.getenv("SYSTEM_DB_HOST", "127.0.0.1")
+DB_PORT = int(os.getenv("SYSTEM_DB_PORT", 5432))
+DB_NAME = os.getenv("AQ_DB_NAME", "IOT_aq_sensor_data")
+DB_USER = os.getenv("SYSTEM_DB_USER", "aq_user")
+DB_PASSWORD = os.getenv("SYSTEM_DB_PASSWORD")
 
 # Connection pool sizing — kept modest by default since this, seismic_mqtt.py,
 # and api_server.py may all be running on the same low-memory Raspberry Pi.
-DB_POOL_MIN = int(os.getenv("AQ_DB_POOL_MIN", 2))
-DB_POOL_MAX = int(os.getenv("AQ_DB_POOL_MAX", 10))
+DB_POOL_MIN = int(os.getenv("SYSTEM_DB_POOL_MIN", 2))
+DB_POOL_MAX = int(os.getenv("SYSTEM_DB_POOL_MAX", 10))
 
 # How often the in-memory station registry is reloaded from the database, so
 # stations added/edited/disabled in the DB (e.g. via import_stations.py or

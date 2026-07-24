@@ -30,11 +30,11 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=SCRIPT_DIR / ".env")
 
 # ---- Database config (SEISMIC_ prefixed to share one .env with the other services) ----
-DB_HOST = os.getenv("SEISMIC_DB_HOST", "localhost")
-DB_PORT = os.getenv("SEISMIC_DB_PORT", "5432")
-DB_USER = os.getenv("SEISMIC_DB_USER", "seismic_user")
-DB_PASSWORD = os.getenv("SEISMIC_DB_PASSWORD")
-DB_NAME = os.getenv("SEISMIC_DB_NAME", "seismic_sensor_data")
+DB_HOST = os.getenv("SYSTEM_DB_HOST", "localhost")
+DB_PORT = os.getenv("SYSTEM_DB_PORT", "5432")
+DB_USER = os.getenv("SYSTEM_DB_USER", "seismic_user")
+DB_PASSWORD = os.getenv("SYSTEM_DB_PASSWORD")
+DB_NAME = os.getenv("SEISMIC_DB_NAME", "IOT_seismic_sensor_data")
 
 # ---- MQTT config ----
 MQTT_BROKER_HOST = os.getenv("MQTT_BROKER_HOST", "localhost")
