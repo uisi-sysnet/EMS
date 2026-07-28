@@ -9,8 +9,9 @@
 # Installs / configures:
 #   1. System packages (Python, PostgreSQL, TimescaleDB, Mosquitto MQTT broker)
 #   2. Python dependencies from requirements.txt (system-wide, no venv)
-#   3. Postgres roles + CREATEDB privilege for AQ_DB_USER / SEISMIC_DB_USER
-#      (the apps create their own databases/tables on first run)
+#   3. Postgres role + CREATEDB privilege for SYSTEM_DB_USER (shared by
+#      both the AQ and Seismic databases; apps create their own
+#      databases/tables on first run)
 #   4. Mosquitto authentication (password file for MQTT_USER)
 #
 # ASSUMPTIONS (adjust the variables below if these don't match your box):
@@ -129,7 +130,7 @@ load_env_file() {
 
 load_env_file "$ENV_FILE"
 
-for v in AQ_DB_USER AQ_DB_PASSWORD AQ_DB_NAME SEISMIC_DB_USER SEISMIC_DB_PASSWORD SEISMIC_DB_NAME MQTT_USER MQTT_PASSWORD; do
+for v in SYSTEM_DB_USER SYSTEM_DB_PASSWORD AQ_DB_NAME SEISMIC_DB_NAME MQTT_USER MQTT_PASSWORD; do
     [[ -n "${!v:-}" ]] || die "Missing required variable '$v' in .env"
 done
 
@@ -328,8 +329,11 @@ fi
 warn "If this server sits behind a cloud provider (AWS/GCP/Azure/etc.), also open port 123/udp (inbound AND outbound) in its security group / firewall rules — ufw alone won't cover that."
 
 # ----------------------------------------------------------------------
-# 2. Postgres roles (apps create their own DBs/tables on first run —
-#    these roles just need to exist with CREATEDB privilege)
+# 2. Postgres role (apps create their own DBs/tables on first run — this
+#    role just needs to exist with CREATEDB privilege). SYSTEM_DB_USER is
+#    the single shared credential used for BOTH the AQ and Seismic
+#    databases (and any others under this deployment) — there is
+#    intentionally no separate per-service role.
 # ----------------------------------------------------------------------
 create_role() {
     local role="$1" pass="$2"
@@ -347,8 +351,7 @@ END
 SQL
 }
 
-create_role "${AQ_DB_USER}" "${AQ_DB_PASSWORD}"
-create_role "${SEISMIC_DB_USER}" "${SEISMIC_DB_PASSWORD}"
+create_role "${SYSTEM_DB_USER}" "${SYSTEM_DB_PASSWORD}"
 
 # Allow password auth for these roles over TCP (local dev-friendly default;
 # tighten this to specific hosts / scram-sha-256 for production).
