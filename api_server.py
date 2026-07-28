@@ -8,6 +8,7 @@ air_quality_ingest.py and seismic_mqtt.py have already written.
 
 import logging
 import os
+import hashlib
 import threading
 import time
 from datetime import datetime, timezone
@@ -454,14 +455,74 @@ def _ensure_database_exists(db_config, label):
         logger.error(f"Could not ensure '{db_config['dbname']}' exists ({label}): {e}")
 
 
+def _ensure_aq_tables_exist():
+    """Safety net so /api/aq/* endpoints don't 500 with 'relation does not
+    exist' if this API happens to start before air_quality_ingest.py ever
+    has (fresh deployment, different start order, etc.). Only creates the
+    two tables this API actually reads (stations, sensor_data) with
+    IF NOT EXISTS — it does not touch indexes, migrations, or anything
+    else. air_quality_ingest.py's create_tables() remains the source of
+    truth for that schema; if it changes, mirror the change here too."""
+    conn = _aq_pool.getconn()
+    try:
+        cur = conn.cursor()
+        cur.execute("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;")
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS stations (
+            station_mn VARCHAR(32) PRIMARY KEY,
+            station_name VARCHAR(100),
+            enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            latitude DOUBLE PRECISION,
+            longitude DOUBLE PRECISION,
+            lead_ip VARCHAR(64),
+            lead_port INTEGER,
+            lead_slave INTEGER,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS sensor_data (
+            station_mn VARCHAR(32) NOT NULL REFERENCES stations(station_mn),
+            ip_address INET,
+            data_time TIMESTAMP NOT NULL,
+            pm25 DOUBLE PRECISION, pm10 DOUBLE PRECISION, tsp DOUBLE PRECISION,
+            ozone DOUBLE PRECISION, carbon_monoxide DOUBLE PRECISION,
+            sulfur_dioxide DOUBLE PRECISION, nitrogen_dioxide DOUBLE PRECISION,
+            temperature DOUBLE PRECISION, humidity DOUBLE PRECISION,
+            rain DOUBLE PRECISION, wind_speed DOUBLE PRECISION,
+            wind_direction DOUBLE PRECISION, air_pressure DOUBLE PRECISION,
+            noise DOUBLE PRECISION, lead DOUBLE PRECISION,
+            lead_temperature DOUBLE PRECISION,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        cur.execute("SELECT create_hypertable('sensor_data', 'data_time', if_not_exists => TRUE, migrate_data => TRUE);")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_station_time ON sensor_data(station_mn, data_time DESC);")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"AQ table safety-net setup failed: {e}")
+    finally:
+        _aq_pool.putconn(conn)
+
+
 def initialize_pools():
     global _aq_pool, _seismic_pool, _log_pool, _api_pool
     _validate_config()
     with _pool_lock:
         if _aq_pool is None:
+            # Ensure IOT_aq_sensor_data exists in case this API starts before
+            # air_quality_ingest.py ever has (fresh deployment, different
+            # start order, etc.) — without this, ThreadedConnectionPool()
+            # below raises immediately and, uncaught, takes the whole
+            # process down before uvicorn even starts.
+            _ensure_database_exists(AQ_DB, label="ahead of AQ DB pool init")
             _aq_pool = pool.ThreadedConnectionPool(minconn=AQ_DB_POOL_MIN, maxconn=AQ_DB_POOL_MAX, **AQ_DB)
+            _ensure_aq_tables_exist()
             logger.info("Air quality DB pool ready.")
         if _seismic_pool is None:
+            # Same reasoning as AQ_DB above, for IOT_seismic_sensor_data.
+            _ensure_database_exists(SEISMIC_DB, label="ahead of seismic DB pool init")
             _seismic_pool = pool.ThreadedConnectionPool(minconn=SEISMIC_DB_POOL_MIN, maxconn=SEISMIC_DB_POOL_MAX, **SEISMIC_DB)
             logger.info("Seismic DB pool ready.")
         if _log_pool is None:
@@ -544,11 +605,55 @@ def release_api_conn(conn):
 # ==========================================================
 # API KEY REGISTRY (IOT_api)
 # ==========================================================
+def _migrate_plaintext_api_keys_if_needed(cur, conn):
+    """One-time upgrade path: older deployments of this script stored API
+    keys in plaintext (a `token` column). If that column is still present,
+    hash every existing token in place and drop the plaintext column, so a
+    raw key is never stored anywhere. No-ops if the table's already on the
+    hashed schema.
+
+    IMPORTANT: this makes plaintext keys unrecoverable from the DB
+    afterward — hashing can't be undone. If a key's raw value isn't
+    recorded somewhere else already (the original API_KEYS in .env, a
+    password manager, etc.), issuing a fresh key is the only recovery
+    option for whoever holds it, once this migration runs."""
+    cur.execute("""
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'api_keys' AND column_name = 'token';
+    """)
+    if not cur.fetchone():
+        return  # already hashed-only, nothing to migrate
+
+    logger.info("'api_keys' table still has plaintext tokens — migrating to hashed storage now.")
+    cur.execute("ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS token_hash VARCHAR(64);")
+    cur.execute("SELECT token, owner_label FROM api_keys;")
+    rows = cur.fetchall()
+    for token, owner_label in rows:
+        cur.execute("UPDATE api_keys SET token_hash = %s WHERE token = %s;", (_hash_token(token), token))
+
+    # Drop whatever the primary key constraint on the old `token` column is
+    # actually named, rather than assuming "api_keys_pkey".
+    cur.execute("""
+        SELECT tc.constraint_name FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+        WHERE tc.table_name = 'api_keys' AND tc.constraint_type = 'PRIMARY KEY' AND kcu.column_name = 'token';
+    """)
+    pk = cur.fetchone()
+    if pk:
+        cur.execute(f'ALTER TABLE api_keys DROP CONSTRAINT "{pk[0]}";')
+
+    cur.execute("ALTER TABLE api_keys ALTER COLUMN token_hash SET NOT NULL;")
+    cur.execute("ALTER TABLE api_keys ADD PRIMARY KEY (token_hash);")
+    cur.execute("ALTER TABLE api_keys DROP COLUMN token;")
+    conn.commit()
+    logger.info(f"Migrated {len(rows)} API key(s) to hashed storage. Plaintext tokens are no longer stored anywhere.")
+
+
 def _migrate_api_keys_from_env_if_needed(cur, conn):
     """One-time bootstrap: if the api_keys table is empty and API_KEYS is
-    still set in .env, import it. Only fires on an empty table, so it never
-    overwrites keys that were added/edited/revoked through the database
-    afterwards."""
+    still set in .env, import it (hashed). Only fires on an empty table, so
+    it never overwrites keys that were added/edited/revoked through the
+    database afterwards."""
     cur.execute("SELECT COUNT(*) FROM api_keys;")
     if cur.fetchone()[0] > 0:
         return
@@ -558,34 +663,37 @@ def _migrate_api_keys_from_env_if_needed(cur, conn):
     logger.info(f"'api_keys' table is empty — importing {len(env_keys)} key(s) from .env's API_KEYS (one-time).")
     for token, label in env_keys.items():
         cur.execute("""
-            INSERT INTO api_keys (token, owner_label, enabled)
+            INSERT INTO api_keys (token_hash, owner_label, enabled)
             VALUES (%s, %s, TRUE)
-            ON CONFLICT (token) DO NOTHING;
-        """, (token, label))
+            ON CONFLICT (token_hash) DO NOTHING;
+        """, (_hash_token(token), label))
     conn.commit()
     logger.info(
-        f"Migrated {len(env_keys)} API key(s) into the database. The database is now the source "
-        f"of truth for API keys — API_KEYS in .env won't be read again automatically. Manage keys "
-        f"by inserting/updating/deleting rows in the 'api_keys' table from here on."
+        f"Migrated {len(env_keys)} API key(s) into the database as hashed tokens. The database is "
+        f"now the source of truth for API keys — API_KEYS in .env won't be read again automatically. "
+        f"Manage keys by inserting/updating/deleting rows in the 'api_keys' table (store the SHA-256 "
+        f"hex digest of the raw token as token_hash) from here on."
     )
 
 
 def initialize_api_keys_table():
-    """Ensures IOT_api and its api_keys table exist, runs the one-time
-    .env migration if needed, then loads the initial key set into memory."""
+    """Ensures IOT_api and its api_keys table exist (hashed-token schema),
+    migrates any pre-existing plaintext tokens or .env-based keys if
+    needed, then loads the initial key set into memory."""
     _ensure_database_exists(API_DB, label="ahead of API key table init")
     try:
         conn = psycopg2.connect(**API_DB)
         cur = conn.cursor()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS api_keys (
-                token VARCHAR(200) PRIMARY KEY,
+                token_hash VARCHAR(64) PRIMARY KEY,
                 owner_label VARCHAR(100) NOT NULL,
                 enabled BOOLEAN NOT NULL DEFAULT TRUE,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
         """)
         conn.commit()
+        _migrate_plaintext_api_keys_if_needed(cur, conn)
         _migrate_api_keys_from_env_if_needed(cur, conn)
         cur.close()
         conn.close()
@@ -600,8 +708,8 @@ def load_api_keys_from_db() -> Dict[str, str]:
     conn = psycopg2.connect(**API_DB)
     try:
         cur = conn.cursor()
-        cur.execute("SELECT token, owner_label FROM api_keys WHERE enabled = TRUE;")
-        return {token: label for token, label in cur.fetchall()}
+        cur.execute("SELECT token_hash, owner_label FROM api_keys WHERE enabled = TRUE;")
+        return {token_hash: label for token_hash, label in cur.fetchall()}
     finally:
         conn.close()
 
@@ -691,8 +799,19 @@ app = FastAPI(
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
 
 
+def _hash_token(raw_token: str) -> str:
+    """API keys are high-entropy random secrets, not user-chosen passwords —
+    so a plain SHA-256 hash is the right tool here, the same approach
+    GitHub/Stripe/etc. use for API tokens. This deliberately isn't a slow
+    salted KDF (bcrypt/scrypt): those exist to resist brute-forcing a
+    low-entropy secret, which doesn't apply to a random 32+ byte token.
+    Only this hash is ever stored; the raw token itself never touches the
+    database."""
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
 def verify_api_key(api_key: str = Security(api_key_header)):
-    if api_key not in get_authorized_keys():
+    if _hash_token(api_key) not in get_authorized_keys():
         raise HTTPException(status_code=403, detail="Unauthorized request: Invalid API Token")
     return api_key
 
@@ -715,7 +834,7 @@ async def monitor_and_log_api_requests(request: Request, call_next):
     method = request.method
     path = request.url.path
     raw_token = request.headers.get("X-API-Key")
-    api_key_owner = get_authorized_keys().get(raw_token, "Unauthorized/None")
+    api_key_owner = get_authorized_keys().get(_hash_token(raw_token), "Unauthorized/None") if raw_token else "Unauthorized/None"
     masked_token = _mask_token(raw_token)
 
     response = await call_next(request)
@@ -735,7 +854,11 @@ async def monitor_and_log_api_requests(request: Request, call_next):
 
     threading.Thread(
         target=insert_api_log,
-        args=(client_ip, method, path, status_code, duration_ms, api_key_owner, raw_token),
+        # masked_token, not raw_token: api_request_logs is a database table,
+        # not just a text log — the raw key has no business being stored
+        # there any more than in service_logs (which _mask_token was
+        # already written to protect).
+        args=(client_ip, method, path, status_code, duration_ms, api_key_owner, masked_token),
         daemon=True,
     ).start()
 

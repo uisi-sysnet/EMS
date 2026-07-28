@@ -9,16 +9,19 @@ Responsibility: receive station telemetry, parse it, write it to the
 import json
 import logging
 import os
+import queue
 import re
 import socket
 import threading
 import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from typing import Optional
 
 import psycopg2
 from psycopg2 import pool, sql
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from psycopg2.extras import execute_values
 from pymodbus.client import ModbusTcpClient
 from pymodbus.framer import FramerType
 from dotenv import load_dotenv
@@ -36,6 +39,14 @@ MAX_CONNECTIONS = 20
 VERIFY_CHECKSUM = False
 SUPPORTED_CN = ["2011", "9014"]
 LEAD_POLL_INTERVAL = int(os.getenv("AQ_LEAD_POLL_INTERVAL", 30))
+
+# How old the latest sensor_data row for a station is allowed to be before a
+# Modbus lead reading is attached to it. Without this, a station whose
+# HJ212 telemetry has gone quiet (but whose lead analyzer is still
+# reachable over Modbus) would keep having fresh lead values silently
+# stitched onto an increasingly stale row — data for the wrong point in
+# time, tagged with the right station_mn but the wrong data_time.
+AQ_LEAD_MAX_ROW_AGE_SEC = int(os.getenv("AQ_LEAD_MAX_ROW_AGE_SEC", 600))
 
 # How far a sensor's self-reported DataTime is allowed to drift from this
 # server's (NTP-synced) clock before we treat it as bogus and fall back to
@@ -73,6 +84,25 @@ DB_PASSWORD = os.getenv("SYSTEM_DB_PASSWORD")
 # and api_server.py may all be running on the same low-memory Raspberry Pi.
 DB_POOL_MIN = int(os.getenv("SYSTEM_DB_POOL_MIN", 2))
 DB_POOL_MAX = int(os.getenv("SYSTEM_DB_POOL_MAX", 10))
+
+# ---- Batched sensor-data writes ----
+# A station reading used to be a single INSERT + a single commit, executed
+# synchronously on whichever thread received that station's TCP frame. Fine
+# at low volume, but every extra station/poll rate adds a full round-trip +
+# WAL fsync per reading. Instead, parsed readings are dropped on an in-memory
+# queue (cheap, non-blocking for the TCP handler threads) and a single
+# background thread (see batch_insert_worker) flushes them to Postgres as one
+# multi-row INSERT + one commit, whenever AQ_BATCH_MAX_SIZE readings have
+# queued up OR AQ_BATCH_MAX_INTERVAL_SEC seconds have passed since the first
+# unflushed reading — whichever comes first, so worst-case latency is bounded
+# even when traffic is light.
+AQ_BATCH_MAX_SIZE = int(os.getenv("AQ_BATCH_MAX_SIZE", 100))
+AQ_BATCH_MAX_INTERVAL_SEC = float(os.getenv("AQ_BATCH_MAX_INTERVAL_SEC", 2))
+
+# Minimum time between "reading discarded" log entries for the *same*
+# station, so a chatty unregistered/disabled station doesn't flood the
+# system log (service_logs table) with a repeat warning on every frame.
+AQ_STATION_REJECT_LOG_COOLDOWN_MIN = int(os.getenv("AQ_STATION_REJECT_LOG_COOLDOWN_MIN", 15))
 
 # How often the in-memory station registry is reloaded from the database, so
 # stations added/edited/disabled in the DB (e.g. via import_stations.py or
@@ -156,6 +186,30 @@ SENSORS = {
 # ==========================================================
 _connection_pool = None
 _pool_lock = threading.Lock()
+
+# Parsed readings waiting to be flushed to sensor_data by batch_insert_worker.
+_sensor_data_queue = queue.Queue()
+
+# Fixed column order for the batched INSERT. Every queued row uses exactly
+# these keys (missing sensors are simply None) so a whole batch can be
+# written with one execute_values() call regardless of which sensors each
+# individual station reported.
+_ROW_COLUMNS = ["station_mn", "ip_address", "data_time"] + [s["column"] for s in SENSORS.values()]
+
+# Per-station cooldown so repeated readings from an unregistered/disabled
+# station log a warning periodically instead of on every single frame.
+_last_station_reject_warn = {}
+_station_reject_warn_lock = threading.Lock()
+
+
+def _log_station_reading_rejected(mn, ip_address, reason):
+    now_mono = time.monotonic()
+    with _station_reject_warn_lock:
+        last = _last_station_reject_warn.get(mn, 0)
+        if now_mono - last < AQ_STATION_REJECT_LOG_COOLDOWN_MIN * 60:
+            return
+        _last_station_reject_warn[mn] = now_mono
+    logger.warning(f"Station {mn} (IP {ip_address}) {reason} — reading discarded, not saved.")
 
 
 def create_database_if_not_exists():
@@ -317,6 +371,14 @@ def get_stations() -> dict:
         return dict(STATIONS)
 
 
+def get_station(mn) -> Optional[dict]:
+    """Thread-safe lookup of a single station's config. Cheaper than
+    get_stations() when only one station is needed (e.g. once per incoming
+    HJ212 reading) since it doesn't copy the whole registry."""
+    with _stations_lock:
+        return STATIONS.get(mn)
+
+
 def stations_refresh_loop():
     while True:
         time.sleep(AQ_STATIONS_REFRESH_INTERVAL_SEC)
@@ -401,87 +463,153 @@ def create_tables():
 
 
 def insert_sensor_data(data, ip_address, station_conn=None):
+    """Parses one station reading and enqueues it for batch_insert_worker.
+    Deliberately does no DB I/O itself — this runs on the TCP handler thread
+    for whichever station just sent a frame, so it needs to stay fast and
+    non-blocking regardless of how busy the batch writer/DB currently are."""
+    cp = data.get("CP", {})
+    mn = data.get("MN")
+
+    # Only save data for stations that are registered AND enabled in the DB.
+    # Besides being the correct behavior, this also protects batch writes:
+    # since a whole batch is written as one multi-row INSERT, a row from an
+    # unrecognized station would fail the sensor_data foreign key and roll
+    # back every other valid reading sitting in that same batch.
+    station = get_station(mn)
+    if station is None:
+        _log_station_reading_rejected(mn, ip_address, "is not in the registered station list")
+        return
+    if not station.get("enabled", True):
+        _log_station_reading_rejected(mn, ip_address, "is registered but disabled")
+        return
+
+    data_time = datetime.now(timezone.utc)  # trusted default: this server's NTP-synced clock
+
+    if "DataTime" in cp:
+        try:
+            naive_dt = datetime.strptime(cp["DataTime"], "%Y%m%d%H%M%S")
+            philippines_tz = timezone(timedelta(hours=8))
+            localized_pht_dt = naive_dt.replace(tzinfo=philippines_tz)
+            candidate_time = localized_pht_dt.astimezone(timezone.utc)
+
+            # Sensors have their own onboard clock (usually backed by a
+            # coin-cell RTC battery) that's independent of this server's
+            # NTP-synced time. If that battery dies or the unit loses
+            # power, the sensor's clock resets to some default/epoch and
+            # every DataTime it reports afterward is garbage — silently
+            # mis-dating readings by months or years if we trust it as-is.
+            # Guard against that: only accept the sensor's timestamp if
+            # it's within MAX_SENSOR_CLOCK_DRIFT of our own clock; otherwise
+            # fall back to server time and flag it so the field team knows
+            # station `mn` needs its RTC/battery checked.
+            drift_secs = abs((candidate_time - data_time).total_seconds())
+            if drift_secs <= MAX_SENSOR_CLOCK_DRIFT.total_seconds():
+                data_time = candidate_time
+            else:
+                logger.warning(
+                    f"Station {mn}: sensor-reported DataTime '{cp['DataTime']}' is "
+                    f"{drift_secs / 3600:.1f}h off from server time — looks like the "
+                    f"sensor's clock reset (dead RTC battery / power loss). Using "
+                    f"server time for this reading instead; station needs a hardware check."
+                )
+                if AQ_TIME_SYNC_ENABLED and station_conn is not None:
+                    request_sensor_time_sync(station_conn, mn)
+        except ValueError:
+            logger.warning(f"Station {mn}: unparseable DataTime '{cp.get('DataTime')}' — using server time.")
+
+    row = {"station_mn": mn, "ip_address": ip_address, "data_time": data_time}
+    for code, sensor in SENSORS.items():
+        if code not in cp:
+            continue
+        sensor_data = cp[code]
+        row[sensor["column"]] = sensor_data.get("Rtd") or sensor_data.get("Avg") or sensor_data.get("Value")
+
+    _sensor_data_queue.put(row)
+
+
+def _flush_batch(rows):
+    """Writes a batch of parsed readings as one multi-row INSERT + one
+    commit. Runs only on the batch_insert_worker thread."""
+    if not rows:
+        return
     conn = None
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cp = data.get("CP", {})
-        mn = data.get("MN")
-
-        data_time = datetime.now(timezone.utc)  # trusted default: this server's NTP-synced clock
-
-        if "DataTime" in cp:
-            try:
-                naive_dt = datetime.strptime(cp["DataTime"], "%Y%m%d%H%M%S")
-                philippines_tz = timezone(timedelta(hours=8))
-                localized_pht_dt = naive_dt.replace(tzinfo=philippines_tz)
-                candidate_time = localized_pht_dt.astimezone(timezone.utc)
-
-                # Sensors have their own onboard clock (usually backed by a
-                # coin-cell RTC battery) that's independent of this server's
-                # NTP-synced time. If that battery dies or the unit loses
-                # power, the sensor's clock resets to some default/epoch and
-                # every DataTime it reports afterward is garbage — silently
-                # mis-dating readings by months or years if we trust it as-is.
-                # Guard against that: only accept the sensor's timestamp if
-                # it's within MAX_SENSOR_CLOCK_DRIFT of our own clock; otherwise
-                # fall back to server time and flag it so the field team knows
-                # station `mn` needs its RTC/battery checked.
-                drift_secs = abs((candidate_time - data_time).total_seconds())
-                if drift_secs <= MAX_SENSOR_CLOCK_DRIFT.total_seconds():
-                    data_time = candidate_time
-                else:
-                    logger.warning(
-                        f"Station {mn}: sensor-reported DataTime '{cp['DataTime']}' is "
-                        f"{drift_secs / 3600:.1f}h off from server time — looks like the "
-                        f"sensor's clock reset (dead RTC battery / power loss). Using "
-                        f"server time for this reading instead; station needs a hardware check."
-                    )
-                    if AQ_TIME_SYNC_ENABLED and station_conn is not None:
-                        request_sensor_time_sync(station_conn, mn)
-            except ValueError:
-                logger.warning(f"Station {mn}: unparseable DataTime '{cp.get('DataTime')}' — using server time.")
-
-        values = {"station_mn": mn, "ip_address": ip_address, "data_time": data_time}
-
-        for code, sensor in SENSORS.items():
-            if code not in cp:
-                continue
-            sensor_data = cp[code]
-            values[sensor["column"]] = sensor_data.get("Rtd") or sensor_data.get("Avg") or sensor_data.get("Value")
-
-        columns = list(values.keys())
-        placeholders = ["%s"] * len(columns)
-        query = f"INSERT INTO sensor_data ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
-
-        cur.execute(query, [values[col] for col in columns])
+        values = [tuple(row.get(col) for col in _ROW_COLUMNS) for row in rows]
+        query = f"INSERT INTO sensor_data ({', '.join(_ROW_COLUMNS)}) VALUES %s"
+        execute_values(cur, query, values)
         conn.commit()
-        logger.info(f"Ingested air quality reading for station {mn}")
+        logger.info(f"Ingested {len(rows)} air quality reading(s) in one batch.")
     except Exception as e:
         if conn:
             conn.rollback()
-        logger.error(f"Error inserting sensor data: {e}")
+        logger.error(f"Error inserting batch of {len(rows)} sensor reading(s): {e}")
     finally:
         if conn:
             release_connection(conn)
 
 
-def update_lead_value(mn, lead, temperature):
+def batch_insert_worker():
+    """Drains _sensor_data_queue and flushes to the DB whenever
+    AQ_BATCH_MAX_SIZE readings have accumulated or AQ_BATCH_MAX_INTERVAL_SEC
+    seconds have elapsed since the first reading in the current batch,
+    whichever happens first. Runs for the lifetime of the process."""
+    batch = []
+    deadline = None
+    while True:
+        timeout = max(0.0, deadline - time.monotonic()) if deadline is not None else None
+        try:
+            row = _sensor_data_queue.get(timeout=timeout)
+            batch.append(row)
+            if deadline is None:
+                deadline = time.monotonic() + AQ_BATCH_MAX_INTERVAL_SEC
+        except queue.Empty:
+            pass  # nothing new arrived before the deadline — flush what we have
+
+        if batch and (len(batch) >= AQ_BATCH_MAX_SIZE or (deadline is not None and time.monotonic() >= deadline)):
+            _flush_batch(batch)
+            batch = []
+            deadline = None
+
+
+def start_batch_insert_worker():
+    threading.Thread(target=batch_insert_worker, daemon=True, name="SensorDataBatchWriter").start()
+
+
+def update_lead_value(mn, ip, lead, temperature):
+    """Attaches a Modbus lead reading to station `mn`'s most recent
+    sensor_data row — but only if that row is recent enough (see
+    AQ_LEAD_MAX_ROW_AGE_SEC), and only for `mn` (never any other station,
+    regardless of what else might share that lead IP/port). `ip` is the
+    lead_ip this station is assigned in the `stations` table — passed
+    through purely so success/failure logs are traceable to a specific
+    station+IP pairing rather than just an MN."""
     conn = None
     try:
         conn = get_connection()
         cur = conn.cursor()
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=AQ_LEAD_MAX_ROW_AGE_SEC)
         cur.execute("""
             UPDATE sensor_data SET lead = %s, lead_temperature = %s
             WHERE station_mn = %s AND data_time = (
-                SELECT MAX(data_time) FROM sensor_data WHERE station_mn = %s
+                SELECT MAX(data_time) FROM sensor_data
+                WHERE station_mn = %s AND data_time >= %s
             )
-            """, (lead, temperature, mn, mn))
+            """, (lead, temperature, mn, mn, cutoff))
         conn.commit()
+        if cur.rowcount == 0:
+            logger.warning(
+                f"Station {mn} (lead IP {ip}): read a Modbus lead value but found no "
+                f"sensor_data row from the last {AQ_LEAD_MAX_ROW_AGE_SEC}s to attach it to "
+                f"— station's HJ212 telemetry may have gone quiet. Lead reading discarded."
+            )
+        else:
+            logger.info(f"Station {mn} (lead IP {ip}): synced lead={lead}, lead_temperature={temperature}.")
     except Exception as e:
         if conn:
             conn.rollback()
-        logger.error(f"Error updating Modbus lead values: {e}")
+        logger.error(f"Station {mn} (lead IP {ip}): error updating Modbus lead values: {e}")
     finally:
         if conn:
             release_connection(conn)
@@ -661,6 +789,7 @@ def poll_station(mn, station):
     ip, port, slave = station["lead_ip"], station["lead_port"], station["lead_slave"]
     client = ModbusTcpClient(host=ip, port=port, framer=FramerType.RTU, timeout=3)
     if not client.connect():
+        logger.error(f"[MODBUS] Station {mn} (IP {ip}): could not connect.")
         return
     try:
         rr = None
@@ -673,9 +802,9 @@ def poll_station(mn, station):
                 rr = client.read_holding_registers(address=0, count=10, unit=slave)
 
         if rr and not rr.isError():
-            update_lead_value(mn, rr.registers[2] / 10.0, rr.registers[1] / 10.0)
+            update_lead_value(mn, ip, rr.registers[2] / 10.0, rr.registers[1] / 10.0)
     except Exception as e:
-        logger.error(f"[MODBUS] IP {ip}: {e}")
+        logger.error(f"[MODBUS] Station {mn} (IP {ip}): {e}")
     finally:
         client.close()
 
@@ -755,6 +884,7 @@ def main():
     refresh_stations(initial=True)
     threading.Thread(target=stations_refresh_loop, daemon=True, name="StationsRefresh").start()
 
+    start_batch_insert_worker()
     start_lead_service()
     start_tcp_server()  # blocks the main thread
 
