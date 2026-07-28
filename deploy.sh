@@ -138,7 +138,29 @@ done
 # 1. System packages
 # ----------------------------------------------------------------------
 log "Updating apt package lists"
-apt-get update -y
+if ! apt-get update -y; then
+    # If a TimescaleDB repo file is already sitting here (e.g. left over
+    # from an earlier/interrupted attempt) and isn't marked [trusted=yes]
+    # yet, this is almost certainly the same packagecloud/sqv signature
+    # issue on Debian trixie documented in the TimescaleDB section below —
+    # see github.com/timescale/timescaledb/issues/8871 — just hit here
+    # instead of there, because the repo file already existed before this
+    # script's own TimescaleDB step got a chance to add/fix it. Apply the
+    # identical [trusted=yes] workaround here and retry. Any OTHER cause of
+    # apt-get update failing (network issue, a different broken repo, etc.)
+    # still dies below rather than being silently swallowed.
+    TIMESCALEDB_LIST="/etc/apt/sources.list.d/timescaledb.list"
+    if [[ -f "$TIMESCALEDB_LIST" ]] && ! grep -q '\[trusted=yes\]' "$TIMESCALEDB_LIST"; then
+        warn "Initial apt-get update failed, and a pre-existing TimescaleDB repo file not"
+        warn "marked [trusted=yes] is present — applying the sqv/trixie signature workaround"
+        warn "(see the TimescaleDB section below for the full explanation) and retrying."
+        sed -i -E 's#^deb \[signed-by=[^]]*\]#deb [trusted=yes]#' "$TIMESCALEDB_LIST"
+        grep -q '\[trusted=yes\]' "$TIMESCALEDB_LIST" || rm -f "$TIMESCALEDB_LIST"
+        apt-get update -y || die "apt-get update still failing after the TimescaleDB repo workaround — see the error above, likely a different repo/cause."
+    else
+        die "apt-get update failed — see the error above."
+    fi
+fi
 
 log "Installing base tools (python3, pip, curl, gnupg)"
 # --no-install-recommends keeps the footprint (disk + install time) down —
