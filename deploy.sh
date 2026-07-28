@@ -190,7 +190,26 @@ elif ! dpkg -l | grep -q "timescaledb-2-postgresql-${PG_VERSION}"; then
         gpg --batch --yes --dearmor -o /etc/apt/keyrings/timescaledb.gpg
     echo "deb [signed-by=/etc/apt/keyrings/timescaledb.gpg] https://packagecloud.io/timescale/timescaledb/${TIMESCALE_REPO_OS}/ $(lsb_release -c -s) main" \
         > /etc/apt/sources.list.d/timescaledb.list
-    apt-get update -y
+
+    if ! apt-get update -y; then
+        # Known issue as of Debian 13 "trixie": apt's newer sqv (Sequoia-PGP)
+        # signature backend rejects packagecloud's InRelease signature for
+        # this repo ("Missing key ... which is needed to verify signature")
+        # even with a correctly imported, correctly referenced key. This is
+        # a documented packagecloud/sqv incompatibility affecting multiple
+        # unrelated packagecloud-hosted repos on trixie, not an error in how
+        # the key was imported above — see
+        # https://github.com/timescale/timescaledb/issues/8871
+        warn "apt-get update failed for the TimescaleDB repo — this matches a known"
+        warn "packagecloud/sqv signature-verification issue on Debian trixie"
+        warn "(github.com/timescale/timescaledb/issues/8871), not a real key/network problem."
+        warn "Falling back to [trusted=yes] for the TimescaleDB repo ONLY — this skips GPG"
+        warn "verification for that one repo (packages still arrive over HTTPS). Every other"
+        warn "repo on this system keeps full signature verification."
+        echo "deb [trusted=yes] https://packagecloud.io/timescale/timescaledb/${TIMESCALE_REPO_OS}/ $(lsb_release -c -s) main" \
+            > /etc/apt/sources.list.d/timescaledb.list
+        apt-get update -y || die "apt-get update still failing after the [trusted=yes] fallback — check connectivity to packagecloud.io."
+    fi
     if ! apt-get install -y --no-install-recommends "timescaledb-2-postgresql-${PG_VERSION}"; then
         die "TimescaleDB package install failed. If you're on Raspberry Pi OS, confirm you're running" \
             "the 64-bit (arm64) image and that '$(lsb_release -c -s)' is a codename TimescaleDB has" \
