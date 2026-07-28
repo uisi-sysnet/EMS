@@ -32,7 +32,7 @@ load_dotenv(dotenv_path=SCRIPT_DIR / ".env")
 # ---- Database config (SEISMIC_ prefixed to share one .env with the other services) ----
 DB_HOST = os.getenv("SYSTEM_DB_HOST", "localhost")
 DB_PORT = os.getenv("SYSTEM_DB_PORT", "5432")
-DB_USER = os.getenv("SYSTEM_DB_USER", "seismic_user")
+DB_USER = os.getenv("SYSTEM_DB_USER", "aq_user")
 DB_PASSWORD = os.getenv("SYSTEM_DB_PASSWORD")
 DB_NAME = os.getenv("SEISMIC_DB_NAME", "seismic_sensor_data")
 

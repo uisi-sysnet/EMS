@@ -724,7 +724,7 @@ def _validate_config():
     env_path = SCRIPT_DIR / ".env"
     if not DB_PASSWORD:
         logger.critical("=" * 70)
-        logger.critical("CONFIG ERROR: AQ_DB_PASSWORD not loaded from .env")
+        logger.critical("CONFIG ERROR: SYSTEM_DB_PASSWORD not loaded from .env")
         logger.critical(f"Expected .env at: {env_path} (exists: {env_path.exists()})")
         logger.critical("Check: file isn't secretly named '.env.txt', is in this script's folder, and is saved as UTF-8.")
         logger.critical("=" * 70)

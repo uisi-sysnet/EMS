@@ -338,7 +338,7 @@ SEISMIC_DB = dict(
     host=os.getenv("SYSTEM_DB_HOST", "127.0.0.1"),
     port=int(os.getenv("SYSTEM_DB_PORT", 5432)),
     dbname=os.getenv("SEISMIC_DB_NAME", "IOT_seismic_sensor_data"),
-    user=os.getenv("SYSTEM_DB_USER", "seismic_user"),
+    user=os.getenv("SYSTEM_DB_USER", "aq_user"),
     password=os.getenv("SYSTEM_DB_PASSWORD"),
 )
 

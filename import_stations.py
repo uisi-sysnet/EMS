@@ -69,7 +69,7 @@ def main():
         sys.exit(1)
 
     if not DB_PASSWORD:
-        print("ERROR: AQ_DB_PASSWORD not set — check .env.")
+        print("ERROR: SYSTEM_DB_PASSWORD not set — check .env.")
         sys.exit(1)
 
     stations = load_json(json_path)
