@@ -454,8 +454,30 @@ fi
 # (like a SIM800L) trying to send it AT commands. raspi-config's
 # non-interactive mode disables the console and enables the UART hardware.
 # This only applies on an actual Pi (raspi-config doesn't exist on Ubuntu).
+#
+# This project wires the SIM800L to the PRIMARY UART — GPIO14/TXD (pin 8)
+# and GPIO15/RXD (pin 10) — not one of the Pi 4's secondary UARTs (uart2-5,
+# on GPIO0/1, 4/5, 8/9, 12/13). On boards with onboard Bluetooth (Pi 3/4/5,
+# Zero W/2 W), GPIO14/15 default to the "mini-UART", whose baud clock is
+# tied to the CPU's variable core frequency — this causes baud-rate drift
+# and garbled AT command responses under load. So below we also disable
+# Bluetooth's claim on the UART, which frees the full, stable PL011 UART
+# for GPIO14/15 instead (matches sim800l.py's docstring wiring notes).
+set_env_var() {
+    # Sets KEY=VALUE in $ENV_FILE — replaces an existing uncommented
+    # 'KEY=...' line if present, appends a new 'KEY=VALUE' line otherwise.
+    local key="$1" value="$2"
+    local escaped_value="${value//&/\\&}"   # '&' is special to sed's replacement text
+    if grep -qE "^${key}=" "$ENV_FILE"; then
+        sed -i -E "s|^${key}=.*|${key}=${escaped_value}|" "$ENV_FILE"
+    else
+        printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+    fi
+}
+
 if command -v raspi-config >/dev/null 2>&1; then
-    log "Raspberry Pi detected — configuring UART for SIM800L SMS ingestion"
+    log "Raspberry Pi detected — configuring UART for SIM800L SMS ingestion (GPIO14/GPIO15)"
+
     # Disable the serial console (frees the UART for our own use)...
     raspi-config nonint do_serial_cons 1 2>/dev/null || \
         raspi-config nonint do_serial 1 2>/dev/null || \
@@ -463,7 +485,68 @@ if command -v raspi-config >/dev/null 2>&1; then
     # ...and enable the UART hardware itself.
     raspi-config nonint do_serial_hw 0 2>/dev/null || \
         warn "Could not enable UART hardware automatically — if SMS ingestion doesn't work, run 'sudo raspi-config' -> Interface Options -> Serial Port -> 'serial port hardware: Yes', then reboot."
+
+    # Belt-and-suspenders: confirm the settings raspi-config should have
+    # just made actually landed in config.txt (Bookworm+ moved this under
+    # /boot/firmware/), and fix anything that's still off.
+    BOOT_CONFIG=""
+    if [[ -f /boot/firmware/config.txt ]]; then
+        BOOT_CONFIG="/boot/firmware/config.txt"
+    elif [[ -f /boot/config.txt ]]; then
+        BOOT_CONFIG="/boot/config.txt"
+    fi
+
+    if [[ -n "$BOOT_CONFIG" ]]; then
+        if ! grep -qE '^\s*enable_uart=1\s*$' "$BOOT_CONFIG"; then
+            log "Adding 'enable_uart=1' to $BOOT_CONFIG"
+            echo "enable_uart=1" >> "$BOOT_CONFIG"
+        else
+            log "UART already enabled in $BOOT_CONFIG (enable_uart=1 present)"
+        fi
+
+        if ! grep -qE '^\s*dtoverlay=disable-bt\s*$' "$BOOT_CONFIG"; then
+            log "Adding 'dtoverlay=disable-bt' to $BOOT_CONFIG — frees the full PL011 UART for GPIO14/15"
+            echo "dtoverlay=disable-bt" >> "$BOOT_CONFIG"
+        else
+            log "Bluetooth already disabled on the UART in $BOOT_CONFIG (dtoverlay=disable-bt present)"
+        fi
+        systemctl disable hciuart 2>/dev/null || true
+
+        # Flag+neutralize a leftover secondary UART overlay (uart2-5) — it
+        # doesn't conflict with GPIO14/15 itself, but it needlessly reserves
+        # other GPIO pins (0/1, 4/5, 8/9, or 12/13) this project doesn't use.
+        if grep -qE '^\s*dtoverlay=uart[2-5]\s*$' "$BOOT_CONFIG"; then
+            warn "Found a secondary UART overlay (dtoverlay=uart2/3/4/5) in $BOOT_CONFIG — commenting it out, since this project only uses the primary UART on GPIO14/15."
+            sed -i -E 's/^(\s*dtoverlay=uart[2-5]\s*)$/# \1  # commented out by deploy.sh -- SIM800L uses the primary UART on GPIO14\/15/' "$BOOT_CONFIG"
+        fi
+    else
+        warn "Could not find config.txt (checked /boot/firmware/config.txt and /boot/config.txt) — could not verify enable_uart/disable-bt. Set these manually if SMS ingestion doesn't work."
+    fi
+
     warn "UART settings only take effect after a reboot. Run 'sudo reboot' once deploy.sh finishes, before starting the seismic service."
+
+    # Keep .env in sync with the wiring above. GPIO14/15 always surfaces as
+    # /dev/serial0 on Raspberry Pi OS (a symlink to ttyAMA0 or ttyS0
+    # depending on the Bluetooth setting above) — so /dev/serial0 is always
+    # the right value here, regardless of which underlying device it
+    # resolves to, and regardless of whatever port an earlier experiment
+    # (e.g. a secondary UART overlay) may have left behind in .env.
+    CURRENT_SIM800_PORT="$(grep -E '^SIM800_SERIAL_PORT=' "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+    if [[ "$CURRENT_SIM800_PORT" != "/dev/serial0" ]]; then
+        log "Setting SIM800_SERIAL_PORT=/dev/serial0 in .env (was: '${CURRENT_SIM800_PORT:-<unset>}')"
+        set_env_var "SIM800_SERIAL_PORT" "/dev/serial0"
+    fi
+
+    # seismic_mqtt.py reads SIM800_BAUDRATE from .env (defaults to 9600 if
+    # absent, matching the SIM800L's factory default baud). Make the value
+    # explicit in .env rather than relying on that silent default, and
+    # reuse whatever value is actually there below instead of hardcoding.
+    if ! grep -qE '^SIM800_BAUDRATE=' "$ENV_FILE"; then
+        log "Adding SIM800_BAUDRATE=9600 to .env (not present — this is the SIM800L's factory default baud rate)"
+        set_env_var "SIM800_BAUDRATE" "9600"
+    fi
+    SIM800_BAUDRATE="$(grep -E '^SIM800_BAUDRATE=' "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+    log "After reboot, verify the modem responds with: minicom -D /dev/serial0 -b ${SIM800_BAUDRATE:-9600}"
 else
     log "raspi-config not found — skipping UART enablement (not a Raspberry Pi, or SIM800L not in use)."
 fi
