@@ -178,9 +178,18 @@ elif ! dpkg -l | grep -q "timescaledb-2-postgresql-${PG_VERSION}"; then
     else
         TIMESCALE_REPO_OS="debian"
     fi
-    echo "deb https://packagecloud.io/timescale/timescaledb/${TIMESCALE_REPO_OS}/ $(lsb_release -c -s) main" \
+    # NOTE: we deliberately do NOT use `apt-key add` here. apt-key is
+    # deprecated and has been removed outright on newer Ubuntu (24.04+)
+    # and recent Raspberry Pi OS/Debian bookworm images ("apt-key: command
+    # not found"). The modern equivalent is to dearmor the key into its own
+    # file under /etc/apt/keyrings and reference it explicitly via
+    # `signed-by` in the repo line, instead of dropping it into apt's
+    # global trusted-key ring.
+    install -d -m 0755 /etc/apt/keyrings
+    wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | \
+        gpg --batch --yes --dearmor -o /etc/apt/keyrings/timescaledb.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/timescaledb.gpg] https://packagecloud.io/timescale/timescaledb/${TIMESCALE_REPO_OS}/ $(lsb_release -c -s) main" \
         > /etc/apt/sources.list.d/timescaledb.list
-    wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | apt-key add -
     apt-get update -y
     if ! apt-get install -y --no-install-recommends "timescaledb-2-postgresql-${PG_VERSION}"; then
         die "TimescaleDB package install failed. If you're on Raspberry Pi OS, confirm you're running" \
