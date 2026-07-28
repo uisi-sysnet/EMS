@@ -240,8 +240,39 @@ elif ! dpkg -l | grep -q "timescaledb-2-postgresql-${PG_VERSION}"; then
     # timescaledb-tune sizes shared_buffers/work_mem/etc. from detected system
     # RAM, which works in the Pi's favor automatically (a 1-2GB Pi gets much
     # smaller settings than a 16GB server) — no separate low-memory branch needed.
-    timescaledb-tune --quiet --yes --pg-config="/usr/lib/postgresql/${PG_VERSION}/bin/pg_config" || \
-        warn "timescaledb-tune failed/skipped — check config manually if needed"
+    # It ships in the timescaledb-tools package, which is only a "Recommended"
+    # (not required) dependency of timescaledb-2-postgresql-${PG_VERSION} — so
+    # --no-install-recommends above means apt does NOT pull it in automatically,
+    # and the call below would silently no-op with "command not found". Install
+    # it explicitly so the tune step actually runs.
+    if ! command -v timescaledb-tune >/dev/null 2>&1; then
+        apt-get install -y --no-install-recommends timescaledb-tools || \
+            warn "Could not install timescaledb-tools — falling back to a minimal" \
+                 "shared_preload_libraries fix below (without the RAM-based tuning)."
+    fi
+    if command -v timescaledb-tune >/dev/null 2>&1; then
+        timescaledb-tune --quiet --yes --pg-config="/usr/lib/postgresql/${PG_VERSION}/bin/pg_config" || \
+            warn "timescaledb-tune ran but reported an error — check config manually if needed"
+    else
+        warn "timescaledb-tune still unavailable — applying a minimal fix below so the"
+        warn "extension at least loads (skips the RAM-based buffer/memory tuning)."
+    fi
+    # Whichever path was taken above, make sure 'timescaledb' actually ends up
+    # in shared_preload_libraries — the extension refuses to load without it.
+    # timescaledb-tune normally sets this as part of its tuning; this is the
+    # safety net for when it couldn't run. Idempotent and additive — only
+    # touches the setting if timescaledb isn't already listed, and preserves
+    # anything else already configured there.
+    CURRENT_PRELOAD="$(sudo -u postgres psql -tAc 'SHOW shared_preload_libraries;' 2>/dev/null || true)"
+    if [[ "$CURRENT_PRELOAD" != *timescaledb* ]]; then
+        log "Adding timescaledb to shared_preload_libraries"
+        NEW_PRELOAD="timescaledb"
+        [[ -n "$CURRENT_PRELOAD" ]] && NEW_PRELOAD="${CURRENT_PRELOAD},timescaledb"
+        sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c "ALTER SYSTEM SET shared_preload_libraries = '${NEW_PRELOAD}';" || \
+            warn "Could not set shared_preload_libraries automatically — add 'timescaledb' to it" \
+                 "in postgresql.conf manually (comma-separated if other libraries are listed)" \
+                 "and restart postgresql before running the ingest services."
+    fi
 else
     log "TimescaleDB already installed, skipping"
 fi
