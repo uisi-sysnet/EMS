@@ -374,7 +374,7 @@ def on_message(client, userdata, msg):
 #                      an integrity check.
 #
 # Example (with location, with checksum):
-#   SEISMSG1,STN-004,1721818530,14.5995,120.9842,15.2,0.012,-0.008,0.021,0.5,0.3,0.6,1.2,0.9,1.5,0.045,2,3F
+#   SEISMSG1,STN-004,1721818530,14.5995,120.9842,15.2,0.012,-0.008,0.021,0.5,0.3,0.6,1.2,0.9,1.5,0.045,2,61
 #
 # Example (no location, no checksum — shorter, for weak-signal areas):
 #   SEISMSG1,STN-004,1721818530,,,,0.012,-0.008,0.021,0.5,0.3,0.6,1.2,0.9,1.5,0.045,2
