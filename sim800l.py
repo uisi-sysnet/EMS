@@ -35,6 +35,17 @@ SIM800L firmware/clone; the parsing in this module was written against the
 documented AT command set (SIMCom SIM800 Series AT Command Manual) — if
 your specific module's +CMGL/+CMGR responses look different, adjust
 _parse_cmgl()'s regex accordingly.
+
+RAW MODE (no handshake)
+------------------------
+open() + read_raw_line() skip AT commands entirely: no liveness check, no
+ATE0/CMGF/CSCS/CNMI setup, no CMGL/CMGR/CMTI framing. This mode never
+checks whether a SIM800L is actually present or responding -- it just
+opens the serial device and hands back whatever text lines show up on
+the wire. Use this when you'd rather listen unconditionally than block
+on confirming the modem is there. The tradeoff: no sender number, no
+modem timestamp, no delete-after-read, and send_sms()/AT-based replies
+don't apply in this mode (see seismic_mqtt.py's sms_listener_loop()).
 """
 
 import logging
@@ -237,6 +248,38 @@ class SIM800L:
             else:
                 i += 1
         return results
+
+    def read_raw_line(self, timeout=2.0):
+        """Reads one raw line from the serial port, if one arrives within
+        `timeout` seconds — no AT commands are sent and no particular modem
+        state (echo off, text-mode SMS, CNMI notifications, etc.) is
+        assumed or required. Whatever bytes show up on the wire, up to the
+        next line terminator, are decoded and returned as-is.
+
+        Use this instead of initialize()/wait_for_notification() when you
+        don't want to check whether a SIM800L is actually present/
+        responding — it never sends "AT" or anything else, it just reads.
+        Returns None if no full line arrived before the timeout. Requires
+        open() to have been called first (initialize() is not needed)."""
+        if not self.is_open:
+            raise SIM800LError("Serial port is not open — call open() first")
+        with self._lock:
+            deadline = time.time() + timeout
+            buf = ""
+            while time.time() < deadline:
+                waiting = self._ser.in_waiting
+                chunk = self._ser.read(waiting or 1)
+                if chunk:
+                    buf += chunk.decode(errors="ignore")
+                    if "\n" in buf:
+                        line, buf = buf.split("\n", 1)
+                        line = line.strip("\r\n").strip()
+                        if line:
+                            return line
+                        # blank line — keep reading within the same deadline
+                else:
+                    time.sleep(0.05)
+            return None
 
     def wait_for_notification(self, timeout=1.0):
         """Reads any pending unsolicited '+CMTI:' lines for up to `timeout`
