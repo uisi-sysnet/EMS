@@ -103,9 +103,9 @@ set_env_var() {
 # Basic sanity check for a dotted-quad IPv4 address (not exhaustive, just
 # catches obvious typos before we hand it to NetworkManager).
 is_valid_ipv4() {
-    local ip="$1" IFS=. o1 o2 o3 o4
+    local ip="$1" o1 o2 o3 o4
     [[ "$ip" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]] || return 1
-    read -r o1 o2 o3 o4 <<< "${ip//./ }"
+    IFS=. read -r o1 o2 o3 o4 <<< "$ip"
     for o in "$o1" "$o2" "$o3" "$o4"; do
         [[ "$o" -ge 0 && "$o" -le 255 ]] || return 1
     done
