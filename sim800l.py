@@ -57,6 +57,20 @@ class SIM800LError(Exception):
     pass
 
 
+class SIM800LTimeoutError(SIM800LError):
+    """Raised by _read_raw_until_ok() on timeout. Carries whatever raw text
+    was captured before the deadline (`.partial`) so a stalled response —
+    e.g. one that never reaches a final OK because an unsolicited +CMTI
+    for a newly-arrived message landed mid-dump and the module stalled
+    after it — doesn't have to be thrown away wholesale; callers reading a
+    multi-message response can still recover the entries that did arrive
+    intact."""
+
+    def __init__(self, message, partial):
+        super().__init__(message)
+        self.partial = partial
+
+
 class SIM800L:
     def __init__(self, port="/dev/serial0", baudrate=9600, timeout=5):
         self.port = port
@@ -199,7 +213,7 @@ class SIM800L:
                         return buf
             else:
                 time.sleep(0.05)
-        raise SIM800LError(f"Timed out waiting for 'OK' — got raw: {buf!r}")
+        raise SIM800LTimeoutError(f"Timed out waiting for 'OK' — got raw: {buf!r}", partial=buf)
 
     # ---- SMS operations ----
 
@@ -218,14 +232,31 @@ class SIM800L:
         `timeout` defaults to a larger window than a typical AT command
         (self.timeout) since a full store of many messages takes longer to
         transfer, especially at low baud rates — pass it explicitly to
-        override."""
+        override.
+
+        If the response never reaches a final OK within `timeout` (e.g. an
+        unsolicited +CMTI for a newly-arrived message lands mid-dump and
+        the modem stalls after it — this does happen), this does NOT raise
+        or blow away what was read: it parses whatever raw text was
+        captured and returns the entries that did come through intact.
+        The backlog shrinks a bit more on each retry rather than the sweep
+        failing outright every time it collides with live traffic."""
         if timeout is None:
             timeout = max(self.timeout * 4, 20)
+        incomplete = False
         with self._lock:
             self._ser.reset_input_buffer()
             self._write_line('AT+CMGL="ALL"')
-            raw = self._read_raw_until_ok(timeout)
-        parsed, bad_indices = self._parse_cmgl_raw(raw)
+            try:
+                raw = self._read_raw_until_ok(timeout)
+            except SIM800LTimeoutError as e:
+                raw = e.partial
+                incomplete = True
+                logger.warning(
+                    "AT+CMGL=\"ALL\" didn't finish within the timeout — "
+                    "processing the partial response and picking up the rest on the next sweep."
+                )
+        parsed, bad_indices = self._parse_cmgl_raw(raw, drop_last_index=incomplete)
         for idx in bad_indices:
             logger.warning(f"SMS index {idx} on SIM could not be parsed (corrupted/binary content) — deleting slot.")
             try:
@@ -238,8 +269,12 @@ class SIM800L:
         with self._lock:
             self._ser.reset_input_buffer()
             self._write_line(f"AT+CMGR={index}")
-            raw = self._read_raw_until_ok(self.timeout)
-        parsed, _ = self._parse_cmgl_raw(raw, single_index=index)
+            try:
+                raw = self._read_raw_until_ok(self.timeout)
+            except SIM800LTimeoutError as e:
+                logger.warning(f"AT+CMGR={index} timed out — treating as unreadable.")
+                raw = e.partial
+        parsed, _ = self._parse_cmgl_raw(raw, single_index=index, drop_last_index=True)
         return parsed[0] if parsed else None
 
     def delete_message(self, index):
@@ -293,7 +328,7 @@ class SIM800L:
         raise SIM800LError(f"Timed out waiting for '>' prompt before AT+CMGS body — got: {buf!r}")
 
     @staticmethod
-    def _parse_cmgl_raw(text, single_index=None):
+    def _parse_cmgl_raw(text, single_index=None, drop_last_index=False):
         """Extracts SMS entries from a raw (unsplit) AT+CMGL/AT+CMGR
         response. Anchors on '+CMGL:'/'+CMGR:' header matches and takes
         everything between one header and the next as that message's body
@@ -307,7 +342,14 @@ class SIM800L:
         timestamp field containing raw control bytes the modem couldn't
         render as clean text — so the caller can free those SIM storage
         slots instead of hitting the same corrupt entries on every future
-        sweep."""
+        sweep.
+
+        `drop_last_index`: when the raw text came from a response that got
+        cut off by a timeout, the highest-numbered index seen may simply
+        not have finished arriving yet rather than being genuinely
+        corrupt — pass True to exclude it from bad_indices so a message
+        that's just running late doesn't get deleted before it had a fair
+        chance to complete."""
         matches = list(_CMGL_ENTRY_RE.finditer(text))
         results = []
         for i, m in enumerate(matches):
@@ -324,6 +366,8 @@ class SIM800L:
             })
         parsed_indices = {r["index"] for r in results if r["index"] is not None}
         all_seen_indices = {int(n) for n in _CMGL_INDEX_ONLY_RE.findall(text)}
+        if drop_last_index and all_seen_indices:
+            all_seen_indices.discard(max(all_seen_indices))
         bad_indices = sorted(all_seen_indices - parsed_indices)
         if bad_indices:
             logger.warning(f"Could not parse SMS header(s) for index(es): {bad_indices}")
