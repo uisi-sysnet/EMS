@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+!/usr/bin/env bash
 #
 # configure.sh — interactive setup wizard for the IoT gateway (Raspberry Pi 4B,
 # Raspberry Pi OS Lite / Bookworm). Run this FIRST, before deploy.sh.
@@ -28,6 +28,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${SCRIPT_DIR}/.env"
 ENV_TEMPLATE="${SCRIPT_DIR}/_env"
 DEPLOY_SCRIPT="${SCRIPT_DIR}/deploy.sh"
+INSTALL_SERVICES_SCRIPT="${SCRIPT_DIR}/install_services.sh"
 
 log()  { echo -e "\033[1;32m[setup]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[setup][WARN]\033[0m $*"; }
@@ -41,6 +42,11 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 [[ -f "$DEPLOY_SCRIPT" ]] || die "deploy.sh not found next to this script (expected at $DEPLOY_SCRIPT)."
+[[ -f "$INSTALL_SERVICES_SCRIPT" ]] || die "install_services.sh not found next to this script (expected at $INSTALL_SERVICES_SCRIPT)."
+
+# Archives and Windows file copies can strip executable bits. Restore them here
+# before deploy.sh invokes either helper script.
+chmod +x "$DEPLOY_SCRIPT" "$INSTALL_SERVICES_SCRIPT" || die "Could not make deployment scripts executable."
 
 if [[ ! -f "$ENV_FILE" ]]; then
     if [[ -f "$ENV_TEMPLATE" ]]; then
