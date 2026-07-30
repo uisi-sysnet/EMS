@@ -384,7 +384,7 @@ logger.addHandler(console_handler)
 DB_LOG_ENABLED = os.getenv("DB_LOG_ENABLED", "true").strip().lower() == "true"
 DB_LOG_TABLE = os.getenv("DB_LOG_TABLE", "service_logs")
 if DB_LOG_ENABLED and LOG_DB.get("password"):
-    from Fles.db_logging import attach_db_logging
+    from db_logging import attach_db_logging
     _log_dsn = (
         f"host={LOG_DB['host']} port={LOG_DB['port']} dbname={LOG_DB['dbname']} "
         f"user={LOG_DB['user']} password={LOG_DB['password']}"
