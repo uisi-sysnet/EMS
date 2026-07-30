@@ -240,9 +240,21 @@ if command -v systemctl >/dev/null 2>&1; then
     fi
 fi
 
+NTP_DAEMON_SYNCED=false
+if command -v ntpq >/dev/null 2>&1; then
+    # An asterisk marks the peer currently selected for synchronization.
+    if ntpq -pn 2>/dev/null | awk '$1 ~ /^\*/ { found=1 } END { exit !found }'; then
+        NTP_DAEMON_SYNCED=true
+    fi
+elif command -v chronyc >/dev/null 2>&1; then
+    if chronyc tracking 2>/dev/null | grep -qE 'Leap status[[:space:]]*:[[:space:]]*Normal'; then
+        NTP_DAEMON_SYNCED=true
+    fi
+fi
+
 if command -v timedatectl >/dev/null 2>&1; then
     SYNCED="$(timedatectl show --property=NTPSynchronized --value 2>/dev/null || true)"
-    if [[ "$SYNCED" == "yes" ]]; then
+    if [[ "$SYNCED" == "yes" || "$NTP_DAEMON_SYNCED" == true ]]; then
         log "Clock is NTP-synchronized"
     else
         fail "Clock is NOT reported as NTP-synchronized"
@@ -254,7 +266,7 @@ else
 fi
 
 echo
-log "Current date/time : $(date '+%Y-%m-%d %H:%M:%S %Z')"
+log "Current date/time : $(env -u TZ date '+%Y-%m-%d %H:%M:%S %Z')"
 if command -v timedatectl >/dev/null 2>&1; then
     TZ_NAME="$(timedatectl show --property=Timezone --value 2>/dev/null || true)"
     log "Timezone/location : ${TZ_NAME:-unknown}"
