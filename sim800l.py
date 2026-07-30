@@ -63,6 +63,7 @@ class SIM800L:
         self.timeout = timeout
         self._ser = None
         self._lock = threading.RLock()
+        self._initialized = False
 
     # ---- connection lifecycle ----
 
@@ -81,21 +82,50 @@ class SIM800L:
                 except Exception:
                     pass
                 self._ser = None
+            self._initialized = False
 
     @property
     def is_open(self):
         return self._ser is not None and self._ser.is_open
 
-    def initialize(self):
+    def initialize(self, force=False):
         """Bring the modem to a known state: echo off, text-mode SMS, GSM
-        charset, and unsolicited '+CMTI' notifications on new SMS."""
+        charset, and unsolicited '+CMTI' notifications on new SMS.
+
+        Idempotent by default: if this instance already completed
+        initialization and the port is still open, this is a no-op — it
+        will NOT resend the AT setup commands again. Pass force=True to
+        resend them anyway (e.g. after is_alive() confirms the modem
+        actually stopped responding and you want a fresh handshake)."""
+        if self._initialized and self.is_open and not force:
+            logger.debug(f"SIM800L on {self.port} already initialized — skipping re-init")
+            return
         self.open()
         self.send_at("AT")                  # basic liveness check
         self.send_at("ATE0")                # echo off — keeps response parsing simple
         self.send_at('AT+CMGF=1')           # text-mode SMS (not PDU mode)
         self.send_at('AT+CSCS="GSM"')       # GSM 7-bit charset
         self.send_at('AT+CNMI=2,1,0,0,0')   # new SMS -> unsolicited +CMTI:"SM",<index>
+        self._initialized = True
         logger.info(f"SIM800L initialized on {self.port} @ {self.baudrate} baud")
+
+    def is_alive(self):
+        """Cheap liveness check: sends a bare 'AT' and confirms the modem
+        still answers, WITHOUT resending the full init sequence.
+
+        Use this in your reconnect/error-handling loop before deciding to
+        call initialize(force=True). A failed read (e.g. a CMGL/CMGR
+        response that times out because the data came through corrupted)
+        does not necessarily mean the modem connection itself is dead —
+        and a full reinit won't fix corrupted bytes on the wire, so it's
+        worth telling the two failure modes apart before reinitializing."""
+        if not self.is_open:
+            return False
+        try:
+            self.send_at("AT", timeout=2, retries=0)
+            return True
+        except SIM800LError:
+            return False
 
     # ---- low-level AT command I/O ----
 
