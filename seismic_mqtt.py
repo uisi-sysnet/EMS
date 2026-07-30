@@ -9,6 +9,7 @@ see api_server.py.
 import os
 import json
 import logging
+import re
 import threading
 import time
 from datetime import datetime, timezone
@@ -389,6 +390,13 @@ def on_message(client, userdata, msg):
 
 SMS_FORMAT_TAG = "SEISMSG1"
 
+# Characters that can survive charset conversion between the phone's
+# encoding and the modem's GSM alphabet (e.g. a BOM left over from a UCS2
+# message) without being whitespace themselves, so str.strip() alone
+# won't remove them — but they're invisible, so a mismatched format tag
+# caused by one of these is easy to miss just by eyeballing a log line.
+_INVISIBLE_CHARS_RE = re.compile(r'[\ufeff\u200b\u200c\u200d\u2060]')
+
 
 def _sms_checksum(payload_prefix: str) -> str:
     return f"{sum(ord(c) for c in payload_prefix) % 256:02X}"
@@ -399,10 +407,10 @@ def parse_seismic_sms(body: str) -> dict:
     the MQTT JSON payload. Raises ValueError with a human-readable reason
     on anything malformed — callers should catch this and store the raw
     message with parsed_ok=False rather than crash the listener."""
-    body = (body or "").strip()
+    body = _INVISIBLE_CHARS_RE.sub("", (body or "")).strip()
     parts = body.split(",")
 
-    if not parts or parts[0].strip() != SMS_FORMAT_TAG:
+    if not parts or parts[0].strip().upper() != SMS_FORMAT_TAG:
         raise ValueError(f"Not a {SMS_FORMAT_TAG} message (unrecognized/missing format tag)")
 
     if len(parts) == 18:
