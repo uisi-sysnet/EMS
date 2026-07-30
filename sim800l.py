@@ -34,7 +34,7 @@ and expect `OK`). Exact response formatting/timing can vary slightly by
 SIM800L firmware/clone; the parsing in this module was written against the
 documented AT command set (SIMCom SIM800 Series AT Command Manual) — if
 your specific module's +CMGL/+CMGR responses look different, adjust
-_parse_cmgl()'s regex accordingly.
+_parse_cmgl_raw()'s regex (_CMGL_ENTRY_RE) accordingly.
 """
 
 import logging
@@ -46,9 +46,10 @@ import serial
 
 logger = logging.getLogger("sim800l")
 
-_CMGL_HEADER_RE = re.compile(
-    r'^\+CM(?:GL|GR):\s*(?:(\d+),)?"([^"]*)","([^"]*)",[^,]*,"([^"]*)"'
+_CMGL_ENTRY_RE = re.compile(
+    r'\+CM(?:GL|GR):\s*(?:(\d+),)?"([^"]*)","([^"]*)",[^,]*,"([^"]*)"\r?\n'
 )
+_CMGL_INDEX_ONLY_RE = re.compile(r'\+CM(?:GL|GR):\s*(\d+)')
 _CMTI_RE = re.compile(r'\+CMTI:\s*"[^"]*",(\d+)')
 
 
@@ -171,24 +172,74 @@ class SIM800L:
                 time.sleep(0.05)
         raise SIM800LError(f"Timed out waiting for '{expect}' — got: {lines}")
 
+    def _read_raw_until_ok(self, timeout):
+        """Like _read_until(), but scans the accumulated buffer as a whole
+        for a terminating 'OK'/'ERROR' line instead of consuming it strictly
+        line-by-line as it arrives. Used for CMGL/CMGR responses instead of
+        _read_until(): a stored message with a multi-line body, or one whose
+        header/body contains raw control bytes the modem can't render as
+        clean text (e.g. an old binary/flash-class SMS left on the SIM from
+        before this station used it), can otherwise make a line-by-line
+        reader misjudge where one logical line ends and the next begins —
+        which then desyncs parsing for everything read afterwards, including
+        the final OK. Returns the full raw text; parsing into messages
+        happens separately in _parse_cmgl_raw()."""
+        deadline = time.time() + timeout
+        buf = ""
+        while time.time() < deadline:
+            waiting = self._ser.in_waiting
+            chunk = self._ser.read(waiting or 1)
+            if chunk:
+                buf += chunk.decode(errors="ignore")
+                for line in buf.splitlines():
+                    line = line.strip()
+                    if line == "ERROR" or line.startswith("+CME ERROR") or line.startswith("+CMS ERROR"):
+                        raise SIM800LError(f"Modem returned error: {line}")
+                    if line == "OK":
+                        return buf
+            else:
+                time.sleep(0.05)
+        raise SIM800LError(f"Timed out waiting for 'OK' — got raw: {buf!r}")
+
     # ---- SMS operations ----
 
-    def list_unread_messages(self):
+    def list_unread_messages(self, timeout=None):
         """Full-inbox sweep: returns every stored SMS (any status). Used as
         a periodic safety net in case a +CMTI notification was ever
-        missed (e.g. the process wasn't running when it arrived)."""
+        missed (e.g. the process wasn't running when it arrived).
+
+        Reads and parses the raw response as one block rather than
+        line-by-line (see _read_raw_until_ok()/_parse_cmgl_raw()), so one
+        malformed/binary message in the store can't desync parsing for
+        every message after it in the same dump. Entries that still can't
+        be parsed are logged and their SIM slot is deleted so they don't
+        keep re-appearing and blocking every future sweep.
+
+        `timeout` defaults to a larger window than a typical AT command
+        (self.timeout) since a full store of many messages takes longer to
+        transfer, especially at low baud rates — pass it explicitly to
+        override."""
+        if timeout is None:
+            timeout = max(self.timeout * 4, 20)
         with self._lock:
             self._ser.reset_input_buffer()
             self._write_line('AT+CMGL="ALL"')
-            lines = self._read_until("OK", self.timeout)
-        return self._parse_cmgl(lines)
+            raw = self._read_raw_until_ok(timeout)
+        parsed, bad_indices = self._parse_cmgl_raw(raw)
+        for idx in bad_indices:
+            logger.warning(f"SMS index {idx} on SIM could not be parsed (corrupted/binary content) — deleting slot.")
+            try:
+                self.delete_message(idx)
+            except SIM800LError as e:
+                logger.error(f"Could not delete unparseable SMS index {idx}: {e}")
+        return parsed
 
     def read_message(self, index):
         with self._lock:
             self._ser.reset_input_buffer()
             self._write_line(f"AT+CMGR={index}")
-            lines = self._read_until("OK", self.timeout)
-        parsed = self._parse_cmgl(lines, single_index=index)
+            raw = self._read_raw_until_ok(self.timeout)
+        parsed, _ = self._parse_cmgl_raw(raw, single_index=index)
         return parsed[0] if parsed else None
 
     def delete_message(self, index):
@@ -242,31 +293,41 @@ class SIM800L:
         raise SIM800LError(f"Timed out waiting for '>' prompt before AT+CMGS body — got: {buf!r}")
 
     @staticmethod
-    def _parse_cmgl(lines, single_index=None):
-        """Parses +CMGL/+CMGR response lines into
-        [{index, status, sender, timestamp, body}, ...]."""
+    def _parse_cmgl_raw(text, single_index=None):
+        """Extracts SMS entries from a raw (unsplit) AT+CMGL/AT+CMGR
+        response. Anchors on '+CMGL:'/'+CMGR:' header matches and takes
+        everything between one header and the next as that message's body
+        — so a body that spans multiple lines doesn't get misread as a new
+        header, and a header elsewhere in the dump that's corrupted just
+        gets skipped rather than throwing off every entry that follows it.
+
+        Returns (parsed_entries, bad_indices): bad_indices lists SMS index
+        numbers seen in the raw text (via a looser index-only match) that
+        couldn't be matched by the full header pattern — e.g. a sender or
+        timestamp field containing raw control bytes the modem couldn't
+        render as clean text — so the caller can free those SIM storage
+        slots instead of hitting the same corrupt entries on every future
+        sweep."""
+        matches = list(_CMGL_ENTRY_RE.finditer(text))
         results = []
-        i = 0
-        while i < len(lines):
-            line = lines[i]
-            if line.startswith("+CMGL:") or line.startswith("+CMGR:"):
-                m = _CMGL_HEADER_RE.match(line)
-                body = lines[i + 1] if i + 1 < len(lines) else ""
-                if m:
-                    idx = m.group(1) or single_index
-                    results.append({
-                        "index": int(idx) if idx is not None else None,
-                        "status": m.group(2),
-                        "sender": m.group(3),
-                        "timestamp": m.group(4),
-                        "body": body.strip(),
-                    })
-                else:
-                    logger.warning(f"Could not parse SMS header line, skipping: {line!r}")
-                i += 2
-            else:
-                i += 1
-        return results
+        for i, m in enumerate(matches):
+            start = m.end()
+            end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+            body = re.sub(r'\r?\n\s*OK\s*\Z', '', text[start:end]).strip()
+            idx = m.group(1) or single_index
+            results.append({
+                "index": int(idx) if idx is not None else None,
+                "status": m.group(2),
+                "sender": m.group(3),
+                "timestamp": m.group(4),
+                "body": body,
+            })
+        parsed_indices = {r["index"] for r in results if r["index"] is not None}
+        all_seen_indices = {int(n) for n in _CMGL_INDEX_ONLY_RE.findall(text)}
+        bad_indices = sorted(all_seen_indices - parsed_indices)
+        if bad_indices:
+            logger.warning(f"Could not parse SMS header(s) for index(es): {bad_indices}")
+        return results, bad_indices
 
     def wait_for_notification(self, timeout=1.0):
         """Reads any pending unsolicited '+CMTI:' lines for up to `timeout`
