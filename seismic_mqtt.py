@@ -374,7 +374,7 @@ def on_message(client, userdata, msg):
 #                      an integrity check.
 #
 # Example (with location, with checksum):
-#   SEISMSG1,STN-004,1721818530,14.5995,120.9842,15.2,0.012,-0.008,0.021,0.5,0.3,0.6,1.2,0.9,1.5,0.045,2,61
+#   SEISMSG1,STN-004,1721818530,14.5995,120.9842,15.2,0.012,-0.008,0.021,0.5,0.3,0.6,1.2,0.9,1.5,0.045,2,3F
 #
 # Example (no location, no checksum — shorter, for weak-signal areas):
 #   SEISMSG1,STN-004,1721818530,,,,0.012,-0.008,0.021,0.5,0.3,0.6,1.2,0.9,1.5,0.045,2
@@ -537,74 +537,46 @@ def _handle_incoming_sms(modem, index, preloaded=None):
         logging.error(f"Failed to delete SMS index {index} from SIM storage: {e}")
 
 
-def _handle_incoming_raw_text(raw_text):
-    """Stores every raw line received over the SIM800L's UART, with no AT
-    handshake/CMGR framing involved. Since there's no modem-managed inbox
-    here, there's no sender number or modem-reported timestamp either --
-    both are stored as NULL in sms_messages. Still attempts to parse the
-    line as SEISMSG1 telemetry so anything that matches lands in
-    station_metrics exactly as before.
-
-    NOTE: because there's no sender number available in this mode,
-    SMS_ALLOWED_SENDERS can't be enforced and the PING/OK connectivity
-    test (SMS_TEST_COMMAND/_send_sms_reply) can't reply -- both are
-    effectively inert here. If you need either of those back, use
-    _handle_incoming_sms()/sms_listener_loop()'s previous AT-based path
-    instead."""
-    logging.info(f"Raw text received: {raw_text[:60]!r}")
-
-    try:
-        data = parse_seismic_sms(raw_text)
-        insert_station_metrics(data, source="sms")
-        _store_sms_record(sender=None, modem_timestamp=None, raw_body=raw_text,
-                           parsed_ok=True, parse_error=None, station_id=data["station_id"])
-        logging.info(f"SUCCESS: Ingested raw telemetry for: {data['station_id']}")
-    except Exception as e:
-        logging.error(f"Failed to parse/ingest raw text: {e}")
-        _store_sms_record(sender=None, modem_timestamp=None, raw_body=raw_text,
-                           parsed_ok=False, parse_error=str(e), station_id=None)
-
-
 def sms_listener_loop():
-    """Background thread: opens the SIM800L's serial port and listens for
-    raw incoming text, storing every line to the database as it arrives.
-
-    This does NOT check whether a SIM800L is actually present/responding
-    -- it skips the whole AT handshake (no "AT" liveness ping, no
-    ATE0/CMGF/CSCS/CNMI setup, no CMGL/CMGR/CMTI framing) and just opens
-    the port and reads. Runs independently of the MQTT loop in main() --
-    an SMS backlog or a serial hiccup never blocks MQTT ingestion, and
-    vice versa."""
+    """Background thread: initializes the SIM800L, then loops watching for
+    unsolicited '+CMTI' new-message notifications, plus a periodic
+    full-inbox sweep as a safety net. Runs independently of the MQTT loop
+    in main() — an SMS backlog or modem hiccup never blocks MQTT ingestion,
+    and vice versa."""
     modem = SIM800L(SIM800_SERIAL_PORT, SIM800_BAUDRATE)
 
     while True:
         try:
-            modem.open()
+            modem.initialize()
             break
         except Exception as e:
-            logging.error(f"Could not open serial port {SIM800_SERIAL_PORT} ({e}) — retrying in 30s.")
+            logging.error(f"SIM800L init failed ({e}) — retrying in 30s. Check wiring/SIM800_SERIAL_PORT/power.")
             time.sleep(30)
 
-    logging.info(f"Listening for raw text on {SIM800_SERIAL_PORT} @ {SIM800_BAUDRATE} baud (no AT handshake).")
-
+    last_sweep = 0.0
     while True:
         try:
-            line = modem.read_raw_line(timeout=2.0)
-            if line:
-                _handle_incoming_raw_text(line)
-        except OSError as e:
-            logging.error(f"Lost the serial port ({e}) — reopening in 10s.")
+            for index in modem.wait_for_notification(timeout=2.0):
+                _handle_incoming_sms(modem, index)
+
+            if time.time() - last_sweep > SMS_POLL_INTERVAL_SEC:
+                for msg in modem.list_unread_messages():
+                    _handle_incoming_sms(modem, msg["index"], preloaded=msg)
+                last_sweep = time.time()
+
+        except (SIM800LError, OSError) as e:
+            logging.error(f"SMS listener lost the modem ({e}) — reinitializing in 10s.")
             modem.close()
             time.sleep(10)
             try:
-                modem.open()
+                modem.initialize()
             except Exception as e2:
-                logging.error(f"Could not reopen serial port: {e2} — will keep retrying.")
+                logging.error(f"SIM800L reinit failed: {e2} — will keep retrying.")
                 time.sleep(30)
         except Exception as e:
             # Anything unexpected: log and keep the loop alive rather than
             # letting the whole SMS channel die on one bad message.
-            logging.error(f"Unexpected error in raw text listener loop: {e}")
+            logging.error(f"Unexpected error in SMS listener loop: {e}")
             time.sleep(5)
 
 
