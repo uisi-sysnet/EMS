@@ -20,7 +20,7 @@ from psycopg import sql
 from dotenv import load_dotenv
 
 try:
-    from sim800l import SIM800L, SIM800LError
+    from bin.sim800l import SIM800L, SIM800LError
 except ImportError:
     # pyserial (or sim800l.py itself) isn't available — SMS ingestion is
     # disabled automatically; MQTT ingestion is unaffected either way.
@@ -87,7 +87,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 LOG_DB_NAME = os.getenv("LOG_DB_NAME", "IOT_service_logs")
 
 if DB_PASSWORD:
-    from db_logging import attach_db_logging
+    from bin.db_logging import attach_db_logging
     _log_dsn = f"host={DB_HOST} port={DB_PORT} dbname={LOG_DB_NAME} user={DB_USER} password={DB_PASSWORD}"
     attach_db_logging(logging.getLogger(), _log_dsn, service_name="seismic_mqtt", table="service_logs")
 
