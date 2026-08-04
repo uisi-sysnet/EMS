@@ -61,7 +61,7 @@ git_pull() {
        ! sudo -u "$EMS_USER" git -C "$dir" diff --cached --quiet --exit-code; then
         warn "${dir} has uncommitted local changes. Stashing them before pulling"
         warn "(recover later with: cd ${dir} && sudo -u ${EMS_USER} git stash pop)"
-        sudo -u "$EMS_USER" git -C "$dir" stash push -u -m "update.sh auto-stash $(date -Iseconds)"
+        sudo -u "$EMS_USER" git -C "$dir" stash push -m "update.sh auto-stash $(date -Iseconds)"
     fi
 
     log "Fetching from origin in ${dir}"
