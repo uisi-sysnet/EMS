@@ -41,6 +41,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${SCRIPT_DIR}/.env"
 REQ_FILE="${SCRIPT_DIR}/requirements.txt"
 PG_VERSION="${PG_VERSION:-16}"   # override: PG_VERSION=15 sudo -E ./deploy.sh
+LARAVEL_DIR="${LARAVEL_DIR:-${SCRIPT_DIR}/Dashboard}"   # override: LARAVEL_DIR=/path/to/Dashboard sudo -E ./deploy.sh
 
 log()  { echo -e "\033[1;32m[deploy]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[deploy][WARN]\033[0m $*"; }
@@ -769,6 +770,265 @@ fi
 pip3 install -r "$REQ_FILE" -q --break-system-packages --ignore-installed
 
 # ----------------------------------------------------------------------
+# 3b. Nginx + PHP-FPM + Laravel Dashboard (EMS/Dashboard)
+#     Nginx becomes the single public entry point on :80. It serves the
+#     Laravel GUI directly and reverse-proxies /api/* to api_server.py
+#     (uvicorn), which is now bound to 127.0.0.1 only (see API_BIND_HOST
+#     in api_server.py) — port 8000 is no longer exposed to the outside
+#     world at all, nginx is the only thing that talks to it.
+# ----------------------------------------------------------------------
+if [[ ! -d "$LARAVEL_DIR" ]]; then
+    warn "Laravel dashboard not found at ${LARAVEL_DIR} — skipping nginx/PHP/Laravel setup."
+    warn "If it lives somewhere else, re-run as: LARAVEL_DIR=/path/to/Dashboard sudo -E ./deploy.sh"
+else
+
+log "Installing nginx, PHP-FPM, and Composer"
+apt-get install -y --no-install-recommends \
+    nginx \
+    php-fpm php-cli php-pgsql php-mbstring php-xml php-curl php-zip php-bcmath php-gd \
+    composer unzip
+
+# Debian/Ubuntu package the FPM pool as php<major>.<minor>-fpm — detect the
+# installed version rather than hardcoding it, since it differs between
+# Ubuntu 22.04 (8.1) and 24.04 (8.3).
+PHP_VER="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
+PHP_FPM_SERVICE="php${PHP_VER}-fpm"
+PHP_FPM_SOCK="/run/php/php${PHP_VER}-fpm.sock"
+if [[ ! -S "$PHP_FPM_SOCK" ]]; then
+    # Fall back to whatever socket actually exists in case PHP_VER above
+    # doesn't match the real package/service name for some reason.
+    PHP_FPM_SOCK="$(find /run/php -maxdepth 1 -name '*-fpm.sock' 2>/dev/null | head -1)"
+fi
+systemctl enable --now "$PHP_FPM_SERVICE" 2>/dev/null || \
+    warn "Could not enable/start ${PHP_FPM_SERVICE} — check: sudo systemctl status ${PHP_FPM_SERVICE}"
+
+if php -r 'exit(version_compare(PHP_VERSION, "8.2.0", "<") ? 1 : 0);' 2>/dev/null; then
+    :
+else
+    warn "PHP ${PHP_VER} detected. Laravel 10.x needs 8.1+, Laravel 11.x/12.x needs 8.2+."
+    if [[ "$OS_ID" == "ubuntu" ]]; then
+        warn "If 'composer install' below fails on a platform requirement, add a newer PHP via Ondrej Sury's Ubuntu PPA:"
+        warn "  sudo apt-get install -y software-properties-common"
+        warn "  sudo add-apt-repository -y ppa:ondrej/php && sudo apt-get update"
+        warn "  sudo apt-get install -y php8.3-fpm php8.3-cli php8.3-pgsql php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath php8.3-gd"
+    else
+        # add-apt-repository/PPAs are a Launchpad (Ubuntu-only) concept and
+        # do not work on Debian or Raspberry Pi OS. deb.sury.org is the
+        # same maintainer's equivalent repo for Debian-based systems.
+        warn "If 'composer install' below fails on a platform requirement, add a newer PHP via the deb.sury.org repo"
+        warn "(NOTE: 'ppa:ondrej/php' is Ubuntu-only and won't work here — this is the Debian/Raspberry Pi OS equivalent):"
+        warn "  sudo apt-get install -y apt-transport-https lsb-release ca-certificates"
+        warn "  sudo install -d -m 0755 /etc/apt/keyrings"
+        warn "  sudo curl -fsSL https://packages.sury.org/php/apt.gpg -o /etc/apt/keyrings/deb.sury.org.gpg"
+        warn "  echo \"deb [signed-by=/etc/apt/keyrings/deb.sury.org.gpg] https://packages.sury.org/php/ \$(lsb_release -sc) main\" | sudo tee /etc/apt/sources.list.d/php.list"
+        warn "  sudo apt-get update && sudo apt-get install -y php8.3-fpm php8.3-cli php8.3-pgsql php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath php8.3-gd"
+    fi
+fi
+
+# Node/npm — only needed if the app has a frontend build step (Vite, etc.)
+if [[ -f "${LARAVEL_DIR}/package.json" ]] && ! command -v npm >/dev/null 2>&1; then
+    log "Installing Node.js/npm (package.json present in Dashboard/)"
+    apt-get install -y --no-install-recommends nodejs npm
+fi
+
+if [[ -f "${LARAVEL_DIR}/package.json" ]] && command -v node >/dev/null 2>&1; then
+    # Ubuntu 22.04's apt-packaged Node.js (v12) is far too old for any
+    # current Vite-based Laravel build; Debian 12/bookworm-based Raspberry
+    # Pi OS ships v18 which is usually fine, but check generically either way.
+    NODE_MAJOR_INSTALLED="$(node -v | sed -E 's/^v([0-9]+).*/\1/')"
+    if [[ "${NODE_MAJOR_INSTALLED:-0}" -lt 18 ]]; then
+        warn "Node.js v${NODE_MAJOR_INSTALLED} detected from apt — too old for most current Vite-based frontends (need 18+)."
+        warn "NodeSource's setup script works identically on Ubuntu and Debian/Raspberry Pi OS (amd64/arm64/armhf all supported):"
+        warn "  curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs"
+        warn "  then re-run this script, or manually: cd ${LARAVEL_DIR} && npm ci && npm run build"
+    fi
+fi
+
+# ---- Dedicated Postgres database + role for Laravel ----
+# Deliberately separate from SYSTEM_DB_USER (used by the Python services):
+# its own database, its own login, so the dashboard only ever has access
+# to its own data, not the AQ/seismic/log databases.
+DASHBOARD_DB_NAME="${DASHBOARD_DB_NAME:-ems_dashboard}"
+DASHBOARD_DB_USER="${DASHBOARD_DB_USER:-ems_dashboard_user}"
+
+if [[ "$DB_IS_LOCAL" == true ]]; then
+    if [[ -f "${LARAVEL_DIR}/.env" ]] && grep -qE '^DB_PASSWORD=.+' "${LARAVEL_DIR}/.env"; then
+        # Reuse whatever password is already sitting in Dashboard/.env from
+        # a previous run, instead of generating (and orphaning) a new one.
+        DASHBOARD_DB_PASSWORD="$(grep -E '^DB_PASSWORD=' "${LARAVEL_DIR}/.env" | tail -1 | cut -d= -f2-)"
+    else
+        DASHBOARD_DB_PASSWORD="$(openssl rand -hex 24)"
+    fi
+
+    log "Ensuring Postgres role '${DASHBOARD_DB_USER}' exists"
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -q <<SQL
+DO \$\$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DASHBOARD_DB_USER}') THEN
+      CREATE ROLE ${DASHBOARD_DB_USER} LOGIN PASSWORD '${DASHBOARD_DB_PASSWORD}';
+   ELSE
+      ALTER ROLE ${DASHBOARD_DB_USER} WITH PASSWORD '${DASHBOARD_DB_PASSWORD}';
+   END IF;
+END
+\$\$;
+SQL
+
+    log "Ensuring Postgres database '${DASHBOARD_DB_NAME}' exists (owned by ${DASHBOARD_DB_USER})"
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '${DASHBOARD_DB_NAME}'" | grep -q 1; then
+        sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE ${DASHBOARD_DB_NAME} OWNER ${DASHBOARD_DB_USER};"
+    else
+        log "Database '${DASHBOARD_DB_NAME}' already exists, skipping creation"
+    fi
+else
+    warn "SYSTEM_DB_HOST is remote — skipping local Postgres role/DB creation for Laravel."
+    warn "Create database '${DASHBOARD_DB_NAME}' + role '${DASHBOARD_DB_USER}' on that server yourself,"
+    warn "then set DB_* in ${LARAVEL_DIR}/.env to match before running migrations."
+    DASHBOARD_DB_PASSWORD="${DASHBOARD_DB_PASSWORD:-CHANGE_ME}"
+fi
+
+# ---- Laravel .env ----
+SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+if [[ ! -f "${LARAVEL_DIR}/.env" ]]; then
+    if [[ -f "${LARAVEL_DIR}/.env.example" ]]; then
+        cp "${LARAVEL_DIR}/.env.example" "${LARAVEL_DIR}/.env"
+    else
+        touch "${LARAVEL_DIR}/.env"
+    fi
+    log "Writing database + app config to ${LARAVEL_DIR}/.env"
+    for pair in \
+        "APP_ENV=production" \
+        "APP_DEBUG=false" \
+        "APP_URL=http://${SERVER_IP:-localhost}" \
+        "DB_CONNECTION=pgsql" \
+        "DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
+        "DB_PORT=${SYSTEM_DB_PORT:-5432}" \
+        "DB_DATABASE=${DASHBOARD_DB_NAME}" \
+        "DB_USERNAME=${DASHBOARD_DB_USER}" \
+        "DB_PASSWORD=${DASHBOARD_DB_PASSWORD}"; do
+        key="${pair%%=*}"; value="${pair#*=}"
+        escaped_value="${value//&/\\&}"
+        if grep -qE "^${key}=" "${LARAVEL_DIR}/.env"; then
+            sed -i -E "s|^${key}=.*|${key}=${escaped_value}|" "${LARAVEL_DIR}/.env"
+        else
+            printf '%s=%s\n' "$key" "$value" >> "${LARAVEL_DIR}/.env"
+        fi
+    done
+    chmod 600 "${LARAVEL_DIR}/.env"
+else
+    log "${LARAVEL_DIR}/.env already exists — leaving it as-is (delete it and re-run to regenerate)."
+fi
+
+# ---- Composer / artisan / npm build ----
+log "Running composer install"
+( cd "$LARAVEL_DIR" && composer install --no-dev --optimize-autoloader --no-interaction ) || \
+    die "composer install failed — see the error above (often a PHP version/extension mismatch, see the PHP version warning above if shown)."
+
+if ! grep -qE '^APP_KEY=base64:' "${LARAVEL_DIR}/.env" 2>/dev/null; then
+    log "Generating Laravel APP_KEY"
+    ( cd "$LARAVEL_DIR" && php artisan key:generate --force )
+fi
+
+log "Running Laravel migrations"
+( cd "$LARAVEL_DIR" && php artisan migrate --force ) || \
+    warn "Migrations failed — check ${LARAVEL_DIR}/.env DB_* values, then re-run: cd ${LARAVEL_DIR} && php artisan migrate --force"
+
+( cd "$LARAVEL_DIR" && php artisan storage:link ) 2>/dev/null || true
+
+if [[ -f "${LARAVEL_DIR}/package.json" ]] && command -v npm >/dev/null 2>&1; then
+    log "Installing frontend deps and building assets (npm)"
+    ( cd "$LARAVEL_DIR" && npm ci && npm run build ) || \
+        warn "npm build failed — check ${LARAVEL_DIR}/package.json and your Node version (node -v)."
+fi
+
+log "Caching Laravel config/routes/views for production"
+( cd "$LARAVEL_DIR" && php artisan config:cache && php artisan route:cache && php artisan view:cache ) || \
+    warn "artisan cache commands failed — non-fatal, the app will still run uncached."
+
+# ---- Ownership / permissions ----
+# nginx + php-fpm run as www-data on Debian/Ubuntu. storage/ and
+# bootstrap/cache/ must be writable by that user; the rest just needs to
+# be readable by it.
+chown -R www-data:www-data "$LARAVEL_DIR"
+chmod -R 775 "${LARAVEL_DIR}/storage" "${LARAVEL_DIR}/bootstrap/cache" 2>/dev/null || true
+
+# ---- Nginx site ----
+log "Writing nginx site config"
+cat > /etc/nginx/sites-available/ems-dashboard <<NGINXEOF
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    root ${LARAVEL_DIR}/public;
+    index index.php;
+
+    client_max_body_size 20m;
+
+    access_log /var/log/nginx/ems-dashboard.access.log;
+    error_log  /var/log/nginx/ems-dashboard.error.log;
+
+    # Python API (api_server.py / uvicorn, bound to 127.0.0.1:${API_PORT:-8000}
+    # only — see API_BIND_HOST in api_server.py). Every route in api_server.py
+    # already starts with /api/, so this forwards the path through unchanged.
+    location /api/ {
+        proxy_pass http://127.0.0.1:${API_PORT:-8000};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location ~ \.php\$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:${PHP_FPM_SOCK};
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
+NGINXEOF
+
+ln -sf /etc/nginx/sites-available/ems-dashboard /etc/nginx/sites-enabled/ems-dashboard
+rm -f /etc/nginx/sites-enabled/default
+
+if ! nginx -t; then
+    die "nginx config test failed — see the error above. Fix /etc/nginx/sites-available/ems-dashboard, then: sudo systemctl reload nginx"
+fi
+systemctl enable --now nginx
+systemctl reload nginx
+
+# Open 80/443 now (443 pre-opened for whenever you point a domain at this
+# box and add TLS via certbot — see the note printed at the end of this
+# script).
+if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
+    log "ufw is active — opening ports 80/tcp and 443/tcp"
+    ufw allow 80/tcp comment "nginx HTTP"
+    ufw allow 443/tcp comment "nginx HTTPS (future)"
+    if ufw status | grep -qE '^8000\b'; then
+        log "Removing old direct-access ufw rule for 8000/tcp — the API is now only reachable through nginx"
+        ufw delete allow 8000/tcp 2>/dev/null || true
+    fi
+else
+    log "ufw not active/installed — skipping firewall rule"
+fi
+warn "If this server sits behind a cloud provider (AWS/GCP/Azure/etc.), also CLOSE port 8000 in its"
+warn "security group / firewall rules now (it should only be reachable at 127.0.0.1, via nginx, from now on)"
+warn "and make sure 80/tcp (and 443/tcp once you add a domain) is open there."
+
+log "Laravel dashboard: http://${SERVER_IP:-<this-server-ip>}/"
+log "API via nginx:      http://${SERVER_IP:-<this-server-ip>}/api/..."
+warn "Dashboard DB credentials are in ${LARAVEL_DIR}/.env (DB_DATABASE=${DASHBOARD_DB_NAME}, DB_USERNAME=${DASHBOARD_DB_USER}) — back that file up, it's not stored anywhere else."
+
+fi  # LARAVEL_DIR exists
+
+# ----------------------------------------------------------------------
 # 4. Wrap up
 # ----------------------------------------------------------------------
 chmod 600 "$ENV_FILE" || warn "Could not chmod .env — check permissions manually"
@@ -789,7 +1049,20 @@ Next steps:
        python3 ${SCRIPT_DIR}/air_quality_ingest.py
        python3 ${SCRIPT_DIR}/seismic_mqtt.py
        python3 ${SCRIPT_DIR}/api_server.py
+     api_server.py now binds to 127.0.0.1:${API_PORT:-8000} by default (not
+     0.0.0.0) since nginx is the public entry point — set API_BIND_HOST in
+     .env if something needs to reach it directly without going through nginx.
   3. For always-on deployment, run: sudo ./install_services.sh
      (installs+starts the ems.target systemd unit for all three services).
+$([[ -d "$LARAVEL_DIR" ]] && cat <<DASHEOF
+  4. Dashboard is live at http://${SERVER_IP:-<this-server-ip>}/ (nginx +
+     PHP-FPM), with the API reachable at the same host under /api/*.
+     No domain yet, so this is HTTP only. Once you point a domain at this
+     server, switch to HTTPS with:
+       sudo apt-get install certbot python3-certbot-nginx
+       sudo certbot --nginx -d your-domain.example
+     (certbot edits the ems-dashboard nginx site in place to add TLS).
+DASHEOF
+)
 
 EOF
