@@ -20,7 +20,7 @@ from psycopg import sql
 from dotenv import load_dotenv
 
 try:
-    from bin.sim800l import SIM800L, SIM800LError
+    from sim800l import SIM800L, SIM800LError
 except ImportError:
     # pyserial (or sim800l.py itself) isn't available — SMS ingestion is
     # disabled automatically; MQTT ingestion is unaffected either way.
