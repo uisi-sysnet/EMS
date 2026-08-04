@@ -1,0 +1,32 @@
+{
+  "station_id": "STN-001",
+  "station_name": "North Monitoring Station",
+  "timestamp": "2026-08-04T07:53:22+08:00",
+  "location": {
+    "latitude": 14.654321,
+    "longitude": 121.05679,
+    "elevation_m": 42.5
+  },
+  "measurements": {
+    "acceleration": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "unit": "mgal"
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "unit": "um/s"
+    },
+    "displacement": {
+      "x": 0,
+      "y": 0.000002,
+      "z": 0.000003,
+      "unit": "nm"
+    }
+  },
+  "pga": 0.0123,
+  "peis": 2
+}

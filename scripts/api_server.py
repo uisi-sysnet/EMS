@@ -210,6 +210,13 @@ class SeismicVector(BaseModel):
     y: Optional[float] = Field(None, examples=[-0.0013])
     z: Optional[float] = Field(None, examples=[0.0042])
 
+class SeismicGraph(BaseModel):
+    x: Optional[float] = Field(None, examples=[0.0021])
+    y: Optional[float] = Field(None, examples=[-0.0013])
+    z: Optional[float] = Field(None, examples=[0.0042])
+    scale: Optional[str] = Field(None, examples=["1:100"])
+    center: Optional[float] = Field(None, examples=[0.0])
+
 class SeismicStation(BaseModel):
     station_id: str = Field(..., examples=["STN-001"])
     friendly_name: Optional[str] = Field(None, examples=["Pacific Ridge Station"])
@@ -219,6 +226,7 @@ class SeismicStation(BaseModel):
     acceleration: SeismicVector
     velocity: SeismicVector
     displacement: SeismicVector
+    graph: SeismicGraph
     pga: Optional[float] = Field(None, examples=[0.031])
     peis: Optional[int] = Field(None, examples=[2])
 
@@ -264,6 +272,22 @@ class SeismicEventsResponse(BaseModel):
     hours: int = Field(..., examples=[24])
     total_events: int = Field(..., examples=[1])
     events: List[SeismicEvent]
+
+class SeismicStationGraph(BaseModel):
+    station_id: str = Field(..., examples=["STN-001"])
+    friendly_name: Optional[str] = Field(None, examples=["Pacific Ridge Station"])
+    status: str = Field(..., examples=["online"], description="'online' if last reading was under 5 minutes ago, else 'offline'.")
+    last_update: Optional[str] = Field(None, examples=["2026-07-10T09:15:32.123Z"])
+    graph: SeismicGraph
+
+class SeismicGraphAllResponse(BaseModel):
+    timestamp: str = Field(..., examples=["2026-07-10T09:16:00.000Z"])
+    total_stations: int = Field(..., examples=[1])
+    stations: List[SeismicStationGraph]
+
+class SeismicStationGraphResponse(BaseModel):
+    timestamp: str = Field(..., examples=["2026-07-10T09:16:00.000Z"])
+    station: SeismicStationGraph
 
 
 # ---- System ----
@@ -384,7 +408,7 @@ logger.addHandler(console_handler)
 DB_LOG_ENABLED = os.getenv("DB_LOG_ENABLED", "true").strip().lower() == "true"
 DB_LOG_TABLE = os.getenv("DB_LOG_TABLE", "service_logs")
 if DB_LOG_ENABLED and LOG_DB.get("password"):
-    from bin.db_logging import attach_db_logging
+    from db_logging import attach_db_logging
     _log_dsn = (
         f"host={LOG_DB['host']} port={LOG_DB['port']} dbname={LOG_DB['dbname']} "
         f"user={LOG_DB['user']} password={LOG_DB['password']}"
@@ -1173,8 +1197,35 @@ def map_seismic_row_to_json(row, now):
         "acceleration": {"x": row['acc_x'], "y": row['acc_y'], "z": row['acc_z']},
         "velocity": {"x": row['vel_x'], "y": row['vel_y'], "z": row['vel_z']},
         "displacement": {"x": row['disp_x'], "y": row['disp_y'], "z": row['disp_z']},
+        "graph": {
+            "x": row['graph_x'], "y": row['graph_y'], "z": row['graph_z'],
+            "scale": row['graph_scale'], "center": row['graph_center'],
+        },
         "pga": row['pga'],
         "peis": row['peis'],
+    }
+
+
+def map_seismic_graph_row_to_json(row, now):
+    """Lighter-weight mapper for the graph-only endpoints — just station
+    identity/status plus the graph_* fields, without acc/vel/disp/pga/peis."""
+    status = "offline"
+    last_update_str = None
+    if row['time']:
+        last_update_utc = row['time'] if row['time'].tzinfo else row['time'].replace(tzinfo=timezone.utc)
+        last_update_str = format_api_datetime(last_update_utc)
+        if (now - last_update_utc).total_seconds() < 300:
+            status = "online"
+
+    return {
+        "station_id": row['station_id'],
+        "friendly_name": row['station_name'],
+        "status": status,
+        "last_update": last_update_str,
+        "graph": {
+            "x": row['graph_x'], "y": row['graph_y'], "z": row['graph_z'],
+            "scale": row['graph_scale'], "center": row['graph_center'],
+        },
     }
 
 
@@ -1193,7 +1244,8 @@ def seismic_latest_all(api_key: str = Depends(verify_api_key)):
         cur.execute("""
             SELECT DISTINCT ON (station_id)
                 station_id, station_name, latitude, longitude, elevation_m, time,
-                acc_x, acc_y, acc_z, vel_x, vel_y, vel_z, disp_x, disp_y, disp_z, pga, peis
+                acc_x, acc_y, acc_z, vel_x, vel_y, vel_z, disp_x, disp_y, disp_z,
+                graph_x, graph_y, graph_z, graph_scale, graph_center, pga, peis
             FROM station_metrics
             ORDER BY station_id, time DESC;
         """)
@@ -1225,7 +1277,8 @@ def seismic_latest_station(
         cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute("""
             SELECT station_id, station_name, latitude, longitude, elevation_m, time,
-                   acc_x, acc_y, acc_z, vel_x, vel_y, vel_z, disp_x, disp_y, disp_z, pga, peis
+                   acc_x, acc_y, acc_z, vel_x, vel_y, vel_z, disp_x, disp_y, disp_z,
+                   graph_x, graph_y, graph_z, graph_scale, graph_center, pga, peis
             FROM station_metrics
             WHERE station_id = %s
             ORDER BY time DESC LIMIT 1;
@@ -1239,6 +1292,72 @@ def seismic_latest_station(
         raise
     except Exception as e:
         logger.error(f"Seismic single station error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    finally:
+        release_seismic_conn(conn)
+
+
+@app.get(
+    "/api/seismic/graph/latest",
+    tags=["Seismic - Live"],
+    summary="Latest graph data for every seismic station",
+    description="Returns just the waveform/graph fields (graph_x, graph_y, graph_z, graph_scale, graph_center) for each seismic station's most recent reading — a lighter payload than /api/seismic/stations/latest for clients that only render the live graph.",
+    response_model=SeismicGraphAllResponse,
+    responses=AUTHED_RESPONSES,
+)
+def seismic_graph_latest_all(api_key: str = Depends(verify_api_key)):
+    conn = get_seismic_conn()
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT DISTINCT ON (station_id)
+                station_id, station_name, time,
+                graph_x, graph_y, graph_z, graph_scale, graph_center
+            FROM station_metrics
+            ORDER BY station_id, time DESC;
+        """)
+        rows = cur.fetchall()
+        now = datetime.now(timezone.utc)
+        stations_list = [map_seismic_graph_row_to_json(r, now) for r in rows]
+        return {"timestamp": format_api_datetime(now), "total_stations": len(stations_list), "stations": stations_list}
+    except Exception as e:
+        logger.error(f"Seismic graph latest (all stations) error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    finally:
+        release_seismic_conn(conn)
+
+
+@app.get(
+    "/api/seismic/stations/{station_id}/graph/latest",
+    tags=["Seismic - Live"],
+    summary="Latest graph data for one seismic station",
+    description="Returns just the waveform/graph fields for a single station's most recent reading, identified by its station_id.",
+    response_model=SeismicStationGraphResponse,
+    responses=AUTHED_LOOKUP_RESPONSES,
+)
+def seismic_graph_latest_station(
+    station_id: str = ApiPath(..., description="Seismic station identifier, e.g. 'STN-001'."),
+    api_key: str = Depends(verify_api_key),
+):
+    conn = get_seismic_conn()
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT station_id, station_name, time,
+                   graph_x, graph_y, graph_z, graph_scale, graph_center
+            FROM station_metrics
+            WHERE station_id = %s
+            ORDER BY time DESC LIMIT 1;
+        """, (station_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Station Identifier not found in database records.")
+        now = datetime.now(timezone.utc)
+        return {"timestamp": format_api_datetime(now), "station": map_seismic_graph_row_to_json(row, now)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Seismic graph latest (single station) error: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
     finally:
         release_seismic_conn(conn)

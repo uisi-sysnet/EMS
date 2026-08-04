@@ -87,7 +87,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 LOG_DB_NAME = os.getenv("LOG_DB_NAME", "IOT_service_logs")
 
 if DB_PASSWORD:
-    from bin.db_logging import attach_db_logging
+    from db_logging import attach_db_logging
     _log_dsn = f"host={DB_HOST} port={DB_PORT} dbname={LOG_DB_NAME} user={DB_USER} password={DB_PASSWORD}"
     attach_db_logging(logging.getLogger(), _log_dsn, service_name="seismic_mqtt", table="service_logs")
 
@@ -136,6 +136,8 @@ def initialize_database():
                     "acc_x": "REAL", "acc_y": "REAL", "acc_z": "REAL",
                     "vel_x": "REAL", "vel_y": "REAL", "vel_z": "REAL",
                     "disp_x": "REAL", "disp_y": "REAL", "disp_z": "REAL",
+                    "graph_x": "REAL", "graph_y": "REAL", "graph_z": "REAL",
+                    "graph_scale": "VARCHAR(20)", "graph_center": "REAL",
                     "pga": "REAL",
                     "peis": "INT",
                     "source": "VARCHAR(10)",
@@ -259,6 +261,7 @@ def insert_station_metrics(data: dict, source: str):
     acc = measurements.get('acceleration', {}) or {}
     vel = measurements.get('velocity', {}) or {}
     disp = measurements.get('displacement', {}) or {}
+    graph = measurements.get('graph', {}) or {}
 
     station_identity = data.get('station_id')
     timestamp_value = data.get('timestamp')
@@ -277,8 +280,9 @@ def insert_station_metrics(data: dict, source: str):
             acc_x, acc_y, acc_z,
             vel_x, vel_y, vel_z,
             disp_x, disp_y, disp_z,
+            graph_x, graph_y, graph_z, graph_scale, graph_center,
             pga, peis, source
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
     """
     params = (
         timestamp_value,
@@ -290,6 +294,7 @@ def insert_station_metrics(data: dict, source: str):
         acc.get('x'), acc.get('y'), acc.get('z'),
         vel.get('x'), vel.get('y'), vel.get('z'),
         disp.get('x'), disp.get('y'), disp.get('z'),
+        graph.get('x'), graph.get('y'), graph.get('z'), graph.get('scale'), graph.get('center'),
         data.get('pga'),
         peis_value,
         source,
