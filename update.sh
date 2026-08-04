@@ -146,6 +146,25 @@ fi
 if [[ ! -d "$LARAVEL_DIR" ]]; then
     warn "Laravel dashboard not found at ${LARAVEL_DIR} — skipping Laravel update."
 else
+    # Hand Dashboard/ back to www-data BEFORE composer/artisan/npm run below —
+    # they all run as www-data and need write access to vendor/, storage/,
+    # bootstrap/cache/, etc. from the start. (The reclaim-as-EMS_USER step
+    # above was only so git itself could update the tree; composer isn't git.)
+    log "Restoring www-data ownership on ${LARAVEL_DIR} before running composer/artisan/npm"
+    chown -R www-data:www-data "$LARAVEL_DIR"
+    chmod -R 775 "${LARAVEL_DIR}/storage" "${LARAVEL_DIR}/bootstrap/cache" 2>/dev/null || true
+
+    # Composer internally shells out to git for version-guessing (reads the
+    # repo at EMS_DIR, where .git actually lives — one level up from
+    # Dashboard/). EMS_DIR itself stays owned by EMS_USER (not www-data), so
+    # when composer runs as www-data, git's ownership safety check refuses
+    # it ("dubious ownership") unless www-data explicitly trusts this path.
+    # This is a one-time, idempotent config for the www-data user only.
+    if ! sudo -u www-data git config --global --get-all safe.directory 2>/dev/null | grep -qxF "$EMS_DIR"; then
+        log "Trusting ${EMS_DIR} in www-data's git config (needed for composer's internal git calls)"
+        sudo -u www-data git config --global --add safe.directory "$EMS_DIR"
+    fi
+
     log "Running composer install"
     ( cd "$LARAVEL_DIR" && sudo -u www-data composer install --no-dev --optimize-autoloader --no-interaction ) || \
         die "composer install failed — see error above."
@@ -157,7 +176,7 @@ else
 
     if [[ -f "${LARAVEL_DIR}/package.json" ]] && command -v npm >/dev/null 2>&1; then
         log "Installing frontend deps and rebuilding assets (npm)"
-        ( cd "$LARAVEL_DIR" && sudo -u "$EMS_USER" npm ci && sudo -u "$EMS_USER" npm run build ) || \
+        ( cd "$LARAVEL_DIR" && sudo -u www-data npm ci && sudo -u www-data npm run build ) || \
             warn "npm build failed — check ${LARAVEL_DIR}/package.json and node -v."
     fi
 
@@ -168,8 +187,10 @@ else
         && sudo -u www-data php artisan view:cache ) || \
         warn "artisan cache commands failed — non-fatal, app will still run uncached."
 
-    # ---- Ownership / permissions (same fix as deploy.sh) ----
-    log "Restoring ownership/permissions after git pull"
+    # ---- Final ownership pass (npm above ran as EMS_USER and may have
+    # touched node_modules/public build output — make sure www-data owns
+    # everything again before nginx/php-fpm serve it) ----
+    log "Final ownership/permissions pass on ${LARAVEL_DIR}"
     chown -R www-data:www-data "$LARAVEL_DIR"
     chmod -R 775 "${LARAVEL_DIR}/storage" "${LARAVEL_DIR}/bootstrap/cache" 2>/dev/null || true
 
