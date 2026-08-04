@@ -771,11 +771,13 @@ pip3 install -r "$REQ_FILE" -q --break-system-packages --ignore-installed
 
 # ----------------------------------------------------------------------
 # 3b. Nginx + PHP-FPM + Laravel Dashboard (EMS/Dashboard)
-#     Nginx becomes the single public entry point on :80. It serves the
-#     Laravel GUI directly and reverse-proxies /api/* to api_server.py
-#     (uvicorn), which is now bound to 127.0.0.1 only (see API_BIND_HOST
-#     in api_server.py) — port 8000 is no longer exposed to the outside
-#     world at all, nginx is the only thing that talks to it.
+#     Nginx becomes the single public entry point on :80 (and :443 once you
+#     add a domain + certbot, see the end of this script). It serves the
+#     Laravel GUI directly and reverse-proxies /api/* PLUS /docs, /redoc,
+#     and /openapi.json to api_server.py (uvicorn), which is now bound to
+#     127.0.0.1 only (see API_BIND_HOST in api_server.py) — port 8000 is no
+#     longer exposed to the outside world at all, nginx is the only thing
+#     that talks to it.
 # ----------------------------------------------------------------------
 if [[ ! -d "$LARAVEL_DIR" ]]; then
     warn "Laravel dashboard not found at ${LARAVEL_DIR} — skipping nginx/PHP/Laravel setup."
@@ -928,9 +930,60 @@ if ! grep -qE '^APP_KEY=base64:' "${LARAVEL_DIR}/.env" 2>/dev/null; then
     ( cd "$LARAVEL_DIR" && php artisan key:generate --force )
 fi
 
+# Laravel derives an expected class name from each migration filename (the
+# part after the leading YYYY_MM_DD_HHMMSS_ timestamp, StudlyCased) UNLESS
+# the file uses the modern anonymous-class style
+# (`return new class extends Migration { ... }`). If a file's actual
+# content matches NEITHER convention — e.g. because one migration's content
+# got copy/pasted into a different migration file by mistake — `php artisan
+# migrate` fails deep inside Laravel's Migrator with a bare
+# `Class "X" not found` and no indication of which file is actually broken.
+# Catch that here, before migrate runs, so the error points at the exact
+# file instead of a stack trace. This is a content-mismatch detector, not
+# an auto-fixer: deploy.sh has no way to know what an app migration is
+# *supposed* to contain, so a broken file still needs a one-time manual fix
+# — but every subsequent run will fail fast with a clear message instead of
+# silently limping into a half-migrated database.
+validate_migrations() {
+    local dir="${LARAVEL_DIR}/database/migrations"
+    [[ -d "$dir" ]] || return 0
+    local bad_files=() f base rest expected_class
+    for f in "$dir"/*.php; do
+        [[ -f "$f" ]] || continue
+        base="$(basename "$f" .php)"
+        rest="$(echo "$base" | sed -E 's/^[0-9]{4}_[0-9]{2}_[0-9]{2}_[0-9]{6}_//')"
+        expected_class="$(echo "$rest" | awk -F'_' '{for(i=1;i<=NF;i++){printf "%s", toupper(substr($i,1,1)) substr($i,2)}}')"
+        if grep -q 'return new class' "$f"; then
+            continue   # anonymous-class migration — filename doesn't need to match
+        fi
+        if grep -qE "class[[:space:]]+${expected_class}[[:space:]]+extends" "$f"; then
+            continue   # named class matches what the filename implies
+        fi
+        bad_files+=("${f} (expects \`class ${expected_class} extends Migration\` or an anonymous class, found neither)")
+    done
+    if [[ "${#bad_files[@]}" -gt 0 ]]; then
+        warn "Migration pre-flight check found file(s) whose content doesn't match their filename —"
+        warn "this is the #1 cause of Laravel's cryptic 'Class X not found' migration error:"
+        for entry in "${bad_files[@]}"; do
+            warn "  - ${entry}"
+        done
+        warn "Fix the file(s) above, then re-run: cd ${LARAVEL_DIR} && php artisan migrate --force"
+        return 1
+    fi
+    return 0
+}
+
 log "Running Laravel migrations"
-( cd "$LARAVEL_DIR" && php artisan migrate --force ) || \
-    warn "Migrations failed — check ${LARAVEL_DIR}/.env DB_* values, then re-run: cd ${LARAVEL_DIR} && php artisan migrate --force"
+if validate_migrations; then
+    if ! ( cd "$LARAVEL_DIR" && php artisan migrate --force ); then
+        warn "Migration attempt failed — regenerating the composer autoloader and retrying once"
+        ( cd "$LARAVEL_DIR" && composer dump-autoload -o ) || true
+        ( cd "$LARAVEL_DIR" && php artisan migrate --force ) || \
+            warn "Migrations failed — check ${LARAVEL_DIR}/.env DB_* values, then re-run: cd ${LARAVEL_DIR} && php artisan migrate --force"
+    fi
+else
+    warn "Skipping 'php artisan migrate' until the migration file(s) above are fixed."
+fi
 
 ( cd "$LARAVEL_DIR" && php artisan storage:link ) 2>/dev/null || true
 
@@ -1003,6 +1056,20 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
+    # FastAPI's auto-generated docs (Swagger UI, ReDoc, and the raw OpenAPI
+    # schema) are mounted at the app root by default (e.g. :8000/docs), NOT
+    # under /api/, so they need their own location block to stay reachable
+    # once port 8000 is closed off and nginx becomes the only public entry
+    # point — this makes them available at http(s)://<host>/docs.
+    location ~ ^/(docs|redoc|openapi\.json)\$ {
+        proxy_pass http://127.0.0.1:${API_PORT:-8000};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
     }
@@ -1048,6 +1115,7 @@ warn "and make sure 80/tcp (and 443/tcp once you add a domain) is open there."
 
 log "Laravel dashboard: http://${SERVER_IP:-<this-server-ip>}/"
 log "API via nginx:      http://${SERVER_IP:-<this-server-ip>}/api/..."
+log "API docs via nginx: http://${SERVER_IP:-<this-server-ip>}/docs  (replaces the old :8000/docs link — that port is being closed off below)"
 warn "Dashboard DB credentials are in ${LARAVEL_DIR}/.env (DB_DATABASE=${DASHBOARD_DB_NAME}, DB_USERNAME=${DASHBOARD_DB_USER}) — back that file up, it's not stored anywhere else."
 
 fi  # LARAVEL_DIR exists
