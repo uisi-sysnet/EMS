@@ -53,7 +53,7 @@ Everything must live in **one folder** on the Pi.
 For a new Raspberry Pi or a fresh installation, clone the **`version3`** branch:
 
 ```bash
-git clone -b version3 https://github.com/uisi-sysnet/EMS.git
+git clone -b version5 https://github.com/uisi-sysnet/EMS.git
 cd EMS
 ```
 
@@ -66,7 +66,7 @@ git branch --show-current
 Expected output:
 
 ```text
-version3
+version5
 ```
 
 You can also check the configured remote:
