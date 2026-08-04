@@ -158,11 +158,13 @@ else
     # repo at EMS_DIR, where .git actually lives — one level up from
     # Dashboard/). EMS_DIR itself stays owned by EMS_USER (not www-data), so
     # when composer runs as www-data, git's ownership safety check refuses
-    # it ("dubious ownership") unless www-data explicitly trusts this path.
-    # This is a one-time, idempotent config for the www-data user only.
-    if ! sudo -u www-data git config --global --get-all safe.directory 2>/dev/null | grep -qxF "$EMS_DIR"; then
-        log "Trusting ${EMS_DIR} in www-data's git config (needed for composer's internal git calls)"
-        sudo -u www-data git config --global --add safe.directory "$EMS_DIR"
+    # it ("dubious ownership") unless this path is explicitly trusted.
+    # Using --system (writes /etc/gitconfig, root-owned but world-readable)
+    # rather than --global: www-data's home (/var/www) isn't writable by
+    # www-data itself on Debian/Ubuntu, so --global would fail to save here.
+    if ! git config --system --get-all safe.directory 2>/dev/null | grep -qxF "$EMS_DIR"; then
+        log "Trusting ${EMS_DIR} in git's system config (needed for composer's internal git calls)"
+        git config --system --add safe.directory "$EMS_DIR"
     fi
 
     log "Running composer install"
