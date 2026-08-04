@@ -7,11 +7,16 @@
 # so it works correctly no matter where this project lives on disk —
 # no manual path editing required.
 #
+# Expects a template/ subfolder next to this script containing:
+#   ems-air-quality_service.template, ems-seismic_service.template,
+#   ems-api_service.template, ems.target
+#
 # Usage: sudo ./install_services.sh
 #
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMPLATE_DIR="${SCRIPT_DIR}/template"
 UNIT_DEST="/etc/systemd/system"
 
 log()  { echo -e "\033[1;32m[install]\033[0m $*"; }
@@ -20,8 +25,10 @@ die()  { echo -e "\033[1;31m[install][ERROR]\033[0m $*" >&2; exit 1; }
 
 [[ $EUID -eq 0 ]] || die "Run this with sudo: sudo ./install_services.sh"
 
+[[ -d "$TEMPLATE_DIR" ]] || die "Missing template/ subfolder next to this script (expected at ${TEMPLATE_DIR})."
+
 for f in ems-air-quality_service.template ems-seismic_service.template ems-api_service.template ems.target; do
-    [[ -f "${SCRIPT_DIR}/${f}" ]] || die "Missing ${f} next to this script."
+    [[ -f "${TEMPLATE_DIR}/${f}" ]] || die "Missing ${f} in ${TEMPLATE_DIR}."
 done
 
 # ----------------------------------------------------------------------
@@ -60,14 +67,14 @@ render() {
     sed \
         -e "s|__EMS_DIR__|${EMS_DIR}|g" \
         -e "s|__EMS_USER__|${EMS_USER}|g" \
-        "${SCRIPT_DIR}/${template}" > "${dest}"
+        "${TEMPLATE_DIR}/${template}" > "${dest}"
 }
 
-log "Generating unit files and copying to ${UNIT_DEST}"
+log "Generating unit files (from ${TEMPLATE_DIR}) and copying to ${UNIT_DEST}"
 render "ems-air-quality_service.template" "${UNIT_DEST}/ems-air-quality.service"
 render "ems-seismic_service.template"     "${UNIT_DEST}/ems-seismic.service"
 render "ems-api_service.template"         "${UNIT_DEST}/ems-api.service"
-cp "${SCRIPT_DIR}/ems.target" "${UNIT_DEST}/"
+cp "${TEMPLATE_DIR}/ems.target" "${UNIT_DEST}/"
 
 log "Reloading systemd unit definitions"
 systemctl daemon-reload
