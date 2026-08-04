@@ -57,6 +57,13 @@ git_pull() {
     local dir="$1" current_branch
     [[ -d "${dir}/.git" ]] || { warn "${dir} is not a git repo — skipping pull there."; return 0; }
 
+    # deploy.sh/update.sh chown+chmod the Laravel tree for www-data after every
+    # run. Git tracks permission bits by default, so that alone makes tracked
+    # files (e.g. storage/**/.gitignore) look "modified" even with identical
+    # content — falsely triggering the stash path below on every single run.
+    # Turn that off once; it's a per-repo, idempotent config setting.
+    sudo -u "$EMS_USER" git -C "$dir" config core.fileMode false
+
     if ! sudo -u "$EMS_USER" git -C "$dir" diff --quiet --exit-code || \
        ! sudo -u "$EMS_USER" git -C "$dir" diff --cached --quiet --exit-code; then
         warn "${dir} has uncommitted local changes. Stashing them before pulling"
@@ -109,6 +116,14 @@ fi
 # ----------------------------------------------------------------------
 # 2. Pull latest code
 # ----------------------------------------------------------------------
+# Dashboard/ is currently owned by www-data (set at the end of the last
+# deploy/update run, further down). Git runs as EMS_USER, not www-data or
+# root, so it needs write access to the whole tree first — reclaim it here,
+# then hand storage/bootstrap/cache back to www-data again after Laravel is
+# re-provisioned below (same as the existing post-build ownership step).
+log "Reclaiming ownership of ${EMS_DIR} as ${EMS_USER} so git can update it"
+chown -R "${EMS_USER}:${EMS_USER}" "$EMS_DIR"
+
 git_pull "$EMS_DIR"
 # NOTE: Dashboard/ is a plain subfolder of the EMS repo (confirmed: no
 # .gitmodules, no nested .git under Dashboard/) — the pull above already
