@@ -156,6 +156,27 @@ prompt_password() {
     done
 }
 
+prompt_password_or_default() {
+    # $1=label  $2=default. Sets REPLY_PASSWORD. Blank input keeps the
+    # default (no confirmation needed since it's not user-typed); typed
+    # input is re-confirmed like prompt_password.
+    local label="$1" default="$2" p1 p2
+    while true; do
+        read -rsp "${label} [Enter to keep default]: " p1; echo
+        if [[ -z "$p1" ]]; then
+            REPLY_PASSWORD="$default"
+            break
+        fi
+        read -rsp "Confirm ${label}: " p2; echo
+        if [[ "$p1" != "$p2" ]]; then
+            echo "  Passwords didn't match — try again."
+        else
+            REPLY_PASSWORD="$p1"
+            break
+        fi
+    done
+}
+
 run_env_wizard() {
     echo
     log "No .env found at ${ENV_FILE} — let's generate one."
@@ -206,6 +227,14 @@ run_env_wizard() {
     mqtt_pass="$REPLY_PASSWORD"
     echo
 
+    # ---- Laravel database (separate Postgres credential from the Python
+    # services above — host/user/db name are fixed, only the password is
+    # meant to change per deployment) ----
+    local laravel_db_pass
+    prompt_password_or_default "Laravel PostgreSQL password for user 'postgres' (DB_PASSWORD)" "UisI_2026##"
+    laravel_db_pass="$REPLY_PASSWORD"
+    echo
+
     log "Writing ${ENV_FILE}"
     cat > "$ENV_FILE" <<ENVEOF
 # =========================================================
@@ -253,10 +282,21 @@ SMS_POLL_INTERVAL_SEC=30
 SMS_ALLOWED_SENDERS=
 
 # ---- API Server ----
-API_PORT=8000
+API_PORT=8443
 # Format: token:owner_label,token:owner_label,...
 # Not asked by the wizard — set at least one token before running api_server.py.
 API_KEYS=
+
+# ---- Laravel database ----
+# Separate Postgres credential from SYSTEM_DB_* above — used only by the
+# Dashboard, not the Python services. Host/user/db name are fixed for this
+# deployment; only the password is meant to change per box.
+DB_CONNECTION=pgsql
+DB_HOST=172.19.0.220
+DB_PORT=5432
+DB_DATABASE=laravel
+DB_USERNAME=postgres
+DB_PASSWORD=${laravel_db_pass}
 ENVEOF
 
     chmod 600 "$ENV_FILE"
@@ -318,8 +358,14 @@ declare -A ENV_DEFAULTS=(
     [SIM800_BAUDRATE]="115200"
     [SMS_POLL_INTERVAL_SEC]="30"
     [SMS_ALLOWED_SENDERS]=""
-    [API_PORT]="8000"
+    [API_PORT]="8443"
     [API_KEYS]="YourSecureToken123:Internal Web Dashboard,MobileAppKey_xyz789:Android/iOS Mobile App,PartnerSync_abc456:Third-Party Data Sync Client,BagongAPIkey:Trylangnaman"
+    [DB_CONNECTION]="pgsql"
+    [DB_HOST]="172.19.0.220"
+    [DB_PORT]="5432"
+    [DB_DATABASE]="laravel"
+    [DB_USERNAME]="postgres"
+    [DB_PASSWORD]="UisI_2026##"
 )
 # Order matches the reference template, so appended lines read top-to-bottom sensibly.
 ENV_DEFAULT_ORDER=(
@@ -330,7 +376,19 @@ ENV_DEFAULT_ORDER=(
     MQTT_BROKER_HOST MQTT_BROKER_PORT MQTT_TIMEOUT_SEC MQTT_TOPIC MQTT_USER MQTT_PASSWORD
     SMS_INGESTION_ENABLED SIM800_SERIAL_PORT SIM800_BAUDRATE SMS_POLL_INTERVAL_SEC SMS_ALLOWED_SENDERS
     API_PORT API_KEYS
+    DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD
 )
+# Deployment-specific keys: prompted for interactively when missing (same
+# spirit as run_env_wizard), instead of silently taking the reference
+# default. Everything else in ENV_DEFAULT_ORDER but not listed here is
+# fixed/structural and gets its default silently.
+ENV_ASK_KEYS=(SYSTEM_DB_HOST SYSTEM_DB_USER SYSTEM_DB_PASSWORD MQTT_BROKER_HOST MQTT_USER MQTT_PASSWORD DB_PASSWORD)
+
+env_key_is_ask() {
+    local k="$1" a
+    for a in "${ENV_ASK_KEYS[@]}"; do [[ "$a" == "$k" ]] && return 0; done
+    return 1
+}
 
 reconcile_env_defaults() {
     local file="$1" key missing=()
@@ -342,15 +400,37 @@ reconcile_env_defaults() {
     done
     [[ ${#missing[@]} -eq 0 ]] && return
 
-    warn "${#missing[@]} variable(s) missing from ${file} — adding defaults: ${missing[*]}"
-    warn "Review these before relying on them in production — some (DB/MQTT passwords, API_KEYS) are placeholder values from the reference template, not secrets generated for this box."
+    warn "${#missing[@]} variable(s) missing from ${file}: ${missing[*]}"
+    if [[ -t 0 ]]; then
+        echo "Answer below for the deployment-specific ones (Enter keeps the default shown); everything else is filled in automatically."
+    else
+        warn "No terminal attached — filling all missing variables with reference defaults. Review ${file} afterward, especially SYSTEM_DB_*, MQTT_*, and DB_PASSWORD."
+    fi
+    echo
+
     {
         echo ""
         echo "# ---- Added automatically by deploy.sh on $(date -Iseconds) (was missing from file) ----"
-        for key in "${missing[@]}"; do
-            echo "${key}=${ENV_DEFAULTS[$key]}"
-        done
     } >> "$file"
+
+    local value
+    for key in "${missing[@]}"; do
+        if [[ -t 0 ]] && env_key_is_ask "$key"; then
+            case "$key" in
+                SYSTEM_DB_PASSWORD|MQTT_PASSWORD|DB_PASSWORD)
+                    prompt_password_or_default "${key}" "${ENV_DEFAULTS[$key]}"
+                    value="$REPLY_PASSWORD"
+                    ;;
+                *)
+                    read -rp "${key} [${ENV_DEFAULTS[$key]}]: " value
+                    value="${value:-${ENV_DEFAULTS[$key]}}"
+                    ;;
+            esac
+        else
+            value="${ENV_DEFAULTS[$key]}"
+        fi
+        echo "${key}=${value}" >> "$file"
+    done
 }
 
 reconcile_env_defaults "$ENV_FILE"
@@ -402,7 +482,7 @@ load_env_file() {
 
 load_env_file "$ENV_FILE"
 
-for v in SYSTEM_DB_USER SYSTEM_DB_PASSWORD AQ_DB_NAME SEISMIC_DB_NAME LOG_DB_NAME SMS_DB_NAME API_DB_NAME MQTT_USER MQTT_PASSWORD; do
+for v in SYSTEM_DB_USER SYSTEM_DB_PASSWORD AQ_DB_NAME SEISMIC_DB_NAME LOG_DB_NAME SMS_DB_NAME API_DB_NAME MQTT_USER MQTT_PASSWORD DB_CONNECTION DB_HOST DB_DATABASE DB_USERNAME DB_PASSWORD; do
     [[ -n "${!v:-}" ]] || die "Missing required variable '$v' in .env"
 done
 
@@ -890,10 +970,11 @@ pip3 install -r "$REQ_FILE" -q --break-system-packages --ignore-installed
 #     Nginx becomes the single public entry point on :80 (and :443 once you
 #     add a domain + certbot, see the end of this script). It serves the
 #     Laravel GUI directly and reverse-proxies /api/* PLUS /docs, /redoc,
-#     and /openapi.json to api_server.py (uvicorn), which is now bound to
-#     127.0.0.1 only (see API_BIND_HOST in api_server.py) — port 8000 is no
-#     longer exposed to the outside world at all, nginx is the only thing
-#     that talks to it.
+#     and /openapi.json to api_server.py (uvicorn) on ${API_PORT:-8443}.
+#     NOTE: api_server.py itself listens on 0.0.0.0, not 127.0.0.1 — the
+#     firewall rules below are what actually keep that port from being
+#     reachable from outside; nginx isn't the only thing that CAN talk to
+#     it unless the firewall blocks direct access too.
 # ----------------------------------------------------------------------
 if [[ ! -d "$LARAVEL_DIR" ]]; then
     warn "Laravel dashboard not found at ${LARAVEL_DIR} — skipping nginx/PHP/Laravel setup."
@@ -1186,11 +1267,11 @@ server {
     access_log /var/log/nginx/ems-dashboard.access.log;
     error_log  /var/log/nginx/ems-dashboard.error.log;
 
-    # Python API (api_server.py / uvicorn, bound to 127.0.0.1:${API_PORT:-8000}
+    # Python API (api_server.py / uvicorn, bound to 127.0.0.1:${API_PORT:-8443}
     # only — see API_BIND_HOST in api_server.py). Every route in api_server.py
     # already starts with /api/, so this forwards the path through unchanged.
     location /api/ {
-        proxy_pass http://127.0.0.1:${API_PORT:-8000};
+        proxy_pass http://127.0.0.1:${API_PORT:-8443};
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
@@ -1199,12 +1280,12 @@ server {
     }
 
     # FastAPI's auto-generated docs (Swagger UI, ReDoc, and the raw OpenAPI
-    # schema) are mounted at the app root by default (e.g. :8000/docs), NOT
+    # schema) are mounted at the app root by default (e.g. :8443/docs), NOT
     # under /api/, so they need their own location block to stay reachable
-    # once port 8000 is closed off and nginx becomes the only public entry
-    # point — this makes them available at http(s)://<host>/docs.
+    # once the API's own port is closed off and nginx becomes the only public
+    # entry point — this makes them available at http(s)://<host>/docs.
     location ~ ^/(docs|redoc|openapi\.json)\$ {
-        proxy_pass http://127.0.0.1:${API_PORT:-8000};
+        proxy_pass http://127.0.0.1:${API_PORT:-8443};
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
@@ -1244,20 +1325,25 @@ if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
     log "ufw is active — opening ports 80/tcp and 443/tcp"
     ufw allow 80/tcp comment "nginx HTTP"
     ufw allow 443/tcp comment "nginx HTTPS (future)"
-    if ufw status | grep -qE '^8000\b'; then
-        log "Removing old direct-access ufw rule for 8000/tcp — the API is now only reachable through nginx"
-        ufw delete allow 8000/tcp 2>/dev/null || true
-    fi
+    # Clean up any direct-access rule for the API's own port — both the
+    # current API_PORT and the legacy 8000 default, in case this box was
+    # deployed before the default moved to 8443.
+    for _direct_port in "$API_PORT" 8000; do
+        if ufw status | grep -qE "^${_direct_port}\b"; then
+            log "Removing direct-access ufw rule for ${_direct_port}/tcp — the API is now only reachable through nginx"
+            ufw delete allow "${_direct_port}/tcp" 2>/dev/null || true
+        fi
+    done
 else
     log "ufw not active/installed — skipping firewall rule"
 fi
-warn "If this server sits behind a cloud provider (AWS/GCP/Azure/etc.), also CLOSE port 8000 in its"
+warn "If this server sits behind a cloud provider (AWS/GCP/Azure/etc.), also CLOSE port ${API_PORT} in its"
 warn "security group / firewall rules now (it should only be reachable at 127.0.0.1, via nginx, from now on)"
 warn "and make sure 80/tcp (and 443/tcp once you add a domain) is open there."
 
 log "Laravel dashboard: http://${SERVER_IP:-<this-server-ip>}/"
 log "API via nginx:      http://${SERVER_IP:-<this-server-ip>}/api/..."
-log "API docs via nginx: http://${SERVER_IP:-<this-server-ip>}/docs  (replaces the old :8000/docs link — that port is being closed off below)"
+log "API docs via nginx: http://${SERVER_IP:-<this-server-ip>}/docs  (replaces the old :${API_PORT}/docs link — that port is being closed off below)"
 warn "Dashboard DB credentials (DB_DATABASE=${API_DB_NAME}, DB_USERNAME=${DASHBOARD_DB_USER}) live in ${ENV_FILE} — back that file up, it's not stored anywhere else."
 
 fi  # LARAVEL_DIR exists
@@ -1283,9 +1369,9 @@ Next steps:
        python3 ${SCRIPT_DIR}/air_quality_ingest.py
        python3 ${SCRIPT_DIR}/seismic_mqtt.py
        python3 ${SCRIPT_DIR}/api_server.py
-     api_server.py now binds to 127.0.0.1:${API_PORT:-8000} by default (not
-     0.0.0.0) since nginx is the public entry point — set API_BIND_HOST in
-     .env if something needs to reach it directly without going through nginx.
+     api_server.py listens on 0.0.0.0:${API_PORT:-8443} — reachable directly,
+     not just through nginx, unless your firewall blocks ${API_PORT} from
+     outside. nginx proxies to it at 127.0.0.1:${API_PORT:-8443}.
   3. For always-on deployment, run: sudo ./install_services.sh
      (installs+starts the ems.target systemd unit for all three services).
 $([[ -d "$LARAVEL_DIR" ]] && cat <<DASHEOF
