@@ -429,59 +429,11 @@ reconcile_env_defaults() {
         else
             value="${ENV_DEFAULTS[$key]}"
         fi
-        # Laravel's dotenv parser (unlike our own load_env_file below) is
-        # strict: an unquoted value containing whitespace is a hard parse
-        # error, not just a quirk. Quote any value with whitespace so the
-        # line is safe for both parsers — e.g. API_KEYS' comma-separated
-        # "token:label" pairs, where each label may contain spaces.
-        if [[ "$value" == *[[:space:]]* ]]; then
-            printf '%s="%s"\n' "$key" "$value" >> "$file"
-        else
-            echo "${key}=${value}" >> "$file"
-        fi
+        echo "${key}=${value}" >> "$file"
     done
 }
 
 reconcile_env_defaults "$ENV_FILE"
-
-# ----------------------------------------------------------------------
-# Repair any already-present value that contains whitespace but isn't
-# quoted (e.g. an API_KEYS line written by an older version of this
-# script, before the quoting fix above existed). Laravel's dotenv parser
-# treats that as a hard error, so this needs fixing in-place, not just
-# avoided going forward. Quoted/no-whitespace lines are left untouched.
-# ----------------------------------------------------------------------
-repair_unquoted_env_values() {
-    local file="$1" tmp line key value changed=0
-    tmp="$(mktemp)"
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        if [[ "$line" =~ ^[[:space:]]*# || -z "${line//[[:space:]]/}" || "$line" != *"="* ]]; then
-            echo "$line" >> "$tmp"
-            continue
-        fi
-        key="${line%%=*}"
-        value="${line#*=}"
-        if [[ "$value" == \"*\" && "$value" == *\" ]] || [[ "$value" == \'*\' && "$value" == *\' ]]; then
-            echo "$line" >> "$tmp"   # already quoted
-        elif [[ "$value" == *[[:space:]]* ]]; then
-            printf '%s="%s"\n' "$key" "$value" >> "$tmp"
-            changed=1
-        else
-            echo "$line" >> "$tmp"
-        fi
-    done < "$file"
-
-    if [[ "$changed" == 1 ]]; then
-        local backup="${file}.bak.$(date +%Y%m%d%H%M%S)"
-        warn "Quoting unquoted value(s) containing whitespace in ${file} (Laravel's dotenv parser requires this) — original backed up to ${backup}"
-        cp "$file" "$backup"
-        cat "$tmp" > "$file"
-        chmod 600 "$file"
-    fi
-    rm -f "$tmp"
-}
-
-repair_unquoted_env_values "$ENV_FILE"
 
 # Make sure the Python services' expected .env location (same folder as
 # air_quality_ingest.py / seismic_mqtt.py / api_server.py) points at the
