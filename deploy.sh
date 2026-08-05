@@ -42,6 +42,11 @@ ENV_FILE="${SCRIPT_DIR}/scripts/.env"
 REQ_FILE="${SCRIPT_DIR}/requirements.txt"
 PG_VERSION="${PG_VERSION:-16}"   # override: PG_VERSION=15 sudo -E ./deploy.sh
 LARAVEL_DIR="${LARAVEL_DIR:-${SCRIPT_DIR}/Dashboard}"   # override: LARAVEL_DIR=/path/to/Dashboard sudo -E ./deploy.sh
+# Password for the Postgres 'postgres' superuser role. Also written directly
+# into the Laravel Dashboard's .env as DB_PASSWORD, since the Dashboard
+# connects as 'postgres' (see section 2 and the Laravel .env block below).
+# override: POSTGRES_PASSWORD='...' sudo -E ./deploy.sh
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-UisI_2026##}"
 
 log()  { echo -e "\033[1;32m[deploy]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[deploy][WARN]\033[0m $*"; }
@@ -614,6 +619,12 @@ SQL
 if [[ "$DB_IS_LOCAL" == true ]]; then
     create_role "${SYSTEM_DB_USER}" "${SYSTEM_DB_PASSWORD}"
 
+    # The Laravel Dashboard connects directly as the 'postgres' superuser
+    # (see the Laravel .env block below), so it needs a password set for
+    # TCP/scram-sha-256 auth just like the app roles above.
+    log "Setting password for the 'postgres' superuser role (used directly by the Laravel Dashboard's .env)"
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c "ALTER ROLE postgres WITH PASSWORD '${POSTGRES_PASSWORD}';"
+
     # Allow password auth for these roles over TCP (local dev-friendly default;
     # tighten this to specific hosts / scram-sha-256 for production).
     PG_HBA="/etc/postgresql/${PG_VERSION}/main/pg_hba.conf"
@@ -843,78 +854,108 @@ if [[ -f "${LARAVEL_DIR}/package.json" ]] && command -v node >/dev/null 2>&1; th
     fi
 fi
 
-# ---- Dedicated Postgres database + role for Laravel ----
-# Deliberately separate from SYSTEM_DB_USER (used by the Python services):
-# its own database, its own login, so the dashboard only ever has access
-# to its own data, not the AQ/seismic/log databases.
-DASHBOARD_DB_NAME="${DASHBOARD_DB_NAME:-ems_dashboard}"
-DASHBOARD_DB_USER="${DASHBOARD_DB_USER:-ems_dashboard_user}"
+# ---- Laravel .env ----
+# The Dashboard shares the 'postgres' superuser role and the IOT_api
+# database with api_server.py (see POSTGRES_PASSWORD at the top of this
+# script and the 'postgres' ALTER ROLE in section 2) rather than getting
+# its own least-privilege role/database. Dashboard/.env is rewritten from
+# a fixed template on every run — any manual edits to it will be lost the
+# next time this script runs.
+SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 
 if [[ "$DB_IS_LOCAL" == true ]]; then
-    if [[ -f "${LARAVEL_DIR}/.env" ]] && grep -qE '^DB_PASSWORD=.+' "${LARAVEL_DIR}/.env"; then
-        # Reuse whatever password is already sitting in Dashboard/.env from
-        # a previous run, instead of generating (and orphaning) a new one.
-        DASHBOARD_DB_PASSWORD="$(grep -E '^DB_PASSWORD=' "${LARAVEL_DIR}/.env" | tail -1 | cut -d= -f2-)"
+    log "Ensuring database 'IOT_api' exists (owned by postgres)"
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = 'IOT_api'" | grep -q 1; then
+        sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c 'CREATE DATABASE "IOT_api" OWNER postgres;'
     else
-        DASHBOARD_DB_PASSWORD="$(openssl rand -hex 24)"
-    fi
-
-    log "Ensuring Postgres role '${DASHBOARD_DB_USER}' exists"
-    sudo -u postgres psql -v ON_ERROR_STOP=1 -q <<SQL
-DO \$\$
-BEGIN
-   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DASHBOARD_DB_USER}') THEN
-      CREATE ROLE ${DASHBOARD_DB_USER} LOGIN PASSWORD '${DASHBOARD_DB_PASSWORD}';
-   ELSE
-      ALTER ROLE ${DASHBOARD_DB_USER} WITH PASSWORD '${DASHBOARD_DB_PASSWORD}';
-   END IF;
-END
-\$\$;
-SQL
-
-    log "Ensuring Postgres database '${DASHBOARD_DB_NAME}' exists (owned by ${DASHBOARD_DB_USER})"
-    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '${DASHBOARD_DB_NAME}'" | grep -q 1; then
-        sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE ${DASHBOARD_DB_NAME} OWNER ${DASHBOARD_DB_USER};"
-    else
-        log "Database '${DASHBOARD_DB_NAME}' already exists, skipping creation"
+        log "Database 'IOT_api' already exists, skipping creation"
     fi
 else
-    warn "SYSTEM_DB_HOST is remote — skipping local Postgres role/DB creation for Laravel."
-    warn "Create database '${DASHBOARD_DB_NAME}' + role '${DASHBOARD_DB_USER}' on that server yourself,"
-    warn "then set DB_* in ${LARAVEL_DIR}/.env to match before running migrations."
-    DASHBOARD_DB_PASSWORD="${DASHBOARD_DB_PASSWORD:-CHANGE_ME}"
+    warn "SYSTEM_DB_HOST is remote — skipping local database creation for Laravel."
+    warn "Make sure database 'IOT_api' exists on that server and 'postgres' can log in with"
+    warn "password auth from this host before running migrations."
 fi
 
-# ---- Laravel .env ----
-SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-if [[ ! -f "${LARAVEL_DIR}/.env" ]]; then
-    if [[ -f "${LARAVEL_DIR}/.env.example" ]]; then
-        cp "${LARAVEL_DIR}/.env.example" "${LARAVEL_DIR}/.env"
-    else
-        touch "${LARAVEL_DIR}/.env"
-    fi
-    log "Writing database + app config to ${LARAVEL_DIR}/.env"
-    for pair in \
-        "APP_ENV=production" \
-        "APP_DEBUG=false" \
-        "APP_URL=http://${SERVER_IP:-localhost}" \
-        "DB_CONNECTION=pgsql" \
-        "DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
-        "DB_PORT=${SYSTEM_DB_PORT:-5432}" \
-        "DB_DATABASE=${DASHBOARD_DB_NAME}" \
-        "DB_USERNAME=${DASHBOARD_DB_USER}" \
-        "DB_PASSWORD=${DASHBOARD_DB_PASSWORD}"; do
-        key="${pair%%=*}"; value="${pair#*=}"
-        escaped_value="${value//&/\\&}"
-        if grep -qE "^${key}=" "${LARAVEL_DIR}/.env"; then
-            sed -i -E "s|^${key}=.*|${key}=${escaped_value}|" "${LARAVEL_DIR}/.env"
-        else
-            printf '%s=%s\n' "$key" "$value" >> "${LARAVEL_DIR}/.env"
-        fi
-    done
-    chmod 600 "${LARAVEL_DIR}/.env"
-else
-    log "${LARAVEL_DIR}/.env already exists — leaving it as-is (delete it and re-run to regenerate)."
+# Carry an existing APP_KEY forward so re-running this script doesn't
+# rotate it and invalidate live sessions / encrypted cookies.
+_existing_app_key=""
+if [[ -f "${LARAVEL_DIR}/.env" ]]; then
+    _existing_app_key="$(grep -E '^APP_KEY=base64:' "${LARAVEL_DIR}/.env" | tail -1 || true)"
+fi
+
+log "Writing ${LARAVEL_DIR}/.env (fixed template, overwritten on every run)"
+cat > "${LARAVEL_DIR}/.env" <<ENVEOF
+APP_NAME=Laravel
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://${SERVER_IP:-localhost}
+
+APP_LOCALE=en
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=en_US
+
+APP_MAINTENANCE_DRIVER=file
+# APP_MAINTENANCE_STORE=database
+
+# PHP_CLI_SERVER_WORKERS=4
+
+BCRYPT_ROUNDS=12
+
+LOG_CHANNEL=stack
+LOG_STACK=single
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+
+# API Database
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=IOT_api
+DB_USERNAME=postgres
+DB_PASSWORD="${POSTGRES_PASSWORD}"
+
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+SESSION_PATH=/
+SESSION_DOMAIN=null
+
+BROADCAST_CONNECTION=log
+FILESYSTEM_DISK=local
+QUEUE_CONNECTION=database
+
+CACHE_STORE=file
+# CACHE_PREFIX=
+
+MEMCACHED_HOST=127.0.0.1
+
+REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=log
+MAIL_SCHEME=null
+MAIL_HOST=127.0.0.1
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="\${APP_NAME}"
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+
+VITE_APP_NAME="\${APP_NAME}"
+ENVEOF
+chmod 600 "${LARAVEL_DIR}/.env"
+
+if [[ -n "$_existing_app_key" ]]; then
+    sed -i -E "s|^APP_KEY=.*|${_existing_app_key}|" "${LARAVEL_DIR}/.env"
 fi
 
 # ---- Composer / artisan / npm build ----
@@ -1047,7 +1088,7 @@ warn "and make sure 80/tcp (and 443/tcp once you add a domain) is open there."
 
 log "Laravel dashboard: http://${SERVER_IP:-<this-server-ip>}/"
 log "API via nginx:      http://${SERVER_IP:-<this-server-ip>}/api/..."
-warn "Dashboard DB credentials are in ${LARAVEL_DIR}/.env (DB_DATABASE=${DASHBOARD_DB_NAME}, DB_USERNAME=${DASHBOARD_DB_USER}) — back that file up, it's not stored anywhere else."
+warn "Dashboard DB credentials are in ${LARAVEL_DIR}/.env (DB_DATABASE=IOT_api, DB_USERNAME=postgres — the Postgres superuser, shared with api_server.py) — back that file up, it's not stored anywhere else."
 
 fi  # LARAVEL_DIR exists
 

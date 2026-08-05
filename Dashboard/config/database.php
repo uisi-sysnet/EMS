@@ -97,13 +97,33 @@ return [
             'sslmode' => 'prefer',
         ],
 
+        /*
+        |----------------------------------------------------------------
+        | EMS connections (aq, seismic, sms, api, logs)
+        |----------------------------------------------------------------
+        |
+        | These five connections are NOT populated from this app's own
+        | .env file. They are overwritten at runtime in
+        | App\Providers\AppServiceProvider::loadEmsDatabaseConnections(),
+        | which reads /home/system/EMS/scripts/.env (shared with the
+        | Python ingestion services) and calls Config::set() for each
+        | one during boot(), before any request is handled.
+        |
+        | The stubs below exist only so `config()` and IDE tooling see
+        | these connection names as declared. If the values below are
+        | ever what actually gets used, it means the provider failed to
+        | load scripts/.env — check that file exists and is readable
+        | before assuming the database itself is down.
+        |
+        */
+
         'aq' => [
             'driver' => 'pgsql',
-            'host' => env('AQ_DB_HOST'),
-            'port' => env('AQ_DB_PORT'),
-            'database' => env('AQ_DB_DATABASE'),
-            'username' => env('AQ_DB_USERNAME'),
-            'password' => env('AQ_DB_PASSWORD'),
+            'host' => null,
+            'port' => null,
+            'database' => null,
+            'username' => null,
+            'password' => null,
             'charset' => 'utf8',
             'prefix' => '',
             'schema' => 'public',
@@ -112,11 +132,11 @@ return [
 
         'seismic' => [
             'driver' => 'pgsql',
-            'host' => env('SEISMIC_DB_HOST'),
-            'port' => env('SEISMIC_DB_PORT'),
-            'database' => env('SEISMIC_DB_DATABASE'),
-            'username' => env('SEISMIC_DB_USERNAME'),
-            'password' => env('SEISMIC_DB_PASSWORD'),
+            'host' => null,
+            'port' => null,
+            'database' => null,
+            'username' => null,
+            'password' => null,
             'charset' => 'utf8',
             'prefix' => '',
             'schema' => 'public',
@@ -125,11 +145,11 @@ return [
 
         'logs' => [
             'driver' => 'pgsql',
-            'host' => env('LOG_DB_HOST'),
-            'port' => env('LOG_DB_PORT'),
-            'database' => env('LOG_DB_DATABASE'),
-            'username' => env('LOG_DB_USERNAME'),
-            'password' => env('LOG_DB_PASSWORD'),
+            'host' => null,
+            'port' => null,
+            'database' => null,
+            'username' => null,
+            'password' => null,
             'charset' => 'utf8',
             'prefix' => '',
             'schema' => 'public',
@@ -138,11 +158,24 @@ return [
 
         'sms' => [
             'driver' => 'pgsql',
-            'host' => env('SMS_DB_HOST'),
-            'port' => env('SMS_DB_PORT'),
-            'database' => env('SMS_DB_DATABASE'),
-            'username' => env('SMS_DB_USERNAME'),
-            'password' => env('SMS_DB_PASSWORD'),
+            'host' => null,
+            'port' => null,
+            'database' => null,
+            'username' => null,
+            'password' => null,
+            'charset' => 'utf8',
+            'prefix' => '',
+            'schema' => 'public',
+            'sslmode' => 'prefer',
+        ],
+
+        'api' => [
+            'driver' => 'pgsql',
+            'host' => null,
+            'port' => null,
+            'database' => null,
+            'username' => null,
+            'password' => null,
             'charset' => 'utf8',
             'prefix' => '',
             'schema' => 'public',
