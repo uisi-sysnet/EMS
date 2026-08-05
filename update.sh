@@ -130,6 +130,43 @@ git_pull "$EMS_DIR"
 # updates it. No separate pull step needed here.
 
 # ----------------------------------------------------------------------
+# 2.5 Dashboard reads the Python side's scripts/.env directly (confirmed
+#     separate from Dashboard/.env, which Laravel uses for its own config).
+#     www-data needs read access to it, or `artisan down`/`up` — and
+#     anything else in Dashboard that reads it at runtime — fails with a
+#     permission error. Must run AFTER the reclaim-ownership chown -R
+#     above, since that resets everything under EMS_DIR back to
+#     EMS_USER:EMS_USER and would otherwise undo this immediately.
+#     Fixed every run so it self-heals even if something external resets
+#     it; this run's own step-1 "artisan down" call happens before this
+#     point, so it may still warn once — the fix takes effect starting
+#     with this run's "artisan up" and every run after.
+# ----------------------------------------------------------------------
+PYTHON_ENV_FILE="${EMS_DIR}/scripts/.env"
+if [[ -f "$PYTHON_ENV_FILE" ]]; then
+    log "Ensuring www-data can read ${PYTHON_ENV_FILE} (Dashboard reads Python config directly)"
+    chown "${EMS_USER}:www-data" "$PYTHON_ENV_FILE" 2>/dev/null || \
+        warn "Could not chown ${PYTHON_ENV_FILE} — fix manually: sudo chown ${EMS_USER}:www-data ${PYTHON_ENV_FILE}"
+    chmod 640 "$PYTHON_ENV_FILE" 2>/dev/null || \
+        warn "Could not chmod ${PYTHON_ENV_FILE} — fix manually: sudo chmod 640 ${PYTHON_ENV_FILE}"
+
+    # www-data also needs to be able to traverse into scripts/ itself to
+    # reach the file — same "o+x on every parent dir" check used for
+    # LARAVEL_DIR further down, applied here to EMS_DIR/scripts.
+    _check_dir="$(dirname "$PYTHON_ENV_FILE")"
+    while [[ "$_check_dir" != "/" && -n "$_check_dir" ]]; do
+        _perms="$(stat -c '%A' "$_check_dir" 2>/dev/null || true)"
+        if [[ -n "$_perms" && "${_perms:9:1}" != "x" ]]; then
+            warn "${_check_dir} lacks traversal permission for other users — adding o+x"
+            chmod o+x "$_check_dir" || warn "Could not chmod ${_check_dir} — fix manually: sudo chmod o+x ${_check_dir}"
+        fi
+        _check_dir="$(dirname "$_check_dir")"
+    done
+else
+    warn "${PYTHON_ENV_FILE} not found — skipping permission fix (is this the first-ever deploy?)."
+fi
+
+# ----------------------------------------------------------------------
 # 3. Python dependencies (requirements.txt may have changed)
 # ----------------------------------------------------------------------
 REQ_FILE="${EMS_DIR}/requirements.txt"
@@ -170,9 +207,10 @@ else
         warn "config:clear failed — non-fatal, continuing, but migrate below may read a stale cached config."
 
     log "Running Laravel migrations (as ${EMS_USER})"
-    ( cd "$LARAVEL_DIR" && sudo -u "$EMS_USER" php artisan migrate --force ) || \
+    ( cd "$LARAVEL_DIR" && sudo -u "$EMS_USER" php artisan migrate --force ) || {
         warn "Migrations failed — check ${LARAVEL_DIR}/.env DB_* values, then re-run manually:"
         warn "  cd ${LARAVEL_DIR} && sudo -u ${EMS_USER} php artisan migrate --force"
+    }
 
     if [[ -f "${LARAVEL_DIR}/package.json" ]] && command -v npm >/dev/null 2>&1; then
         log "Installing frontend deps and rebuilding assets (npm, as ${EMS_USER})"
@@ -217,11 +255,18 @@ fi
 log "Starting nginx"
 systemctl start nginx || die "nginx failed to start — check: sudo systemctl status nginx"
 
-log "Starting ems.target (air-quality, seismic, api services)"
-systemctl start ems.target || die "ems.target failed to start — check: sudo systemctl status ems.target"
+if systemctl list-unit-files --no-legend 'ems.target' | grep -q ems.target; then
+    log "Starting ems.target (air-quality, seismic, api services)"
+    systemctl start ems.target || die "ems.target failed to start — check: sudo systemctl status ems.target"
+else
+    warn "ems.target not found — skipping start (run install_services.sh to create it)."
+fi
 
 log "Done. Current status:"
-systemctl status nginx ems-air-quality.service ems-seismic.service ems-api.service --no-pager || true
+systemctl status nginx --no-pager || true
+if systemctl list-unit-files --no-legend 'ems.target' | grep -q ems.target; then
+    systemctl status ems-air-quality.service ems-seismic.service ems-api.service --no-pager || true
+fi
 
 cat <<EOF
 
