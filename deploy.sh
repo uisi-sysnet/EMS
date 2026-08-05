@@ -18,21 +18,12 @@
 #   - Ubuntu 22.04/24.04 LTS, OR Raspberry Pi OS (Debian bookworm or newer),
 #     64-bit (arm64) STRONGLY recommended on a Pi — see detect_platform().
 #   - PostgreSQL 16 (auto-detected where possible, override with PG_VERSION)
-#   - This script, requirements.txt, and the three *.py files all live in
-#     the same directory (e.g. EMS/).
-#   - The Laravel dashboard lives in a "Dashboard" folder next to this
-#     script (e.g. EMS/Dashboard, next to EMS/deploy.sh) — override with
-#     LARAVEL_DIR=/path/to/Dashboard if it's elsewhere. It must already
-#     exist when this script runs.
-#   - There is ONE centralized .env, and it lives at EMS/Dashboard/.env
-#     (i.e. ${LARAVEL_DIR}/.env) — used by the Python services AND Laravel.
-#     If it's missing, this script asks a few questions on the terminal
-#     (DB/MQTT: local or remote IP, host, port, credentials) and generates
-#     one there — see run_env_wizard() below. This needs an interactive
-#     terminal; non-interactive runs must supply .env themselves.
-#     EMS/.env (where the Python services look for it) is kept as
-#     a symlink pointing back at EMS/Dashboard/.env, so there's exactly
-#     one real file on disk, not two copies to keep in sync.
+#   - This script, .env, requirements.txt, and the three *.py files all
+#     live in the same directory. If .env is missing, this script asks a
+#     few questions on the terminal (DB/MQTT: local or remote IP, host,
+#     port, credentials) and generates one — see run_env_wizard() below.
+#     This needs an interactive terminal; non-interactive runs must supply
+#     .env themselves.
 #   - If you point SYSTEM_DB_HOST / MQTT_BROKER_HOST at a host OTHER than
 #     this machine (i.e. not 127.0.0.1/localhost), the local Postgres +
 #     TimescaleDB / Mosquitto install and account-creation steps below are
@@ -47,17 +38,10 @@ set -euo pipefail
 # 0. Preflight
 # ----------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SCRIPT_DIR}/.env"
 REQ_FILE="${SCRIPT_DIR}/requirements.txt"
 PG_VERSION="${PG_VERSION:-16}"   # override: PG_VERSION=15 sudo -E ./deploy.sh
-LARAVEL_DIR="${LARAVEL_DIR:-$SCRIPT_DIR/Dashboard}"   # default: "Dashboard" folder next to this script (e.g. EMS/deploy.sh + EMS/Dashboard). override: LARAVEL_DIR=/path/to/Dashboard sudo -E ./deploy.sh
-
-# The centralized .env now lives in the Laravel dashboard folder and is
-# shared by the Python services and Laravel alike. PY_ENV_FILE is where
-# air_quality_ingest.py / seismic_mqtt.py / api_server.py expect to find
-# it (same folder as this script) — deploy.sh keeps that path as a
-# symlink pointing at ENV_FILE, so there's exactly one real file on disk.
-ENV_FILE="${LARAVEL_DIR}/.env"
-PY_ENV_FILE="${SCRIPT_DIR}/.env"
+LARAVEL_DIR="${LARAVEL_DIR:-${SCRIPT_DIR}/Dashboard}"   # override: LARAVEL_DIR=/path/to/Dashboard sudo -E ./deploy.sh
 
 log()  { echo -e "\033[1;32m[deploy]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[deploy][WARN]\033[0m $*"; }
@@ -66,8 +50,6 @@ die()  { echo -e "\033[1;31m[deploy][ERROR]\033[0m $*" >&2; exit 1; }
 if [[ $EUID -ne 0 ]]; then
     die "Run this with sudo: sudo ./deploy.sh"
 fi
-
-[[ -d "$LARAVEL_DIR" ]] || die "Dashboard directory not found at ${LARAVEL_DIR} — the shared .env now lives there, so it must exist before this script runs. Clone/copy the Laravel app to ${LARAVEL_DIR} first, or override with: LARAVEL_DIR=/path/to/Dashboard sudo -E ./deploy.sh"
 
 # ----------------------------------------------------------------------
 # 0b. Platform detection (Ubuntu vs Raspberry Pi OS, and CPU architecture)
@@ -156,27 +138,6 @@ prompt_password() {
     done
 }
 
-prompt_password_or_default() {
-    # $1=label  $2=default. Sets REPLY_PASSWORD. Blank input keeps the
-    # default (no confirmation needed since it's not user-typed); typed
-    # input is re-confirmed like prompt_password.
-    local label="$1" default="$2" p1 p2
-    while true; do
-        read -rsp "${label} [Enter to keep default]: " p1; echo
-        if [[ -z "$p1" ]]; then
-            REPLY_PASSWORD="$default"
-            break
-        fi
-        read -rsp "Confirm ${label}: " p2; echo
-        if [[ "$p1" != "$p2" ]]; then
-            echo "  Passwords didn't match — try again."
-        else
-            REPLY_PASSWORD="$p1"
-            break
-        fi
-    done
-}
-
 run_env_wizard() {
     echo
     log "No .env found at ${ENV_FILE} — let's generate one."
@@ -227,14 +188,6 @@ run_env_wizard() {
     mqtt_pass="$REPLY_PASSWORD"
     echo
 
-    # ---- Laravel database (separate Postgres credential from the Python
-    # services above — host/user/db name are fixed, only the password is
-    # meant to change per deployment) ----
-    local laravel_db_pass
-    prompt_password_or_default "Laravel PostgreSQL password for user 'postgres' (DB_PASSWORD)" "UisI_2026##"
-    laravel_db_pass="$REPLY_PASSWORD"
-    echo
-
     log "Writing ${ENV_FILE}"
     cat > "$ENV_FILE" <<ENVEOF
 # =========================================================
@@ -282,21 +235,10 @@ SMS_POLL_INTERVAL_SEC=30
 SMS_ALLOWED_SENDERS=
 
 # ---- API Server ----
-API_PORT=8443
+API_PORT=8000
 # Format: token:owner_label,token:owner_label,...
 # Not asked by the wizard — set at least one token before running api_server.py.
 API_KEYS=
-
-# ---- Laravel database ----
-# Separate Postgres credential from SYSTEM_DB_* above — used only by the
-# Dashboard, not the Python services. Host/user/db name are fixed for this
-# deployment; only the password is meant to change per box.
-DB_CONNECTION=pgsql
-DB_HOST=172.19.0.220
-DB_PORT=5432
-DB_DATABASE=laravel
-DB_USERNAME=postgres
-DB_PASSWORD=${laravel_db_pass}
 ENVEOF
 
     chmod 600 "$ENV_FILE"
@@ -304,149 +246,11 @@ ENVEOF
     warn "API_KEYS was left blank (the wizard doesn't ask for it) — set at least one token there before running api_server.py."
 }
 
-# Migrating from an older layout where the Python services' .env lived
-# directly in $SCRIPT_DIR? Move that real file into the new centralized
-# location instead of generating a fresh one and losing existing
-# credentials/config.
-if [[ ! -f "$ENV_FILE" && -f "$PY_ENV_FILE" && ! -L "$PY_ENV_FILE" ]]; then
-    log "Found existing .env at ${PY_ENV_FILE} — moving it to the centralized location ${ENV_FILE}"
-    mv "$PY_ENV_FILE" "$ENV_FILE"
-    chmod 600 "$ENV_FILE"
-fi
-
 if [[ ! -f "$ENV_FILE" ]]; then
     [[ -t 0 ]] || die ".env not found at $ENV_FILE, and no terminal is attached to answer setup questions. Run deploy.sh interactively, or copy a .env here first."
     run_env_wizard
 else
     log ".env already exists at $ENV_FILE — skipping the setup wizard (delete/rename it and re-run to regenerate)."
-fi
-
-# ----------------------------------------------------------------------
-# Reconcile .env against the reference template: any key already present
-# keeps its existing value untouched. Any key ABSENT from the file gets
-# appended with the default below instead of making deploy.sh die — this
-# covers .env files from an older version of the template, or ones edited
-# by hand that dropped a line. Re-run any time; already-present keys are
-# never rewritten.
-# ----------------------------------------------------------------------
-declare -A ENV_DEFAULTS=(
-    [SYSTEM_DB_HOST]="127.0.0.1"
-    [SYSTEM_DB_PORT]="5432"
-    [SYSTEM_DB_USER]="iot_user"
-    [SYSTEM_DB_PASSWORD]="UisI_2026##"
-    [SYSTEM_DB_POOL_MIN]="2"
-    [SYSTEM_DB_POOL_MAX]="10"
-    [DB_LOG_ENABLED]="true"
-    [DB_LOG_TABLE]="service_logs"
-    [AQ_DB_NAME]="IOT_aq_sensor_data"
-    [SEISMIC_DB_NAME]="IOT_seismic_sensor_data"
-    [SMS_DB_NAME]="IOT_sms_telemetry"
-    [API_DB_NAME]="IOT_api"
-    [LOG_DB_NAME]="IOT_service_logs"
-    [AQ_SERVER_HOST]="0.0.0.0"
-    [AQ_SERVER_PORT]="1935"
-    [AQ_LEAD_POLL_INTERVAL]="30"
-    [AQ_STATIONS_REFRESH_INTERVAL_SEC]="300"
-    [MQTT_BROKER_HOST]="192.168.55.10"
-    [MQTT_BROKER_PORT]="1883"
-    [MQTT_TIMEOUT_SEC]="60"
-    [MQTT_TOPIC]="seismic/stations/+/telemetry"
-    [MQTT_USER]="mqtt_user_seismic"
-    [MQTT_PASSWORD]="UisI_2026##"
-    [SMS_INGESTION_ENABLED]="false"
-    [SIM800_SERIAL_PORT]="/dev/serial0"
-    [SIM800_BAUDRATE]="115200"
-    [SMS_POLL_INTERVAL_SEC]="30"
-    [SMS_ALLOWED_SENDERS]=""
-    [API_PORT]="8443"
-    [API_KEYS]="YourSecureToken123:Internal Web Dashboard,MobileAppKey_xyz789:Android/iOS Mobile App,PartnerSync_abc456:Third-Party Data Sync Client,BagongAPIkey:Trylangnaman"
-    [DB_CONNECTION]="pgsql"
-    [DB_HOST]="172.19.0.220"
-    [DB_PORT]="5432"
-    [DB_DATABASE]="laravel"
-    [DB_USERNAME]="postgres"
-    [DB_PASSWORD]="UisI_2026##"
-)
-# Order matches the reference template, so appended lines read top-to-bottom sensibly.
-ENV_DEFAULT_ORDER=(
-    SYSTEM_DB_HOST SYSTEM_DB_PORT SYSTEM_DB_USER SYSTEM_DB_PASSWORD
-    SYSTEM_DB_POOL_MIN SYSTEM_DB_POOL_MAX DB_LOG_ENABLED DB_LOG_TABLE
-    AQ_DB_NAME SEISMIC_DB_NAME SMS_DB_NAME API_DB_NAME LOG_DB_NAME
-    AQ_SERVER_HOST AQ_SERVER_PORT AQ_LEAD_POLL_INTERVAL AQ_STATIONS_REFRESH_INTERVAL_SEC
-    MQTT_BROKER_HOST MQTT_BROKER_PORT MQTT_TIMEOUT_SEC MQTT_TOPIC MQTT_USER MQTT_PASSWORD
-    SMS_INGESTION_ENABLED SIM800_SERIAL_PORT SIM800_BAUDRATE SMS_POLL_INTERVAL_SEC SMS_ALLOWED_SENDERS
-    API_PORT API_KEYS
-    DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD
-)
-# Deployment-specific keys: prompted for interactively when missing (same
-# spirit as run_env_wizard), instead of silently taking the reference
-# default. Everything else in ENV_DEFAULT_ORDER but not listed here is
-# fixed/structural and gets its default silently.
-ENV_ASK_KEYS=(SYSTEM_DB_HOST SYSTEM_DB_USER SYSTEM_DB_PASSWORD MQTT_BROKER_HOST MQTT_USER MQTT_PASSWORD DB_PASSWORD)
-
-env_key_is_ask() {
-    local k="$1" a
-    for a in "${ENV_ASK_KEYS[@]}"; do [[ "$a" == "$k" ]] && return 0; done
-    return 1
-}
-
-reconcile_env_defaults() {
-    local file="$1" key missing=()
-    for key in "${ENV_DEFAULT_ORDER[@]}"; do
-        # Match KEY=... at the start of a line (ignoring leading whitespace),
-        # so an existing key keeps its value — even if that value is blank —
-        # and is never touched or duplicated.
-        grep -qE "^[[:space:]]*${key}=" "$file" || missing+=("$key")
-    done
-    [[ ${#missing[@]} -eq 0 ]] && return
-
-    warn "${#missing[@]} variable(s) missing from ${file}: ${missing[*]}"
-    if [[ -t 0 ]]; then
-        echo "Answer below for the deployment-specific ones (Enter keeps the default shown); everything else is filled in automatically."
-    else
-        warn "No terminal attached — filling all missing variables with reference defaults. Review ${file} afterward, especially SYSTEM_DB_*, MQTT_*, and DB_PASSWORD."
-    fi
-    echo
-
-    {
-        echo ""
-        echo "# ---- Added automatically by deploy.sh on $(date -Iseconds) (was missing from file) ----"
-    } >> "$file"
-
-    local value
-    for key in "${missing[@]}"; do
-        if [[ -t 0 ]] && env_key_is_ask "$key"; then
-            case "$key" in
-                SYSTEM_DB_PASSWORD|MQTT_PASSWORD|DB_PASSWORD)
-                    prompt_password_or_default "${key}" "${ENV_DEFAULTS[$key]}"
-                    value="$REPLY_PASSWORD"
-                    ;;
-                *)
-                    read -rp "${key} [${ENV_DEFAULTS[$key]}]: " value
-                    value="${value:-${ENV_DEFAULTS[$key]}}"
-                    ;;
-            esac
-        else
-            value="${ENV_DEFAULTS[$key]}"
-        fi
-        echo "${key}=${value}" >> "$file"
-    done
-}
-
-reconcile_env_defaults "$ENV_FILE"
-
-# Make sure the Python services' expected .env location (same folder as
-# air_quality_ingest.py / seismic_mqtt.py / api_server.py) points at the
-# centralized file above, so there's exactly one real file on disk.
-REL_ENV_FOR_PY="$(realpath --relative-to="$SCRIPT_DIR" "$ENV_FILE")"
-if [[ -f "$PY_ENV_FILE" && ! -L "$PY_ENV_FILE" ]]; then
-    PY_BACKUP_PATH="${PY_ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)"
-    warn "${PY_ENV_FILE} exists as a separate file — backing it up to ${PY_BACKUP_PATH} and replacing it with a symlink to ${ENV_FILE}"
-    mv "$PY_ENV_FILE" "$PY_BACKUP_PATH"
-fi
-if [[ ! -L "$PY_ENV_FILE" || "$(readlink "$PY_ENV_FILE")" != "$REL_ENV_FOR_PY" ]]; then
-    ln -sf "$REL_ENV_FOR_PY" "$PY_ENV_FILE"
-    log "${PY_ENV_FILE} is now a symlink -> ${REL_ENV_FOR_PY} (same file as ${ENV_FILE})"
 fi
 
 log "Loading configuration from .env"
@@ -482,7 +286,7 @@ load_env_file() {
 
 load_env_file "$ENV_FILE"
 
-for v in SYSTEM_DB_USER SYSTEM_DB_PASSWORD AQ_DB_NAME SEISMIC_DB_NAME LOG_DB_NAME SMS_DB_NAME API_DB_NAME MQTT_USER MQTT_PASSWORD DB_CONNECTION DB_HOST DB_DATABASE DB_USERNAME DB_PASSWORD; do
+for v in SYSTEM_DB_USER SYSTEM_DB_PASSWORD AQ_DB_NAME SEISMIC_DB_NAME MQTT_USER MQTT_PASSWORD; do
     [[ -n "${!v:-}" ]] || die "Missing required variable '$v' in .env"
 done
 
@@ -795,12 +599,10 @@ warn "If this server sits behind a cloud provider (AWS/GCP/Azure/etc.), also ope
 create_role() {
     local role="$1" pass="$2"
     log "Ensuring Postgres role '${role}' exists with CREATEDB"
-    # Case-insensitive match for the same reason as the database check below —
-    # Postgres folds unquoted identifiers to lowercase.
     sudo -u postgres psql -v ON_ERROR_STOP=1 -q <<SQL
 DO \$\$
 BEGIN
-   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE lower(rolname) = lower('${role}')) THEN
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${role}') THEN
       CREATE ROLE ${role} LOGIN PASSWORD '${pass}' CREATEDB;
    ELSE
       ALTER ROLE ${role} WITH PASSWORD '${pass}' CREATEDB;
@@ -969,14 +771,11 @@ pip3 install -r "$REQ_FILE" -q --break-system-packages --ignore-installed
 
 # ----------------------------------------------------------------------
 # 3b. Nginx + PHP-FPM + Laravel Dashboard (EMS/Dashboard)
-#     Nginx becomes the single public entry point on :80 (and :443 once you
-#     add a domain + certbot, see the end of this script). It serves the
-#     Laravel GUI directly and reverse-proxies /api/* PLUS /docs, /redoc,
-#     and /openapi.json to api_server.py (uvicorn) on ${API_PORT:-8443}.
-#     NOTE: api_server.py itself listens on 0.0.0.0, not 127.0.0.1 — the
-#     firewall rules below are what actually keep that port from being
-#     reachable from outside; nginx isn't the only thing that CAN talk to
-#     it unless the firewall blocks direct access too.
+#     Nginx becomes the single public entry point on :80. It serves the
+#     Laravel GUI directly and reverse-proxies /api/* to api_server.py
+#     (uvicorn), which is now bound to 127.0.0.1 only (see API_BIND_HOST
+#     in api_server.py) — port 8000 is no longer exposed to the outside
+#     world at all, nginx is the only thing that talks to it.
 # ----------------------------------------------------------------------
 if [[ ! -d "$LARAVEL_DIR" ]]; then
     warn "Laravel dashboard not found at ${LARAVEL_DIR} — skipping nginx/PHP/Laravel setup."
@@ -1045,110 +844,79 @@ if [[ -f "${LARAVEL_DIR}/package.json" ]] && command -v node >/dev/null 2>&1; th
     fi
 fi
 
-# ---- Laravel DB credentials ----
-# The main DB_* block Laravel uses to connect must be different from the
-# iot_user credentials the Python services use — Laravel authenticates as
-# the Postgres superuser ('postgres') instead, same host/port/database
-# (IOT_api). Override with DASHBOARD_DB_USER / DASHBOARD_DB_PASSWORD if
-# your postgres role's password should differ from SYSTEM_DB_PASSWORD.
-# If that role can't already authenticate with DASHBOARD_DB_PASSWORD, this
-# script sets it (sudo -u postgres psql -c "ALTER ROLE ... PASSWORD ...")
-# further down, so 'php artisan migrate' has a working connection. This
-# does change the actual Postgres superuser's password on the server —
-# make sure nothing else on this box depends on the old one.
-DASHBOARD_DB_USER="${DASHBOARD_DB_USER:-postgres}"
-if [[ -z "${DASHBOARD_DB_PASSWORD+x}" ]]; then
-    DASHBOARD_DB_PASSWORD="$SYSTEM_DB_PASSWORD"
-    warn "DASHBOARD_DB_PASSWORD not set — defaulting it to SYSTEM_DB_PASSWORD's value. Override with DASHBOARD_DB_PASSWORD=... if the postgres role's actual password differs."
-fi
+# ---- Dedicated Postgres database + role for Laravel ----
+# Deliberately separate from SYSTEM_DB_USER (used by the Python services):
+# its own database, its own login, so the dashboard only ever has access
+# to its own data, not the AQ/seismic/log databases.
+DASHBOARD_DB_NAME="${DASHBOARD_DB_NAME:-ems_dashboard}"
+DASHBOARD_DB_USER="${DASHBOARD_DB_USER:-ems_dashboard_user}"
 
-# IOT_api itself is normally created by api_server.py on its own first
-# run, but Laravel's `php artisan migrate` below needs it to exist NOW, so
-# make sure it's there (idempotent — a no-op if api_server.py already made
-# it). Still owned by iot_user; the postgres superuser can reach it either
-# way, so ownership doesn't need to change for Laravel to connect.
 if [[ "$DB_IS_LOCAL" == true ]]; then
-    log "Ensuring Postgres database '${API_DB_NAME}' exists (owned by ${SYSTEM_DB_USER})"
-    # Case-insensitive match: Postgres folds unquoted identifiers to lowercase,
-    # so a DB created as IOT_api is actually stored as datname='iot_api'. A
-    # case-sensitive comparison here would miss it and try to CREATE it again,
-    # which then fails with "database already exists" (folded to the same
-    # lowercase name Postgres would use).
-    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE lower(datname) = lower('${API_DB_NAME}')" | grep -q 1; then
-        sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE ${API_DB_NAME} OWNER ${SYSTEM_DB_USER};"
+    if [[ -f "${LARAVEL_DIR}/.env" ]] && grep -qE '^DB_PASSWORD=.+' "${LARAVEL_DIR}/.env"; then
+        # Reuse whatever password is already sitting in Dashboard/.env from
+        # a previous run, instead of generating (and orphaning) a new one.
+        DASHBOARD_DB_PASSWORD="$(grep -E '^DB_PASSWORD=' "${LARAVEL_DIR}/.env" | tail -1 | cut -d= -f2-)"
     else
-        log "Database '${API_DB_NAME}' already exists, skipping creation"
+        DASHBOARD_DB_PASSWORD="$(openssl rand -hex 24)"
     fi
-    log "Verifying '${DASHBOARD_DB_USER}' can authenticate to '${API_DB_NAME}' with the configured password"
-    if ! PGPASSWORD="$DASHBOARD_DB_PASSWORD" psql -h "${SYSTEM_DB_HOST:-127.0.0.1}" -p "${SYSTEM_DB_PORT:-5432}" -U "$DASHBOARD_DB_USER" -d "$API_DB_NAME" -tAc 'SELECT 1' >/dev/null 2>&1; then
-        log "Setting '${DASHBOARD_DB_USER}' role password to match DASHBOARD_DB_PASSWORD"
-        if sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c "ALTER ROLE ${DASHBOARD_DB_USER} PASSWORD '${DASHBOARD_DB_PASSWORD}';"; then
-            if PGPASSWORD="$DASHBOARD_DB_PASSWORD" psql -h "${SYSTEM_DB_HOST:-127.0.0.1}" -p "${SYSTEM_DB_PORT:-5432}" -U "$DASHBOARD_DB_USER" -d "$API_DB_NAME" -tAc 'SELECT 1' >/dev/null 2>&1; then
-                log "'${DASHBOARD_DB_USER}' can now authenticate to '${API_DB_NAME}'"
-            else
-                warn "Password was set but authentication still fails — check pg_hba.conf allows password auth (md5/scram) for '${DASHBOARD_DB_USER}' from ${SYSTEM_DB_HOST:-127.0.0.1}, then re-run this script."
-            fi
-        else
-            warn "Could not set the password for '${DASHBOARD_DB_USER}' — set/confirm it manually, e.g.: sudo -u postgres psql -c \"ALTER ROLE ${DASHBOARD_DB_USER} PASSWORD '${DASHBOARD_DB_PASSWORD}';\""
-            warn "then re-run this script, or fix it manually before 'php artisan migrate' below."
-        fi
+
+    log "Ensuring Postgres role '${DASHBOARD_DB_USER}' exists"
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -q <<SQL
+DO \$\$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DASHBOARD_DB_USER}') THEN
+      CREATE ROLE ${DASHBOARD_DB_USER} LOGIN PASSWORD '${DASHBOARD_DB_PASSWORD}';
+   ELSE
+      ALTER ROLE ${DASHBOARD_DB_USER} WITH PASSWORD '${DASHBOARD_DB_PASSWORD}';
+   END IF;
+END
+\$\$;
+SQL
+
+    log "Ensuring Postgres database '${DASHBOARD_DB_NAME}' exists (owned by ${DASHBOARD_DB_USER})"
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '${DASHBOARD_DB_NAME}'" | grep -q 1; then
+        sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE ${DASHBOARD_DB_NAME} OWNER ${DASHBOARD_DB_USER};"
+    else
+        log "Database '${DASHBOARD_DB_NAME}' already exists, skipping creation"
     fi
 else
-    warn "SYSTEM_DB_HOST is remote (${SYSTEM_DB_HOST}) — confirm '${DASHBOARD_DB_USER}' can reach '${API_DB_NAME}' on that server before running migrations."
+    warn "SYSTEM_DB_HOST is remote — skipping local Postgres role/DB creation for Laravel."
+    warn "Create database '${DASHBOARD_DB_NAME}' + role '${DASHBOARD_DB_USER}' on that server yourself,"
+    warn "then set DB_* in ${LARAVEL_DIR}/.env to match before running migrations."
+    DASHBOARD_DB_PASSWORD="${DASHBOARD_DB_PASSWORD:-CHANGE_ME}"
 fi
 
-# ---- Add Laravel's app/DB keys to the centralized .env ----
-# ENV_FILE already lives at ${LARAVEL_DIR}/.env (see Preflight above) and
-# already has SYSTEM_DB_*/AQ_DB_NAME/etc. from the Python-side config —
-# we just add the Laravel-specific keys on top of the same file.
-#
-# Additive only: a key already present in .env (from the wizard, from a
-# previous run, or hand-edited) is left completely untouched, including
-# its value, its position in the file, and any comment/blank-line
-# formatting around it. Only keys that are missing get appended. This is
-# what makes re-running deploy.sh safe on a .env you've since customized —
-# nothing here will silently revert a value you changed by hand.
+# ---- Laravel .env ----
 SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-log "Filling in any missing Laravel app/DB keys in ${ENV_FILE} (existing values are left untouched)"
-for pair in \
-    "APP_ENV=production" \
-    "APP_DEBUG=false" \
-    "APP_URL=http://${SERVER_IP:-localhost}" \
-    "DB_CONNECTION=pgsql" \
-    "DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
-    "DB_PORT=${SYSTEM_DB_PORT:-5432}" \
-    "DB_DATABASE=${API_DB_NAME}" \
-    "DB_USERNAME=${DASHBOARD_DB_USER}" \
-    "DB_PASSWORD=${DASHBOARD_DB_PASSWORD}" \
-    "AQ_DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
-    "AQ_DB_PORT=${SYSTEM_DB_PORT:-5432}" \
-    "AQ_DB_DATABASE=${AQ_DB_NAME}" \
-    "AQ_DB_USERNAME=${SYSTEM_DB_USER}" \
-    "AQ_DB_PASSWORD=${SYSTEM_DB_PASSWORD}" \
-    "SEISMIC_DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
-    "SEISMIC_DB_PORT=${SYSTEM_DB_PORT:-5432}" \
-    "SEISMIC_DB_DATABASE=${SEISMIC_DB_NAME}" \
-    "SEISMIC_DB_USERNAME=${SYSTEM_DB_USER}" \
-    "SEISMIC_DB_PASSWORD=${SYSTEM_DB_PASSWORD}" \
-    "LOG_DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
-    "LOG_DB_PORT=${SYSTEM_DB_PORT:-5432}" \
-    "LOG_DB_DATABASE=${LOG_DB_NAME}" \
-    "LOG_DB_USERNAME=${SYSTEM_DB_USER}" \
-    "LOG_DB_PASSWORD=${SYSTEM_DB_PASSWORD}" \
-    "SMS_DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
-    "SMS_DB_PORT=${SYSTEM_DB_PORT:-5432}" \
-    "SMS_DB_DATABASE=${SMS_DB_NAME}" \
-    "SMS_DB_USERNAME=${SYSTEM_DB_USER}" \
-    "SMS_DB_PASSWORD=${SYSTEM_DB_PASSWORD}"; do
-    key="${pair%%=*}"; value="${pair#*=}"
-    if grep -qE "^${key}=" "$ENV_FILE"; then
-        : # already set — leave the existing line exactly as-is
+if [[ ! -f "${LARAVEL_DIR}/.env" ]]; then
+    if [[ -f "${LARAVEL_DIR}/.env.example" ]]; then
+        cp "${LARAVEL_DIR}/.env.example" "${LARAVEL_DIR}/.env"
     else
-        printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
-        log "  + added ${key} (was missing)"
+        touch "${LARAVEL_DIR}/.env"
     fi
-done
-chmod 600 "$ENV_FILE"
+    log "Writing database + app config to ${LARAVEL_DIR}/.env"
+    for pair in \
+        "APP_ENV=production" \
+        "APP_DEBUG=false" \
+        "APP_URL=http://${SERVER_IP:-localhost}" \
+        "DB_CONNECTION=pgsql" \
+        "DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
+        "DB_PORT=${SYSTEM_DB_PORT:-5432}" \
+        "DB_DATABASE=${DASHBOARD_DB_NAME}" \
+        "DB_USERNAME=${DASHBOARD_DB_USER}" \
+        "DB_PASSWORD=${DASHBOARD_DB_PASSWORD}"; do
+        key="${pair%%=*}"; value="${pair#*=}"
+        escaped_value="${value//&/\\&}"
+        if grep -qE "^${key}=" "${LARAVEL_DIR}/.env"; then
+            sed -i -E "s|^${key}=.*|${key}=${escaped_value}|" "${LARAVEL_DIR}/.env"
+        else
+            printf '%s=%s\n' "$key" "$value" >> "${LARAVEL_DIR}/.env"
+        fi
+    done
+    chmod 600 "${LARAVEL_DIR}/.env"
+else
+    log "${LARAVEL_DIR}/.env already exists — leaving it as-is (delete it and re-run to regenerate)."
+fi
 
 # ---- Composer / artisan / npm build ----
 log "Running composer install"
@@ -1160,60 +928,9 @@ if ! grep -qE '^APP_KEY=base64:' "${LARAVEL_DIR}/.env" 2>/dev/null; then
     ( cd "$LARAVEL_DIR" && php artisan key:generate --force )
 fi
 
-# Laravel derives an expected class name from each migration filename (the
-# part after the leading YYYY_MM_DD_HHMMSS_ timestamp, StudlyCased) UNLESS
-# the file uses the modern anonymous-class style
-# (`return new class extends Migration { ... }`). If a file's actual
-# content matches NEITHER convention — e.g. because one migration's content
-# got copy/pasted into a different migration file by mistake — `php artisan
-# migrate` fails deep inside Laravel's Migrator with a bare
-# `Class "X" not found` and no indication of which file is actually broken.
-# Catch that here, before migrate runs, so the error points at the exact
-# file instead of a stack trace. This is a content-mismatch detector, not
-# an auto-fixer: deploy.sh has no way to know what an app migration is
-# *supposed* to contain, so a broken file still needs a one-time manual fix
-# — but every subsequent run will fail fast with a clear message instead of
-# silently limping into a half-migrated database.
-validate_migrations() {
-    local dir="${LARAVEL_DIR}/database/migrations"
-    [[ -d "$dir" ]] || return 0
-    local bad_files=() f base rest expected_class
-    for f in "$dir"/*.php; do
-        [[ -f "$f" ]] || continue
-        base="$(basename "$f" .php)"
-        rest="$(echo "$base" | sed -E 's/^[0-9]{4}_[0-9]{2}_[0-9]{2}_[0-9]{6}_//')"
-        expected_class="$(echo "$rest" | awk -F'_' '{for(i=1;i<=NF;i++){printf "%s", toupper(substr($i,1,1)) substr($i,2)}}')"
-        if grep -q 'return new class' "$f"; then
-            continue   # anonymous-class migration — filename doesn't need to match
-        fi
-        if grep -qE "class[[:space:]]+${expected_class}[[:space:]]+extends" "$f"; then
-            continue   # named class matches what the filename implies
-        fi
-        bad_files+=("${f} (expects \`class ${expected_class} extends Migration\` or an anonymous class, found neither)")
-    done
-    if [[ "${#bad_files[@]}" -gt 0 ]]; then
-        warn "Migration pre-flight check found file(s) whose content doesn't match their filename —"
-        warn "this is the #1 cause of Laravel's cryptic 'Class X not found' migration error:"
-        for entry in "${bad_files[@]}"; do
-            warn "  - ${entry}"
-        done
-        warn "Fix the file(s) above, then re-run: cd ${LARAVEL_DIR} && php artisan migrate --force"
-        return 1
-    fi
-    return 0
-}
-
 log "Running Laravel migrations"
-if validate_migrations; then
-    if ! ( cd "$LARAVEL_DIR" && php artisan migrate --force ); then
-        warn "Migration attempt failed — regenerating the composer autoloader and retrying once"
-        ( cd "$LARAVEL_DIR" && composer dump-autoload -o ) || true
-        ( cd "$LARAVEL_DIR" && php artisan migrate --force ) || \
-            warn "Migrations failed — check ${LARAVEL_DIR}/.env DB_* values, then re-run: cd ${LARAVEL_DIR} && php artisan migrate --force"
-    fi
-else
-    warn "Skipping 'php artisan migrate' until the migration file(s) above are fixed."
-fi
+( cd "$LARAVEL_DIR" && php artisan migrate --force ) || \
+    warn "Migrations failed — check ${LARAVEL_DIR}/.env DB_* values, then re-run: cd ${LARAVEL_DIR} && php artisan migrate --force"
 
 ( cd "$LARAVEL_DIR" && php artisan storage:link ) 2>/dev/null || true
 
@@ -1274,25 +991,11 @@ server {
     access_log /var/log/nginx/ems-dashboard.access.log;
     error_log  /var/log/nginx/ems-dashboard.error.log;
 
-    # Python API (api_server.py / uvicorn, bound to 127.0.0.1:${API_PORT:-8443}
+    # Python API (api_server.py / uvicorn, bound to 127.0.0.1:${API_PORT:-8000}
     # only — see API_BIND_HOST in api_server.py). Every route in api_server.py
     # already starts with /api/, so this forwards the path through unchanged.
     location /api/ {
-        proxy_pass http://127.0.0.1:${API_PORT:-8443};
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    # FastAPI's auto-generated docs (Swagger UI, ReDoc, and the raw OpenAPI
-    # schema) are mounted at the app root by default (e.g. :8443/docs), NOT
-    # under /api/, so they need their own location block to stay reachable
-    # once the API's own port is closed off and nginx becomes the only public
-    # entry point — this makes them available at http(s)://<host>/docs.
-    location ~ ^/(docs|redoc|openapi\.json)\$ {
-        proxy_pass http://127.0.0.1:${API_PORT:-8443};
+        proxy_pass http://127.0.0.1:${API_PORT:-8000};
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
@@ -1332,26 +1035,20 @@ if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
     log "ufw is active — opening ports 80/tcp and 443/tcp"
     ufw allow 80/tcp comment "nginx HTTP"
     ufw allow 443/tcp comment "nginx HTTPS (future)"
-    # Clean up any direct-access rule for the API's own port — both the
-    # current API_PORT and the legacy 8000 default, in case this box was
-    # deployed before the default moved to 8443.
-    for _direct_port in "$API_PORT" 8000; do
-        if ufw status | grep -qE "^${_direct_port}\b"; then
-            log "Removing direct-access ufw rule for ${_direct_port}/tcp — the API is now only reachable through nginx"
-            ufw delete allow "${_direct_port}/tcp" 2>/dev/null || true
-        fi
-    done
+    if ufw status | grep -qE '^8000\b'; then
+        log "Removing old direct-access ufw rule for 8000/tcp — the API is now only reachable through nginx"
+        ufw delete allow 8000/tcp 2>/dev/null || true
+    fi
 else
     log "ufw not active/installed — skipping firewall rule"
 fi
-warn "If this server sits behind a cloud provider (AWS/GCP/Azure/etc.), also CLOSE port ${API_PORT} in its"
+warn "If this server sits behind a cloud provider (AWS/GCP/Azure/etc.), also CLOSE port 8000 in its"
 warn "security group / firewall rules now (it should only be reachable at 127.0.0.1, via nginx, from now on)"
 warn "and make sure 80/tcp (and 443/tcp once you add a domain) is open there."
 
 log "Laravel dashboard: http://${SERVER_IP:-<this-server-ip>}/"
 log "API via nginx:      http://${SERVER_IP:-<this-server-ip>}/api/..."
-log "API docs via nginx: http://${SERVER_IP:-<this-server-ip>}/docs  (replaces the old :${API_PORT}/docs link — that port is being closed off below)"
-warn "Dashboard DB credentials (DB_DATABASE=${API_DB_NAME}, DB_USERNAME=${DASHBOARD_DB_USER}) live in ${ENV_FILE} — back that file up, it's not stored anywhere else."
+warn "Dashboard DB credentials are in ${LARAVEL_DIR}/.env (DB_DATABASE=${DASHBOARD_DB_NAME}, DB_USERNAME=${DASHBOARD_DB_USER}) — back that file up, it's not stored anywhere else."
 
 fi  # LARAVEL_DIR exists
 
@@ -1376,9 +1073,9 @@ Next steps:
        python3 ${SCRIPT_DIR}/air_quality_ingest.py
        python3 ${SCRIPT_DIR}/seismic_mqtt.py
        python3 ${SCRIPT_DIR}/api_server.py
-     api_server.py listens on 0.0.0.0:${API_PORT:-8443} — reachable directly,
-     not just through nginx, unless your firewall blocks ${API_PORT} from
-     outside. nginx proxies to it at 127.0.0.1:${API_PORT:-8443}.
+     api_server.py now binds to 127.0.0.1:${API_PORT:-8000} by default (not
+     0.0.0.0) since nginx is the public entry point — set API_BIND_HOST in
+     .env if something needs to reach it directly without going through nginx.
   3. For always-on deployment, run: sudo ./install_services.sh
      (installs+starts the ems.target systemd unit for all three services).
 $([[ -d "$LARAVEL_DIR" ]] && cat <<DASHEOF
