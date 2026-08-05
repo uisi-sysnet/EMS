@@ -130,25 +130,46 @@ git_pull "$EMS_DIR"
 # updates it. No separate pull step needed here.
 
 # ----------------------------------------------------------------------
-# 2.5 Dashboard reads the Python side's scripts/.env directly (confirmed
-#     separate from Dashboard/.env, which Laravel uses for its own config).
-#     www-data needs read access to it, or `artisan down`/`up` — and
-#     anything else in Dashboard that reads it at runtime — fails with a
-#     permission error. Must run AFTER the reclaim-ownership chown -R
-#     above, since that resets everything under EMS_DIR back to
-#     EMS_USER:EMS_USER and would otherwise undo this immediately.
+# 2.5 Dashboard reads AND writes the Python side's scripts/.env directly
+#     (confirmed separate from Dashboard/.env, which Laravel uses for its
+#     own config) — AppServiceProvider loads DB config from it on every
+#     request, and the Dashboard's built-in Env Editor lets admins edit it
+#     in the browser. www-data needs group read/write on it, or `artisan
+#     down`/`up` — and anything else in Dashboard that touches it at
+#     runtime — fails with a permission error. Must run AFTER the
+#     reclaim-ownership chown -R above, since that resets everything under
+#     EMS_DIR back to EMS_USER:EMS_USER and would otherwise undo this
+#     immediately.
+#
+#     IMPORTANT: this uses the SAME mechanism as deploy.sh — add www-data
+#     to whichever group already owns the file, then chmod 660 — rather
+#     than chown-ing the file's group to www-data directly. The two
+#     scripts have to agree here: if one used "chown group www-data" and
+#     the other used "usermod -aG <original group>", alternating deploy.sh
+#     and update.sh runs would flip the file's group back and forth and
+#     silently re-break something every other run. Keeping both scripts on
+#     group-membership converges on one stable state instead.
+#
 #     Fixed every run so it self-heals even if something external resets
 #     it; this run's own step-1 "artisan down" call happens before this
 #     point, so it may still warn once — the fix takes effect starting
 #     with this run's "artisan up" and every run after.
 # ----------------------------------------------------------------------
 PYTHON_ENV_FILE="${EMS_DIR}/scripts/.env"
+_phpfpm_needs_restart=false
 if [[ -f "$PYTHON_ENV_FILE" ]]; then
-    log "Ensuring www-data can read ${PYTHON_ENV_FILE} (Dashboard reads Python config directly)"
-    chown "${EMS_USER}:www-data" "$PYTHON_ENV_FILE" 2>/dev/null || \
-        warn "Could not chown ${PYTHON_ENV_FILE} — fix manually: sudo chown ${EMS_USER}:www-data ${PYTHON_ENV_FILE}"
-    chmod 640 "$PYTHON_ENV_FILE" 2>/dev/null || \
-        warn "Could not chmod ${PYTHON_ENV_FILE} — fix manually: sudo chmod 640 ${PYTHON_ENV_FILE}"
+    log "Ensuring www-data can read/write ${PYTHON_ENV_FILE} (Dashboard reads/edits Python config directly)"
+    _env_group="$(stat -c '%G' "$PYTHON_ENV_FILE" 2>/dev/null || echo "$EMS_USER")"
+    if ! id -nG www-data 2>/dev/null | grep -qw "$_env_group"; then
+        log "Adding www-data to the '${_env_group}' group so the Dashboard can read/write ${PYTHON_ENV_FILE}"
+        if usermod -aG "$_env_group" www-data; then
+            _phpfpm_needs_restart=true
+        else
+            warn "Could not add www-data to group '${_env_group}' — fix manually: sudo usermod -aG ${_env_group} www-data"
+        fi
+    fi
+    chmod 660 "$PYTHON_ENV_FILE" 2>/dev/null || \
+        warn "Could not chmod ${PYTHON_ENV_FILE} — fix manually: sudo chmod 660 ${PYTHON_ENV_FILE}"
 
     # www-data also needs to be able to traverse into scripts/ itself to
     # reach the file — same "o+x on every parent dir" check used for
@@ -164,6 +185,21 @@ if [[ -f "$PYTHON_ENV_FILE" ]]; then
     done
 else
     warn "${PYTHON_ENV_FILE} not found — skipping permission fix (is this the first-ever deploy?)."
+fi
+
+# Group membership changes don't apply to php-fpm's already-running worker
+# processes — only new usermod additions need this, so we only pay for a
+# restart when one actually happened. nginx is already stopped at this
+# point (step 1), so this restart is invisible to visitors either way.
+if [[ "$_phpfpm_needs_restart" == true ]]; then
+    _phpfpm_svc="$(systemctl list-units --type=service --all --no-legend 2>/dev/null | awk '{print $1}' | grep -E '^php.*-fpm\.service$' | head -1)"
+    if [[ -n "$_phpfpm_svc" ]]; then
+        log "Restarting ${_phpfpm_svc} so it picks up www-data's new group membership"
+        systemctl restart "$_phpfpm_svc" || \
+            warn "Could not restart ${_phpfpm_svc} — restart it manually, or the Dashboard will keep getting 'Permission denied' on ${PYTHON_ENV_FILE} until the next restart/reboot."
+    else
+        warn "Could not detect a php-fpm service to restart — if the Dashboard still can't reach ${PYTHON_ENV_FILE} after this run, restart php-fpm manually (e.g. sudo systemctl restart php8.2-fpm) or reboot."
+    fi
 fi
 
 # ----------------------------------------------------------------------

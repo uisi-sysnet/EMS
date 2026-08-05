@@ -241,8 +241,7 @@ API_PORT=8000
 API_KEYS=
 ENVEOF
 
-    chmod 600 "$ENV_FILE"
-    log ".env written to ${ENV_FILE} (mode 600)."
+    log ".env written to ${ENV_FILE} (permissions finalized later, in the wrap-up step)."
     warn "API_KEYS was left blank (the wizard doesn't ask for it) — set at least one token there before running api_server.py."
 }
 
@@ -1055,7 +1054,33 @@ fi  # LARAVEL_DIR exists
 # ----------------------------------------------------------------------
 # 4. Wrap up
 # ----------------------------------------------------------------------
-chmod 600 "$ENV_FILE" || warn "Could not chmod .env — check permissions manually"
+# The Laravel dashboard (running as www-data) reads AND writes this file
+# directly — AppServiceProvider loads DB config from it on every request,
+# and the Dashboard's built-in Env Editor lets admins edit it in the
+# browser. So www-data needs group read/write here, not just the owning
+# user. We do this via group membership rather than chown-ing the file to
+# www-data or opening it to "other", so it stays unreadable by anyone
+# else on the box.
+_env_group="$(stat -c '%G' "$ENV_FILE" 2>/dev/null || echo system)"
+if ! id -nG www-data 2>/dev/null | grep -qw "$_env_group"; then
+    log "Adding www-data to the '${_env_group}' group so the Dashboard can read/write ${ENV_FILE}"
+    usermod -aG "$_env_group" www-data || \
+        warn "Could not add www-data to group '${_env_group}' — the Dashboard's Env Editor and DB auto-config will get 'Permission denied' on ${ENV_FILE}. Fix manually: sudo usermod -aG ${_env_group} www-data"
+fi
+chmod 660 "$ENV_FILE" || warn "Could not chmod .env — check permissions manually"
+log ".env at ${ENV_FILE} is mode 660, group '${_env_group}' (readable/writable by www-data via group membership)."
+
+# Group membership changes don't apply to already-running processes, so
+# php-fpm (which is what actually runs the Laravel code) needs a restart
+# to pick this up. nginx doesn't touch this file, so it doesn't need one.
+_phpfpm_svc="$(systemctl list-units --type=service --all --no-legend 2>/dev/null | awk '{print $1}' | grep -E '^php.*-fpm\.service$' | head -1)"
+if [[ -n "$_phpfpm_svc" ]]; then
+    log "Restarting ${_phpfpm_svc} so it picks up www-data's new group membership"
+    systemctl restart "$_phpfpm_svc" || \
+        warn "Could not restart ${_phpfpm_svc} — restart it manually, or the Dashboard will keep getting 'Permission denied' on ${ENV_FILE} until the next restart/reboot."
+else
+    warn "Could not detect a php-fpm service to restart — if the Dashboard still can't read ${ENV_FILE} after this run, restart php-fpm manually (e.g. sudo systemctl restart php8.2-fpm) or reboot."
+fi
 
 [[ "$DB_IS_LOCAL" == true ]] || warn "Reminder: DB is remote (${SYSTEM_DB_HOST}) — confirm the role/DB/TimescaleDB extension are already set up there."
 [[ "$MQTT_IS_LOCAL" == true ]] || warn "Reminder: MQTT broker is remote (${MQTT_BROKER_HOST}) — confirm the '${MQTT_USER}' account is already set up there."
