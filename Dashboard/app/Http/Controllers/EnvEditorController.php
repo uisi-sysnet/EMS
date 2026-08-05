@@ -10,7 +10,7 @@ class EnvEditorController extends Controller
     private function getEnvPath()
     {
         /* return 'C:/Users/JUREEN/Desktop/Emergency-Warning-System-main/.env'; */
-        return '/home/system/EMS/.env';
+        return '/home/system/EMS/scripts/.env';
     }
 
     // ------------------------------------------------------------
