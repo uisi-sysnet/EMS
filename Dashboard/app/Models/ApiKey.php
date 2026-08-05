@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ApiKey extends Model
 {
+    protected $connection = 'api';
     /**
      * Disable the updated_at column.
      */

@@ -9,6 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 class ApiLog extends Model
 {
     // 👇 Tell Eloquent which table to use
+    protected $connection = 'api';
     protected $table = 'api_request_logs';
 
     protected $fillable = [
