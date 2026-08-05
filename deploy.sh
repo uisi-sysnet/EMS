@@ -281,6 +281,80 @@ else
     log ".env already exists at $ENV_FILE — skipping the setup wizard (delete/rename it and re-run to regenerate)."
 fi
 
+# ----------------------------------------------------------------------
+# Reconcile .env against the reference template: any key already present
+# keeps its existing value untouched. Any key ABSENT from the file gets
+# appended with the default below instead of making deploy.sh die — this
+# covers .env files from an older version of the template, or ones edited
+# by hand that dropped a line. Re-run any time; already-present keys are
+# never rewritten.
+# ----------------------------------------------------------------------
+declare -A ENV_DEFAULTS=(
+    [SYSTEM_DB_HOST]="127.0.0.1"
+    [SYSTEM_DB_PORT]="5432"
+    [SYSTEM_DB_USER]="iot_user"
+    [SYSTEM_DB_PASSWORD]="UisI_2026##"
+    [SYSTEM_DB_POOL_MIN]="2"
+    [SYSTEM_DB_POOL_MAX]="10"
+    [DB_LOG_ENABLED]="true"
+    [DB_LOG_TABLE]="service_logs"
+    [AQ_DB_NAME]="IOT_aq_sensor_data"
+    [SEISMIC_DB_NAME]="IOT_seismic_sensor_data"
+    [SMS_DB_NAME]="IOT_sms_telemetry"
+    [API_DB_NAME]="IOT_api"
+    [LOG_DB_NAME]="IOT_service_logs"
+    [AQ_SERVER_HOST]="0.0.0.0"
+    [AQ_SERVER_PORT]="1935"
+    [AQ_LEAD_POLL_INTERVAL]="30"
+    [AQ_STATIONS_REFRESH_INTERVAL_SEC]="300"
+    [MQTT_BROKER_HOST]="192.168.55.10"
+    [MQTT_BROKER_PORT]="1883"
+    [MQTT_TIMEOUT_SEC]="60"
+    [MQTT_TOPIC]="seismic/stations/+/telemetry"
+    [MQTT_USER]="mqtt_user_seismic"
+    [MQTT_PASSWORD]="UisI_2026##"
+    [SMS_INGESTION_ENABLED]="false"
+    [SIM800_SERIAL_PORT]="/dev/serial0"
+    [SIM800_BAUDRATE]="115200"
+    [SMS_POLL_INTERVAL_SEC]="30"
+    [SMS_ALLOWED_SENDERS]=""
+    [API_PORT]="8000"
+    [API_KEYS]="YourSecureToken123:Internal Web Dashboard,MobileAppKey_xyz789:Android/iOS Mobile App,PartnerSync_abc456:Third-Party Data Sync Client,BagongAPIkey:Trylangnaman"
+)
+# Order matches the reference template, so appended lines read top-to-bottom sensibly.
+ENV_DEFAULT_ORDER=(
+    SYSTEM_DB_HOST SYSTEM_DB_PORT SYSTEM_DB_USER SYSTEM_DB_PASSWORD
+    SYSTEM_DB_POOL_MIN SYSTEM_DB_POOL_MAX DB_LOG_ENABLED DB_LOG_TABLE
+    AQ_DB_NAME SEISMIC_DB_NAME SMS_DB_NAME API_DB_NAME LOG_DB_NAME
+    AQ_SERVER_HOST AQ_SERVER_PORT AQ_LEAD_POLL_INTERVAL AQ_STATIONS_REFRESH_INTERVAL_SEC
+    MQTT_BROKER_HOST MQTT_BROKER_PORT MQTT_TIMEOUT_SEC MQTT_TOPIC MQTT_USER MQTT_PASSWORD
+    SMS_INGESTION_ENABLED SIM800_SERIAL_PORT SIM800_BAUDRATE SMS_POLL_INTERVAL_SEC SMS_ALLOWED_SENDERS
+    API_PORT API_KEYS
+)
+
+reconcile_env_defaults() {
+    local file="$1" key missing=()
+    for key in "${ENV_DEFAULT_ORDER[@]}"; do
+        # Match KEY=... at the start of a line (ignoring leading whitespace),
+        # so an existing key keeps its value — even if that value is blank —
+        # and is never touched or duplicated.
+        grep -qE "^[[:space:]]*${key}=" "$file" || missing+=("$key")
+    done
+    [[ ${#missing[@]} -eq 0 ]] && return
+
+    warn "${#missing[@]} variable(s) missing from ${file} — adding defaults: ${missing[*]}"
+    warn "Review these before relying on them in production — some (DB/MQTT passwords, API_KEYS) are placeholder values from the reference template, not secrets generated for this box."
+    {
+        echo ""
+        echo "# ---- Added automatically by deploy.sh on $(date -Iseconds) (was missing from file) ----"
+        for key in "${missing[@]}"; do
+            echo "${key}=${ENV_DEFAULTS[$key]}"
+        done
+    } >> "$file"
+}
+
+reconcile_env_defaults "$ENV_FILE"
+
 # Make sure the Python services' expected .env location (same folder as
 # air_quality_ingest.py / seismic_mqtt.py / api_server.py) points at the
 # centralized file above, so there's exactly one real file on disk.
