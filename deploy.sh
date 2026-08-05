@@ -38,7 +38,7 @@ set -euo pipefail
 # 0. Preflight
 # ----------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="${SCRIPT_DIR}/.env"
+ENV_FILE="${SCRIPT_DIR}/scripts/.env"
 REQ_FILE="${SCRIPT_DIR}/requirements.txt"
 PG_VERSION="${PG_VERSION:-16}"   # override: PG_VERSION=15 sudo -E ./deploy.sh
 LARAVEL_DIR="${LARAVEL_DIR:-${SCRIPT_DIR}/Dashboard}"   # override: LARAVEL_DIR=/path/to/Dashboard sudo -E ./deploy.sh
