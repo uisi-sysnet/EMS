@@ -19,18 +19,18 @@
 #     64-bit (arm64) STRONGLY recommended on a Pi — see detect_platform().
 #   - PostgreSQL 16 (auto-detected where possible, override with PG_VERSION)
 #   - This script, requirements.txt, and the three *.py files all live in
-#     the same directory (e.g. EMS/scripts/).
-#   - The Laravel dashboard lives in a sibling "Dashboard" folder next to
-#     this script's folder (e.g. EMS/Dashboard, next to EMS/scripts) —
-#     override with LARAVEL_DIR=/path/to/Dashboard if it's elsewhere. It
-#     must already exist when this script runs.
+#     the same directory (e.g. EMS/).
+#   - The Laravel dashboard lives in a "Dashboard" folder next to this
+#     script (e.g. EMS/Dashboard, next to EMS/deploy.sh) — override with
+#     LARAVEL_DIR=/path/to/Dashboard if it's elsewhere. It must already
+#     exist when this script runs.
 #   - There is ONE centralized .env, and it lives at EMS/Dashboard/.env
 #     (i.e. ${LARAVEL_DIR}/.env) — used by the Python services AND Laravel.
 #     If it's missing, this script asks a few questions on the terminal
 #     (DB/MQTT: local or remote IP, host, port, credentials) and generates
 #     one there — see run_env_wizard() below. This needs an interactive
 #     terminal; non-interactive runs must supply .env themselves.
-#     EMS/scripts/.env (where the Python services look for it) is kept as
+#     EMS/.env (where the Python services look for it) is kept as
 #     a symlink pointing back at EMS/Dashboard/.env, so there's exactly
 #     one real file on disk, not two copies to keep in sync.
 #   - If you point SYSTEM_DB_HOST / MQTT_BROKER_HOST at a host OTHER than
@@ -49,7 +49,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REQ_FILE="${SCRIPT_DIR}/requirements.txt"
 PG_VERSION="${PG_VERSION:-16}"   # override: PG_VERSION=15 sudo -E ./deploy.sh
-LARAVEL_DIR="${LARAVEL_DIR:-$(dirname "$SCRIPT_DIR")/Dashboard}"   # default: sibling "Dashboard" folder next to this script's folder (e.g. EMS/scripts + EMS/Dashboard). override: LARAVEL_DIR=/path/to/Dashboard sudo -E ./deploy.sh
+LARAVEL_DIR="${LARAVEL_DIR:-$SCRIPT_DIR/Dashboard}"   # default: "Dashboard" folder next to this script (e.g. EMS/deploy.sh + EMS/Dashboard). override: LARAVEL_DIR=/path/to/Dashboard sudo -E ./deploy.sh
 
 # The centralized .env now lives in the Laravel dashboard folder and is
 # shared by the Python services and Laravel alike. PY_ENV_FILE is where
