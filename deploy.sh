@@ -939,8 +939,15 @@ fi
 # ENV_FILE already lives at ${LARAVEL_DIR}/.env (see Preflight above) and
 # already has SYSTEM_DB_*/AQ_DB_NAME/etc. from the Python-side config —
 # we just add the Laravel-specific keys on top of the same file.
+#
+# Additive only: a key already present in .env (from the wizard, from a
+# previous run, or hand-edited) is left completely untouched, including
+# its value, its position in the file, and any comment/blank-line
+# formatting around it. Only keys that are missing get appended. This is
+# what makes re-running deploy.sh safe on a .env you've since customized —
+# nothing here will silently revert a value you changed by hand.
 SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-log "Adding Laravel app/DB keys to ${ENV_FILE}"
+log "Filling in any missing Laravel app/DB keys in ${ENV_FILE} (existing values are left untouched)"
 for pair in \
     "APP_ENV=production" \
     "APP_DEBUG=false" \
@@ -972,11 +979,11 @@ for pair in \
     "SMS_DB_USERNAME=${SYSTEM_DB_USER}" \
     "SMS_DB_PASSWORD=${SYSTEM_DB_PASSWORD}"; do
     key="${pair%%=*}"; value="${pair#*=}"
-    escaped_value="${value//&/\\&}"
     if grep -qE "^${key}=" "$ENV_FILE"; then
-        sed -i -E "s|^${key}=.*|${key}=${escaped_value}|" "$ENV_FILE"
+        : # already set — leave the existing line exactly as-is
     else
         printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+        log "  + added ${key} (was missing)"
     fi
 done
 chmod 600 "$ENV_FILE"
