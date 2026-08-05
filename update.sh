@@ -160,6 +160,15 @@ else
     ( cd "$LARAVEL_DIR" && sudo -u "$EMS_USER" composer install --no-dev --optimize-autoloader --no-interaction ) || \
         die "composer install failed — see error above."
 
+    # Clear any cached config BEFORE migrating. If bootstrap/cache/config.php
+    # already exists on disk (leftover from a previous run, or restored by
+    # the git pull above if it's ever accidentally tracked), migrate would
+    # read that stale cache instead of the live .env — e.g. resolving
+    # DB_CONNECTION to whatever was cached, not what's actually in .env now.
+    log "Clearing any stale Laravel config cache (as ${EMS_USER})"
+    ( cd "$LARAVEL_DIR" && sudo -u "$EMS_USER" php artisan config:clear ) || \
+        warn "config:clear failed — non-fatal, continuing, but migrate below may read a stale cached config."
+
     log "Running Laravel migrations (as ${EMS_USER})"
     ( cd "$LARAVEL_DIR" && sudo -u "$EMS_USER" php artisan migrate --force ) || \
         warn "Migrations failed — check ${LARAVEL_DIR}/.env DB_* values, then re-run manually:"
