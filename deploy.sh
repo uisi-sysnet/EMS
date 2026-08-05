@@ -363,21 +363,11 @@ if [[ "$TIMESCALEDB_ARCH_SUPPORTED" == false ]]; then
     warn "until TimescaleDB is available (i.e. until you're on amd64 or arm64)."
 elif ! dpkg -l | grep -q "timescaledb-2-postgresql-${PG_VERSION}"; then
     log "Installing TimescaleDB extension for PostgreSQL ${PG_VERSION}"
-    # packagecloud's repo keys off the OS codename; Raspberry Pi OS reports
-    # its Debian codename (e.g. bookworm) via lsb_release/os-release just
-    # like Debian itself, so the debian path below covers both.
     if [[ "$OS_ID" == "ubuntu" ]]; then
         TIMESCALE_REPO_OS="ubuntu"
     else
         TIMESCALE_REPO_OS="debian"
     fi
-    # NOTE: we deliberately do NOT use `apt-key add` here. apt-key is
-    # deprecated and has been removed outright on newer Ubuntu (24.04+)
-    # and recent Raspberry Pi OS/Debian bookworm images ("apt-key: command
-    # not found"). The modern equivalent is to dearmor the key into its own
-    # file under /etc/apt/keyrings and reference it explicitly via
-    # `signed-by` in the repo line, instead of dropping it into apt's
-    # global trusted-key ring.
     install -d -m 0755 /etc/apt/keyrings
     wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | \
         gpg --batch --yes --dearmor -o /etc/apt/keyrings/timescaledb.gpg
@@ -385,14 +375,6 @@ elif ! dpkg -l | grep -q "timescaledb-2-postgresql-${PG_VERSION}"; then
         > /etc/apt/sources.list.d/timescaledb.list
 
     if ! apt-get update -y; then
-        # Known issue as of Debian 13 "trixie": apt's newer sqv (Sequoia-PGP)
-        # signature backend rejects packagecloud's InRelease signature for
-        # this repo ("Missing key ... which is needed to verify signature")
-        # even with a correctly imported, correctly referenced key. This is
-        # a documented packagecloud/sqv incompatibility affecting multiple
-        # unrelated packagecloud-hosted repos on trixie, not an error in how
-        # the key was imported above — see
-        # https://github.com/timescale/timescaledb/issues/8871
         warn "apt-get update failed for the TimescaleDB repo — this matches a known"
         warn "packagecloud/sqv signature-verification issue on Debian trixie"
         warn "(github.com/timescale/timescaledb/issues/8871), not a real key/network problem."
@@ -408,14 +390,6 @@ elif ! dpkg -l | grep -q "timescaledb-2-postgresql-${PG_VERSION}"; then
             "the 64-bit (arm64) image and that '$(lsb_release -c -s)' is a codename TimescaleDB has" \
             "published packages for yet — check https://docs.timescale.com/self-hosted/latest/install/installation-debian/"
     fi
-    # timescaledb-tune sizes shared_buffers/work_mem/etc. from detected system
-    # RAM, which works in the Pi's favor automatically (a 1-2GB Pi gets much
-    # smaller settings than a 16GB server) — no separate low-memory branch needed.
-    # It ships in the timescaledb-tools package, which is only a "Recommended"
-    # (not required) dependency of timescaledb-2-postgresql-${PG_VERSION} — so
-    # --no-install-recommends above means apt does NOT pull it in automatically,
-    # and the call below would silently no-op with "command not found". Install
-    # it explicitly so the tune step actually runs.
     if ! command -v timescaledb-tune >/dev/null 2>&1; then
         apt-get install -y --no-install-recommends timescaledb-tools || \
             warn "Could not install timescaledb-tools — falling back to a minimal" \
@@ -428,12 +402,6 @@ elif ! dpkg -l | grep -q "timescaledb-2-postgresql-${PG_VERSION}"; then
         warn "timescaledb-tune still unavailable — applying a minimal fix below so the"
         warn "extension at least loads (skips the RAM-based buffer/memory tuning)."
     fi
-    # Whichever path was taken above, make sure 'timescaledb' actually ends up
-    # in shared_preload_libraries — the extension refuses to load without it.
-    # timescaledb-tune normally sets this as part of its tuning; this is the
-    # safety net for when it couldn't run. Idempotent and additive — only
-    # touches the setting if timescaledb isn't already listed, and preserves
-    # anything else already configured there.
     CURRENT_PRELOAD="$(sudo -u postgres psql -tAc 'SHOW shared_preload_libraries;' 2>/dev/null || true)"
     if [[ "$CURRENT_PRELOAD" != *timescaledb* ]]; then
         log "Adding timescaledb to shared_preload_libraries"
@@ -469,11 +437,6 @@ fi
 
 log "Configuring Mosquitto authentication for user '${MQTT_USER}'"
 
-# Mosquitto only loads files in conf.d/ if `include_dir` is active in the
-# main mosquitto.conf. If it's missing or commented out, our app.conf
-# below is silently ignored and mosquitto falls back to its built-in
-# default: listening on localhost ONLY (a Mosquitto 2.x security default),
-# which looks like a working service but refuses all external connections.
 MOSQ_MAIN_CONF="/etc/mosquitto/mosquitto.conf"
 if grep -qE '^\s*#\s*include_dir\s+/etc/mosquitto/conf\.d' "$MOSQ_MAIN_CONF"; then
     log "include_dir is commented out in mosquitto.conf — enabling it so conf.d/ is actually loaded"
@@ -485,19 +448,9 @@ fi
 
 touch /etc/mosquitto/passwd
 mosquitto_passwd -b /etc/mosquitto/passwd "${MQTT_USER}" "${MQTT_PASSWORD}"
-# Newer mosquitto builds refuse to load the password file unless it's
-# root-owned. But the mosquitto *service* runs as the unprivileged
-# `mosquitto` user, so a strict root:root 600 file (no group/other read)
-# would let the file exist but be unreadable by the running service,
-# causing a silent-looking exit code 13 (permission denied) on start.
-# root:mosquitto + 640 satisfies both constraints.
 chown root:mosquitto /etc/mosquitto/passwd
 chmod 640 /etc/mosquitto/passwd
 
-# If /etc/mosquitto/mosquitto.conf already defines its own `listener`
-# directive, our conf.d/app.conf below would define a second listener on
-# the same port and mosquitto will fail to bind. Warn instead of silently
-# fighting an existing config.
 if grep -qE '^\s*listener\b' /etc/mosquitto/mosquitto.conf 2>/dev/null; then
     warn "/etc/mosquitto/mosquitto.conf already defines a 'listener' directive."
     warn "This may conflict with conf.d/app.conf below (duplicate listener on the same port)."
@@ -510,9 +463,6 @@ allow_anonymous false
 password_file /etc/mosquitto/passwd
 EOF
 
-# Open the MQTT port to all networks if ufw is installed and active.
-# NOTE: authentication (allow_anonymous false, above) stays ON — exposing
-# this port without auth would let anyone reach the broker.
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
     log "ufw is active — opening port ${MQTT_BROKER_PORT:-1883}/tcp for MQTT"
     ufw allow "${MQTT_BROKER_PORT:-1883}/tcp" comment "MQTT broker"
@@ -533,11 +483,6 @@ fi
 fi  # MQTT_IS_LOCAL
 
 # ---- ntpsec (NTP time sync, reachable from all networks) --------------
-# Accurate, synced clocks matter here: seismic_mqtt.py timestamps events
-# from an MQTT feed and air_quality_ingest.py timestamps sensor readings,
-# so we install ntpsec as the system time daemon and open it up so other
-# hosts on any network can query this server for time too (not just sync
-# it locally).
 if ! command -v ntpd >/dev/null 2>&1 && ! dpkg -l | grep -q '^ii\s\+ntpsec\s'; then
     log "Installing ntpsec"
     apt-get install -y --no-install-recommends ntpsec
@@ -549,20 +494,9 @@ NTP_CONF="/etc/ntpsec/ntp.conf"
 if [[ -f "$NTP_CONF" ]]; then
     cp "$NTP_CONF" "${NTP_CONF}.bak.$(date +%s)" 2>/dev/null || true
 
-    # By default ntpsec's "restrict default ... noquery" lines let this
-    # host sync outbound but refuse time *queries* from anyone else. Strip
-    # `noquery` from the default restrict lines (both IPv4 and IPv6) so
-    # any network can ask this server for the time, while leaving
-    # nomodify/notrap/nopeer in place so nobody can reconfigure it or use
-    # it as a peer.
     log "Opening ntpsec to time queries from all networks (removing 'noquery' from default restrict rules)"
     sed -i -E 's/^(restrict[[:space:]]+(default|-6[[:space:]]+default)[[:space:]]+.*)\bnoquery[[:space:]]*/\1/' "$NTP_CONF"
 
-    # If a prior config explicitly limits ntpd to specific interfaces
-    # (e.g. "interface ignore wildcard" / "interface listen 127.0.0.1"),
-    # that silently blocks queries from other networks even though the
-    # service looks like it's running fine. Comment those out so it binds
-    # to all interfaces (the ntpsec default).
     if grep -qE '^\s*interface\s+(ignore\s+wildcard|listen\s+127\.0\.0\.1)' "$NTP_CONF"; then
         log "Found an 'interface' restriction in ntp.conf pinning ntpsec to localhost — commenting it out"
         sed -i -E 's/^(\s*interface\s+(ignore\s+wildcard|listen\s+127\.0\.0\.1).*)/# \1  # commented out by deploy.sh so all networks can reach ntpsec/' "$NTP_CONF"
@@ -580,7 +514,6 @@ else
     systemctl enable ntpsec
 fi
 
-# NTP queries are UDP/123. Open it the same way we opened the MQTT port.
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
     log "ufw is active — opening port 123/udp for NTP"
     ufw allow 123/udp comment "NTP (ntpsec)"
@@ -590,11 +523,7 @@ fi
 warn "If this server sits behind a cloud provider (AWS/GCP/Azure/etc.), also open port 123/udp (inbound AND outbound) in its security group / firewall rules — ufw alone won't cover that."
 
 # ----------------------------------------------------------------------
-# 2. Postgres role (apps create their own DBs/tables on first run — this
-#    role just needs to exist with CREATEDB privilege). SYSTEM_DB_USER is
-#    the single shared credential used for BOTH the AQ and Seismic
-#    databases (and any others under this deployment) — there is
-#    intentionally no separate per-service role.
+# 2. Postgres role
 # ----------------------------------------------------------------------
 create_role() {
     local role="$1" pass="$2"
@@ -615,8 +544,6 @@ SQL
 if [[ "$DB_IS_LOCAL" == true ]]; then
     create_role "${SYSTEM_DB_USER}" "${SYSTEM_DB_PASSWORD}"
 
-    # Allow password auth for these roles over TCP (local dev-friendly default;
-    # tighten this to specific hosts / scram-sha-256 for production).
     PG_HBA="/etc/postgresql/${PG_VERSION}/main/pg_hba.conf"
     if [[ -f "$PG_HBA" ]] && ! grep -q "# added by deploy.sh" "$PG_HBA"; then
         log "Adding password-auth rule to pg_hba.conf"
@@ -635,25 +562,9 @@ fi
 # ----------------------------------------------------------------------
 # 2b. Raspberry Pi UART enablement (for the SIM800L SMS ingestion channel)
 # ----------------------------------------------------------------------
-# By default, Raspberry Pi OS uses the primary UART as a serial login
-# console — which fights over the same pins/device with anything else
-# (like a SIM800L) trying to send it AT commands. raspi-config's
-# non-interactive mode disables the console and enables the UART hardware.
-# This only applies on an actual Pi (raspi-config doesn't exist on Ubuntu).
-#
-# This project wires the SIM800L to the PRIMARY UART — GPIO14/TXD (pin 8)
-# and GPIO15/RXD (pin 10) — not one of the Pi 4's secondary UARTs (uart2-5,
-# on GPIO0/1, 4/5, 8/9, 12/13). On boards with onboard Bluetooth (Pi 3/4/5,
-# Zero W/2 W), GPIO14/15 default to the "mini-UART", whose baud clock is
-# tied to the CPU's variable core frequency — this causes baud-rate drift
-# and garbled AT command responses under load. So below we also disable
-# Bluetooth's claim on the UART, which frees the full, stable PL011 UART
-# for GPIO14/15 instead (matches sim800l.py's docstring wiring notes).
 set_env_var() {
-    # Sets KEY=VALUE in $ENV_FILE — replaces an existing uncommented
-    # 'KEY=...' line if present, appends a new 'KEY=VALUE' line otherwise.
     local key="$1" value="$2"
-    local escaped_value="${value//&/\\&}"   # '&' is special to sed's replacement text
+    local escaped_value="${value//&/\\&}"
     if grep -qE "^${key}=" "$ENV_FILE"; then
         sed -i -E "s|^${key}=.*|${key}=${escaped_value}|" "$ENV_FILE"
     else
@@ -664,17 +575,12 @@ set_env_var() {
 if command -v raspi-config >/dev/null 2>&1; then
     log "Raspberry Pi detected — configuring UART for SIM800L SMS ingestion (GPIO14/GPIO15)"
 
-    # Disable the serial console (frees the UART for our own use)...
     raspi-config nonint do_serial_cons 1 2>/dev/null || \
         raspi-config nonint do_serial 1 2>/dev/null || \
         warn "Could not disable the serial console automatically — if SMS ingestion doesn't work, run 'sudo raspi-config' -> Interface Options -> Serial Port -> 'login shell over serial: No'."
-    # ...and enable the UART hardware itself.
     raspi-config nonint do_serial_hw 0 2>/dev/null || \
         warn "Could not enable UART hardware automatically — if SMS ingestion doesn't work, run 'sudo raspi-config' -> Interface Options -> Serial Port -> 'serial port hardware: Yes', then reboot."
 
-    # Belt-and-suspenders: confirm the settings raspi-config should have
-    # just made actually landed in config.txt (Bookworm+ moved this under
-    # /boot/firmware/), and fix anything that's still off.
     BOOT_CONFIG=""
     if [[ -f /boot/firmware/config.txt ]]; then
         BOOT_CONFIG="/boot/firmware/config.txt"
@@ -698,9 +604,6 @@ if command -v raspi-config >/dev/null 2>&1; then
         fi
         systemctl disable hciuart 2>/dev/null || true
 
-        # Flag+neutralize a leftover secondary UART overlay (uart2-5) — it
-        # doesn't conflict with GPIO14/15 itself, but it needlessly reserves
-        # other GPIO pins (0/1, 4/5, 8/9, or 12/13) this project doesn't use.
         if grep -qE '^\s*dtoverlay=uart[2-5]\s*$' "$BOOT_CONFIG"; then
             warn "Found a secondary UART overlay (dtoverlay=uart2/3/4/5) in $BOOT_CONFIG — commenting it out, since this project only uses the primary UART on GPIO14/15."
             sed -i -E 's/^(\s*dtoverlay=uart[2-5]\s*)$/# \1  # commented out by deploy.sh -- SIM800L uses the primary UART on GPIO14\/15/' "$BOOT_CONFIG"
@@ -711,22 +614,12 @@ if command -v raspi-config >/dev/null 2>&1; then
 
     warn "UART settings only take effect after a reboot. Run 'sudo reboot' once deploy.sh finishes, before starting the seismic service."
 
-    # Keep .env in sync with the wiring above. GPIO14/15 always surfaces as
-    # /dev/serial0 on Raspberry Pi OS (a symlink to ttyAMA0 or ttyS0
-    # depending on the Bluetooth setting above) — so /dev/serial0 is always
-    # the right value here, regardless of which underlying device it
-    # resolves to, and regardless of whatever port an earlier experiment
-    # (e.g. a secondary UART overlay) may have left behind in .env.
     CURRENT_SIM800_PORT="$(grep -E '^SIM800_SERIAL_PORT=' "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
     if [[ "$CURRENT_SIM800_PORT" != "/dev/serial0" ]]; then
         log "Setting SIM800_SERIAL_PORT=/dev/serial0 in .env (was: '${CURRENT_SIM800_PORT:-<unset>}')"
         set_env_var "SIM800_SERIAL_PORT" "/dev/serial0"
     fi
 
-    # seismic_mqtt.py reads SIM800_BAUDRATE from .env (defaults to 9600 if
-    # absent, matching the SIM800L's factory default baud). Make the value
-    # explicit in .env rather than relying on that silent default, and
-    # reuse whatever value is actually there below instead of hardcoding.
     if ! grep -qE '^SIM800_BAUDRATE=' "$ENV_FILE"; then
         log "Adding SIM800_BAUDRATE=9600 to .env (not present — this is the SIM800L's factory default baud rate)"
         set_env_var "SIM800_BAUDRATE" "9600"
@@ -747,35 +640,10 @@ if [[ "$ON_RASPBERRY_PI" == true ]]; then
     log "piwheels build yet, pip falls back to compiling from source using the build-essential/libpq-dev/"
     log "python3-dev packages installed above — that step is much slower on a Pi, but it will work."
 fi
-# --break-system-packages is required on Ubuntu 23.04+ / Debian 12+ (PEP 668)
-# since pip otherwise refuses to install into the system-managed Python
-# environment. This is intentional here — the project deliberately runs
-# without a venv.
-#
-# NOTE: we deliberately do NOT run `pip3 install --upgrade pip` here. On
-# Debian/Ubuntu, pip itself is installed via apt (python3-pip), not pip.
-# Asking pip to upgrade itself makes it try to uninstall the apt-installed
-# copy first, which has no RECORD file (apt doesn't write one) — pip
-# refuses with "uninstall-no-record-file" and the whole script aborts.
-# The apt-provided pip is new enough to install our requirements as-is.
-#
-# --ignore-installed is needed for the same reason, one level down: several
-# of our requirements.txt deps (e.g. fastapi -> starlette) overlap with
-# packages Ubuntu also ships via apt (python3-starlette, python3-requests,
-# python3-jinja2, etc.), which likewise have no RECORD file. Without this
-# flag, pip tries to uninstall the apt-owned package before installing the
-# version we asked for and hits the same "uninstall-no-record-file" error.
-# --ignore-installed tells pip to install our versions fresh instead of
-# trying to remove the apt ones first.
 pip3 install -r "$REQ_FILE" -q --break-system-packages --ignore-installed
 
 # ----------------------------------------------------------------------
 # 3b. Nginx + PHP-FPM + Laravel Dashboard (EMS/Dashboard)
-#     Nginx becomes the single public entry point on :80. It serves the
-#     Laravel GUI directly and reverse-proxies /api/* to api_server.py
-#     (uvicorn), which is now bound to 127.0.0.1 only (see API_BIND_HOST
-#     in api_server.py) — port 8000 is no longer exposed to the outside
-#     world at all, nginx is the only thing that talks to it.
 # ----------------------------------------------------------------------
 if [[ ! -d "$LARAVEL_DIR" ]]; then
     warn "Laravel dashboard not found at ${LARAVEL_DIR} — skipping nginx/PHP/Laravel setup."
@@ -788,15 +656,10 @@ apt-get install -y --no-install-recommends \
     php-fpm php-cli php-pgsql php-mbstring php-xml php-curl php-zip php-bcmath php-gd \
     composer unzip
 
-# Debian/Ubuntu package the FPM pool as php<major>.<minor>-fpm — detect the
-# installed version rather than hardcoding it, since it differs between
-# Ubuntu 22.04 (8.1) and 24.04 (8.3).
 PHP_VER="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')"
 PHP_FPM_SERVICE="php${PHP_VER}-fpm"
 PHP_FPM_SOCK="/run/php/php${PHP_VER}-fpm.sock"
 if [[ ! -S "$PHP_FPM_SOCK" ]]; then
-    # Fall back to whatever socket actually exists in case PHP_VER above
-    # doesn't match the real package/service name for some reason.
     PHP_FPM_SOCK="$(find /run/php -maxdepth 1 -name '*-fpm.sock' 2>/dev/null | head -1)"
 fi
 systemctl enable --now "$PHP_FPM_SERVICE" 2>/dev/null || \
@@ -812,9 +675,6 @@ else
         warn "  sudo add-apt-repository -y ppa:ondrej/php && sudo apt-get update"
         warn "  sudo apt-get install -y php8.3-fpm php8.3-cli php8.3-pgsql php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath php8.3-gd"
     else
-        # add-apt-repository/PPAs are a Launchpad (Ubuntu-only) concept and
-        # do not work on Debian or Raspberry Pi OS. deb.sury.org is the
-        # same maintainer's equivalent repo for Debian-based systems.
         warn "If 'composer install' below fails on a platform requirement, add a newer PHP via the deb.sury.org repo"
         warn "(NOTE: 'ppa:ondrej/php' is Ubuntu-only and won't work here — this is the Debian/Raspberry Pi OS equivalent):"
         warn "  sudo apt-get install -y apt-transport-https lsb-release ca-certificates"
@@ -825,16 +685,12 @@ else
     fi
 fi
 
-# Node/npm — only needed if the app has a frontend build step (Vite, etc.)
 if [[ -f "${LARAVEL_DIR}/package.json" ]] && ! command -v npm >/dev/null 2>&1; then
     log "Installing Node.js/npm (package.json present in Dashboard/)"
     apt-get install -y --no-install-recommends nodejs npm
 fi
 
 if [[ -f "${LARAVEL_DIR}/package.json" ]] && command -v node >/dev/null 2>&1; then
-    # Ubuntu 22.04's apt-packaged Node.js (v12) is far too old for any
-    # current Vite-based Laravel build; Debian 12/bookworm-based Raspberry
-    # Pi OS ships v18 which is usually fine, but check generically either way.
     NODE_MAJOR_INSTALLED="$(node -v | sed -E 's/^v([0-9]+).*/\1/')"
     if [[ "${NODE_MAJOR_INSTALLED:-0}" -lt 18 ]]; then
         warn "Node.js v${NODE_MAJOR_INSTALLED} detected from apt — too old for most current Vite-based frontends (need 18+)."
@@ -845,16 +701,11 @@ if [[ -f "${LARAVEL_DIR}/package.json" ]] && command -v node >/dev/null 2>&1; th
 fi
 
 # ---- Dedicated Postgres database + role for Laravel ----
-# Deliberately separate from SYSTEM_DB_USER (used by the Python services):
-# its own database, its own login, so the dashboard only ever has access
-# to its own data, not the AQ/seismic/log databases.
 DASHBOARD_DB_NAME="${DASHBOARD_DB_NAME:-ems_dashboard}"
 DASHBOARD_DB_USER="${DASHBOARD_DB_USER:-ems_dashboard_user}"
 
 if [[ "$DB_IS_LOCAL" == true ]]; then
     if [[ -f "${LARAVEL_DIR}/.env" ]] && grep -qE '^DB_PASSWORD=.+' "${LARAVEL_DIR}/.env"; then
-        # Reuse whatever password is already sitting in Dashboard/.env from
-        # a previous run, instead of generating (and orphaning) a new one.
         DASHBOARD_DB_PASSWORD="$(grep -E '^DB_PASSWORD=' "${LARAVEL_DIR}/.env" | tail -1 | cut -d= -f2-)"
     else
         DASHBOARD_DB_PASSWORD="$(openssl rand -hex 24)"
@@ -918,6 +769,23 @@ else
     log "${LARAVEL_DIR}/.env already exists — leaving it as-is (delete it and re-run to regenerate)."
 fi
 
+# ---- Make storage/bootstrap-cache group-writable by www-data, up front ----
+# This runs BEFORE composer install/artisan below, because composer's
+# post-autoload-dump hook (`php artisan package:discover`) and various
+# artisan commands write into storage/logs and bootstrap/cache immediately
+# — and it stays in effect afterward too. We set the *group* to www-data
+# and add the setgid bit (2775) so that any file created here later —
+# whether by this root-run script, by www-data via php-fpm, or by an
+# admin using sudo to troubleshoot — is always group-owned by www-data
+# and group-writable, instead of whichever user/group happened to create
+# it last. Without this, a one-off `sudo composer dump-autoload` run
+# after deploy finishes leaves root-owned files behind that php-fpm
+# (running as www-data) can no longer overwrite — breaking things again
+# in a way that's easy to miss until the next deploy or cache clear.
+mkdir -p "${LARAVEL_DIR}/storage" "${LARAVEL_DIR}/bootstrap/cache"
+chgrp -R www-data "${LARAVEL_DIR}/storage" "${LARAVEL_DIR}/bootstrap/cache"
+chmod -R 2775 "${LARAVEL_DIR}/storage" "${LARAVEL_DIR}/bootstrap/cache"
+
 # ---- Composer / artisan / npm build ----
 log "Running composer install"
 ( cd "$LARAVEL_DIR" && composer install --no-dev --optimize-autoloader --no-interaction ) || \
@@ -928,9 +796,55 @@ if ! grep -qE '^APP_KEY=base64:' "${LARAVEL_DIR}/.env" 2>/dev/null; then
     ( cd "$LARAVEL_DIR" && php artisan key:generate --force )
 fi
 
+# Laravel derives an expected class name from each migration filename (the
+# part after the leading YYYY_MM_DD_HHMMSS_ timestamp, StudlyCased) UNLESS
+# the file uses the modern anonymous-class style
+# (`return new class extends Migration { ... }`). If a file's actual
+# content matches NEITHER convention, `php artisan migrate` fails deep
+# inside Laravel's Migrator with a bare `Class "X" not found` and no
+# indication of which file is actually broken. Catch that here, before
+# migrate runs, so the error points at the exact file instead of a stack
+# trace.
+validate_migrations() {
+    local dir="${LARAVEL_DIR}/database/migrations"
+    [[ -d "$dir" ]] || return 0
+    local bad_files=() f base rest expected_class
+    for f in "$dir"/*.php; do
+        [[ -f "$f" ]] || continue
+        base="$(basename "$f" .php)"
+        rest="$(echo "$base" | sed -E 's/^[0-9]{4}_[0-9]{2}_[0-9]{2}_[0-9]{6}_//')"
+        expected_class="$(echo "$rest" | awk -F'_' '{for(i=1;i<=NF;i++){printf "%s", toupper(substr($i,1,1)) substr($i,2)}}')"
+        if grep -q 'return new class' "$f"; then
+            continue   # anonymous-class migration — filename doesn't need to match
+        fi
+        if grep -qE "class[[:space:]]+${expected_class}[[:space:]]+extends" "$f"; then
+            continue   # named class matches what the filename implies
+        fi
+        bad_files+=("${f} (expects \`class ${expected_class} extends Migration\` or an anonymous class, found neither)")
+    done
+    if [[ "${#bad_files[@]}" -gt 0 ]]; then
+        warn "Migration pre-flight check found file(s) whose content doesn't match their filename —"
+        warn "this is the #1 cause of Laravel's cryptic 'Class X not found' migration error:"
+        for entry in "${bad_files[@]}"; do
+            warn "  - ${entry}"
+        done
+        warn "Fix the file(s) above, then re-run: cd ${LARAVEL_DIR} && php artisan migrate --force"
+        return 1
+    fi
+    return 0
+}
+
 log "Running Laravel migrations"
-( cd "$LARAVEL_DIR" && php artisan migrate --force ) || \
-    warn "Migrations failed — check ${LARAVEL_DIR}/.env DB_* values, then re-run: cd ${LARAVEL_DIR} && php artisan migrate --force"
+if validate_migrations; then
+    if ! ( cd "$LARAVEL_DIR" && php artisan migrate --force ); then
+        warn "Migration attempt failed — regenerating the composer autoloader and retrying once"
+        ( cd "$LARAVEL_DIR" && composer dump-autoload -o ) || true
+        ( cd "$LARAVEL_DIR" && php artisan migrate --force ) || \
+            warn "Migrations failed — check ${LARAVEL_DIR}/.env DB_* values, then re-run: cd ${LARAVEL_DIR} && php artisan migrate --force"
+    fi
+else
+    warn "Skipping 'php artisan migrate' until the migration file(s) above are fixed."
+fi
 
 ( cd "$LARAVEL_DIR" && php artisan storage:link ) 2>/dev/null || true
 
@@ -949,7 +863,11 @@ log "Caching Laravel config/routes/views for production"
 # bootstrap/cache/ must be writable by that user; the rest just needs to
 # be readable by it.
 chown -R www-data:www-data "$LARAVEL_DIR"
-chmod -R 775 "${LARAVEL_DIR}/storage" "${LARAVEL_DIR}/bootstrap/cache" 2>/dev/null || true
+# 2775, not 775: the leading "2" re-applies the setgid bit set earlier so
+# storage/ and bootstrap/cache/ keep inheriting the www-data group for any
+# file created in them later (see the setgid step before composer install).
+# Plain chmod -R 775 here would silently strip that bit on every re-run.
+chmod -R 2775 "${LARAVEL_DIR}/storage" "${LARAVEL_DIR}/bootstrap/cache" 2>/dev/null || true
 
 # nginx/php-fpm run as www-data, which needs execute ("traversal") permission
 # on EVERY parent directory of LARAVEL_DIR to reach public/index.php at all —
@@ -964,7 +882,6 @@ log "Checking that www-data can traverse into ${LARAVEL_DIR} (parent directory p
 _check_dir="$(dirname "$LARAVEL_DIR")"
 while [[ "$_check_dir" != "/" && -n "$_check_dir" ]]; do
     _perms="$(stat -c '%A' "$_check_dir" 2>/dev/null || true)"
-    # 10-char perms string, e.g. drwxr-x---: char 10 is "other execute".
     if [[ -n "$_perms" && "${_perms:9:1}" != "x" ]]; then
         warn "${_check_dir} lacks traversal (execute) permission for other users —"
         warn "this would block www-data from reaching ${LARAVEL_DIR}/public/index.php,"
@@ -991,9 +908,6 @@ server {
     access_log /var/log/nginx/ems-dashboard.access.log;
     error_log  /var/log/nginx/ems-dashboard.error.log;
 
-    # Python API (api_server.py / uvicorn, bound to 127.0.0.1:${API_PORT:-8000}
-    # only — see API_BIND_HOST in api_server.py). Every route in api_server.py
-    # already starts with /api/, so this forwards the path through unchanged.
     location /api/ {
         proxy_pass http://127.0.0.1:${API_PORT:-8000};
         proxy_http_version 1.1;
@@ -1028,9 +942,6 @@ fi
 systemctl enable --now nginx
 systemctl reload nginx
 
-# Open 80/443 now (443 pre-opened for whenever you point a domain at this
-# box and add TLS via certbot — see the note printed at the end of this
-# script).
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
     log "ufw is active — opening ports 80/tcp and 443/tcp"
     ufw allow 80/tcp comment "nginx HTTP"
@@ -1078,6 +989,16 @@ Next steps:
      .env if something needs to reach it directly without going through nginx.
   3. For always-on deployment, run: sudo ./install_services.sh
      (installs+starts the ems.target systemd unit for all three services).
+  3b. If you ever need to run composer/artisan by hand later (e.g. after
+      editing a migration), run it AS www-data, not as yourself/root, so
+      files it creates stay writable by php-fpm:
+        cd ${LARAVEL_DIR} && sudo -u www-data composer dump-autoload -o
+        cd ${LARAVEL_DIR} && sudo -u www-data php artisan migrate --force
+      A plain \`sudo composer ...\` will work too but leaves new files
+      root-owned, which can quietly break php-fpm's write access again —
+      if that happens, re-run this deploy.sh (it re-applies www-data
+      ownership at the end) or manually:
+        sudo chown -R www-data:www-data ${LARAVEL_DIR}
 $([[ -d "$LARAVEL_DIR" ]] && cat <<DASHEOF
   4. Dashboard is live at http://${SERVER_IP:-<this-server-ip>}/ (nginx +
      PHP-FPM), with the API reachable at the same host under /api/*.
