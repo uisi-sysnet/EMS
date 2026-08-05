@@ -57,82 +57,49 @@
             <span class="text-xs sm:text-sm text-text-400">Inspect incoming API requests</span>
         </div>
 
-        <!-- Filter Bar -->
+        <!-- Filter Bar – responsive rows -->
         <div class="shrink-0 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 bg-background-900 border-b border-border-800">
-            <form method="GET" action="{{ route('api-logs.index') }}"
-                  class="bg-surface-800 rounded-xl border border-border-700 p-4 sm:p-5">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 items-end">
+            <form method="GET" action="{{ route('api-logs.index') }}" class="bg-surface-800 rounded-xl border border-border-700 p-3 sm:p-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-2">
                     <!-- Client IP -->
-                    <div>
-                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Client IP</label>
-                        <input type="text" name="client_ip" placeholder="e.g. 192.168.1.1"
-                               value="{{ request('client_ip') }}"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg
-                                      bg-surface-900 text-text-100 placeholder-text-500
-                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                    <div class="min-w-0">
+                        <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wider">Client IP</label>
+                        <input type="text" name="client_ip" placeholder="e.g. 192.168.1.1" value="{{ request('client_ip') }}" class="w-full px-2 py-1.5 text-xs border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 transition">
                     </div>
-
                     <!-- Method -->
-                    <div>
-                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Method</label>
-                        <select name="method"
-                                class="w-full px-3 py-2 border border-border-600 rounded-lg
-                                       bg-surface-900 text-text-100
-                                       focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                    <div class="min-w-0">
+                        <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wider">Method</label>
+                        <select name="method" class="w-full px-2 py-1.5 text-xs border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 transition">
                             <option value="">All</option>
                             @foreach(['GET','POST','PUT','PATCH','DELETE','HEAD','OPTIONS'] as $m)
-                                <option value="{{ $m }}" @selected(request('method')==$m)>{{ $m }}</option>
+                                <option value="{{ $m }}" @selected(request('method') == $m)>{{ $m }}</option>
                             @endforeach
                         </select>
                     </div>
-
                     <!-- Path -->
-                    <div>
-                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Path</label>
-                        <input type="text" name="path" placeholder="/api/users"
-                               value="{{ request('path') }}"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg
-                                      bg-surface-900 text-text-100 placeholder-text-500
-                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                    <div class="min-w-0">
+                        <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wider">Path</label>
+                        <input type="text" name="path" placeholder="/api/users" value="{{ request('path') }}" class="w-full px-2 py-1.5 text-xs border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 transition">
                     </div>
-
-                    <!-- Status Code -->
-                    <div>
-                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Status Code</label>
-                        <input type="text" name="status_code" placeholder="e.g. 200, 404"
-                               value="{{ request('status_code') }}"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg
-                                      bg-surface-900 text-text-100 placeholder-text-500
-                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                    <!-- Status -->
+                    <div class="min-w-0">
+                        <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wider">Status</label>
+                        <input type="text" name="status_code" placeholder="e.g. 200" value="{{ request('status_code') }}" class="w-full px-2 py-1.5 text-xs border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 transition">
                     </div>
-
-                    <!-- From / To dates -->
-                    <div>
-                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">From</label>
-                        <input type="date" name="from" value="{{ request('from') }}"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg
-                                      bg-surface-900 text-text-100
-                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                    <!-- From -->
+                    <div class="min-w-0">
+                        <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wider">From</label>
+                        <input type="date" name="from" value="{{ request('from', $defaultFrom ?? '') }}" class="w-full px-2 py-1.5 text-xs border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 transition">
                     </div>
-
-                    <div>
-                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">To</label>
-                        <input type="date" name="to" value="{{ request('to') }}"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg
-                                      bg-surface-900 text-text-100
-                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                    <!-- To -->
+                    <div class="min-w-0">
+                        <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wider">To</label>
+                        <input type="date" name="to" value="{{ request('to', $defaultTo ?? '') }}" class="w-full px-2 py-1.5 text-xs border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 transition">
                     </div>
-
-                    <!-- Action buttons -->
-                    <div class="flex gap-2 col-span-full sm:col-span-1 lg:col-span-1">
-                        <button type="submit"
-                                class="flex-1 px-4 py-2 bg-radar-600 hover:bg-radar-500 text-text-100 text-sm font-semibold rounded-lg transition border border-radar-500/40">
-                            Filter
-                        </button>
-                        <a href="{{ route('api-logs.index') }}"
-                           class="px-4 py-2 bg-surface-700 hover:bg-surface-600 text-text-400 text-sm font-medium rounded-lg transition border border-border-600 flex items-center justify-center">
-                            Reset
-                        </a>
+                    <!-- Buttons -->
+                    <div class="flex gap-1.5 items-end">
+                        <button type="submit" class="flex-1 px-3 py-1.5 bg-radar-600 hover:bg-radar-500 text-text-100 text-xs font-semibold rounded-lg transition border border-radar-500/40 whitespace-nowrap">Filter</button>
+                        <a href="{{ route('api-logs.index') }}" class="flex-1 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-text-400 text-xs font-medium rounded-lg transition border border-border-600 whitespace-nowrap text-center">Reset</a>
                     </div>
                 </div>
             </form>

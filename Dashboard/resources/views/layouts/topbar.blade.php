@@ -4,20 +4,34 @@
 
             {{-- Logo / Title --}}
             <div class="flex items-center gap-x-3 min-w-0">
-                <span class="font-bold text-sm sm:text-lg text-text-100 tracking-tighter uppercase truncate">
-                    Environmental Monitoring System Gateway
-                </span>
+                <div class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M19.38 7.25C18.79 4.25 16.12 2 13 2c-2.04 0-3.92.94-5.15 2.54-.21-.03-.4-.04-.6-.04a5.25 5.25 0 1 0 0 10.5H18c2.21 0 4-1.79 4-4 0-1.71-1.07-3.19-2.62-3.75M18 13H7.25C5.46 13 4 11.54 4 9.75S5.46 6.5 7.25 6.5c.24 0 .5.04.81.12l.72.18.39-.63A4.47 4.47 0 0 1 13.01 4c2.32 0 4.29 1.81 4.48 4.13l.06.78.77.12c.97.16 1.68.98 1.68 1.96 0 1.1-.9 2-2 2ZM5.85 22h2.3l3.43-6h-2.3zm4.57 0h2.3l3.43-6h-2.3zm-9.14 0h2.3l3.43-6h-2.3zm19.44-6h-2.3l-3.43 6h2.3z"></path>
+                    </svg>
+                </div>
+
+                {{-- System Name + Version --}}
+                <div class="min-w-0 leading-none">
+                    <div class="text-sm sm:text-base font-bold text-text-100 tracking-tight uppercase truncate">
+                        Environmental Monitoring System Gateway
+                    </div>
+                    <div class="flex items-center gap-x-1.5 mt-1">
+                        <span class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">Beta V1.0</span>
+                    </div>
+                </div>
             </div>
 
+
+
             {{-- Desktop Navigation (xl+) --}}
-            <div class="hidden xl:flex items-center gap-x-5 lg:gap-x-7 text-sm font-medium">
+            <div class="hidden xl:flex items-center gap-x-5 lg:gap-x-16 text-sm font-medium">
                 @if(session('role') === 'administrator')
-                    <a href="{{ route('home') }}" class="text-text-300 hover:text-text-100 transition-colors py-1">Dashboard</a>
+                    <a href="{{ route('home') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Dashboard</a>
 
                     {{-- ENV Editor Dropdown --}}
                     <div class="relative group" id="env-dropdown-desktop">
                         <button type="button"
-                                class="env-dropdown-toggle flex items-center gap-x-1 text-text-300 hover:text-text-100 transition-colors py-1 focus:outline-none"
+                                class="env-dropdown-toggle flex items-center gap-x-1 text-text-400 hover:text-text-100 transition-colors py-1 focus:outline-none"
                                 aria-expanded="false">
                             ENV Editor
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -25,19 +39,19 @@
                             </svg>
                         </button>
                         <div class="env-dropdown-menu absolute left-0 mt-2 w-48 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-20 overflow-hidden">
-                            <a href="{{ route('env.editor') }}" class="block px-4 py-2.5 text-sm text-text-300 hover:bg-surface-700 hover:text-radar-400 transition-colors">Database</a>
-                            <a href="{{ route('mqtt.editor') }}" class="block px-4 py-2.5 text-sm text-text-300 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">MQTT</a>
+                            <a href="{{ route('env.editor') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Database</a>
+                            <a href="{{ route('mqtt.editor') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">MQTT</a>
                         </div>
                     </div>
 
-                    <a href="{{ route('api.editor') }}" class="text-text-300 hover:text-text-100 transition-colors py-1">API</a>
-                    <a href="{{ route('sms.index') }}" class="text-text-300 hover:text-text-100 transition-colors py-1">SMS</a>
-                    <a href="{{ route('network.index') }}" class="text-text-300 hover:text-text-100 transition-colors py-1">Network</a>
+                    <a href="{{ route('api.editor') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">API</a>
+                    <a href="{{ route('sms.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">SMS</a>
+                    <a href="{{ route('network.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Network</a>
 
                     {{-- Logs Dropdown --}}
                     <div class="relative group" id="logs-dropdown-desktop">
                         <button type="button"
-                                class="logs-dropdown-toggle flex items-center gap-x-1 text-text-300 hover:text-text-100 transition-colors py-1 focus:outline-none"
+                                class="logs-dropdown-toggle flex items-center gap-x-1 text-text-400 hover:text-text-100 transition-colors py-1 focus:outline-none"
                                 aria-expanded="false">
                             Logs
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -45,12 +59,12 @@
                             </svg>
                         </button>
                         <div class="logs-dropdown-menu absolute left-0 mt-2 w-48 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-20 overflow-hidden">
-                            <a href="{{ route('api-logs.index') }}" class="block px-4 py-2.5 text-sm text-text-300 hover:bg-surface-700 hover:text-radar-400 transition-colors">API Logs</a>
-                            <a href="{{ route('logs.index') }}" class="block px-4 py-2.5 text-sm text-text-300 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">System Logs</a>
+                            <a href="{{ route('api-logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">API Logs</a>
+                            <a href="{{ route('logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">System Logs</a>
                         </div>
                     </div>
 
-                    <a href="{{ route('about') }}" class="text-text-300 hover:text-text-100 transition-colors py-1">About</a>
+                    <a href="{{ route('about') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">About</a>
                 @endif
             </div>
 

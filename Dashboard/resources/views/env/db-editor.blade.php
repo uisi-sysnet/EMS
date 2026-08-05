@@ -73,119 +73,95 @@
     const status = document.getElementById('status');
     const saveBtn = document.getElementById('save');
 
-    let lineOrder = [];
+    let lineOrder = [];      // will store { key, value }
     let originalValues = {};
+    let sections = [];       // we'll build two sections
 
-    // ----- Helper: set status with color -----
+    // Prefix definitions (must match the controller)
+    const CONNECTION_PREFIXES = ['SYSTEM_DB_'];
+    const NAMES_PREFIXES = ['AQ_DB_', 'SEISMIC_DB_', 'SMS_DB_', 'API_DB_', 'LOG_DB_'];
+    const ALL_PREFIXES = [...CONNECTION_PREFIXES, ...NAMES_PREFIXES];
+
+    // ----- Helper: set status -----
     function setStatus(message, type = 'info') {
         status.className = 'text-sm font-medium text-center sm:text-right';
         switch (type) {
-            case 'success':
-                status.classList.add('text-munti-green-400');
-                break;
-            case 'error':
-                status.classList.add('text-munti-red-400');
-                break;
-            case 'info':
-                status.classList.add('text-radar-400');
-                break;
-            case 'warning':
-                status.classList.add('text-munti-yellow-400');
-                break;
-            default:
-                status.classList.add('text-text-400');
+            case 'success': status.classList.add('text-munti-green-400'); break;
+            case 'error':   status.classList.add('text-munti-red-400'); break;
+            case 'info':    status.classList.add('text-radar-400'); break;
+            case 'warning': status.classList.add('text-munti-yellow-400'); break;
+            default:        status.classList.add('text-text-400');
         }
         status.textContent = message;
     }
 
-    // ----- Build form from .env block -----
+    // ----- Build form from raw lines -----
     function buildForm(blockText) {
         const lines = blockText.split('\n');
         lineOrder = [];
 
-        // Collect sections: { title, rows: [{key, value}] }
-        const sections = [];
-        let currentSection = null;
+        // We'll group variables by section
+        const groups = {
+            connection: { title: 'Database connection', rows: [] },
+            names:      { title: 'Database names', rows: [] }
+        };
 
         lines.forEach(line => {
             const trimmed = line.trim();
+            if (trimmed === '' || trimmed.startsWith('#')) return;
 
-            if (trimmed.startsWith('#')) {
-                // Save previous section
-                if (currentSection) sections.push(currentSection);
+            const parts = line.split('=');
+            if (parts.length < 2) return;
+            const key = parts[0].trim();
+            const value = parts.slice(1).join('=').trim();
 
-                let displayText = trimmed
-                    .replace(/^#\s*----\s*/, '')
-                    .replace(/\s*----\s*$/, '')
-                    .trim();
-
-                currentSection = {
-                    title: displayText,
-                    originalComment: line,
-                    rows: []
-                };
-                lineOrder.push({ type: 'comment', text: line });
-            } else if (trimmed.includes('=')) {
-                const [key, ...valueParts] = line.split('=');
-                const cleanKey = key.trim();
-                const cleanValue = valueParts.join('=').trim();
-
-                if (!currentSection) {
-                    // orphan variables → put in a default section
-                    currentSection = { title: 'Settings', originalComment: null, rows: [] };
-                }
-
-                currentSection.rows.push({ key: cleanKey, value: cleanValue });
-                lineOrder.push({ type: 'variable', key: cleanKey });
+            // Determine which group this key belongs to
+            let group = null;
+            if (CONNECTION_PREFIXES.some(p => key.startsWith(p))) {
+                group = 'connection';
+            } else if (NAMES_PREFIXES.some(p => key.startsWith(p))) {
+                group = 'names';
+            } else {
+                // Ignore unknown keys (should not happen)
+                return;
             }
+
+            groups[group].rows.push({ key, value });
+            lineOrder.push({ key, value }); // preserve order for saving
         });
-        if (currentSection) sections.push(currentSection);
 
-        // Render: if exactly 2 sections, put them side-by-side
-        let html = '';
-
-        if (sections.length === 2) {
-            html += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">`;
-            sections.forEach(sec => {
-                html += renderSection(sec);
-            });
-            html += `</div>`;
-        } else {
-            // fallback: stack everything
-            sections.forEach(sec => {
-                html += renderSection(sec);
-            });
+        // Render the two sections side‑by‑side
+        let html = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">`;
+        for (const [groupName, group] of Object.entries(groups)) {
+            html += renderSection(group.title, group.rows);
         }
-
+        html += `</div>`;
         container.innerHTML = html;
 
-        // Store original values + listeners
+        // Store original values and attach listeners
         originalValues = {};
         lineOrder.forEach(item => {
-            if (item.type === 'variable') {
-                const input = document.getElementById(item.key);
-                if (input) {
-                    originalValues[item.key] = input.value;
-                    input.addEventListener('input', onInputChange);
-                }
+            const input = document.getElementById(item.key);
+            if (input) {
+                originalValues[item.key] = input.value;
+                input.addEventListener('input', onInputChange);
             }
         });
         updateSaveButtonState();
     }
 
-    function renderSection(sec) {
+    function renderSection(title, rows) {
         let html = `
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col">
                 <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80">
-                    <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">${escapeHtml(sec.title)}</h3>
+                    <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">${escapeHtml(title)}</h3>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <tbody>
         `;
-
-        sec.rows.forEach((row, idx) => {
-            const isLast = idx === sec.rows.length - 1;
+        rows.forEach((row, idx) => {
+            const isLast = idx === rows.length - 1;
             html += `
                 <tr class="${isLast ? '' : 'border-b border-border-800'} hover:bg-surface-700/60 transition">
                     <td class="px-4 py-3 font-medium text-text-300 whitespace-nowrap w-40 md:w-48 align-middle">
@@ -196,13 +172,12 @@
                             id="${row.key}"
                             value="${escapeHtml(row.value)}"
                             class="w-full px-3 py-2 border border-border-600 rounded-lg
-                                   focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500
-                                   text-sm bg-surface-900 text-text-100 placeholder-text-500 transition">
+                                focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500
+                                text-sm bg-surface-900 text-text-100 placeholder-text-500 transition">
                     </td>
                 </tr>
             `;
         });
-
         html += `
                         </tbody>
                     </table>
@@ -221,10 +196,8 @@
     function getCurrentValues() {
         const values = {};
         lineOrder.forEach(item => {
-            if (item.type === 'variable') {
-                const input = document.getElementById(item.key);
-                values[item.key] = input ? input.value : '';
-            }
+            const input = document.getElementById(item.key);
+            values[item.key] = input ? input.value : '';
         });
         return values;
     }
@@ -238,14 +211,11 @@
     }
 
     function reconstructBlock() {
+        // Build a plain block of lines (no comments)
         const lines = [];
         lineOrder.forEach(item => {
-            if (item.type === 'comment') {
-                lines.push(item.text);
-            } else if (item.type === 'variable') {
-                const input = document.getElementById(item.key);
-                lines.push(`${item.key}=${input ? input.value : ''}`);
-            }
+            const input = document.getElementById(item.key);
+            lines.push(`${item.key}=${input ? input.value : ''}`);
         });
         return lines.join('\n');
     }
@@ -262,16 +232,13 @@
             setStatus("All changes saved", "success");
         }
 
-        // Highlight changed fields
         lineOrder.forEach(item => {
-            if (item.type === 'variable') {
-                const input = document.getElementById(item.key);
-                if (input) {
-                    if (input.value !== originalValues[item.key]) {
-                        input.classList.add('changed');
-                    } else {
-                        input.classList.remove('changed');
-                    }
+            const input = document.getElementById(item.key);
+            if (input) {
+                if (input.value !== originalValues[item.key]) {
+                    input.classList.add('changed');
+                } else {
+                    input.classList.remove('changed');
                 }
             }
         });

@@ -3,27 +3,111 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\File;
-use Symfony\Component\Yaml\Yaml;
 use Illuminate\Support\Facades\Log;
 
 class NetworkController extends Controller
 {
     /**
-     * Paths to the netplan YAML files.
-     * Adjust these to match the actual filenames in /etc/netplan/ on your Raspberry Pi.
+     * Execute a shell command with sudo and log everything.
+     * Always returns a string (empty if command returns null).
      */
-    private function getEthPath()
+    private function runNmcli(string $command): string
     {
-        // Replace with your Ethernet netplan file name ----- /etc/netplan/90-NM-75a1216a-9d1a-30cd-8aca-ace5526ec021.yaml
-        return 'C:/Users/JUREEN/Desktop/Emergency-Warning-System-main/90-NM-75a1216a-9d1a-30cd-8aca-ace5526ec021.yaml';
+        $fullCmd = 'sudo ' . $command . ' 2>&1';
+        Log::debug("Executing: {$fullCmd}");
+        $output = shell_exec($fullCmd);
+        Log::debug("Output: " . ($output ?: '(empty)'));
+        return $output ?? '';
     }
 
-    private function getWlanPath()
+    /**
+     * Get the NetworkManager connection name for wlan0.
+     */
+    private function getWlanConnectionName(): string
     {
-        // Replace with your WiFi netplan file name ----- /etc/netplan/90-NM-5c340202-1215-3f23-886f-5782d501a9ff.yaml
-        return 'C:/Users/JUREEN/Desktop/Emergency-Warning-System-main/90-NM-5c340202-1215-3f23-886f-5782d501a9ff.yaml';
+        $output = $this->runNmcli('nmcli -t -f DEVICE,CONNECTION device status');
+        if (preg_match('/error|failed/i', $output)) {
+            throw new \Exception('Failed to get device status: ' . $output);
+        }
+
+        $lines = explode("\n", trim($output));
+        foreach ($lines as $line) {
+            if (empty($line)) continue;
+            $parts = explode(':', $line);
+            if (count($parts) >= 2 && trim($parts[0]) === 'wlan0') {
+                $conn = trim($parts[1]);
+                if (!empty($conn) && $conn !== '--') {
+                    Log::debug("Found connection: {$conn}");
+                    return $conn;
+                }
+            }
+        }
+
+        throw new \Exception('No active connection found for wlan0.');
     }
+
+    private function getEthConnectionName(): string
+    {
+        // 1. Check if eth0 has an active connection
+        $output = $this->runNmcli('nmcli -t -f DEVICE,CONNECTION device status');
+        if (!preg_match('/error|failed/i', $output)) {
+            $lines = explode("\n", trim($output));
+            foreach ($lines as $line) {
+                if (empty($line)) continue;
+                $parts = explode(':', $line);
+                if (count($parts) >= 2 && trim($parts[0]) === 'eth0') {
+                    $conn = trim($parts[1]);
+                    if (!empty($conn) && $conn !== '--') {
+                        Log::debug("Found active eth0 connection: {$conn}");
+                        return $conn;
+                    }
+                }
+            }
+        }
+
+        // 2. No active connection – find an Ethernet connection profile
+        $output = $this->runNmcli('nmcli -t -f NAME,TYPE con show');
+        if (preg_match('/error|failed/i', $output)) {
+            throw new \Exception('Failed to get connection list: ' . $output);
+        }
+        $lines = explode("\n", trim($output));
+        foreach ($lines as $line) {
+            if (empty($line)) continue;
+            $parts = explode(':', $line);
+            if (count($parts) >= 2) {
+                $name = trim($parts[0]);
+                $type = trim($parts[1]);
+                // Look for ethernet type, or name "eth0"
+                if (strpos($type, 'ethernet') !== false || strpos($type, '802-3') !== false || $name === 'eth0') {
+                    Log::debug("Found ethernet connection profile: {$name}");
+                    return $name;
+                }
+            }
+        }
+
+        throw new \Exception('No ethernet connection found for eth0.');
+    }
+
+    /**
+     * Parse nmcli -t output into key-value array.
+     */
+    private function parseNmcliShow(string $output): array
+    {
+        $data = [];
+        foreach (explode("\n", $output) as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+            $parts = explode(':', $line, 2);
+            if (count($parts) === 2) {
+                $data[trim($parts[0])] = trim($parts[1]);
+            }
+        }
+        return $data;
+    }
+
+    // ------------------------------------------------------------------------
+    // Load
+    // ------------------------------------------------------------------------
 
     public function index()
     {
@@ -32,208 +116,220 @@ class NetworkController extends Controller
 
     public function load()
     {
+        Log::info('Network load requested');
         try {
-            $ethConfig = $this->loadEth();
-            $wlanConfig = $this->loadWlan();
-
-            return response()->json([
-                'success' => true,
-                'eth'     => $ethConfig,
-                'wlan'    => $wlanConfig,
-            ]);
+            $eth = $this->loadEth();
+            $wlan = $this->loadWlan();
+            return response()->json(['success' => true, 'eth' => $eth, 'wlan' => $wlan]);
         } catch (\Exception $e) {
-            Log::error('Network load error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'error'   => $e->getMessage(),
-            ]);
+            Log::error('Load error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
 
-    private function loadEth()
+    private function loadWlan(): array
     {
-        $path = $this->getEthPath();
-        if (!File::exists($path)) {
-            throw new \Exception('Ethernet configuration file not found: ' . $path);
+        $conn = $this->getWlanConnectionName();
+        $output = $this->runNmcli("nmcli -t -f ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns,802-11-wireless.ssid con show " . escapeshellarg($conn));
+        if (preg_match('/error|failed/i', $output)) {
+            throw new \Exception('Failed to get connection details: ' . $output);
         }
 
-        $yaml = File::get($path);
-        $data = Yaml::parse($yaml);
-        $eth = $data['network']['ethernets']['eth0'] ?? null;
+        $data = $this->parseNmcliShow($output);
 
-        if (!$eth) {
-            throw new \Exception('Could not find eth0 in the Ethernet YAML file.');
+        $dhcp4 = ($data['ipv4.method'] ?? 'auto') === 'auto';
+        $address = $data['ipv4.addresses'] ?? '';
+        if (strpos($address, ',') !== false) {
+            $address = explode(',', $address)[0];
         }
 
         return [
-            // Prefer per‑interface renderer, fallback to global if present
-            'renderer'    => $eth['renderer'] ?? ($data['network']['renderer'] ?? 'networkd'),
-            'dhcp4'       => $eth['dhcp4'] ?? false,
-            'address'     => $eth['addresses'][0] ?? '',
-            'gateway'     => $eth['routes'][0]['via'] ?? '',
-            'nameservers' => implode(', ', $eth['nameservers']['addresses'] ?? []),
+            'renderer'    => 'NetworkManager',
+            'dhcp4'       => $dhcp4,
+            'ssid'        => $data['802-11-wireless.ssid'] ?? '',
+            'password'    => '',  // cannot retrieve
+            'address'     => $address,
+            'gateway'     => $data['ipv4.gateway'] ?? '',
+            'nameservers' => str_replace(',', ', ', $data['ipv4.dns'] ?? ''),
         ];
     }
 
-    private function loadWlan()
+    private function loadEth(): array
     {
-        $path = $this->getWlanPath();
-        if (!File::exists($path)) {
-            throw new \Exception('WiFi configuration file not found: ' . $path);
+        $conn = $this->getEthConnectionName();
+        $output = $this->runNmcli("nmcli -t -f ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show " . escapeshellarg($conn));
+        if (preg_match('/error|failed/i', $output)) {
+            throw new \Exception('Failed to get eth0 details: ' . $output);
         }
 
-        $yaml = File::get($path);
-        $data = Yaml::parse($yaml);
-        $wlan = $data['network']['wifis']['wlan0'] ?? null;
+        $data = $this->parseNmcliShow($output);
 
-        if (!$wlan) {
-            throw new \Exception('Could not find wlan0 in the WiFi YAML file.');
+        $dhcp4 = ($data['ipv4.method'] ?? 'auto') === 'auto';
+        $address = $data['ipv4.addresses'] ?? '';
+        if (strpos($address, ',') !== false) {
+            $address = explode(',', $address)[0];
         }
-
-        $accessPoints = $wlan['access-points'] ?? [];
-        $ssid = array_key_first($accessPoints) ?? '';
-        $password = $accessPoints[$ssid]['auth']['password'] ?? '';
 
         return [
-            'renderer'    => $wlan['renderer'] ?? 'NetworkManager',
-            'dhcp4'       => $wlan['dhcp4'] ?? true,
-            'ssid'        => $ssid,
-            'password'    => $password,
+            'renderer'    => 'NetworkManager', // always for nmcli
+            'dhcp4'       => $dhcp4,
+            'address'     => $address,
+            'gateway'     => $data['ipv4.gateway'] ?? '',
+            'nameservers' => str_replace(',', ', ', $data['ipv4.dns'] ?? ''),
         ];
     }
+
+    // ------------------------------------------------------------------------
+    // Save
+    // ------------------------------------------------------------------------
 
     public function save(Request $request)
     {
-        $validated = $request->validate([
-            'eth.renderer'    => 'required|string|in:networkd,NetworkManager',
-            'eth.dhcp4'       => 'required|boolean',
-            'eth.address'     => 'required_if:eth.dhcp4,false|string',
-            'eth.gateway'     => 'required_if:eth.dhcp4,false|ip',
-            'eth.nameservers' => 'nullable|string',
-
-            'wlan.renderer'   => 'required|string|in:networkd,NetworkManager',
-            'wlan.dhcp4'      => 'required|boolean',
-            'wlan.ssid'       => 'required|string',
-            'wlan.password'   => 'required|string',
-        ]);
+        Log::info('Save requested', $request->all());
 
         try {
+            $validated = $request->validate([
+                // Ethernet
+                'eth.dhcp4'       => 'required|boolean',
+                'eth.address'     => 'nullable|string|required_if:eth.dhcp4,false',
+                'eth.gateway'     => 'nullable|ip|required_if:eth.dhcp4,false',
+                'eth.nameservers' => 'nullable|string',
+
+                // WiFi (existing)
+                'wlan.dhcp4'       => 'required|boolean',
+                'wlan.ssid'        => 'required|string',
+                'wlan.password'    => 'nullable|string',
+                'wlan.address'     => 'nullable|string|required_if:wlan.dhcp4,false',
+                'wlan.gateway'     => 'nullable|ip|required_if:wlan.dhcp4,false',
+                'wlan.nameservers' => 'nullable|string',
+            ]);
+
             $this->saveEth($validated['eth']);
             $this->saveWlan($validated['wlan']);
-            $this->applyNetplan();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Network configurations updated and applied successfully.',
-            ]);
+            return response()->json(['success' => true, 'message' => 'Network settings updated']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
-            Log::error('Network save error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'error'   => $e->getMessage(),
-            ]);
+            Log::error('Save error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
 
-    private function saveEth($data)
+    private function saveWlan(array $data): void
     {
-        $path = $this->getEthPath();
-        if (!File::exists($path)) {
-            throw new \Exception('Ethernet file does not exist: ' . $path);
-        }
+        $conn = $this->getWlanConnectionName();
 
-        $yaml = File::get($path);
-        $config = Yaml::parse($yaml);
+        // ----- 1. IP settings -----
+        if ($data['dhcp4'] === false) {
+            $address = $data['address'];
+            $gateway = $data['gateway'];
+            $dns = str_replace(',', ' ', $data['nameservers'] ?? '');
+            $dns = trim($dns);
 
-        // Set per‑interface renderer only – no global renderer
-        $eth = &$config['network']['ethernets']['eth0'];
-        $eth['renderer'] = $data['renderer'];
-        $eth['dhcp4'] = $data['dhcp4'];
-
-        // Remove global renderer if it exists (to keep only one)
-        unset($config['network']['renderer']);
-
-        if ($data['dhcp4'] === true) {
-            unset($eth['addresses']);
-            unset($eth['routes']);
-            unset($eth['nameservers']);
+            $cmd = sprintf(
+                'nmcli con mod %s ipv4.method manual ipv4.addresses %s ipv4.gateway %s ipv4.dns %s',
+                escapeshellarg($conn),
+                escapeshellarg($address),
+                escapeshellarg($gateway),
+                escapeshellarg($dns)
+            );
+            $output = $this->runNmcli($cmd);
+            if (preg_match('/error|failed/i', $output)) {
+                throw new \Exception("Failed to set static IP: $output");
+            }
         } else {
-            $eth['addresses'] = [$data['address']];
-            $eth['routes'] = [
-                ['to' => 'default', 'via' => $data['gateway']]
-            ];
-
-            if (!empty($data['nameservers'])) {
-                $ns = array_map('trim', explode(',', $data['nameservers']));
-                $ns = array_filter($ns);
-                if (!empty($ns)) {
-                    $eth['nameservers']['addresses'] = $ns;
-                } else {
-                    unset($eth['nameservers']);
-                }
-            } else {
-                unset($eth['nameservers']);
+            $cmd = sprintf(
+                'nmcli con mod %s ipv4.method auto ipv4.addresses "" ipv4.gateway "" ipv4.dns ""',
+                escapeshellarg($conn)
+            );
+            $output = $this->runNmcli($cmd);
+            if (preg_match('/error|failed/i', $output)) {
+                throw new \Exception("Failed to set DHCP: $output");
             }
         }
 
-        // Preserve match, dhcp6, networkmanager, etc.
-        $newYaml = Yaml::dump($config, 4, 2);
-        File::put($path, $newYaml);
-    }
-
-    private function saveWlan($data)
-    {
-        $path = $this->getWlanPath();
-        if (!File::exists($path)) {
-            throw new \Exception('WiFi file does not exist: ' . $path);
+        // ----- 2. SSID and password -----
+        if (!empty($data['ssid'])) {
+            $cmd = sprintf('nmcli con mod %s 802-11-wireless.ssid %s', escapeshellarg($conn), escapeshellarg($data['ssid']));
+            $output = $this->runNmcli($cmd);
+            if (preg_match('/error|failed/i', $output)) {
+                throw new \Exception("Failed to set SSID: $output");
+            }
         }
 
-        $yaml = File::get($path);
-        $config = Yaml::parse($yaml);
-
-        $wlan = &$config['network']['wifis']['wlan0'];
-        $wlan['renderer'] = $data['renderer'];
-        $wlan['dhcp4'] = $data['dhcp4'];
-
-        // Remove global renderer if present
-        unset($config['network']['renderer']);
-
-        // Build access-points
-        $accessPoints = [];
-        $accessPoints[$data['ssid']] = [
-            'auth' => [
-                'key-management' => 'psk',
-                'password'       => $data['password'],
-            ],
-        ];
-
-        // Preserve existing networkmanager/passthrough fields from original
-        $originalConfig = Yaml::parse($yaml);
-        $origAp = $originalConfig['network']['wifis']['wlan0']['access-points'] ?? [];
-        $origSsid = array_key_first($origAp);
-        if ($origSsid) {
-            foreach ($origAp[$origSsid] as $key => $val) {
-                if ($key !== 'auth') {
-                    $accessPoints[$data['ssid']][$key] = $val;
+        if (!empty($data['password'])) {
+            $cmd = sprintf(
+                'nmcli con mod %s 802-11-wireless-security.key-mgmt wpa-psk 802-11-wireless-security.psk %s',
+                escapeshellarg($conn),
+                escapeshellarg($data['password'])
+            );
+            $output = $this->runNmcli($cmd);
+            if (preg_match('/error|failed/i', $output)) {
+                // Fallback: try separately
+                $this->runNmcli(sprintf('nmcli con mod %s 802-11-wireless-security.key-mgmt wpa-psk', escapeshellarg($conn)));
+                $output = $this->runNmcli(sprintf('nmcli con mod %s 802-11-wireless-security.psk %s', escapeshellarg($conn), escapeshellarg($data['password'])));
+                if (preg_match('/error|failed/i', $output)) {
+                    throw new \Exception("Failed to set password: $output");
                 }
             }
         }
 
-        $wlan['access-points'] = $accessPoints;
-
-        if (isset($originalConfig['network']['wifis']['wlan0']['networkmanager'])) {
-            $wlan['networkmanager'] = $originalConfig['network']['wifis']['wlan0']['networkmanager'];
-        }
-
-        $newYaml = Yaml::dump($config, 4, 2);
-        File::put($path, $newYaml);
+        // ----- 3. Restart connection to apply changes -----
+        $this->runNmcli("nmcli con up " . escapeshellarg($conn));
+        Log::info("WiFi connection restarted");
     }
 
-    private function applyNetplan()
+    private function saveEth(array $data): void
     {
-        $output = shell_exec('sudo netplan apply 2>&1');
-        if ($output !== null && (strpos(strtolower($output), 'error') !== false || strpos(strtolower($output), 'failed') !== false)) {
-            throw new \Exception('netplan apply failed: ' . $output);
+        $conn = $this->getEthConnectionName();
+
+        if ($data['dhcp4'] === false) {
+            $address = $data['address'];
+            $gateway = $data['gateway'];
+            $dns = str_replace(',', ' ', $data['nameservers'] ?? '');
+            $dns = trim($dns);
+
+            $cmd = sprintf(
+                'nmcli con mod %s ipv4.method manual ipv4.addresses %s ipv4.gateway %s ipv4.dns %s',
+                escapeshellarg($conn),
+                escapeshellarg($address),
+                escapeshellarg($gateway),
+                escapeshellarg($dns)
+            );
+            $output = $this->runNmcli($cmd);
+            if (preg_match('/error|failed/i', $output)) {
+                throw new \Exception("Failed to set eth0 static IP: $output");
+            }
+        } else {
+            $cmd = sprintf(
+                'nmcli con mod %s ipv4.method auto ipv4.addresses "" ipv4.gateway "" ipv4.dns ""',
+                escapeshellarg($conn)
+            );
+            $output = $this->runNmcli($cmd);
+            if (preg_match('/error|failed/i', $output)) {
+                throw new \Exception("Failed to set eth0 DHCP: $output");
+            }
+        }
+
+        // Optionally restart eth0 (if it's up)
+        /* $this->runNmcli("nmcli con up " . escapeshellarg($conn));
+        Log::info("Ethernet connection restarted"); */
+    }
+
+    public function restartEth()
+    {
+        Log::info('Ethernet restart requested');
+        try {
+            $conn = $this->getEthConnectionName();
+            $output = $this->runNmcli("nmcli con up " . escapeshellarg($conn));
+            Log::info("Ethernet connection restarted");
+            return response()->json(['success' => true, 'message' => 'Ethernet restarted successfully']);
+        } catch (\Exception $e) {
+            Log::error('Restart eth error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
 }

@@ -72,15 +72,15 @@
                                     @forelse ($airQualityData ?? [] as $item)
                                     <tr class="hover:bg-surface-700 transition h-10">
                                         <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
-                                        <td class="px-2 py-0 whitespace-nowrap font-medium text-text-100">{{ $item->station }}</td>
-                                        <td class="px-2 py-0 whitespace-nowrap text-text-400">{{ $item->ip }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
                                             {{ \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') }}
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
                                             {{ \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d') }}
                                         </td>
-                                        <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ number_format($item->total) }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
                                     </tr>
                                     @empty
                                     <tr>
@@ -136,15 +136,15 @@
                                     @forelse ($seismicData ?? [] as $item)
                                     <tr class="hover:bg-surface-700 transition h-10">
                                         <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
-                                        <td class="px-2 py-0 whitespace-nowrap font-medium text-text-100">{{ $item->station }}</td>
-                                        <td class="px-2 py-0 whitespace-nowrap text-text-400">{{ $item->ip }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
                                             {{ \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') }}
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
                                             {{ \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d') }}
                                         </td>
-                                        <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ number_format($item->total) }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
                                     </tr>
                                     @empty
                                     <tr>
@@ -174,78 +174,81 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
- document.addEventListener('DOMContentLoaded', function() {
-    function getChartData(collection) {
-        let labels = collection.map(item => item.station);
-        let totals = collection.map(item => parseInt(String(item.total).replace(/,/g, '')) || 0);
-        return { labels, totals };
-    }
-
-    const airData = @json($airQualityData ?? []);
-    const seismicData = @json($seismicData ?? []);
-
-    const airChartData = getChartData(airData);
-    const seismicChartData = getChartData(seismicData);
-
-    // Color palette (dynamically sized)
-    const colors = ['#14B8A6', '#0F766E', '#5EEAD4', '#0B4F3A', '#2DD4BF', '#115E59'];
-
-    const chartDefaults = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                backgroundColor: '#1A1A1A',
-                titleColor: '#F3F4F6',
-                bodyColor: '#E5E7EB',
-                borderColor: '#374151',
-                borderWidth: 1
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                grid: { color: '#2B3442' },
-                ticks: { color: '#9CA3AF' }
-            },
-            x: {
-                grid: { display: false },
-                ticks: { color: '#9CA3AF' }
-            }
+    document.addEventListener('DOMContentLoaded', function() {
+        function getChartData(collection) {
+            let labels = collection.map(item => item.station);
+            let totals = collection.map(item => parseInt(String(item.total).replace(/,/g, '')) || 0);
+            return { labels, totals };
         }
-    };
 
-    // Air Quality Chart
-    const ctx1 = document.getElementById('airQualityChart').getContext('2d');
-    new Chart(ctx1, {
-        type: 'bar',
-        data: {
-            labels: airChartData.labels,
-            datasets: [{
-                label: 'Total Records',
-                data: airChartData.totals,
-                backgroundColor: colors.slice(0, airChartData.labels.length || 1),
-                borderRadius: 6,
-            }]
-        },
-        options: chartDefaults
-    });
+        const airData = @json($airQualityData ?? []);
+        const seismicData = @json($seismicData ?? []);
 
-    // Seismic Chart
-    const ctx2 = document.getElementById('seismicChart').getContext('2d');
-    new Chart(ctx2, {
-        type: 'bar',
-        data: {
-            labels: seismicChartData.labels,
-            datasets: [{
-                label: 'Total Records',
-                data: seismicChartData.totals,
-                backgroundColor: colors.slice(0, seismicChartData.labels.length || 1),
-                borderRadius: 6,
-            }]
-        },
-        options: chartDefaults
+        const airChartData = getChartData(airData);
+        const seismicChartData = getChartData(seismicData);
+
+        // Color palette (dynamically sized)
+        const colors = ['#14B8A6', '#0F766E', '#5EEAD4', '#0B4F3A', '#2DD4BF', '#115E59'];
+
+        const chartDefaults = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1A1A1A',
+                    titleColor: '#F3F4F6',
+                    bodyColor: '#E5E7EB',
+                    borderColor: '#374151',
+                    borderWidth: 1
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#2B3442' },
+                    ticks: { color: '#9CA3AF' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#9CA3AF' }
+                }
+            }
+        };
+
+        // Air Quality Chart
+        const ctx1 = document.getElementById('airQualityChart').getContext('2d');
+        new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: airChartData.labels,
+                datasets: [{
+                    label: 'Total Records',
+                    data: airChartData.totals,
+                    backgroundColor: colors.slice(0, airChartData.labels.length || 1),
+                    borderRadius: 6,
+                }]
+            },
+            options: chartDefaults
+        });
+
+        // Seismic Chart
+        const ctx2 = document.getElementById('seismicChart').getContext('2d');
+        new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: seismicChartData.labels,
+                datasets: [{
+                    label: 'Total Records',
+                    data: seismicChartData.totals,
+                    backgroundColor: colors.slice(0, seismicChartData.labels.length || 1),
+                    borderRadius: 6,
+                }]
+            },
+            options: chartDefaults
+        });
     });
-});
+    setTimeout(function() {
+        location.reload();
+    }, 20000);
 </script>

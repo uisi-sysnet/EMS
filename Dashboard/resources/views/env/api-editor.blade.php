@@ -91,7 +91,7 @@
                             <tbody class="divide-y divide-border-800">
                                 @foreach($keys as $key)
                                     <tr class="hover:bg-surface-700/60 transition">
-                                        <td class="px-4 py-1 whitespace-nowrap font-mono text-sm text-text-100">
+                                        <td class="px-4 py-1 whitespace-nowrap font-mono text-sm text-munti-green-400">
                                             {{ $key->owner_label }}
                                         </td>
                                         <td class="px-4 py-1 font-mono text-sm text-text-400 truncate max-w-xs">

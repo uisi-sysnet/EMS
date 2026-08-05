@@ -56,67 +56,49 @@
             <span class="text-xs sm:text-sm text-text-400">Filter and browse system log entries</span>
         </div>
 
-        <!-- Filter (fixed) -->
+        <!-- Filter Bar – responsive with wrap (System Logs) -->
         <div class="shrink-0 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 bg-background-900 border-b border-border-800">
-            <form method="GET" action="{{ route('logs.index') }}"
-                  class="bg-surface-800 rounded-xl border border-border-700 p-4 sm:p-5">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 items-end">
+            <form method="GET" action="{{ route('logs.index') }}" class="bg-surface-800 rounded-xl border border-border-700 p-3 sm:p-4 w-full">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 items-end w-full">
+                    <!-- Service -->
                     <div>
-                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Service</label>
-                        <input type="text" name="service" placeholder="Service"
-                               value="{{ request('service') }}"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg
-                                      bg-surface-900 text-text-100 placeholder-text-500
-                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                        <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wider">Service</label>
+                        <input type="text" name="service" placeholder="Service" value="{{ request('service') }}" class="w-full px-2 py-1.5 text-xs border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 transition">
                     </div>
-
+                    <!-- Level -->
                     <div>
-                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Level</label>
-                        <select name="level"
-                                class="w-full px-3 py-2 border border-border-600 rounded-lg
-                                       bg-surface-900 text-text-100
-                                       focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
-                            <option value="">All levels</option>
-                            <option value="error" @selected(request('level')=='error')>Error</option>
-                            <option value="warning" @selected(request('level')=='warning')>Warning</option>
-                            <option value="info" @selected(request('level')=='info')>Info</option>
+                        <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wider">Level</label>
+                        <select name="level" class="w-full px-2 py-1.5 text-xs border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 transition">
+                            <option value="">All</option>
+                            <option value="ERROR" @selected(request('level')=='ERROR')>Error</option>
+                            <option value="WARNING" @selected(request('level')=='WARNING')>Warning</option>
+                            <option value="INFO" @selected(request('level')=='INFO')>Info</option>
                         </select>
                     </div>
-
+                    <!-- Logger -->
                     <div>
-                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Thread</label>
-                        <input type="text" name="thread" placeholder="Thread"
-                               value="{{ request('thread') }}"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg
-                                      bg-surface-900 text-text-100 placeholder-text-500
-                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                        <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wider">Logger</label>
+                        <input type="text" name="logger" placeholder="Logger name" value="{{ request('logger') }}" class="w-full px-2 py-1.5 text-xs border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 transition">
                     </div>
-
+                    <!-- Thread -->
                     <div>
-                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">From</label>
-                        <input type="date" name="from" value="{{ request('from') }}"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg
-                                      bg-surface-900 text-text-100
-                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                        <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wider">Thread</label>
+                        <input type="text" name="thread" placeholder="Thread" value="{{ request('thread') }}" class="w-full px-2 py-1.5 text-xs border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 transition">
                     </div>
-
+                    <!-- From -->
                     <div>
-                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">To</label>
-                        <input type="date" name="to" value="{{ request('to') }}"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg
-                                      bg-surface-900 text-text-100
-                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                        <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wider">From</label>
+                        <input type="date" name="from" value="{{ request('from', $defaultFrom ?? '') }}" class="w-full px-2 py-1.5 text-xs border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 transition">
                     </div>
-
-                    <div class="flex gap-2">
-                        <button type="submit"
-                                class="flex-1 px-4 py-2 bg-radar-600 hover:bg-radar-500 text-text-100 text-sm font-semibold rounded-lg transition border border-radar-500/40">
-                            Filter
-                        </button>
-                        <a href="{{ route('logs.index') }}"
-                           class="px-4 py-2 bg-surface-700 hover:bg-surface-600 text-text-400 text-sm font-medium rounded-lg transition border border-border-600 flex items-center justify-center">
-                            Reset
-                        </a>
+                    <!-- To -->
+                    <div>
+                        <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wider">To</label>
+                        <input type="date" name="to" value="{{ request('to', $defaultTo ?? '') }}" class="w-full px-2 py-1.5 text-xs border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 transition">
+                    </div>
+                    <!-- Buttons -->
+                    <div class="flex gap-1.5">
+                        <button type="submit" class="flex-1 px-3 py-1.5 bg-radar-600 hover:bg-radar-500 text-text-100 text-xs font-semibold rounded-lg transition border border-radar-500/40 whitespace-nowrap">Filter</button>
+                        <a href="{{ route('logs.index') }}" class="flex-1 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-text-400 text-xs font-medium rounded-lg transition border border-border-600 whitespace-nowrap text-center">Reset</a>
                     </div>
                 </div>
             </form>

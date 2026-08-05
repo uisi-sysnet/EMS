@@ -23,6 +23,11 @@ class LogController extends Controller
             $query->where('thread_name', 'like', '%' . $request->thread . '%');
         }
 
+        // NEW: filter by logger_name
+        if ($request->filled('logger')) {
+            $query->where('logger_name', 'like', '%' . $request->logger . '%');
+        }
+
         if ($request->filled('from')) {
             $query->whereDate('created_at', '>=', $request->from);
         }
@@ -31,11 +36,16 @@ class LogController extends Controller
             $query->whereDate('created_at', '<=', $request->to);
         }
 
+        $defaultFrom = SystemLog::min('created_at');
+        $defaultTo   = SystemLog::max('created_at');
+        $defaultFrom = $defaultFrom ? \Carbon\Carbon::parse($defaultFrom)->toDateString() : null;
+        $defaultTo   = $defaultTo   ? \Carbon\Carbon::parse($defaultTo)->toDateString()   : null;
+
         $logs = $query
             ->orderBy('created_at', 'desc')
             ->paginate(1000)
-            ->withQueryString(); // keeps filters in pagination links
+            ->withQueryString();
 
-        return view('logs.system', compact('logs'));
+        return view('logs.system', compact('logs', 'defaultFrom', 'defaultTo'));
     }
 }

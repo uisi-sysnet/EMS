@@ -43,7 +43,15 @@ class ApiLogController extends Controller
             ->paginate(1000)
             ->withQueryString();
 
-        return view('logs.api', compact('logs'));
+        $defaultFrom = ApiLog::min('created_at');
+        $defaultTo   = ApiLog::max('created_at');
+
+        // Convert to 'Y-m-d' format for the date input, or keep null if no logs exist
+        $defaultFrom = $defaultFrom ? \Carbon\Carbon::parse($defaultFrom)->toDateString() : null;
+        $defaultTo   = $defaultTo   ? \Carbon\Carbon::parse($defaultTo)->toDateString()   : null;
+
+        // Pass them to the view
+        return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo'));
     }
 
     /**

@@ -21,18 +21,56 @@
         scrollbar-width: thin;
         scrollbar-color: #4B5563 #1A1A1A;
     }
+
+    /* Transition for the inbox drawer */
+    .inbox-drawer {
+        transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+    }
+    .inbox-drawer.open {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    .inbox-overlay {
+        transition: opacity 0.3s ease-in-out;
+    }
 </style>
 
 <main class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
-    <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex min-h-0">
+    <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex min-h-0 relative">
 
-        {{-- ════════════ LEFT PANEL ════════════ --}}
-        <div class="w-80 border-r border-border-800 flex flex-col shrink-0 min-h-0">
+        {{-- ════════════ OVERLAY (mobile) – starts BELOW topbar ════════════ --}}
+        <div id="inbox-overlay"
+             class="inbox-overlay fixed top-20 left-0 right-0 bottom-0 bg-black/60 z-40 opacity-0 pointer-events-none lg:hidden">
+        </div>
 
-            {{-- Inbox header + search --}}
+        {{-- ════════════ LEFT PANEL (Inbox) ════════════ --}}
+        {{-- Mobile: sidebar width, starts below topbar --}}
+        {{-- Desktop: normal relative sidebar --}}
+        <div id="inbox-panel"
+             class="inbox-drawer fixed top-20 left-0 bottom-0 z-50 w-80 bg-surface-900 border-r border-border-800 flex flex-col
+                    transform -translate-x-full opacity-0
+                    lg:relative lg:top-auto lg:bottom-auto lg:translate-x-0 lg:opacity-100 lg:flex lg:w-80 lg:inset-auto lg:border-r lg:z-auto
+                    shrink-0 min-h-0">
+
+            {{-- Close button (mobile) --}}
+            <div class="flex items-center justify-between px-4 py-3 border-b border-border-800 bg-surface-800 lg:hidden">
+                <h2 class="text-base font-semibold text-text-100 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24" class="text-radar-400">
+                        <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2Z"/>
+                    </svg>
+                    Inbox
+                </h2>
+                <button id="close-inbox" class="text-text-400 hover:text-text-100 p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            {{-- Inbox header + search (visible on all sizes) --}}
             <div class="px-4 py-3 border-b border-border-800 bg-surface-800 shrink-0">
                 <div class="flex items-center justify-between mb-2">
-                    <h2 class="text-base font-semibold text-text-100 flex items-center gap-2">
+                    <h2 class="text-base font-semibold text-text-100 hidden lg:flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24" class="text-radar-400">
                             <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2Z"/>
                         </svg>
@@ -71,9 +109,7 @@
                             </div>
                             <div class="flex flex-col items-end gap-1 shrink-0">
                                 <span class="text-[10px] text-text-500">
-                                    <span class="text-[10px] text-text-500">
-                                        {{ $latest ? $latest->received_at->format('g:i A') : '' }}
-                                    </span>
+                                    {{ $latest ? $latest->received_at->format('g:i A') : '' }}
                                 </span>
                                 @if($item->count > 0)
                                     <span class="text-[10px] font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 px-1.5 py-0.5 rounded-full leading-none">
@@ -91,19 +127,27 @@
             </div>
         </div>
 
-        {{-- ════════════ RIGHT PANEL ════════════ --}}
-        <div class="flex-1 flex flex-col min-w-0 min-h-0">
+        {{-- ════════════ RIGHT PANEL (Conversation) ════════════ --}}
+        <div class="flex-1 flex flex-col min-w-0 min-h-0 relative">
 
             {{-- Conversation header --}}
             <div class="px-4 py-3 border-b border-border-800 bg-surface-800 flex justify-between items-center shrink-0 gap-3">
-                <div class="min-w-0">
-                    @if($selectedSender)
-                        <h2 class="font-semibold text-text-100 text-sm truncate">{{ $selectedSender }}</h2>
-                        <p class="text-xs text-text-400 font-mono mt-0.5">{{ $selectedSender }}</p>
-                    @else
-                        <h2 class="font-semibold text-text-400 text-sm">Select a conversation</h2>
-                        <p class="text-xs text-text-500 mt-0.5">Choose a sender from the inbox</p>
-                    @endif
+                <div class="min-w-0 flex items-center gap-2">
+                    {{-- Toggle inbox button (mobile) --}}
+                    <button id="toggle-inbox" class="lg:hidden text-text-400 hover:text-text-100 p-1 -ml-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                    <div class="min-w-0">
+                        @if($selectedSender)
+                            <h2 class="font-semibold text-text-100 text-sm truncate">{{ $selectedSender }}</h2>
+                            <p class="text-xs text-text-400 font-mono mt-0.5">{{ $selectedSender }}</p>
+                        @else
+                            <h2 class="font-semibold text-text-400 text-sm">Select a conversation</h2>
+                            <p class="text-xs text-text-500 mt-0.5">Choose a sender from the inbox</p>
+                        @endif
+                    </div>
                 </div>
                 <a href="{{ route('sms.index', $selectedSender ? ['sender' => $selectedSender] : []) }}"
                    class="bg-radar-600 hover:bg-radar-500 text-text-100 text-sm px-4 py-1.5 rounded-xl transition border border-radar-500/40 shrink-0 flex items-center gap-1.5">
@@ -169,7 +213,62 @@
 </main>
 
 <script>
-    // Client-side inbox search
+    // ---------- Responsive Inbox Drawer ----------
+    const panel = document.getElementById('inbox-panel');
+    const overlay = document.getElementById('inbox-overlay');
+    const toggleBtn = document.getElementById('toggle-inbox');
+    const closeBtn = document.getElementById('close-inbox');
+
+    function openInbox() {
+        panel.classList.add('open');
+        overlay.classList.add('open');
+        overlay.style.pointerEvents = 'auto';
+        overlay.style.opacity = '1';
+    }
+
+    function closeInbox() {
+        panel.classList.remove('open');
+        overlay.classList.remove('open');
+        overlay.style.pointerEvents = 'none';
+        overlay.style.opacity = '0';
+    }
+
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (panel.classList.contains('open')) {
+                closeInbox();
+            } else {
+                openInbox();
+            }
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeInbox);
+    }
+
+    if (overlay) {
+        overlay.addEventListener('click', closeInbox);
+    }
+
+    // Auto-close drawer when a sender is clicked on mobile
+    document.querySelectorAll('.inbox-item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth < 1024) {
+                closeInbox();
+            }
+        });
+    });
+
+    // Close drawer on window resize to desktop
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 1024) {
+            closeInbox();
+        }
+    });
+
+    // ---------- Search filter ----------
     const searchInput = document.getElementById('inbox-search');
     if (searchInput) {
         searchInput.addEventListener('input', function () {
@@ -181,13 +280,13 @@
         });
     }
 
-    // Auto-scroll conversation to bottom
+    // ---------- Auto-scroll conversation to bottom ----------
     const conv = document.getElementById('conversation-scroll');
     if (conv) {
         conv.scrollTop = conv.scrollHeight;
     }
 
-    // Auto-grow textarea
+    // ---------- Auto-grow textarea ----------
     const reply = document.getElementById('reply-input');
     if (reply) {
         reply.addEventListener('input', function () {
