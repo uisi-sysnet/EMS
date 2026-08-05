@@ -18,12 +18,21 @@
 #   - Ubuntu 22.04/24.04 LTS, OR Raspberry Pi OS (Debian bookworm or newer),
 #     64-bit (arm64) STRONGLY recommended on a Pi — see detect_platform().
 #   - PostgreSQL 16 (auto-detected where possible, override with PG_VERSION)
-#   - This script, .env, requirements.txt, and the three *.py files all
-#     live in the same directory. If .env is missing, this script asks a
-#     few questions on the terminal (DB/MQTT: local or remote IP, host,
-#     port, credentials) and generates one — see run_env_wizard() below.
-#     This needs an interactive terminal; non-interactive runs must supply
-#     .env themselves.
+#   - This script, requirements.txt, and the three *.py files all live in
+#     the same directory (e.g. EMS/scripts/).
+#   - The Laravel dashboard lives in a sibling "Dashboard" folder next to
+#     this script's folder (e.g. EMS/Dashboard, next to EMS/scripts) —
+#     override with LARAVEL_DIR=/path/to/Dashboard if it's elsewhere. It
+#     must already exist when this script runs.
+#   - There is ONE centralized .env, and it lives at EMS/Dashboard/.env
+#     (i.e. ${LARAVEL_DIR}/.env) — used by the Python services AND Laravel.
+#     If it's missing, this script asks a few questions on the terminal
+#     (DB/MQTT: local or remote IP, host, port, credentials) and generates
+#     one there — see run_env_wizard() below. This needs an interactive
+#     terminal; non-interactive runs must supply .env themselves.
+#     EMS/scripts/.env (where the Python services look for it) is kept as
+#     a symlink pointing back at EMS/Dashboard/.env, so there's exactly
+#     one real file on disk, not two copies to keep in sync.
 #   - If you point SYSTEM_DB_HOST / MQTT_BROKER_HOST at a host OTHER than
 #     this machine (i.e. not 127.0.0.1/localhost), the local Postgres +
 #     TimescaleDB / Mosquitto install and account-creation steps below are
@@ -38,10 +47,17 @@ set -euo pipefail
 # 0. Preflight
 # ----------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="${SCRIPT_DIR}/.env"
 REQ_FILE="${SCRIPT_DIR}/requirements.txt"
 PG_VERSION="${PG_VERSION:-16}"   # override: PG_VERSION=15 sudo -E ./deploy.sh
-LARAVEL_DIR="${LARAVEL_DIR:-${SCRIPT_DIR}/Dashboard}"   # override: LARAVEL_DIR=/path/to/Dashboard sudo -E ./deploy.sh
+LARAVEL_DIR="${LARAVEL_DIR:-$(dirname "$SCRIPT_DIR")/Dashboard}"   # default: sibling "Dashboard" folder next to this script's folder (e.g. EMS/scripts + EMS/Dashboard). override: LARAVEL_DIR=/path/to/Dashboard sudo -E ./deploy.sh
+
+# The centralized .env now lives in the Laravel dashboard folder and is
+# shared by the Python services and Laravel alike. PY_ENV_FILE is where
+# air_quality_ingest.py / seismic_mqtt.py / api_server.py expect to find
+# it (same folder as this script) — deploy.sh keeps that path as a
+# symlink pointing at ENV_FILE, so there's exactly one real file on disk.
+ENV_FILE="${LARAVEL_DIR}/.env"
+PY_ENV_FILE="${SCRIPT_DIR}/.env"
 
 log()  { echo -e "\033[1;32m[deploy]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[deploy][WARN]\033[0m $*"; }
@@ -50,6 +66,8 @@ die()  { echo -e "\033[1;31m[deploy][ERROR]\033[0m $*" >&2; exit 1; }
 if [[ $EUID -ne 0 ]]; then
     die "Run this with sudo: sudo ./deploy.sh"
 fi
+
+[[ -d "$LARAVEL_DIR" ]] || die "Dashboard directory not found at ${LARAVEL_DIR} — the shared .env now lives there, so it must exist before this script runs. Clone/copy the Laravel app to ${LARAVEL_DIR} first, or override with: LARAVEL_DIR=/path/to/Dashboard sudo -E ./deploy.sh"
 
 # ----------------------------------------------------------------------
 # 0b. Platform detection (Ubuntu vs Raspberry Pi OS, and CPU architecture)
@@ -246,11 +264,35 @@ ENVEOF
     warn "API_KEYS was left blank (the wizard doesn't ask for it) — set at least one token there before running api_server.py."
 }
 
+# Migrating from an older layout where the Python services' .env lived
+# directly in $SCRIPT_DIR? Move that real file into the new centralized
+# location instead of generating a fresh one and losing existing
+# credentials/config.
+if [[ ! -f "$ENV_FILE" && -f "$PY_ENV_FILE" && ! -L "$PY_ENV_FILE" ]]; then
+    log "Found existing .env at ${PY_ENV_FILE} — moving it to the centralized location ${ENV_FILE}"
+    mv "$PY_ENV_FILE" "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+fi
+
 if [[ ! -f "$ENV_FILE" ]]; then
     [[ -t 0 ]] || die ".env not found at $ENV_FILE, and no terminal is attached to answer setup questions. Run deploy.sh interactively, or copy a .env here first."
     run_env_wizard
 else
     log ".env already exists at $ENV_FILE — skipping the setup wizard (delete/rename it and re-run to regenerate)."
+fi
+
+# Make sure the Python services' expected .env location (same folder as
+# air_quality_ingest.py / seismic_mqtt.py / api_server.py) points at the
+# centralized file above, so there's exactly one real file on disk.
+REL_ENV_FOR_PY="$(realpath --relative-to="$SCRIPT_DIR" "$ENV_FILE")"
+if [[ -f "$PY_ENV_FILE" && ! -L "$PY_ENV_FILE" ]]; then
+    PY_BACKUP_PATH="${PY_ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)"
+    warn "${PY_ENV_FILE} exists as a separate file — backing it up to ${PY_BACKUP_PATH} and replacing it with a symlink to ${ENV_FILE}"
+    mv "$PY_ENV_FILE" "$PY_BACKUP_PATH"
+fi
+if [[ ! -L "$PY_ENV_FILE" || "$(readlink "$PY_ENV_FILE")" != "$REL_ENV_FOR_PY" ]]; then
+    ln -sf "$REL_ENV_FOR_PY" "$PY_ENV_FILE"
+    log "${PY_ENV_FILE} is now a symlink -> ${REL_ENV_FOR_PY} (same file as ${ENV_FILE})"
 fi
 
 log "Loading configuration from .env"
@@ -286,7 +328,7 @@ load_env_file() {
 
 load_env_file "$ENV_FILE"
 
-for v in SYSTEM_DB_USER SYSTEM_DB_PASSWORD AQ_DB_NAME SEISMIC_DB_NAME MQTT_USER MQTT_PASSWORD; do
+for v in SYSTEM_DB_USER SYSTEM_DB_PASSWORD AQ_DB_NAME SEISMIC_DB_NAME LOG_DB_NAME SMS_DB_NAME API_DB_NAME MQTT_USER MQTT_PASSWORD; do
     [[ -n "${!v:-}" ]] || die "Missing required variable '$v' in .env"
 done
 
@@ -846,79 +888,98 @@ if [[ -f "${LARAVEL_DIR}/package.json" ]] && command -v node >/dev/null 2>&1; th
     fi
 fi
 
-# ---- Dedicated Postgres database + role for Laravel ----
-# Deliberately separate from SYSTEM_DB_USER (used by the Python services):
-# its own database, its own login, so the dashboard only ever has access
-# to its own data, not the AQ/seismic/log databases.
-DASHBOARD_DB_NAME="${DASHBOARD_DB_NAME:-ems_dashboard}"
-DASHBOARD_DB_USER="${DASHBOARD_DB_USER:-ems_dashboard_user}"
+# ---- Laravel DB credentials ----
+# The main DB_* block Laravel uses to connect must be different from the
+# iot_user credentials the Python services use — Laravel authenticates as
+# the Postgres superuser ('postgres') instead, same host/port/database
+# (IOT_api). Override with DASHBOARD_DB_USER / DASHBOARD_DB_PASSWORD if
+# your postgres role's password should differ from SYSTEM_DB_PASSWORD.
+# If that role can't already authenticate with DASHBOARD_DB_PASSWORD, this
+# script sets it (sudo -u postgres psql -c "ALTER ROLE ... PASSWORD ...")
+# further down, so 'php artisan migrate' has a working connection. This
+# does change the actual Postgres superuser's password on the server —
+# make sure nothing else on this box depends on the old one.
+DASHBOARD_DB_USER="${DASHBOARD_DB_USER:-postgres}"
+if [[ -z "${DASHBOARD_DB_PASSWORD+x}" ]]; then
+    DASHBOARD_DB_PASSWORD="$SYSTEM_DB_PASSWORD"
+    warn "DASHBOARD_DB_PASSWORD not set — defaulting it to SYSTEM_DB_PASSWORD's value. Override with DASHBOARD_DB_PASSWORD=... if the postgres role's actual password differs."
+fi
 
+# IOT_api itself is normally created by api_server.py on its own first
+# run, but Laravel's `php artisan migrate` below needs it to exist NOW, so
+# make sure it's there (idempotent — a no-op if api_server.py already made
+# it). Still owned by iot_user; the postgres superuser can reach it either
+# way, so ownership doesn't need to change for Laravel to connect.
 if [[ "$DB_IS_LOCAL" == true ]]; then
-    if [[ -f "${LARAVEL_DIR}/.env" ]] && grep -qE '^DB_PASSWORD=.+' "${LARAVEL_DIR}/.env"; then
-        # Reuse whatever password is already sitting in Dashboard/.env from
-        # a previous run, instead of generating (and orphaning) a new one.
-        DASHBOARD_DB_PASSWORD="$(grep -E '^DB_PASSWORD=' "${LARAVEL_DIR}/.env" | tail -1 | cut -d= -f2-)"
+    log "Ensuring Postgres database '${API_DB_NAME}' exists (owned by ${SYSTEM_DB_USER})"
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '${API_DB_NAME}'" | grep -q 1; then
+        sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE ${API_DB_NAME} OWNER ${SYSTEM_DB_USER};"
     else
-        DASHBOARD_DB_PASSWORD="$(openssl rand -hex 24)"
+        log "Database '${API_DB_NAME}' already exists, skipping creation"
     fi
-
-    log "Ensuring Postgres role '${DASHBOARD_DB_USER}' exists"
-    sudo -u postgres psql -v ON_ERROR_STOP=1 -q <<SQL
-DO \$\$
-BEGIN
-   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DASHBOARD_DB_USER}') THEN
-      CREATE ROLE ${DASHBOARD_DB_USER} LOGIN PASSWORD '${DASHBOARD_DB_PASSWORD}';
-   ELSE
-      ALTER ROLE ${DASHBOARD_DB_USER} WITH PASSWORD '${DASHBOARD_DB_PASSWORD}';
-   END IF;
-END
-\$\$;
-SQL
-
-    log "Ensuring Postgres database '${DASHBOARD_DB_NAME}' exists (owned by ${DASHBOARD_DB_USER})"
-    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '${DASHBOARD_DB_NAME}'" | grep -q 1; then
-        sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE ${DASHBOARD_DB_NAME} OWNER ${DASHBOARD_DB_USER};"
-    else
-        log "Database '${DASHBOARD_DB_NAME}' already exists, skipping creation"
-    fi
-else
-    warn "SYSTEM_DB_HOST is remote — skipping local Postgres role/DB creation for Laravel."
-    warn "Create database '${DASHBOARD_DB_NAME}' + role '${DASHBOARD_DB_USER}' on that server yourself,"
-    warn "then set DB_* in ${LARAVEL_DIR}/.env to match before running migrations."
-    DASHBOARD_DB_PASSWORD="${DASHBOARD_DB_PASSWORD:-CHANGE_ME}"
-fi
-
-# ---- Laravel .env ----
-SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-if [[ ! -f "${LARAVEL_DIR}/.env" ]]; then
-    if [[ -f "${LARAVEL_DIR}/.env.example" ]]; then
-        cp "${LARAVEL_DIR}/.env.example" "${LARAVEL_DIR}/.env"
-    else
-        touch "${LARAVEL_DIR}/.env"
-    fi
-    log "Writing database + app config to ${LARAVEL_DIR}/.env"
-    for pair in \
-        "APP_ENV=production" \
-        "APP_DEBUG=false" \
-        "APP_URL=http://${SERVER_IP:-localhost}" \
-        "DB_CONNECTION=pgsql" \
-        "DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
-        "DB_PORT=${SYSTEM_DB_PORT:-5432}" \
-        "DB_DATABASE=${DASHBOARD_DB_NAME}" \
-        "DB_USERNAME=${DASHBOARD_DB_USER}" \
-        "DB_PASSWORD=${DASHBOARD_DB_PASSWORD}"; do
-        key="${pair%%=*}"; value="${pair#*=}"
-        escaped_value="${value//&/\\&}"
-        if grep -qE "^${key}=" "${LARAVEL_DIR}/.env"; then
-            sed -i -E "s|^${key}=.*|${key}=${escaped_value}|" "${LARAVEL_DIR}/.env"
+    log "Verifying '${DASHBOARD_DB_USER}' can authenticate to '${API_DB_NAME}' with the configured password"
+    if ! PGPASSWORD="$DASHBOARD_DB_PASSWORD" psql -h "${SYSTEM_DB_HOST:-127.0.0.1}" -p "${SYSTEM_DB_PORT:-5432}" -U "$DASHBOARD_DB_USER" -d "$API_DB_NAME" -tAc 'SELECT 1' >/dev/null 2>&1; then
+        log "Setting '${DASHBOARD_DB_USER}' role password to match DASHBOARD_DB_PASSWORD"
+        if sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c "ALTER ROLE ${DASHBOARD_DB_USER} PASSWORD '${DASHBOARD_DB_PASSWORD}';"; then
+            if PGPASSWORD="$DASHBOARD_DB_PASSWORD" psql -h "${SYSTEM_DB_HOST:-127.0.0.1}" -p "${SYSTEM_DB_PORT:-5432}" -U "$DASHBOARD_DB_USER" -d "$API_DB_NAME" -tAc 'SELECT 1' >/dev/null 2>&1; then
+                log "'${DASHBOARD_DB_USER}' can now authenticate to '${API_DB_NAME}'"
+            else
+                warn "Password was set but authentication still fails — check pg_hba.conf allows password auth (md5/scram) for '${DASHBOARD_DB_USER}' from ${SYSTEM_DB_HOST:-127.0.0.1}, then re-run this script."
+            fi
         else
-            printf '%s=%s\n' "$key" "$value" >> "${LARAVEL_DIR}/.env"
+            warn "Could not set the password for '${DASHBOARD_DB_USER}' — set/confirm it manually, e.g.: sudo -u postgres psql -c \"ALTER ROLE ${DASHBOARD_DB_USER} PASSWORD '${DASHBOARD_DB_PASSWORD}';\""
+            warn "then re-run this script, or fix it manually before 'php artisan migrate' below."
         fi
-    done
-    chmod 600 "${LARAVEL_DIR}/.env"
+    fi
 else
-    log "${LARAVEL_DIR}/.env already exists — leaving it as-is (delete it and re-run to regenerate)."
+    warn "SYSTEM_DB_HOST is remote (${SYSTEM_DB_HOST}) — confirm '${DASHBOARD_DB_USER}' can reach '${API_DB_NAME}' on that server before running migrations."
 fi
+
+# ---- Add Laravel's app/DB keys to the centralized .env ----
+# ENV_FILE already lives at ${LARAVEL_DIR}/.env (see Preflight above) and
+# already has SYSTEM_DB_*/AQ_DB_NAME/etc. from the Python-side config —
+# we just add the Laravel-specific keys on top of the same file.
+SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+log "Adding Laravel app/DB keys to ${ENV_FILE}"
+for pair in \
+    "APP_ENV=production" \
+    "APP_DEBUG=false" \
+    "APP_URL=http://${SERVER_IP:-localhost}" \
+    "DB_CONNECTION=pgsql" \
+    "DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
+    "DB_PORT=${SYSTEM_DB_PORT:-5432}" \
+    "DB_DATABASE=${API_DB_NAME}" \
+    "DB_USERNAME=${DASHBOARD_DB_USER}" \
+    "DB_PASSWORD=${DASHBOARD_DB_PASSWORD}" \
+    "AQ_DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
+    "AQ_DB_PORT=${SYSTEM_DB_PORT:-5432}" \
+    "AQ_DB_DATABASE=${AQ_DB_NAME}" \
+    "AQ_DB_USERNAME=${SYSTEM_DB_USER}" \
+    "AQ_DB_PASSWORD=${SYSTEM_DB_PASSWORD}" \
+    "SEISMIC_DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
+    "SEISMIC_DB_PORT=${SYSTEM_DB_PORT:-5432}" \
+    "SEISMIC_DB_DATABASE=${SEISMIC_DB_NAME}" \
+    "SEISMIC_DB_USERNAME=${SYSTEM_DB_USER}" \
+    "SEISMIC_DB_PASSWORD=${SYSTEM_DB_PASSWORD}" \
+    "LOG_DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
+    "LOG_DB_PORT=${SYSTEM_DB_PORT:-5432}" \
+    "LOG_DB_DATABASE=${LOG_DB_NAME}" \
+    "LOG_DB_USERNAME=${SYSTEM_DB_USER}" \
+    "LOG_DB_PASSWORD=${SYSTEM_DB_PASSWORD}" \
+    "SMS_DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}" \
+    "SMS_DB_PORT=${SYSTEM_DB_PORT:-5432}" \
+    "SMS_DB_DATABASE=${SMS_DB_NAME}" \
+    "SMS_DB_USERNAME=${SYSTEM_DB_USER}" \
+    "SMS_DB_PASSWORD=${SYSTEM_DB_PASSWORD}"; do
+    key="${pair%%=*}"; value="${pair#*=}"
+    escaped_value="${value//&/\\&}"
+    if grep -qE "^${key}=" "$ENV_FILE"; then
+        sed -i -E "s|^${key}=.*|${key}=${escaped_value}|" "$ENV_FILE"
+    else
+        printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+    fi
+done
+chmod 600 "$ENV_FILE"
 
 # ---- Composer / artisan / npm build ----
 log "Running composer install"
@@ -1116,7 +1177,7 @@ warn "and make sure 80/tcp (and 443/tcp once you add a domain) is open there."
 log "Laravel dashboard: http://${SERVER_IP:-<this-server-ip>}/"
 log "API via nginx:      http://${SERVER_IP:-<this-server-ip>}/api/..."
 log "API docs via nginx: http://${SERVER_IP:-<this-server-ip>}/docs  (replaces the old :8000/docs link — that port is being closed off below)"
-warn "Dashboard DB credentials are in ${LARAVEL_DIR}/.env (DB_DATABASE=${DASHBOARD_DB_NAME}, DB_USERNAME=${DASHBOARD_DB_USER}) — back that file up, it's not stored anywhere else."
+warn "Dashboard DB credentials (DB_DATABASE=${API_DB_NAME}, DB_USERNAME=${DASHBOARD_DB_USER}) live in ${ENV_FILE} — back that file up, it's not stored anywhere else."
 
 fi  # LARAVEL_DIR exists
 
