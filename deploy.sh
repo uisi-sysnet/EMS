@@ -795,10 +795,12 @@ warn "If this server sits behind a cloud provider (AWS/GCP/Azure/etc.), also ope
 create_role() {
     local role="$1" pass="$2"
     log "Ensuring Postgres role '${role}' exists with CREATEDB"
+    # Case-insensitive match for the same reason as the database check below —
+    # Postgres folds unquoted identifiers to lowercase.
     sudo -u postgres psql -v ON_ERROR_STOP=1 -q <<SQL
 DO \$\$
 BEGIN
-   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${role}') THEN
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE lower(rolname) = lower('${role}')) THEN
       CREATE ROLE ${role} LOGIN PASSWORD '${pass}' CREATEDB;
    ELSE
       ALTER ROLE ${role} WITH PASSWORD '${pass}' CREATEDB;
@@ -1067,7 +1069,12 @@ fi
 # way, so ownership doesn't need to change for Laravel to connect.
 if [[ "$DB_IS_LOCAL" == true ]]; then
     log "Ensuring Postgres database '${API_DB_NAME}' exists (owned by ${SYSTEM_DB_USER})"
-    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '${API_DB_NAME}'" | grep -q 1; then
+    # Case-insensitive match: Postgres folds unquoted identifiers to lowercase,
+    # so a DB created as IOT_api is actually stored as datname='iot_api'. A
+    # case-sensitive comparison here would miss it and try to CREATE it again,
+    # which then fails with "database already exists" (folded to the same
+    # lowercase name Postgres would use).
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE lower(datname) = lower('${API_DB_NAME}')" | grep -q 1; then
         sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE ${API_DB_NAME} OWNER ${SYSTEM_DB_USER};"
     else
         log "Database '${API_DB_NAME}' already exists, skipping creation"
