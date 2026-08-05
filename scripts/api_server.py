@@ -320,7 +320,7 @@ class ServiceLogsResponse(BaseModel):
 SCRIPT_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=SCRIPT_DIR / ".env")
 
-API_PORT = int(os.getenv("API_PORT", 8000))
+API_PORT = int(os.getenv("API_PORT", 8443))
 
 # Parse "token:label,token:label" into a dict — used only for the one-time
 # migration into the api_keys table below; not read again after that.
