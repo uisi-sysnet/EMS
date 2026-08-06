@@ -74,7 +74,7 @@
                                             </span>
                                         </td>
                                         <td class="px-4 py-1 whitespace-nowrap text-xs text-text-500">
-                                            {{ $key->created_at->format('Y-m-d H:i') }}
+                                            {{ $key->created_at->format('Y-m-d h:i A') }}
                                         </td>
                                         <td class="px-4 py-1 whitespace-nowrap text-right">
                                             <button type="button"
@@ -158,7 +158,7 @@
                                             </span>
                                         </td>
                                         <td class="px-4 py-1 whitespace-nowrap text-xs text-text-500">
-                                            {{ \Carbon\Carbon::parse($ip->created_at)->format('Y-m-d H:i') }}
+                                            {{ \Carbon\Carbon::parse($ip->created_at)->format('Y-m-d h:i A') }}
                                         </td>
                                         <td class="px-4 py-1 whitespace-nowrap text-right">
                                             <button type="button"
