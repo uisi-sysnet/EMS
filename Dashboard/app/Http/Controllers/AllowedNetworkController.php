@@ -2,18 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\ApiKey;
 use App\Models\AllowedIp; 
+use Illuminate\Http\Request;
 
-class AllowedNetworkController extends Controller
+class ApiKeyController extends Controller
 {
-    /**
-     * Display a listing of allowed IPs.
-     */
     public function index()
     {
         $keys = ApiKey::orderBy('owner_label')->get();
-        $ips  = AllowedIp::orderBy('cidr')->get(); // <-- Fetch allowed IPs
+        $ips  = AllowedIp::orderBy('cidr')->get(); 
+
         return view('env.api-editor', compact('keys', 'ips'));
     }
 
