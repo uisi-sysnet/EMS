@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\ApiKey;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log; 
 
 class ApiKeyController extends Controller
 {
@@ -76,27 +75,5 @@ class ApiKeyController extends Controller
     {
         $key = bin2hex(random_bytes(20));
         return response()->json(['key' => $key]);
-    }
-
-    /**
-     * Toggle the enabled status of an API key.
-     */
-    public function toggle(Request $request, $token)
-    {
-        try {
-            Log::info('API Key toggle attempt', ['token' => $token, 'enabled' => $request->input('enabled')]);
-            $key = ApiKey::where('token_hash', $token)->firstOrFail();
-            $key->enabled = $request->input('enabled', !$key->enabled);
-            $key->save();
-            Log::info('API Key toggled', ['token' => $token, 'new_status' => $key->enabled]);
-            return response()->json(['success' => true]);
-        } catch (\Exception $e) {
-            Log::error('API Key toggle failed', [
-                'token' => $token,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return response()->json(['success' => false, 'error' => 'Server error: ' . $e->getMessage()], 500);
-        }
     }
 }

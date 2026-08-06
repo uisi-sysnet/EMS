@@ -21,49 +21,6 @@
         scrollbar-width: thin;
         scrollbar-color: #4B5563 #1A1A1A;
     }
-
-    /* Toggle switch container */
-    .toggle-container {
-        position: relative;
-        display: inline-block;
-        width: 2.25rem;
-        height: 1.25rem;
-    }
-    .toggle-container input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-    .toggle-slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #4B5563; /* gray-600 */
-        transition: .3s;
-        border-radius: 9999px;
-    }
-    .toggle-slider::before {
-        content: "";
-        position: absolute;
-        height: 1rem;
-        width: 1rem;
-        left: 2px;
-        bottom: 2px;
-        background-color: white;
-        transition: .3s;
-        border-radius: 50%;
-        border: 1px solid #D1D5DB;
-    }
-    input:checked + .toggle-slider {
-        background-color: #22C55E; /* green-500 */
-    }
-    input:checked + .toggle-slider::before {
-        transform: translateX(1rem);
-        border-color: white;
-    }
 </style>
 
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
@@ -125,19 +82,12 @@
                                             {{ $key->token_hash }}
                                         </td>
                                         <td class="px-4 py-1 whitespace-nowrap">
-                                            <label class="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" class="sr-only peer toggle-key"
-                                                    data-token="{{ $key->token_hash }}"
-                                                    {{ $key->enabled ? 'checked' : '' }}>
-                                                <div class="w-9 h-5 bg-gray-600 peer-focus:ring-2 peer-focus:ring-radar-500/50 rounded-full peer
-                                                            peer-checked:bg-munti-green-500 transition-all duration-300
-                                                            after:content-[''] after:absolute after:top-0.5 after:left-[2px]
-                                                            after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4
-                                                            after:transition-all after:duration-300
-                                                            peer-checked:after:translate-x-full peer-checked:after:border-white
-                                                            peer-disabled:opacity-50 peer-disabled:cursor-not-allowed">
-                                                </div>
-                                            </label>
+                                            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium border
+                                                {{ $key->enabled
+                                                    ? 'bg-munti-green-700/20 text-munti-green-400 border-munti-green-600/30'
+                                                    : 'bg-munti-red-700/20 text-munti-red-400 border-munti-red-600/30' }}">
+                                                {{ $key->enabled ? 'Enabled' : 'Disabled' }}
+                                            </span>
                                         </td>
                                         <td class="px-4 py-1 whitespace-nowrap text-xs text-text-500">
                                             {{ $key->created_at->format('Y-m-d H:i') }}
@@ -261,38 +211,6 @@
                     setStatus('Failed to delete key.', 'error');
                 }
             } catch (err) {
-                setStatus('Server error', 'error');
-                console.error(err);
-            }
-        });
-    });
-
-    // Toggle handler
-    document.querySelectorAll('.toggle-key').forEach(toggle => {
-        toggle.addEventListener('change', async function() {
-            const token = this.dataset.token;
-            const isChecked = this.checked;
-            const originalChecked = !isChecked;
-
-            try {
-                const response = await fetch(`/api-keys/toggle/${token}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    },
-                    body: JSON.stringify({ enabled: isChecked })
-                });
-                const data = await response.json();
-
-                if (!data.success) {
-                    this.checked = originalChecked;
-                    setStatus('Failed to update status.', 'error');
-                } else {
-                    setStatus('Status updated successfully.', 'success');
-                }
-            } catch (err) {
-                this.checked = originalChecked;
                 setStatus('Server error', 'error');
                 console.error(err);
             }

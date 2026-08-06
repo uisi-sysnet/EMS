@@ -38,7 +38,6 @@ Route::middleware(['role:administrator'])->group(function () {
     Route::post('/api-keys/generate', [ApiKeyController::class, 'generate'])->name('api.keys.generate');
     Route::post('/api-keys/save', [ApiKeyController::class, 'save'])->name('api.keys.save');
     Route::delete('/api-keys/{token}', [ApiKeyController::class, 'destroy'])->name('api.keys.destroy');
-    Route::post('/api-keys/toggle/{token}', [ApiKeyController::class, 'toggle'])->name('api.keys.toggle');
 
     Route::get('/logs', [App\Http\Controllers\LogController::class, 'index'])->name('logs.index');
     Route::get('/api-logs', [ApiLogController::class, 'index'])->name('api-logs.index');
