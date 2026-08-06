@@ -274,14 +274,7 @@
             const isChecked = this.checked;
             const originalChecked = !isChecked;
             try {
-                const response = await fetch(`/api-keys/toggle/${token}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    },
-                    body: JSON.stringify({ enabled: isChecked })
-                });
+                const url = "{{ route('api.keys.toggle', ['token' => '__TOKEN__']) }}".replace('__TOKEN__', token);
                 const data = await response.json();
                 if (!data.success) {
                     this.checked = originalChecked;
