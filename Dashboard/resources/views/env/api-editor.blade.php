@@ -23,161 +23,169 @@
         <!-- Content -->
         <div class="flex-1 overflow-y-auto thin-scrollbar min-h-0 bg-background-900 py-5 px-5 sm:px-8 space-y-8">
 
-            <!-- ========== SECTION 1: API KEYS ========== -->
-            <div class="bg-surface-800 rounded-xl border border-border-700 p-5 sm:p-6">
-                <h3 class="text-sm font-semibold text-text-200 mb-4 uppercase tracking-wide">Generate New API Key</h3>
-                <form id="apiKeyForm" class="space-y-4">
-                    <div>
-                        <label for="ownerLabel" class="block text-sm font-medium text-text-300 mb-1.5">Owner Label</label>
-                        <input type="text" id="ownerLabel" placeholder="Enter owner label" required
-                               class="w-full px-4 py-2.5 border border-border-600 rounded-lg
-                                      bg-surface-900 text-text-100 placeholder-text-500
-                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
-                    </div>
-                    <button type="submit" id="saveBtn"
-                            class="w-full px-4 py-2 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30">
-                        Generate & Save API Key
-                    </button>
-                </form>
-                <div id="apiStatus" class="mt-3 text-sm font-medium text-center"></div>
-            </div>
+            <!-- ========== TWO-COLUMN LAYOUT: API KEYS + ALLOWED NETWORKS ========== -->
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
-            @if($keys->isNotEmpty())
-                <div>
-                    <h3 class="text-sm font-semibold text-text-200 mb-3 uppercase tracking-wide">Active API Keys</h3>
-                    <div class="bg-surface-800 rounded-xl border border-border-700 overflow-x-auto thin-scrollbar">
-                        <table class="min-w-full divide-y divide-border-700">
-                            <thead class="bg-surface-900/80 text-xs uppercase tracking-wider text-text-400">
-                                <tr>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">Owner Label</th>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">Token Hash</th>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">Created</th>
-                                    <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-border-800">
-                                @foreach($keys as $key)
-                                    <tr class="hover:bg-surface-700/60 transition">
-                                        <td class="px-4 py-1 whitespace-nowrap font-mono text-sm text-munti-green-400">
-                                            {{ $key->owner_label }}
-                                        </td>
-                                        <td class="px-4 py-1 font-mono text-sm text-text-400 truncate max-w-xs">
-                                            {{ $key->token_hash }}
-                                        </td>
-                                        <td class="px-4 py-1 whitespace-nowrap">
-                                            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium border
-                                                {{ $key->enabled
-                                                    ? 'bg-munti-green-700/20 text-munti-green-400 border-munti-green-600/30'
-                                                    : 'bg-munti-red-700/20 text-munti-red-400 border-munti-red-600/30' }}">
-                                                {{ $key->enabled ? 'Enabled' : 'Disabled' }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-1 whitespace-nowrap text-xs text-text-500">
-                                            {{ $key->created_at->format('Y-m-d h:i A') }}
-                                        </td>
-                                        <td class="px-4 py-1 whitespace-nowrap text-right">
-                                            <button type="button"
-                                                    class="delete-key text-munti-red-400 hover:text-munti-red-300 transition p-1 rounded hover:bg-munti-red-700/20"
-                                                    data-token="{{ $key->token_hash }}"
-                                                    title="Delete key">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="1.35em" height="1.35em" viewBox="0 0 24 24">
-                                                    <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                                </svg>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                <!-- LEFT COLUMN: API KEYS -->
+                <div class="space-y-6">
+                    <div class="bg-surface-800 rounded-xl border border-border-700 p-5 sm:p-6">
+                        <h3 class="text-sm font-semibold text-text-200 mb-4 uppercase tracking-wide">Generate New API Key</h3>
+                        <form id="apiKeyForm" class="space-y-4">
+                            <div>
+                                <label for="ownerLabel" class="block text-sm font-medium text-text-300 mb-1.5">Owner Label</label>
+                                <input type="text" id="ownerLabel" placeholder="Enter owner label" required
+                                       class="w-full px-4 py-2.5 border border-border-600 rounded-lg
+                                              bg-surface-900 text-text-100 placeholder-text-500
+                                              focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                            </div>
+                            <button type="submit" id="saveBtn"
+                                    class="w-full px-4 py-2 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30">
+                                Generate & Save API Key
+                            </button>
+                        </form>
+                        <div id="apiStatus" class="mt-3 text-sm font-medium text-center"></div>
                     </div>
+
+                    @if($keys->isNotEmpty())
+                        <div>
+                            <h3 class="text-sm font-semibold text-text-200 mb-3 uppercase tracking-wide">Active API Keys</h3>
+                            <div class="bg-surface-800 rounded-xl border border-border-700 overflow-x-auto thin-scrollbar">
+                                <table class="min-w-full divide-y divide-border-700">
+                                    <thead class="bg-surface-900/80 text-xs uppercase tracking-wider text-text-400">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Owner Label</th>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Token Hash</th>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Created</th>
+                                            <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-border-800">
+                                        @foreach($keys as $key)
+                                            <tr class="hover:bg-surface-700/60 transition">
+                                                <td class="px-4 py-1 whitespace-nowrap font-mono text-sm text-munti-green-400">
+                                                    {{ $key->owner_label }}
+                                                </td>
+                                                <td class="px-4 py-1 font-mono text-sm text-text-400 truncate max-w-xs">
+                                                    {{ $key->token_hash }}
+                                                </td>
+                                                <td class="px-4 py-1 whitespace-nowrap">
+                                                    <span class="px-2.5 py-0.5 rounded-full text-xs font-medium border
+                                                        {{ $key->enabled
+                                                            ? 'bg-munti-green-700/20 text-munti-green-400 border-munti-green-600/30'
+                                                            : 'bg-munti-red-700/20 text-munti-red-400 border-munti-red-600/30' }}">
+                                                        {{ $key->enabled ? 'Enabled' : 'Disabled' }}
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-1 whitespace-nowrap text-xs text-text-500">
+                                                    {{ $key->created_at->format('Y-m-d h:i A') }}
+                                                </td>
+                                                <td class="px-4 py-1 whitespace-nowrap text-right">
+                                                    <button type="button"
+                                                            class="delete-key text-munti-red-400 hover:text-munti-red-300 transition p-1 rounded hover:bg-munti-red-700/20"
+                                                            data-token="{{ $key->token_hash }}"
+                                                            title="Delete key">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="1.35em" height="1.35em" viewBox="0 0 24 24">
+                                                            <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                                        </svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    @endif
                 </div>
-            @endif
 
-            <!-- ========== SECTION 2: ALLOWED NETWORKS ========== -->
-            <div class="bg-surface-800 rounded-xl border border-border-700 p-5 sm:p-6">
-                <h3 class="text-sm font-semibold text-text-200 mb-4 uppercase tracking-wide">Add Allowed IP/CIDR</h3>
-                <form id="allowedIpForm" class="space-y-4">
-                    <div>
-                        <label for="cidr" class="block text-sm font-medium text-text-300 mb-1.5">CIDR</label>
-                        <input type="text" id="cidr" placeholder="e.g. 192.168.1.0/24" required
-                               class="w-full px-4 py-2.5 border border-border-600 rounded-lg
-                                      bg-surface-900 text-text-100 placeholder-text-500
-                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
-                    </div>
-                    <div>
-                        <label for="label" class="block text-sm font-medium text-text-300 mb-1.5">Label</label>
-                        <input type="text" id="label" placeholder="e.g. Office Network" required
-                               class="w-full px-4 py-2.5 border border-border-600 rounded-lg
-                                      bg-surface-900 text-text-100 placeholder-text-500
-                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
-                    </div>
-                    <div class="flex items-center">
-                        <input type="checkbox" id="enabled" checked
-                               class="h-4 w-4 text-munti-green-600 focus:ring-munti-green-500 border-border-600 rounded bg-surface-900">
-                        <label for="enabled" class="ml-2 text-sm text-text-300">Enabled</label>
+                <!-- RIGHT COLUMN: ALLOWED NETWORKS -->
+                <div class="space-y-6">
+                    <div class="bg-surface-800 rounded-xl border border-border-700 p-5 sm:p-6">
+                        <h3 class="text-sm font-semibold text-text-200 mb-4 uppercase tracking-wide">Add Allowed IP/CIDR</h3>
+                        <form id="allowedIpForm" class="space-y-4">
+                            <div>
+                                <label for="cidr" class="block text-sm font-medium text-text-300 mb-1.5">CIDR</label>
+                                <input type="text" id="cidr" placeholder="e.g. 192.168.1.0/24" required
+                                       class="w-full px-4 py-2.5 border border-border-600 rounded-lg
+                                              bg-surface-900 text-text-100 placeholder-text-500
+                                              focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                            </div>
+                            <div>
+                                <label for="label" class="block text-sm font-medium text-text-300 mb-1.5">Label</label>
+                                <input type="text" id="label" placeholder="e.g. Office Network" required
+                                       class="w-full px-4 py-2.5 border border-border-600 rounded-lg
+                                              bg-surface-900 text-text-100 placeholder-text-500
+                                              focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" id="enabled" checked
+                                       class="h-4 w-4 text-munti-green-600 focus:ring-munti-green-500 border-border-600 rounded bg-surface-900">
+                                <label for="enabled" class="ml-2 text-sm text-text-300">Enabled</label>
+                            </div>
+
+                            <button type="submit" id="saveIpBtn"
+                                    class="w-full px-4 py-2 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30">
+                                Add Allowed IP
+                            </button>
+                        </form>
+                        <div id="networkStatus" class="mt-3 text-sm font-medium text-center"></div>
                     </div>
 
-                    <button type="submit" id="saveIpBtn"
-                            class="w-full px-4 py-2 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30">
-                        Add Allowed IP
-                    </button>
-                </form>
-                <div id="networkStatus" class="mt-3 text-sm font-medium text-center"></div>
-            </div>
-
-            @if($ips->isNotEmpty())
-                <div>
-                    <h3 class="text-sm font-semibold text-text-200 mb-3 uppercase tracking-wide">Current Allowed IPs</h3>
-                    <div class="bg-surface-800 rounded-xl border border-border-700 overflow-x-auto thin-scrollbar">
-                        <table class="min-w-full divide-y divide-border-700">
-                            <thead class="bg-surface-900/80 text-xs uppercase tracking-wider text-text-400">
-                                <tr>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">CIDR</th>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">Label</th>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">Created</th>
-                                    <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-border-800">
-                                @foreach($ips as $ip)
-                                    <tr class="hover:bg-surface-700/60 transition">
-                                        <td class="px-4 py-1 whitespace-nowrap font-mono text-sm text-munti-green-400">
-                                            {{ $ip->cidr }}
-                                        </td>
-                                        <td class="px-4 py-1 text-sm text-text-200">
-                                            {{ $ip->label }}
-                                        </td>
-                                        <td class="px-4 py-1 whitespace-nowrap">
-                                            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium border
-                                                {{ $ip->enabled
-                                                    ? 'bg-munti-green-700/20 text-munti-green-400 border-munti-green-600/30'
-                                                    : 'bg-munti-red-700/20 text-munti-red-400 border-munti-red-600/30' }}">
-                                                {{ $ip->enabled ? 'Enabled' : 'Disabled' }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-1 whitespace-nowrap text-xs text-text-500">
-                                            {{ \Carbon\Carbon::parse($ip->created_at)->format('Y-m-d h:i A') }}
-                                        </td>
-                                        <td class="px-4 py-1 whitespace-nowrap text-right">
-                                            <button type="button"
-                                                    class="delete-ip text-munti-red-400 hover:text-munti-red-300 transition p-1 rounded hover:bg-munti-red-700/20"
-                                                    data-cidr="{{ $ip->cidr }}"
-                                                    title="Delete IP">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="1.35em" height="1.35em" viewBox="0 0 24 24">
-                                                    <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                                </svg>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                    @if($ips->isNotEmpty())
+                        <div>
+                            <h3 class="text-sm font-semibold text-text-200 mb-3 uppercase tracking-wide">Current Allowed IPs</h3>
+                            <div class="bg-surface-800 rounded-xl border border-border-700 overflow-x-auto thin-scrollbar">
+                                <table class="min-w-full divide-y divide-border-700">
+                                    <thead class="bg-surface-900/80 text-xs uppercase tracking-wider text-text-400">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">CIDR</th>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Label</th>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Created</th>
+                                            <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-border-800">
+                                        @foreach($ips as $ip)
+                                            <tr class="hover:bg-surface-700/60 transition">
+                                                <td class="px-4 py-1 whitespace-nowrap font-mono text-sm text-munti-green-400">
+                                                    {{ $ip->cidr }}
+                                                </td>
+                                                <td class="px-4 py-1 text-sm text-text-200">
+                                                    {{ $ip->label }}
+                                                </td>
+                                                <td class="px-4 py-1 whitespace-nowrap">
+                                                    <span class="px-2.5 py-0.5 rounded-full text-xs font-medium border
+                                                        {{ $ip->enabled
+                                                            ? 'bg-munti-green-700/20 text-munti-green-400 border-munti-green-600/30'
+                                                            : 'bg-munti-red-700/20 text-munti-red-400 border-munti-red-600/30' }}">
+                                                        {{ $ip->enabled ? 'Enabled' : 'Disabled' }}
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-1 whitespace-nowrap text-xs text-text-500">
+                                                    {{ \Carbon\Carbon::parse($ip->created_at)->format('Y-m-d h:i A') }}
+                                                </td>
+                                                <td class="px-4 py-1 whitespace-nowrap text-right">
+                                                    <button type="button"
+                                                            class="delete-ip text-munti-red-400 hover:text-munti-red-300 transition p-1 rounded hover:bg-munti-red-700/20"
+                                                            data-cidr="{{ $ip->cidr }}"
+                                                            title="Delete IP">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="1.35em" height="1.35em" viewBox="0 0 24 24">
+                                                            <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                                        </svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    @endif
                 </div>
-            @endif
 
+            </div>
         </div>
     </div>
 </div>
