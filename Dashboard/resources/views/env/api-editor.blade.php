@@ -271,12 +271,11 @@
     document.querySelectorAll('.toggle-key').forEach(toggle => {
         toggle.addEventListener('change', async function() {
             const token = this.dataset.token;
-            const isChecked = this.checked;          // new state
-            const originalChecked = !isChecked;      // to revert on error
+            const isChecked = this.checked;
+            const originalChecked = !isChecked;
 
             try {
-                const url = `/api-keys/toggle/${token}`;
-                const response = await fetch(url, {
+                const response = await fetch(`/api-keys/toggle/${token}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -287,13 +286,13 @@
                 const data = await response.json();
 
                 if (!data.success) {
-                    this.checked = originalChecked;   // revert the toggle
+                    this.checked = originalChecked;
                     setStatus('Failed to update status.', 'error');
                 } else {
                     setStatus('Status updated successfully.', 'success');
                 }
             } catch (err) {
-                this.checked = originalChecked;       // revert on network error
+                this.checked = originalChecked;
                 setStatus('Server error', 'error');
                 console.error(err);
             }
