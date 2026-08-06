@@ -39,7 +39,6 @@ Route::middleware(['role:administrator'])->group(function () {
     Route::post('/api-keys/save', [ApiKeyController::class, 'save'])->name('api.keys.save');
     Route::delete('/api-keys/{token}', [ApiKeyController::class, 'destroy'])->name('api.keys.destroy');
 
-    Route::get('/allowed-networks', [AllowedNetworkController::class, 'index'])->name('allowed-networks.index');
     Route::post('/allowed-networks', [AllowedNetworkController::class, 'store'])->name('allowed-networks.store');
     Route::delete('/allowed-networks/{cidr}', [AllowedNetworkController::class, 'destroy'])->name('allowed-networks.destroy');
 

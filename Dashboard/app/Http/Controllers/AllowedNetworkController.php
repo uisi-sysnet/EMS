@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\AllowedIp; // you need to create this model
+use App\Models\AllowedIp; 
 
 class AllowedNetworkController extends Controller
 {
@@ -12,8 +12,9 @@ class AllowedNetworkController extends Controller
      */
     public function index()
     {
-        $ips = AllowedIp::orderBy('cidr')->get();
-        return view('env.allowed-networks', compact('ips'));
+        $keys = ApiKey::orderBy('owner_label')->get();
+        $ips  = AllowedIp::orderBy('cidr')->get(); // <-- Fetch allowed IPs
+        return view('env.api-editor', compact('keys', 'ips'));
     }
 
     /**

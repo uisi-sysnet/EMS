@@ -12,5 +12,5 @@ class AllowedIp extends Model
 
     protected $fillable = ['cidr', 'label', 'enabled'];
 
-    public $timestamps = false; // created_at is managed by DB default
+    public $timestamps = false; // because created_at is defaulted by DB
 }
