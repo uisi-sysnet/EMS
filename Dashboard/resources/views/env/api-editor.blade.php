@@ -139,22 +139,27 @@
                     <!-- Form Section -->
                     <div class="p-5 border-b border-border-700">
                         <form id="allowedIpForm" class="space-y-4">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
+                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
+                                <!-- CIDR -->
+                                <div class="sm:col-span-5">
                                     <label for="cidr" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">CIDR</label>
                                     <input type="text" id="cidr" placeholder="192.168.1.0/24" required
-                                           class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
-                                                  bg-surface-900 text-text-100 placeholder-text-500
-                                                  focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition font-mono">
+                                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
+                                                bg-surface-900 text-text-100 placeholder-text-500
+                                                focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition font-mono">
                                 </div>
-                                <div>
+
+                                <!-- Label -->
+                                <div class="sm:col-span-5">
                                     <label for="label" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Label</label>
                                     <input type="text" id="label" placeholder="Office Network" required
-                                           class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
-                                                  bg-surface-900 text-text-100 placeholder-text-500
-                                                  focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
+                                                bg-surface-900 text-text-100 placeholder-text-500
+                                                focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                                 </div>
-                                <div>
+
+                                <!-- Enabled -->
+                                <div class="sm:col-span-2 flex items-center gap-2 pb-2.5">
                                     <input type="checkbox" id="enabled" checked
                                         class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
                                     <label for="enabled" class="text-sm text-text-300 select-none cursor-pointer">Enabled</label>
