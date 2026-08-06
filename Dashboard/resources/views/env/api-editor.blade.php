@@ -23,27 +23,33 @@
         <!-- Content -->
         <div class="flex-1 overflow-y-auto thin-scrollbar min-h-0 bg-background-900 py-5 px-5 sm:px-8 space-y-8">
 
-            <!-- ========== TWO-COLUMN LAYOUT: API KEYS + ALLOWED NETWORKS ========== -->
+            <!-- ========== TWO-COLUMN LAYOUT ========== -->
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
-                <!-- LEFT COLUMN: API KEYS -->
-                <div class="space-y-6">
-                    <div class="bg-surface-800 rounded-xl border border-border-700 p-5 sm:p-6">
-                        <h3 class="text-sm font-semibold text-text-200 mb-4 uppercase tracking-wide">Generate New API Key</h3>
-                        <form id="apiKeyForm" class="space-y-4">
-                            <div>
-                                <label for="ownerLabel" class="block text-sm font-medium text-text-300 mb-1.5">Owner Label</label>
-                                <input type="text" id="ownerLabel" placeholder="Enter owner label" required
-                                       class="w-full px-4 py-2.5 border border-border-600 rounded-lg
-                                              bg-surface-900 text-text-100 placeholder-text-500
-                                              focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
-                            </div>
-                            <button type="submit" id="saveBtn"
-                                    class="w-full px-4 py-2 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30">
-                                Generate & Save API Key
-                            </button>
-                        </form>
-                        <div id="apiStatus" class="mt-3 text-sm font-medium text-center"></div>
+                <!-- LEFT: API KEYS -->
+                <div class="flex flex-col space-y-6 h-full">
+                    <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col flex-1">
+                        <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80">
+                            <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">Generate New API Key</h3>
+                        </div>
+                        <div class="p-5 sm:p-6 flex flex-col flex-1">
+                            <form id="apiKeyForm" class="space-y-4 flex-1 flex flex-col">
+                                <div>
+                                    <label for="ownerLabel" class="block text-sm font-medium text-text-300 mb-1.5">Owner Label</label>
+                                    <input type="text" id="ownerLabel" placeholder="Enter owner label" required
+                                           class="w-full px-4 py-2.5 border border-border-600 rounded-lg
+                                                  bg-surface-900 text-text-100 placeholder-text-500
+                                                  focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                                </div>
+                                <div class="mt-auto pt-2">
+                                    <button type="submit" id="saveBtn"
+                                            class="w-full px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30">
+                                        Generate & Save API Key
+                                    </button>
+                                </div>
+                            </form>
+                            <div id="apiStatus" class="mt-3 text-sm font-medium text-center"></div>
+                        </div>
                     </div>
 
                     @if($keys->isNotEmpty())
@@ -99,37 +105,48 @@
                     @endif
                 </div>
 
-                <!-- RIGHT COLUMN: ALLOWED NETWORKS -->
-                <div class="space-y-6">
-                    <div class="bg-surface-800 rounded-xl border border-border-700 p-5 sm:p-6">
-                        <h3 class="text-sm font-semibold text-text-200 mb-4 uppercase tracking-wide">Add Allowed IP/CIDR</h3>
-                        <form id="allowedIpForm" class="space-y-4">
-                            <div>
-                                <label for="cidr" class="block text-sm font-medium text-text-300 mb-1.5">CIDR</label>
-                                <input type="text" id="cidr" placeholder="e.g. 192.168.1.0/24" required
-                                       class="w-full px-4 py-2.5 border border-border-600 rounded-lg
-                                              bg-surface-900 text-text-100 placeholder-text-500
-                                              focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
-                            </div>
-                            <div>
-                                <label for="label" class="block text-sm font-medium text-text-300 mb-1.5">Label</label>
-                                <input type="text" id="label" placeholder="e.g. Office Network" required
-                                       class="w-full px-4 py-2.5 border border-border-600 rounded-lg
-                                              bg-surface-900 text-text-100 placeholder-text-500
-                                              focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
-                            </div>
-                            <div class="flex items-center">
-                                <input type="checkbox" id="enabled" checked
-                                       class="h-4 w-4 text-munti-green-600 focus:ring-munti-green-500 border-border-600 rounded bg-surface-900">
-                                <label for="enabled" class="ml-2 text-sm text-text-300">Enabled</label>
-                            </div>
+                <!-- RIGHT: ALLOWED NETWORKS -->
+                <div class="flex flex-col space-y-6 h-full">
+                    <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col flex-1">
+                        <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80">
+                            <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">Add Allowed IP/CIDR</h3>
+                        </div>
+                        <div class="p-5 sm:p-6 flex flex-col flex-1">
+                            <form id="allowedIpForm" class="space-y-4 flex-1 flex flex-col">
 
-                            <button type="submit" id="saveIpBtn"
-                                    class="w-full px-4 py-2 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30">
-                                Add Allowed IP
-                            </button>
-                        </form>
-                        <div id="networkStatus" class="mt-3 text-sm font-medium text-center"></div>
+                                <!-- CIDR + Label in ONE ROW -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="cidr" class="block text-sm font-medium text-text-300 mb-1.5">CIDR</label>
+                                        <input type="text" id="cidr" placeholder="e.g. 192.168.1.0/24" required
+                                               class="w-full px-4 py-2.5 border border-border-600 rounded-lg
+                                                      bg-surface-900 text-text-100 placeholder-text-500
+                                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                                    </div>
+                                    <div>
+                                        <label for="label" class="block text-sm font-medium text-text-300 mb-1.5">Label</label>
+                                        <input type="text" id="label" placeholder="e.g. Office Network" required
+                                               class="w-full px-4 py-2.5 border border-border-600 rounded-lg
+                                                      bg-surface-900 text-text-100 placeholder-text-500
+                                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="enabled" checked
+                                           class="h-4 w-4 text-munti-green-600 focus:ring-munti-green-500 border-border-600 rounded bg-surface-900">
+                                    <label for="enabled" class="ml-2 text-sm text-text-300">Enabled</label>
+                                </div>
+
+                                <div class="mt-auto pt-2">
+                                    <button type="submit" id="saveIpBtn"
+                                            class="w-full px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30">
+                                        Add Allowed IP
+                                    </button>
+                                </div>
+                            </form>
+                            <div id="networkStatus" class="mt-3 text-sm font-medium text-center"></div>
+                        </div>
                     </div>
 
                     @if($ips->isNotEmpty())
