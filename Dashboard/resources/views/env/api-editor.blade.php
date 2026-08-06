@@ -28,211 +28,213 @@
 
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full">
 
-                <!-- ==================== LEFT: API KEYS ==================== -->
-                <div class="flex flex-col gap-6">
+                <!-- ==================== LEFT: ALL API IN ONE CARD ==================== -->
+                <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm h-full">
 
-                    <!-- Generate Form Card -->
-                    <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
-                        <div class="px-5 py-3.5 border-b border-border-700 bg-surface-900/70 flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-munti-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-                            </svg>
-                            <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider">Generate New API Key</h3>
+                    <!-- Card Header -->
+                    <div class="px-5 py-3.5 border-b border-border-700 bg-surface-900/70 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-munti-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                        </svg>
+                        <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider">API Keys</h3>
+                    </div>
+
+                    <!-- Form Section -->
+                    <div class="p-5 border-b border-border-700">
+                        <form id="apiKeyForm" class="space-y-4">
+                            <div>
+                                <label for="ownerLabel" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Owner Label</label>
+                                <input type="text" id="ownerLabel" placeholder="e.g. Dashboard Client" required
+                                       class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
+                                              bg-surface-900 text-text-100 placeholder-text-500
+                                              focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                            </div>
+
+                            <button type="submit" id="saveBtn"
+                                    class="w-full px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30 flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                Generate & Save API Key
+                            </button>
+                        </form>
+                        <div id="apiStatus" class="mt-3 text-sm font-medium text-center min-h-[1.25rem]"></div>
+                    </div>
+
+                    <!-- Table Section -->
+                    <div class="flex-1 flex flex-col min-h-0">
+                        <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40">
+                            <h4 class="text-xs font-semibold text-text-400 uppercase tracking-wider flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span>
+                                Active API Keys
+                            </h4>
                         </div>
 
-                        <div class="p-5 flex flex-col flex-1">
-                            <form id="apiKeyForm" class="flex flex-col gap-4 flex-1">
+                        <div class="overflow-x-auto thin-scrollbar flex-1">
+                            @if($keys->isNotEmpty())
+                                <table class="min-w-full divide-y divide-border-700">
+                                    <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Owner</th>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Token Hash</th>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Created</th>
+                                            <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-border-800">
+                                        @foreach($keys as $key)
+                                            <tr class="hover:bg-surface-700/50 transition">
+                                                <td class="px-4 py-2.5 whitespace-nowrap font-mono text-sm text-munti-green-400">
+                                                    {{ $key->owner_label }}
+                                                </td>
+                                                <td class="px-4 py-2.5 font-mono text-xs text-text-400 truncate max-w-[140px]" title="{{ $key->token_hash }}">
+                                                    {{ $key->token_hash }}
+                                                </td>
+                                                <td class="px-4 py-2.5 whitespace-nowrap">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border
+                                                        {{ $key->enabled
+                                                            ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30'
+                                                            : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
+                                                        {{ $key->enabled ? 'Enabled' : 'Disabled' }}
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
+                                                    {{ $key->created_at->format('Y-m-d h:i A') }}
+                                                </td>
+                                                <td class="px-4 py-2.5 whitespace-nowrap text-right">
+                                                    <button type="button"
+                                                            class="delete-key text-munti-red-400 hover:text-munti-red-300 transition p-1.5 rounded-lg hover:bg-munti-red-700/20"
+                                                            data-token="{{ $key->token_hash }}"
+                                                            title="Delete key">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24">
+                                                            <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                                        </svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            @else
+                                <div class="flex items-center justify-center h-32 text-sm text-text-500">
+                                    No API keys yet
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== RIGHT: ALL IP IN ONE CARD ==================== -->
+                <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm h-full">
+
+                    <!-- Card Header -->
+                    <div class="px-5 py-3.5 border-b border-border-700 bg-surface-900/70 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-radar-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                        </svg>
+                        <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider">Allowed Networks</h3>
+                    </div>
+
+                    <!-- Form Section -->
+                    <div class="p-5 border-b border-border-700">
+                        <form id="allowedIpForm" class="space-y-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label for="ownerLabel" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Owner Label</label>
-                                    <input type="text" id="ownerLabel" placeholder="e.g. Dashboard Client" required
+                                    <label for="cidr" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">CIDR</label>
+                                    <input type="text" id="cidr" placeholder="192.168.1.0/24" required
+                                           class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
+                                                  bg-surface-900 text-text-100 placeholder-text-500
+                                                  focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition font-mono">
+                                </div>
+                                <div>
+                                    <label for="label" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Label</label>
+                                    <input type="text" id="label" placeholder="Office Network" required
                                            class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
                                                   bg-surface-900 text-text-100 placeholder-text-500
                                                   focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                                 </div>
-
-                                <div class="mt-auto pt-1">
-                                    <button type="submit" id="saveBtn"
-                                            class="w-full px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30 flex items-center justify-center gap-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                        </svg>
-                                        Generate & Save API Key
-                                    </button>
-                                </div>
-                            </form>
-                            <div id="apiStatus" class="mt-3 text-sm font-medium text-center min-h-[1.25rem]"></div>
-                        </div>
-                    </div>
-
-                    <!-- Active Keys Table -->
-                    @if($keys->isNotEmpty())
-                        <div class="flex flex-col flex-1 min-h-0">
-                            <h3 class="text-xs font-semibold text-text-400 mb-2.5 uppercase tracking-wider flex items-center gap-2">
-                                <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span>
-                                Active API Keys
-                            </h3>
-                            <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex-1">
-                                <div class="overflow-x-auto thin-scrollbar h-full">
-                                    <table class="min-w-full divide-y divide-border-700">
-                                        <thead class="bg-surface-900/80 text-[11px] uppercase tracking-wider text-text-500">
-                                            <tr>
-                                                <th scope="col" class="px-4 py-3 text-left font-medium">Owner</th>
-                                                <th scope="col" class="px-4 py-3 text-left font-medium">Token Hash</th>
-                                                <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
-                                                <th scope="col" class="px-4 py-3 text-left font-medium">Created</th>
-                                                <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-border-800">
-                                            @foreach($keys as $key)
-                                                <tr class="hover:bg-surface-700/50 transition">
-                                                    <td class="px-4 py-2.5 whitespace-nowrap font-mono text-sm text-munti-green-400">
-                                                        {{ $key->owner_label }}
-                                                    </td>
-                                                    <td class="px-4 py-2.5 font-mono text-xs text-text-400 truncate max-w-[140px]" title="{{ $key->token_hash }}">
-                                                        {{ $key->token_hash }}
-                                                    </td>
-                                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border
-                                                            {{ $key->enabled
-                                                                ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30'
-                                                                : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
-                                                            {{ $key->enabled ? 'Enabled' : 'Disabled' }}
-                                                        </span>
-                                                    </td>
-                                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                                        {{ $key->created_at->format('Y-m-d h:i A') }}
-                                                    </td>
-                                                    <td class="px-4 py-2.5 whitespace-nowrap text-right">
-                                                        <button type="button"
-                                                                class="delete-key text-munti-red-400 hover:text-munti-red-300 transition p-1.5 rounded-lg hover:bg-munti-red-700/20"
-                                                                data-token="{{ $key->token_hash }}"
-                                                                title="Delete key">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24">
-                                                                <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                                            </svg>
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
                             </div>
-                        </div>
-                    @endif
-                </div>
 
-                <!-- ==================== RIGHT: ALLOWED NETWORKS ==================== -->
-                <div class="flex flex-col gap-6">
+                            <div class="flex items-center gap-2.5">
+                                <input type="checkbox" id="enabled" checked
+                                       class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
+                                <label for="enabled" class="text-sm text-text-300 select-none cursor-pointer">Enabled</label>
+                            </div>
 
-                    <!-- Add IP Form Card -->
-                    <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
-                        <div class="px-5 py-3.5 border-b border-border-700 bg-surface-900/70 flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-radar-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
-                            </svg>
-                            <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider">Add Allowed IP / CIDR</h3>
-                        </div>
-
-                        <div class="p-5 flex flex-col flex-1">
-                            <form id="allowedIpForm" class="flex flex-col gap-4 flex-1">
-
-                                <!-- CIDR + Label side by side -->
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label for="cidr" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">CIDR</label>
-                                        <input type="text" id="cidr" placeholder="192.168.1.0/24" required
-                                               class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
-                                                      bg-surface-900 text-text-100 placeholder-text-500
-                                                      focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition font-mono">
-                                    </div>
-                                    <div>
-                                        <label for="label" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Label</label>
-                                        <input type="text" id="label" placeholder="Office Network" required
-                                               class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
-                                                      bg-surface-900 text-text-100 placeholder-text-500
-                                                      focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
-                                    </div>
-                                </div>
-
-                                <div class="flex items-center gap-2.5 pt-1">
-                                    <input type="checkbox" id="enabled" checked
-                                           class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
-                                    <label for="enabled" class="text-sm text-text-300 select-none cursor-pointer">Enabled</label>
-                                </div>
-
-                                <div class="mt-auto pt-1">
-                                    <button type="submit" id="saveIpBtn"
-                                            class="w-full px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30 flex items-center justify-center gap-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                        </svg>
-                                        Add Allowed IP
-                                    </button>
-                                </div>
-                            </form>
-                            <div id="networkStatus" class="mt-3 text-sm font-medium text-center min-h-[1.25rem]"></div>
-                        </div>
+                            <button type="submit" id="saveIpBtn"
+                                    class="w-full px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30 flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                Add Allowed IP
+                            </button>
+                        </form>
+                        <div id="networkStatus" class="mt-3 text-sm font-medium text-center min-h-[1.25rem]"></div>
                     </div>
 
-                    <!-- Current IPs Table -->
-                    @if($ips->isNotEmpty())
-                        <div class="flex flex-col flex-1 min-h-0">
-                            <h3 class="text-xs font-semibold text-text-400 mb-2.5 uppercase tracking-wider flex items-center gap-2">
+                    <!-- Table Section -->
+                    <div class="flex-1 flex flex-col min-h-0">
+                        <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40">
+                            <h4 class="text-xs font-semibold text-text-400 uppercase tracking-wider flex items-center gap-2">
                                 <span class="w-1.5 h-1.5 rounded-full bg-radar-400"></span>
                                 Current Allowed IPs
-                            </h3>
-                            <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex-1">
-                                <div class="overflow-x-auto thin-scrollbar h-full">
-                                    <table class="min-w-full divide-y divide-border-700">
-                                        <thead class="bg-surface-900/80 text-[11px] uppercase tracking-wider text-text-500">
-                                            <tr>
-                                                <th scope="col" class="px-4 py-3 text-left font-medium">CIDR</th>
-                                                <th scope="col" class="px-4 py-3 text-left font-medium">Label</th>
-                                                <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
-                                                <th scope="col" class="px-4 py-3 text-left font-medium">Created</th>
-                                                <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-border-800">
-                                            @foreach($ips as $ip)
-                                                <tr class="hover:bg-surface-700/50 transition">
-                                                    <td class="px-4 py-2.5 whitespace-nowrap font-mono text-sm text-munti-green-400">
-                                                        {{ $ip->cidr }}
-                                                    </td>
-                                                    <td class="px-4 py-2.5 text-sm text-text-200">
-                                                        {{ $ip->label }}
-                                                    </td>
-                                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border
-                                                            {{ $ip->enabled
-                                                                ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30'
-                                                                : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
-                                                            {{ $ip->enabled ? 'Enabled' : 'Disabled' }}
-                                                        </span>
-                                                    </td>
-                                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                                        {{ \Carbon\Carbon::parse($ip->created_at)->format('Y-m-d h:i A') }}
-                                                    </td>
-                                                    <td class="px-4 py-2.5 whitespace-nowrap text-right">
-                                                        <button type="button"
-                                                                class="delete-ip text-munti-red-400 hover:text-munti-red-300 transition p-1.5 rounded-lg hover:bg-munti-red-700/20"
-                                                                data-cidr="{{ $ip->cidr }}"
-                                                                title="Delete IP">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24">
-                                                                <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                                            </svg>
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+                            </h4>
                         </div>
-                    @endif
+
+                        <div class="overflow-x-auto thin-scrollbar flex-1">
+                            @if($ips->isNotEmpty())
+                                <table class="min-w-full divide-y divide-border-700">
+                                    <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">CIDR</th>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Label</th>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">Created</th>
+                                            <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-border-800">
+                                        @foreach($ips as $ip)
+                                            <tr class="hover:bg-surface-700/50 transition">
+                                                <td class="px-4 py-2.5 whitespace-nowrap font-mono text-sm text-munti-green-400">
+                                                    {{ $ip->cidr }}
+                                                </td>
+                                                <td class="px-4 py-2.5 text-sm text-text-200">
+                                                    {{ $ip->label }}
+                                                </td>
+                                                <td class="px-4 py-2.5 whitespace-nowrap">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border
+                                                        {{ $ip->enabled
+                                                            ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30'
+                                                            : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
+                                                        {{ $ip->enabled ? 'Enabled' : 'Disabled' }}
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
+                                                    {{ \Carbon\Carbon::parse($ip->created_at)->format('Y-m-d h:i A') }}
+                                                </td>
+                                                <td class="px-4 py-2.5 whitespace-nowrap text-right">
+                                                    <button type="button"
+                                                            class="delete-ip text-munti-red-400 hover:text-munti-red-300 transition p-1.5 rounded-lg hover:bg-munti-red-700/20"
+                                                            data-cidr="{{ $ip->cidr }}"
+                                                            title="Delete IP">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24">
+                                                            <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                                        </svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            @else
+                                <div class="flex items-center justify-center h-32 text-sm text-text-500">
+                                    No allowed IPs yet
+                                </div>
+                            @endif
+                        </div>
+                    </div>
                 </div>
 
             </div>
