@@ -41,33 +41,17 @@
             <div class="bg-surface-800 rounded-xl border border-border-700 p-5 sm:p-6">
                 <h3 class="text-sm font-semibold text-text-200 mb-4 uppercase tracking-wide">Generate New API Key</h3>
                 <form id="apiKeyForm" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="ownerLabel" class="block text-sm font-medium text-text-300 mb-1.5">Owner Label</label>
-                            <input type="text" id="ownerLabel" placeholder="Enter owner label" required
-                                class="w-full px-4 py-2.5 border border-border-600 rounded-lg
-                                       bg-surface-900 text-text-100 placeholder-text-500
-                                       focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
-                        </div>
-
-                        <div>
-                            <label for="tokenHash" class="block text-sm font-medium text-text-300 mb-1.5">Token Hash</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="tokenHash" readonly
-                                    class="flex-1 px-4 py-2.5 border border-border-600 rounded-lg
-                                           bg-surface-900 text-text-300 text-sm font-mono
-                                           focus:outline-none">
-                                <button type="button" id="generateBtn"
-                                    class="px-4 py-2.5 bg-radar-600 hover:bg-radar-500 text-text-100 text-sm font-medium rounded-lg transition border border-radar-500/40 shrink-0">
-                                    Generate
-                                </button>
-                            </div>
-                        </div>
+                    <div>
+                        <label for="ownerLabel" class="block text-sm font-medium text-text-300 mb-1.5">Owner Label</label>
+                        <input type="text" id="ownerLabel" placeholder="Enter owner label" required
+                               class="w-full px-4 py-2.5 border border-border-600 rounded-lg
+                                      bg-surface-900 text-text-100 placeholder-text-500
+                                      focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm transition">
                     </div>
 
                     <button type="submit" id="saveBtn"
-                        class="w-full px-4 py-2 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30">
-                        Save API Key
+                            class="w-full px-4 py-2 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30">
+                        Generate & Save API Key
                     </button>
                 </form>
                 <div id="status" class="mt-3 text-sm font-medium text-center"></div>
@@ -110,9 +94,9 @@
                                         </td>
                                         <td class="px-4 py-1 whitespace-nowrap text-right">
                                             <button type="button"
-                                                class="delete-key text-munti-red-400 hover:text-munti-red-300 transition p-1 rounded hover:bg-munti-red-700/20"
-                                                data-token="{{ $key->token_hash }}"
-                                                title="Delete key">
+                                                    class="delete-key text-munti-red-400 hover:text-munti-red-300 transition p-1 rounded hover:bg-munti-red-700/20"
+                                                    data-token="{{ $key->token_hash }}"
+                                                    title="Delete key">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="1.35em" height="1.35em" viewBox="0 0 24 24">
                                                     <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                                                 </svg>
@@ -132,8 +116,6 @@
 
 <script>
     const ownerLabelInput = document.getElementById('ownerLabel');
-    const tokenHashInput = document.getElementById('tokenHash');
-    const generateBtn = document.getElementById('generateBtn');
     const saveBtn = document.getElementById('saveBtn');
     const status = document.getElementById('status');
     const form = document.getElementById('apiKeyForm');
@@ -160,54 +142,22 @@
         status.textContent = message;
     }
 
-    // ----- Generate a random key from server -----
-    async function generateKey() {
-        setStatus('Generating...', 'info');
-        try {
-            const response = await fetch('{{ route('api.keys.generate') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
-            });
-            const data = await response.json();
-            if (data.key) {
-                tokenHashInput.value = data.key;
-                setStatus('Key generated', 'success');
-                validateForm();
-            } else {
-                setStatus('Failed to generate', 'error');
-            }
-        } catch (err) {
-            setStatus('Server error', 'error');
-            console.error(err);
-        }
-    }
-
-    // ----- Validate that label and hash are filled -----
+    // ----- Validate that label is filled -----
     function validateForm() {
         const label = ownerLabelInput.value.trim();
-        const hash = tokenHashInput.value.trim();
-        saveBtn.disabled = !(label && hash);
+        saveBtn.disabled = !label;
     }
 
-    // ----- Auto-generate on page load -----
-    window.addEventListener('DOMContentLoaded', () => {
-        generateKey();
-    });
-
-    generateBtn.addEventListener('click', generateKey);
     ownerLabelInput.addEventListener('input', validateForm);
+    validateForm(); // initial state
 
-    // ----- Save the key -----
+    // ----- Save the key (auto‑generated on server) -----
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const owner_label = ownerLabelInput.value.trim();
-        const token_hash = tokenHashInput.value.trim();
-        if (!owner_label || !token_hash) return;
+        if (!owner_label) return;
 
-        setStatus('Saving...', 'info');
+        setStatus('Generating and saving...', 'info');
         try {
             const response = await fetch('{{ route('api.keys.save') }}', {
                 method: 'POST',
@@ -215,17 +165,16 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({ owner_label, token_hash })
+                body: JSON.stringify({ owner_label })
             });
             const data = await response.json();
             if (data.success) {
-                setStatus('API key saved successfully!', 'success');
+                setStatus('API key generated and saved successfully!', 'success');
                 ownerLabelInput.value = '';
-                tokenHashInput.value = '';
                 validateForm();
                 setTimeout(() => location.reload(), 800);
             } else {
-                setStatus('' + (data.error || 'Save failed'), 'error');
+                setStatus('' + (data.error || 'Operation failed'), 'error');
             }
         } catch (err) {
             setStatus('Server error', 'error');

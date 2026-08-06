@@ -18,25 +18,32 @@ class ApiKeyController extends Controller
     }
 
     /**
-     * Save a new or update an existing key.
-     * The incoming token is hashed before storage — only the hash is persisted.
+     * Save a new API key.
+     * If token_hash is not provided, generate a random key and hash it.
      */
     public function save(Request $request)
     {
         $request->validate([
             'owner_label' => 'required|string|max:255',
-            'token_hash'  => 'required|string',
+            // token_hash is now optional – if omitted, we generate a new key
+            'token_hash'  => 'nullable|string',
         ]);
 
         $ownerLabel = trim($request->input('owner_label'));
-        $plainToken = trim($request->input('token_hash')); // plain token from the form
+        $plainToken = trim($request->input('token_hash'));
 
         // Sanitize label: uppercase, allow only letters, numbers, underscore
         $sanitizedLabel = strtoupper(preg_replace('/[^A-Za-z0-9_]/', '_', $ownerLabel));
 
-        // Hash the plain token — never store the raw value
+        // If no token provided, generate one
+        if (empty($plainToken)) {
+            $plainToken = bin2hex(random_bytes(20)); // 40-char hex
+        }
+
+        // Hash the plain token – never store raw
         $hashedToken = hash('sha256', $plainToken);
 
+        // Save (avoid duplicate hashes, though extremely unlikely)
         ApiKey::updateOrCreate(
             ['token_hash' => $hashedToken],
             [
@@ -45,6 +52,7 @@ class ApiKeyController extends Controller
             ]
         );
 
+        // For security, we do NOT return the plain token.
         return response()->json(['success' => true]);
     }
 
@@ -61,12 +69,10 @@ class ApiKeyController extends Controller
     }
 
     /**
-     * Generate a random plain API key for the user to copy.
-     * This plain value is shown once in the UI; only its hash is saved later.
+     * Generate a random plain API key (utility endpoint – kept for any other use).
      */
     public function generate()
     {
-        // 40-char hex string (20 random bytes)
         $key = bin2hex(random_bytes(20));
         return response()->json(['key' => $key]);
     }
