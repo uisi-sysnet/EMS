@@ -274,7 +274,7 @@
             const isChecked = this.checked;
             const originalChecked = !isChecked;
             try {
-                const url = "{{ route('api.keys.toggle', ['token' => '__TOKEN__']) }}".replace('__TOKEN__', token);
+                const url = "{{ url('/api-keys/toggle') }}/" + token;
                 const data = await response.json();
                 if (!data.success) {
                     this.checked = originalChecked;
