@@ -154,7 +154,7 @@
                                                   bg-surface-900 text-text-100 placeholder-text-500
                                                   focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                                 </div>
-                                <div class="flex items-center gap-2.5">
+                                <div>
                                     <input type="checkbox" id="enabled" checked
                                         class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
                                     <label for="enabled" class="text-sm text-text-300 select-none cursor-pointer">Enabled</label>
