@@ -1,6 +1,6 @@
 [Unit]
 Description=EMS Air Quality Ingestion Service
-Documentation=file://__EMS_DIR__/air_quality_ingest.py
+Documentation=file://__EMS_DIR__/scripts/air_quality_ingest.py
 After=network-online.target postgresql.service
 Wants=network-online.target
 PartOf=ems.target
@@ -8,9 +8,9 @@ PartOf=ems.target
 [Service]
 Type=simple
 User=__EMS_USER__
-WorkingDirectory=__EMS_DIR__
+WorkingDirectory=__EMS_DIR__/scripts
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/usr/bin/python3 __EMS_DIR__/air_quality_ingest.py
+ExecStart=/usr/bin/python3 __EMS_DIR__/scripts/air_quality_ingest.py
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

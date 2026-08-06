@@ -1,6 +1,6 @@
 [Unit]
 Description=EMS REST API Server
-Documentation=file://__EMS_DIR__/api_server.py
+Documentation=file://__EMS_DIR__/scripts/api_server.py
 After=network-online.target postgresql.service ems-air-quality.service ems-seismic.service
 Wants=network-online.target
 PartOf=ems.target
@@ -8,9 +8,9 @@ PartOf=ems.target
 [Service]
 Type=simple
 User=__EMS_USER__
-WorkingDirectory=__EMS_DIR__
+WorkingDirectory=__EMS_DIR__/scripts
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/usr/bin/python3 __EMS_DIR__/api_server.py
+ExecStart=/usr/bin/python3 __EMS_DIR__/scripts/api_server.py
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

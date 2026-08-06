@@ -1,6 +1,6 @@
 [Unit]
 Description=EMS Seismic MQTT Ingestion Service
-Documentation=file://__EMS_DIR__/seismic_mqtt.py
+Documentation=file://__EMS_DIR__/scripts/seismic_mqtt.py
 After=network-online.target postgresql.service mosquitto.service
 Wants=network-online.target
 PartOf=ems.target
@@ -8,9 +8,9 @@ PartOf=ems.target
 [Service]
 Type=simple
 User=__EMS_USER__
-WorkingDirectory=__EMS_DIR__
+WorkingDirectory=__EMS_DIR__/scripts
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/usr/bin/python3 __EMS_DIR__/seismic_mqtt.py
+ExecStart=/usr/bin/python3 __EMS_DIR__/scripts/seismic_mqtt.py
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
