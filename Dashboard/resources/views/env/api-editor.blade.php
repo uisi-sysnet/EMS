@@ -20,7 +20,7 @@
                 </svg>
                 <span class="leading-tight uppercase tracking-wide">API & Network Settings</span>
             </h2>
-            <span class="text-xs sm:text-sm text-text-400">Manage API keys and allowed IP/CIDR whitelist</span>
+            <span class="text-xs sm:text-sm text-text-400">Manage API keys and allowed IP/Network whitelist</span>
         </div>
 
         <!-- Content -->
@@ -85,14 +85,14 @@
                                     <tbody class="divide-y divide-border-800">
                                         @foreach($keys as $key)
                                             <tr class="hover:bg-surface-700/50 transition">
-                                                <td class="px-4 py-2.5 whitespace-nowrap font-mono text-sm text-munti-green-400">
+                                                <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-munti-green-400">
                                                     {{ $key->owner_label }}
                                                 </td>
                                                 <td class="px-4 py-2.5 font-mono text-xs text-text-400 truncate max-w-[140px]" title="{{ $key->token_hash }}">
                                                     {{ $key->token_hash }}
                                                 </td>
                                                 <td class="px-4 py-2.5 whitespace-nowrap">
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border
                                                         {{ $key->enabled
                                                             ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30'
                                                             : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
@@ -142,7 +142,7 @@
                             <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
                                 <!-- CIDR -->
                                 <div class="sm:col-span-5">
-                                    <label for="cidr" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">CIDR</label>
+                                    <label for="cidr" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">IP/Network</label>
                                     <input type="text" id="cidr" placeholder="192.168.1.0/24" required
                                         class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
                                                 bg-surface-900 text-text-100 placeholder-text-500
@@ -191,7 +191,7 @@
                                 <table class="min-w-full divide-y divide-border-700">
                                     <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500">
                                         <tr>
-                                            <th scope="col" class="px-4 py-3 text-left font-medium">CIDR</th>
+                                            <th scope="col" class="px-4 py-3 text-left font-medium">IP/Network</th>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Label</th>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Created</th>
@@ -201,14 +201,14 @@
                                     <tbody class="divide-y divide-border-800">
                                         @foreach($ips as $ip)
                                             <tr class="hover:bg-surface-700/50 transition">
-                                                <td class="px-4 py-2.5 whitespace-nowrap font-mono text-sm text-munti-green-400">
+                                                <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-munti-green-400">
                                                     {{ $ip->cidr }}
                                                 </td>
-                                                <td class="px-4 py-2.5 text-sm text-text-200">
+                                                <td class="px-4 py-2.5 text-xs text-text-200">
                                                     {{ $ip->label }}
                                                 </td>
                                                 <td class="px-4 py-2.5 whitespace-nowrap">
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border
                                                         {{ $ip->enabled
                                                             ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30'
                                                             : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
