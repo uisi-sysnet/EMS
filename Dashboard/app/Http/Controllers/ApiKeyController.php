@@ -76,4 +76,16 @@ class ApiKeyController extends Controller
         $key = bin2hex(random_bytes(20));
         return response()->json(['key' => $key]);
     }
+
+    /**
+     * Toggle the enabled status of an API key.
+     */
+    public function toggle(Request $request, $token)
+    {
+        $key = ApiKey::where('token_hash', $token)->firstOrFail();
+        $key->enabled = $request->input('enabled', !$key->enabled);
+        $key->save();
+
+        return response()->json(['success' => true]);
+    }
 }
