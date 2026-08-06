@@ -78,7 +78,7 @@
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Owner</th>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Token Hash</th>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
-                                            <th scope="col" class="px-4 py-3 text-left font-medium">Created</th>
+                                            {{-- <th scope="col" class="px-4 py-3 text-left font-medium">Created</th> --}}
                                             <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
                                         </tr>
                                     </thead>
@@ -99,9 +99,9 @@
                                                         {{ $key->enabled ? 'Enabled' : 'Disabled' }}
                                                     </span>
                                                 </td>
-                                                <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
+                                                {{-- <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
                                                     {{ $key->created_at->format('Y-m-d h:i A') }}
-                                                </td>
+                                                </td> --}}
                                                 <td class="px-4 py-2.5 whitespace-nowrap text-right">
                                                     <button type="button"
                                                             class="delete-key text-munti-red-400 hover:text-munti-red-300 transition p-1.5 rounded-lg hover:bg-munti-red-700/20"
@@ -194,7 +194,7 @@
                                             <th scope="col" class="px-4 py-3 text-left font-medium">IP/Network</th>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Label</th>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
-                                            <th scope="col" class="px-4 py-3 text-left font-medium">Created</th>
+                                            {{-- <th scope="col" class="px-4 py-3 text-left font-medium">Created</th> --}}
                                             <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
                                         </tr>
                                     </thead>
@@ -215,9 +215,9 @@
                                                         {{ $ip->enabled ? 'Enabled' : 'Disabled' }}
                                                     </span>
                                                 </td>
-                                                <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
+                                                {{-- <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
                                                     {{ \Carbon\Carbon::parse($ip->created_at)->format('Y-m-d h:i A') }}
-                                                </td>
+                                                </td> --}}
                                                 <td class="px-4 py-2.5 whitespace-nowrap text-right">
                                                     <button type="button"
                                                             class="delete-ip text-munti-red-400 hover:text-munti-red-300 transition p-1.5 rounded-lg hover:bg-munti-red-700/20"
