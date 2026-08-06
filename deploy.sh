@@ -11,7 +11,17 @@
 #   2. Python dependencies from requirements.txt (system-wide, no venv)
 #   3. Postgres role + CREATEDB privilege for SYSTEM_DB_USER (shared by
 #      both the AQ and Seismic databases; apps create their own
-#      databases/tables on first run)
+#      databases/tables on first run). Also grants SYSTEM_DB_USER schema
+#      privileges on IOT_api specifically, since that database is
+#      pre-created and owned by 'postgres' rather than by SYSTEM_DB_USER
+#      (see section 3 / "Ensuring database 'IOT_api' exists" below).
+#      Also pre-creates IOT_aq_sensor_data / IOT_seismic_sensor_data /
+#      IOT_api (if missing) and installs the 'timescaledb' extension into
+#      each as the 'postgres' superuser — CREATEDB lets SYSTEM_DB_USER
+#      create its own databases, but CREATE EXTENSION needs superuser
+#      regardless, so without this the first service to touch a brand-new
+#      database fails with "permission denied to create extension
+#      timescaledb" (see section 2 / "Ensure app databases exist..." below).
 #   4. Mosquitto authentication (password file for MQTT_USER)
 #
 # ASSUMPTIONS (adjust the variables below if these don't match your box):
@@ -619,6 +629,37 @@ SQL
 if [[ "$DB_IS_LOCAL" == true ]]; then
     create_role "${SYSTEM_DB_USER}" "${SYSTEM_DB_PASSWORD}"
 
+    # ---- Ensure app databases exist and have the timescaledb extension ----
+    # SYSTEM_DB_USER's CREATEDB privilege (above) is enough for
+    # air_quality_ingest.py / seismic_mqtt.py / api_server.py to create
+    # IOT_aq_sensor_data / IOT_seismic_sensor_data / IOT_api themselves on
+    # first run — but CREATEDB does NOT include permission to CREATE
+    # EXTENSION inside a database, that always requires superuser. Left
+    # alone, whichever service first touches a brand-new database dies with:
+    #   psycopg2.errors.InsufficientPrivilege: permission denied to create
+    #   extension "timescaledb"
+    # So we create the databases here (idempotent, matches the ownership
+    # each service would otherwise give them) and install the extension as
+    # 'postgres', so the app roles never have to.
+    ensure_db_with_extension() {
+        local dbname="$1" owner="$2"
+        if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '${dbname}'" | grep -q 1; then
+            log "Creating database '${dbname}' (owner: ${owner})"
+            sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE \"${dbname}\" OWNER ${owner};"
+        fi
+        log "Ensuring 'timescaledb' extension is installed in '${dbname}'"
+        sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d "${dbname}" -c "CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;"
+    }
+    # AQ/Seismic: owned by SYSTEM_DB_USER, same as when those scripts create
+    # them themselves via their own CREATEDB-backed connection.
+    ensure_db_with_extension "${AQ_DB_NAME:-IOT_aq_sensor_data}" "${SYSTEM_DB_USER}"
+    ensure_db_with_extension "${SEISMIC_DB_NAME:-IOT_seismic_sensor_data}" "${SYSTEM_DB_USER}"
+    # IOT_api: owned by 'postgres', matching the Laravel Dashboard section
+    # further below (which grants SYSTEM_DB_USER schema privileges on it
+    # separately) — creating it here is a no-op if that section creates it
+    # first, or vice versa; either order is safe.
+    ensure_db_with_extension "${API_DB_NAME:-IOT_api}" "postgres"
+
     # The Laravel Dashboard connects directly as the 'postgres' superuser
     # (see the Laravel .env block below), so it needs a password set for
     # TCP/scram-sha-256 auth just like the app roles above.
@@ -870,6 +911,18 @@ if [[ "$DB_IS_LOCAL" == true ]]; then
     else
         log "Database 'IOT_api' already exists, skipping creation"
     fi
+
+    # IOT_api is owned by 'postgres', unlike the AQ/Seismic/etc. databases
+    # which iot_user creates itself (and therefore already owns, via its
+    # CREATEDB privilege above). Laravel's migrations run against the 'api'
+    # connection as SYSTEM_DB_USER (iot_user), not as postgres — so without
+    # this grant, `php artisan migrate` fails with "permission denied for
+    # schema public" the first time it tries to create a table here.
+    # Re-run safe: GRANT and ALTER DEFAULT PRIVILEGES are both idempotent.
+    log "Granting '${SYSTEM_DB_USER}' schema privileges on 'IOT_api' (needed for Laravel migrations run via the 'api' connection)"
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d IOT_api -c "GRANT USAGE, CREATE ON SCHEMA public TO ${SYSTEM_DB_USER};"
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d IOT_api -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${SYSTEM_DB_USER};"
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d IOT_api -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${SYSTEM_DB_USER};"
 else
     warn "SYSTEM_DB_HOST is remote — skipping local database creation for Laravel."
     warn "Make sure database 'IOT_api' exists on that server and 'postgres' can log in with"
@@ -1001,7 +1054,9 @@ chmod -R 775 "${LARAVEL_DIR}/storage" "${LARAVEL_DIR}/bootstrap/cache" 2>/dev/nu
 # we never touch read/write bits or ownership on these directories, so this
 # doesn't expose file contents or change who owns anything outside LARAVEL_DIR.
 log "Checking that www-data can traverse into ${LARAVEL_DIR} (parent directory permissions)"
-_check_dir="$(dirname "$LARAVEL_DIR")"
+# Start at LARAVEL_DIR itself (not its parent) — it needs traversal
+# permission too, same as every directory above it.
+_check_dir="$LARAVEL_DIR"
 while [[ "$_check_dir" != "/" && -n "$_check_dir" ]]; do
     _perms="$(stat -c '%A' "$_check_dir" 2>/dev/null || true)"
     # 10-char perms string, e.g. drwxr-x---: char 10 is "other execute".
