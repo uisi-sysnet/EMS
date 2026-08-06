@@ -271,19 +271,29 @@
     document.querySelectorAll('.toggle-key').forEach(toggle => {
         toggle.addEventListener('change', async function() {
             const token = this.dataset.token;
-            const isChecked = this.checked;
-            const originalChecked = !isChecked;
+            const isChecked = this.checked;          // new state
+            const originalChecked = !isChecked;      // to revert on error
+
             try {
-                const url = "{{ url('/api-keys/toggle') }}/" + token;
+                const url = `/api-keys/toggle/${token}`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ enabled: isChecked })
+                });
                 const data = await response.json();
+
                 if (!data.success) {
-                    this.checked = originalChecked;
+                    this.checked = originalChecked;   // revert the toggle
                     setStatus('Failed to update status.', 'error');
                 } else {
                     setStatus('Status updated successfully.', 'success');
                 }
             } catch (err) {
-                this.checked = originalChecked;
+                this.checked = originalChecked;       // revert on network error
                 setStatus('Server error', 'error');
                 console.error(err);
             }
