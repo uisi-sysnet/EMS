@@ -9,6 +9,7 @@ air_quality_ingest.py and seismic_mqtt.py have already written.
 import logging
 import os
 import hashlib
+import ipaddress
 import threading
 import time
 from datetime import datetime, timezone
@@ -21,6 +22,7 @@ from psycopg2.extras import RealDictCursor
 
 import uvicorn
 from fastapi import FastAPI, Depends, HTTPException, Security, Request, Query, Path as ApiPath
+from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -321,6 +323,12 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=SCRIPT_DIR / ".env")
 
 API_PORT = int(os.getenv("API_PORT", 8443))
+# nginx is the intended public entry point (see deploy.sh) — default to
+# loopback-only so the API is unreachable unless something explicitly
+# proxies to it. Override only if you really need direct external access
+# without nginx in front (not recommended: the IP allowlist and API-key
+# checks below both rely on requests arriving via nginx).
+API_BIND_HOST = os.getenv("API_BIND_HOST", "127.0.0.1")
 
 # Parse "token:label,token:label" into a dict — used only for the one-time
 # migration into the api_keys table below; not read again after that.
@@ -341,6 +349,36 @@ def _parse_api_keys(raw: str):
 AUTHORIZED_KEYS: Dict[str, str] = {}
 _api_keys_lock = threading.Lock()
 API_KEYS_REFRESH_INTERVAL_SEC = int(os.getenv("API_KEYS_REFRESH_INTERVAL_SEC", 300))
+
+# ---- IP allowlist (also lives in IOT_api, table `allowed_ips`) ----
+# Same registry-in-DB / periodic-refresh pattern as AUTHORIZED_KEYS above,
+# so entries can be added/removed with plain SQL and picked up without a
+# restart. Checked in the middleware below, before the API key itself.
+AUTHORIZED_NETWORKS: List["ipaddress._BaseNetwork"] = []
+_ip_allowlist_lock = threading.Lock()
+IP_ALLOWLIST_REFRESH_INTERVAL_SEC = int(os.getenv("IP_ALLOWLIST_REFRESH_INTERVAL_SEC", 300))
+
+# This deployment sits behind nginx (confirmed), so the real client IP
+# arrives in a header rather than as the TCP peer address — uvicorn only
+# ever sees nginx's own IP as request.client.host. TRUST_PROXY_HEADERS
+# defaults on for that reason.
+#
+# Specifically this trusts X-Real-IP, not X-Forwarded-For — deploy.sh's
+# nginx config sets:
+#   proxy_set_header X-Real-IP        $remote_addr;              (overwritten every time — safe)
+#   proxy_set_header X-Forwarded-For  $proxy_add_x_forwarded_for; (appended to client input — spoofable)
+# $proxy_add_x_forwarded_for appends nginx's view of the client onto
+# whatever X-Forwarded-For the client already sent, so a client can prepend
+# a fake IP and it ends up first in that header. X-Real-IP has no such
+# hole: nginx replaces it outright regardless of what the client sends.
+#
+# This is only safe if BOTH of the following hold on the host:
+#   1. nginx is what deploy.sh installs (sets X-Real-IP as above).
+#   2. uvicorn is not reachable directly from outside — it must bind to
+#      127.0.0.1 (API_BIND_HOST, see below) so requests can only arrive via
+#      nginx. If it's reachable directly, anyone can hit it and set
+#      X-Real-IP themselves, bypassing the allowlist entirely.
+TRUST_PROXY_HEADERS = os.getenv("TRUST_PROXY_HEADERS", "true").strip().lower() == "true"
 
 API_DB = dict(
     host=os.getenv("SYSTEM_DB_HOST", "127.0.0.1"),
@@ -770,6 +808,105 @@ def api_keys_refresh_loop():
         refresh_api_keys()
 
 
+def initialize_ip_allowlist_table():
+    """Ensures IOT_api and its allowed_ips table exist, then loads the
+    initial registry into memory. Rows can hold a single IP ('203.0.113.7')
+    or a CIDR range ('203.0.113.0/24') — both are parsed the same way by
+    ipaddress.ip_network(..., strict=False)."""
+    _ensure_database_exists(API_DB, label="ahead of IP allowlist table init")
+    try:
+        conn = psycopg2.connect(**API_DB)
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS allowed_ips (
+                cidr VARCHAR(43) PRIMARY KEY,
+                label VARCHAR(100) NOT NULL,
+                enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        """)
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        logger.error(f"'allowed_ips' table setup failed: {e}")
+
+    refresh_ip_allowlist(initial=True)
+    threading.Thread(target=ip_allowlist_refresh_loop, daemon=True, name="IpAllowlistRefresh").start()
+
+
+def load_allowed_networks_from_db() -> List["ipaddress._BaseNetwork"]:
+    conn = psycopg2.connect(**API_DB)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT cidr FROM allowed_ips WHERE enabled = TRUE;")
+        networks = []
+        for (cidr,) in cur.fetchall():
+            try:
+                networks.append(ipaddress.ip_network(cidr.strip(), strict=False))
+            except ValueError:
+                logger.error(f"Skipping invalid entry in 'allowed_ips': {cidr!r}")
+        return networks
+    finally:
+        conn.close()
+
+
+def refresh_ip_allowlist(initial=False):
+    global AUTHORIZED_NETWORKS
+    try:
+        networks = load_allowed_networks_from_db()
+        with _ip_allowlist_lock:
+            AUTHORIZED_NETWORKS = networks
+        if initial:
+            if networks:
+                logger.info(f"Loaded {len(networks)} allowed IP/CIDR entr(y/ies) from the database.")
+            else:
+                logger.warning(
+                    "No enabled entries found in 'allowed_ips' — every request will be rejected "
+                    "until at least one row is added/enabled in that table, e.g.:\n"
+                    "  INSERT INTO allowed_ips (cidr, label) VALUES ('203.0.113.7', 'office');"
+                )
+        else:
+            logger.info(f"IP allowlist refreshed from database ({len(networks)} entr(y/ies)).")
+    except Exception as e:
+        logger.error(f"Failed to refresh IP allowlist from database: {e}")
+
+
+def get_authorized_networks() -> List["ipaddress._BaseNetwork"]:
+    with _ip_allowlist_lock:
+        return list(AUTHORIZED_NETWORKS)
+
+
+def ip_allowlist_refresh_loop():
+    while True:
+        time.sleep(IP_ALLOWLIST_REFRESH_INTERVAL_SEC)
+        refresh_ip_allowlist()
+
+
+def get_client_ip(request: Request) -> str:
+    """Real client IP, accounting for nginx sitting in front (see
+    TRUST_PROXY_HEADERS above). Uses X-Real-IP, which deploy.sh's nginx
+    config always overwrites to $remote_addr — not X-Forwarded-For, which
+    that same config builds with $proxy_add_x_forwarded_for and is
+    therefore spoofable by the client. Falls back to the direct TCP peer
+    if the header is missing, so this degrades safely if nginx config
+    drifts — though that fallback would then be nginx's own IP, not the
+    client's."""
+    if TRUST_PROXY_HEADERS:
+        real_ip = request.headers.get("X-Real-IP")
+        if real_ip:
+            return real_ip.strip()
+    return request.client.host if request.client else "Unknown"
+
+
+def is_ip_allowed(client_ip: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(client_ip)
+    except ValueError:
+        return False
+    return any(addr in network for network in get_authorized_networks())
+
+
 def get_seismic_conn():
     return _seismic_pool.getconn()
 
@@ -819,6 +956,9 @@ app = FastAPI(
     title="Environmental Monitoring System (Air Quality + Seismic)",
     version="1.0",
     description="""Read-only REST endpoints backed by the Air Quality and Seismic TimescaleDB databases.""",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
 )
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
 
@@ -854,9 +994,22 @@ def _mask_token(raw_token):
 @app.middleware("http")
 async def monitor_and_log_api_requests(request: Request, call_next):
     start_time = time.time()
-    client_ip = request.client.host if request.client else "Unknown"
+    client_ip = get_client_ip(request)
     method = request.method
     path = request.url.path
+
+    # IP allowlist is checked first, ahead of the API key and ahead of any
+    # route/DB work — an unlisted IP never even reaches verify_api_key.
+    if not is_ip_allowed(client_ip):
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        logger.error(f"[API] BLOCKED (IP not allowlisted): {client_ip} -> {method} {path}")
+        threading.Thread(
+            target=insert_api_log,
+            args=(client_ip, method, path, 403, duration_ms, "Blocked/IP", "N/A"),
+            daemon=True,
+        ).start()
+        return JSONResponse(status_code=403, content={"detail": "Unauthorized request: IP address not allowed"})
+
     raw_token = request.headers.get("X-API-Key")
     api_key_owner = get_authorized_keys().get(_hash_token(raw_token), "Unauthorized/None") if raw_token else "Unauthorized/None"
     masked_token = _mask_token(raw_token)
@@ -1515,5 +1668,6 @@ def system_health_check():
 if __name__ == "__main__":
     initialize_pools()
     initialize_api_keys_table()
-    logger.info(f"Monitoring API starting on 0.0.0.0:{API_PORT}")
-    uvicorn.run(app, host="0.0.0.0", port=API_PORT, log_level="warning")
+    initialize_ip_allowlist_table()
+    logger.info(f"Monitoring API starting on {API_BIND_HOST}:{API_PORT}")
+    uvicorn.run(app, host=API_BIND_HOST, port=API_PORT, log_level="warning")
