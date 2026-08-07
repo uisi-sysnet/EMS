@@ -6,7 +6,7 @@
     .thin-scrollbar::-webkit-scrollbar-track { background: #1A1A1A; border-radius: 10px; }
     .thin-scrollbar::-webkit-scrollbar-thumb { background: #4B5563; border-radius: 10px; }
     .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #6B7280; }
-    .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
+    .thin-scrollbar { scrollbar-width: thin; scroll-color: #4B5563 #1A1A1A; }
 </style>
 
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
@@ -26,6 +26,12 @@
             @if(session('success'))
                 <div class="mb-6 px-4 py-3 rounded-lg border border-munti-green-600/30 bg-munti-green-700/15 text-munti-green-400 text-sm font-medium">
                     {{ session('success') }}
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="mb-6 px-4 py-3 rounded-lg border border-munti-red-600/30 bg-munti-red-700/15 text-munti-red-400 text-sm font-medium">
+                    {{ session('error') }}
                 </div>
             @endif
 
@@ -157,11 +163,12 @@
 
                 <!-- Table Section -->
                 <div class="flex-1 flex flex-col min-h-0">
-                    <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40">
+                    <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
                         <h4 class="text-xs font-semibold text-text-400 uppercase tracking-wider flex items-center gap-2">
                             <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span>
                             Existing Stations
                         </h4>
+                        <span class="text-xs text-text-500">{{ $stations->count() }} station(s)</span>
                     </div>
 
                     <div class="overflow-x-auto thin-scrollbar flex-1">
@@ -178,6 +185,7 @@
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Lead Port</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Lead Slave</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Updated At</th>
+                                        <th scope="col" class="px-4 py-3 text-center font-medium">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-border-800">
@@ -215,6 +223,27 @@
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
                                                 {{ $station->updated_at ? $station->updated_at->format('Y-m-d H:i') : '' }}
                                             </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-center">
+                                                <div class="flex items-center justify-center gap-1.5">
+                                                    <!-- Edit Button -->
+                                                    <button onclick="openEditModal('{{ $station->id }}')"
+                                                            class="p-1.5 text-text-400 hover:text-radar-400 hover:bg-surface-700 rounded transition"
+                                                            title="Edit Station">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                        </svg>
+                                                    </button>
+
+                                                    <!-- Delete Button -->
+                                                    <button onclick="openDeleteModal('{{ $station->id }}', '{{ $station->station_mn }}')"
+                                                            class="p-1.5 text-text-400 hover:text-munti-red-400 hover:bg-surface-700 rounded transition"
+                                                            title="Delete Station">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -230,5 +259,230 @@
         </div>
     </div>
 </div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-black/70 transition-opacity" aria-hidden="true" onclick="closeEditModal()"></div>
+
+        <!-- Modal panel -->
+        <div class="relative inline-block align-bottom bg-surface-800 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full border border-border-700">
+            <form id="editForm" method="POST">
+                @csrf
+                @method('PUT')
+
+                <div class="px-6 py-4 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-text-100 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-radar-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        Edit Station
+                    </h3>
+                    <button type="button" onclick="closeEditModal()" class="text-text-400 hover:text-text-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="px-6 py-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Station MN -->
+                        <div class="flex flex-col">
+                            <label for="edit_station_mn" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Station MN <span class="text-munti-red-400">*</span>
+                            </label>
+                            <input type="text" id="edit_station_mn" name="station_mn" required
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        </div>
+
+                        <!-- Station Name -->
+                        <div class="flex flex-col">
+                            <label for="edit_station_name" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Station Name
+                            </label>
+                            <input type="text" id="edit_station_name" name="station_name"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        </div>
+
+                        <!-- Enabled -->
+                        <div class="flex flex-col">
+                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Enabled
+                            </label>
+                            <div class="flex items-center h-11 px-3.5">
+                                <input type="hidden" name="enabled" value="0">
+                                <input type="checkbox" id="edit_enabled" name="enabled" value="1"
+                                    class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
+                            </div>
+                        </div>
+
+                        <!-- Latitude -->
+                        <div class="flex flex-col">
+                            <label for="edit_latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Latitude
+                            </label>
+                            <input type="number" step="any" id="edit_latitude" name="latitude"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        </div>
+
+                        <!-- Longitude -->
+                        <div class="flex flex-col">
+                            <label for="edit_longitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Longitude
+                            </label>
+                            <input type="number" step="any" id="edit_longitude" name="longitude"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        </div>
+
+                        <!-- Lead IP -->
+                        <div class="flex flex-col">
+                            <label for="edit_lead_ip" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Lead IP
+                            </label>
+                            <input type="text" id="edit_lead_ip" name="lead_ip"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        </div>
+
+                        <!-- Lead Port -->
+                        <div class="flex flex-col">
+                            <label for="edit_lead_port" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Lead Port
+                            </label>
+                            <input type="number" id="edit_lead_port" name="lead_port"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        </div>
+
+                        <!-- Lead Slave -->
+                        <div class="flex flex-col">
+                            <label for="edit_lead_slave" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Lead Slave
+                            </label>
+                            <input type="number" id="edit_lead_slave" name="lead_slave"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 border-t border-border-700 bg-surface-900/40 flex justify-end gap-3">
+                    <button type="button" onclick="closeEditModal()"
+                            class="px-4 py-2 text-sm font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 rounded-lg transition">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-6 py-2 bg-radar-500 hover:bg-radar-400 text-text-100 font-semibold rounded-lg transition flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Update Station
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div id="deleteModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-black/70 transition-opacity" aria-hidden="true" onclick="closeDeleteModal()"></div>
+
+        <!-- Modal panel -->
+        <div class="relative inline-block align-bottom bg-surface-800 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-border-700">
+            <form id="deleteForm" method="POST">
+                @csrf
+                @method('DELETE')
+
+                <div class="px-6 py-5">
+                    <div class="flex items-start gap-4">
+                        <div class="flex-shrink-0 w-12 h-12 rounded-full bg-munti-red-700/20 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-munti-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-text-100">Delete Station</h3>
+                            <p class="mt-2 text-sm text-text-400">
+                                Are you sure you want to delete station <span id="deleteStationName" class="font-mono text-munti-red-400"></span>?
+                                This action cannot be undone.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 border-t border-border-700 bg-surface-900/40 flex justify-end gap-3">
+                    <button type="button" onclick="closeDeleteModal()"
+                            class="px-4 py-2 text-sm font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 rounded-lg transition">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-6 py-2 bg-munti-red-600 hover:bg-munti-red-500 text-text-100 font-semibold rounded-lg transition flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete Station
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Edit Modal Functions
+    function openEditModal(stationId) {
+        // Fetch station data via AJAX
+        fetch(`/stations/${stationId}/edit`)
+            .then(response => response.json())
+            .then(data => {
+                // Populate form fields
+                document.getElementById('edit_station_mn').value = data.station_mn;
+                document.getElementById('edit_station_name').value = data.station_name || '';
+                document.getElementById('edit_enabled').checked = data.enabled == 1;
+                document.getElementById('edit_latitude').value = data.latitude || '';
+                document.getElementById('edit_longitude').value = data.longitude || '';
+                document.getElementById('edit_lead_ip').value = data.lead_ip || '';
+                document.getElementById('edit_lead_port').value = data.lead_port || '';
+                document.getElementById('edit_lead_slave').value = data.lead_slave || '';
+
+                // Set form action
+                document.getElementById('editForm').action = `/stations/${stationId}`;
+
+                // Show modal
+                document.getElementById('editModal').classList.remove('hidden');
+            })
+            .catch(error => {
+                console.error('Error fetching station data:', error);
+                alert('Failed to load station data. Please try again.');
+            });
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.add('hidden');
+    }
+
+    // Delete Modal Functions
+    function openDeleteModal(stationId, stationMn) {
+        document.getElementById('deleteStationName').textContent = stationMn;
+        document.getElementById('deleteForm').action = `/stations/${stationId}`;
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+    }
+
+    // Close modals on Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeEditModal();
+            closeDeleteModal();
+        }
+    });
+
+    // Close modals on overlay click (already handled by onclick)
+</script>
 
 @include('layouts.footer')

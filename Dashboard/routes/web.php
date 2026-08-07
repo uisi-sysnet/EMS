@@ -29,6 +29,7 @@ Route::middleware(['role:administrator'])->group(function () {
 
     Route::get('/stations', [StationController::class, 'index'])->name('stations.index');
     Route::post('/stations', [StationController::class, 'store'])->name('stations.store');
+    Route::resource('stations', StationController::class);
 
     Route::get('/env-editor', [EnvEditorController::class, 'index'])->name('env.editor');
     Route::get('/load-env', [EnvEditorController::class, 'load'])->name('env.load');
