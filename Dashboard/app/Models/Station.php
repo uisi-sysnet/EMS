@@ -9,9 +9,8 @@ class Station extends Model
 {
     use HasFactory;
 
-    // 👇 Add this line – use the same connection as sensor_data
-    protected $connection = 'aq';   // or whatever your connection name is
-
+    protected $connection = 'aq';
+    
     protected $table = 'stations';
     protected $primaryKey = 'station_mn';
     public $incrementing = false;
