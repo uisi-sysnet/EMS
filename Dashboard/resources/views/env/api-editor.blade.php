@@ -432,6 +432,43 @@
         }
     });
 
+
+    document.querySelectorAll('.delete-key').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const token = this.dataset.token;
+            const row = this.closest('tr');
+            const owner = row.querySelector('td:first-child')?.textContent.trim() || token;
+            if (!confirm(`Delete API key for "${owner}"? This cannot be undone.`)) return;
+
+            try {
+                const response = await fetch(`/api-keys/${encodeURIComponent(token)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    throw new Error('Response is not JSON');
+                }
+                
+                const data = await response.json();
+                if (data.success) {
+                    row.remove();
+                    setApiStatus('Key deleted successfully!', 'success');
+                } else {
+                    setApiStatus('Failed to delete key.', 'error');
+                }
+            } catch (err) {
+                setApiStatus('Server error', 'error');
+                console.error(err);
+            }
+        });
+    });
+
     // ============ ALLOWED IP JAVASCRIPT ============
     const cidrInput = document.getElementById('cidr');
     const labelInput = document.getElementById('label');
@@ -500,13 +537,22 @@
             if (!confirm(`Delete allowed IP "${label}" (${cidr})? This cannot be undone.`)) return;
 
             try {
+                // Use the route helper or ensure proper URL encoding
                 const response = await fetch(`/allowed-networks/${encodeURIComponent(cidr)}`, {
                     method: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json' // Add this header
                     }
                 });
+                
+                // Check if response is JSON
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    throw new Error('Response is not JSON');
+                }
+                
                 const data = await response.json();
                 if (data.success) {
                     row.remove();
