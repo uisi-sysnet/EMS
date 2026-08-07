@@ -438,7 +438,23 @@
             const token = this.dataset.token;
             const row = this.closest('tr');
             const owner = row.querySelector('td:first-child')?.textContent.trim() || token;
-            if (!confirm(`Delete API key for "${owner}"? This cannot be undone.`)) return;
+            
+            // SweetAlert confirmation dialog
+            const result = await Swal.fire({
+                title: 'Delete API Key?',
+                html: `Are you sure you want to delete the API key for <strong>"${owner}"</strong>?<br><span style="color: #ef4444;">This action cannot be undone!</span>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel',
+                background: '#1f2937',
+                color: '#f3f4f6',
+                iconColor: '#f59e0b'
+            });
+
+            if (!result.isConfirmed) return;
 
             try {
                 const response = await fetch(`/api-keys/${encodeURIComponent(token)}`, {
@@ -456,13 +472,46 @@
                 }
                 
                 const data = await response.json();
+                
                 if (data.success) {
                     row.remove();
                     setApiStatus('Key deleted successfully!', 'success');
+                    
+                    // Success SweetAlert
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Deleted!',
+                        text: `API key for "${owner}" has been deleted.`,
+                        background: '#1f2937',
+                        color: '#f3f4f6',
+                        confirmButtonColor: '#059669',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
                 } else {
+                    // Error SweetAlert
+                    await Swal.fire({
+                        icon: 'error',
+                        title: 'Failed!',
+                        text: data.error || 'Failed to delete the API key.',
+                        background: '#1f2937',
+                        color: '#f3f4f6',
+                        confirmButtonColor: '#059669',
+                        confirmButtonText: 'OK'
+                    });
                     setApiStatus('Failed to delete key.', 'error');
                 }
             } catch (err) {
+                // Server error SweetAlert
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Server Error',
+                    text: 'An unexpected error occurred. Please try again later.',
+                    background: '#1f2937',
+                    color: '#f3f4f6',
+                    confirmButtonColor: '#059669',
+                    confirmButtonText: 'OK'
+                });
                 setApiStatus('Server error', 'error');
                 console.error(err);
             }
