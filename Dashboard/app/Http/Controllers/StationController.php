@@ -18,6 +18,14 @@ class StationController extends Controller
     }
 
     /**
+     * Show the form for editing a station.
+     */
+    public function edit(Station $station)
+    {
+        return response()->json($station);
+    }
+
+    /**
      * Store a newly created station.
      */
     public function store(Request $request)
@@ -40,5 +48,46 @@ class StationController extends Controller
 
         return redirect()->route('stations.index')
                          ->with('success', 'Station created successfully.');
+    }
+
+    /**
+     * Update the specified station.
+     */
+    public function update(Request $request, Station $station)
+    {
+        $validated = $request->validate([
+            'station_mn'   => [
+                'required',
+                'string',
+                'max:32',
+                Rule::unique('aq.stations', 'station_mn')->ignore($station->id)
+            ],
+            'station_name' => 'nullable|string|max:100',
+            'enabled'      => 'sometimes|boolean',
+            'latitude'     => 'nullable|numeric|between:-90,90',
+            'longitude'    => 'nullable|numeric|between:-180,180',
+            'lead_ip'      => 'nullable|string|max:64',
+            'lead_port'    => 'nullable|integer|min:0|max:65535',
+            'lead_slave'   => 'nullable|integer',
+        ]);
+
+        // Set default for enabled if not provided
+        $validated['enabled'] = $request->has('enabled') ? filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN) : false;
+
+        $station->update($validated);
+
+        return redirect()->route('stations.index')
+                         ->with('success', 'Station updated successfully.');
+    }
+
+    /**
+     * Remove the specified station.
+     */
+    public function destroy(Station $station)
+    {
+        $station->delete();
+
+        return redirect()->route('stations.index')
+                         ->with('success', 'Station deleted successfully.');
     }
 }
