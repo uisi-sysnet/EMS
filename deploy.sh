@@ -1072,6 +1072,30 @@ log "Caching Laravel config/routes/views for production"
 chown -R www-data:www-data "$LARAVEL_DIR"
 chmod -R 775 "${LARAVEL_DIR}/storage" "${LARAVEL_DIR}/bootstrap/cache" 2>/dev/null || true
 
+# ---- sudo rule for the Dashboard's Network Configuration page ----
+# NetworkController.php runs `sudo -n nmcli ...` as www-data to read/edit
+# interface settings via NetworkManager. Without a NOPASSWD rule for it,
+# every nmcli call fails with "sudo: a password is required" (the Network
+# Configuration page shows this same error, with this same fix, if it's
+# ever missing). Written via a dedicated file in /etc/sudoers.d/ rather
+# than editing /etc/sudoers directly, and validated with `visudo -cf`
+# before being trusted — a malformed sudoers file can break sudo system-
+# wide. Idempotent: safe to re-run, always ends up with the same rule.
+NMCLI_PATH="$(command -v nmcli || true)"
+if [[ -n "$NMCLI_PATH" ]]; then
+    log "Configuring passwordless sudo for www-data to run nmcli (${NMCLI_PATH})"
+    SUDOERS_FILE=/etc/sudoers.d/www-data-nmcli
+    echo "www-data ALL=(ALL) NOPASSWD: ${NMCLI_PATH}" > "$SUDOERS_FILE"
+    chown root:root "$SUDOERS_FILE"
+    chmod 440 "$SUDOERS_FILE"
+    if ! visudo -cf "$SUDOERS_FILE" >/dev/null 2>&1; then
+        rm -f "$SUDOERS_FILE"
+        warn "Generated sudoers rule for nmcli failed validation and was removed — the Network Configuration page will show a sudo password error until this is fixed manually (see that page's own error message for the exact line to add)."
+    fi
+else
+    warn "nmcli not found — skipping the www-data sudo rule for it. The Network Configuration page needs NetworkManager installed on this host; install it (apt-get install network-manager) and re-run this script, or add the sudoers rule manually later."
+fi
+
 # ---- Nginx site ----
 log "Writing nginx site config"
 cat > /etc/nginx/sites-available/ems-dashboard <<NGINXEOF
