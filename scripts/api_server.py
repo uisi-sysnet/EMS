@@ -356,7 +356,7 @@ API_KEYS_REFRESH_INTERVAL_SEC = int(os.getenv("API_KEYS_REFRESH_INTERVAL_SEC", 3
 # restart. Checked in the middleware below, before the API key itself.
 AUTHORIZED_NETWORKS: List["ipaddress._BaseNetwork"] = []
 _ip_allowlist_lock = threading.Lock()
-IP_ALLOWLIST_REFRESH_INTERVAL_SEC = int(os.getenv("IP_ALLOWLIST_REFRESH_INTERVAL_SEC", 300))
+IP_ALLOWLIST_REFRESH_INTERVAL_SEC = int(os.getenv("IP_ALLOWLIST_REFRESH_INTERVAL_SEC", 30))
 
 # This deployment sits behind nginx (confirmed), so the real client IP
 # arrives in a header rather than as the TCP peer address — uvicorn only
