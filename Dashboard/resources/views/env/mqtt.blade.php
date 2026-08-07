@@ -106,11 +106,11 @@
         // Display label mappings for MQTT settings
         const displayLabels = {
             'MQTT_BROKER_HOST': 'Host',
-            'MQTT_BROKER_PORT': 'port',
-            'MQTT_TIMEOUT_SEC': 'timeout (sec)',
-            'MQTT_TOPIC': 'topic',
-            'MQTT_USER': 'username',
-            'MQTT_PASSWORD': 'password'
+            'MQTT_BROKER_PORT': 'Port',
+            'MQTT_TIMEOUT_SEC': 'Timeout (sec)',
+            'MQTT_TOPIC': 'Topic',
+            'MQTT_USER': 'Username',
+            'MQTT_PASSWORD': 'Password'
         };
 
         lines.forEach(line => {
