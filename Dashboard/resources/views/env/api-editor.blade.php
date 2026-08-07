@@ -9,61 +9,6 @@
     .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
 </style>
 
-<!-- ==================== KEY CONFIRMATION MODAL ==================== -->
-<div id="keyModal" class="fixed inset-0 z-50 hidden">
-    <!-- Backdrop -->
-    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
-
-    <!-- Modal content -->
-    <div class="relative flex items-center justify-center min-h-full p-4">
-        <div class="bg-surface-800 border border-border-700 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <!-- Header -->
-            <div class="px-6 py-4 border-b border-border-700 bg-surface-900/80">
-                <h3 class="text-lg font-semibold text-text-100">Copy Your API Key</h3>
-            </div>
-
-            <!-- Body -->
-            <div class="px-6 py-5 space-y-4">
-                <div class="bg-munti-yellow-700/15 border border-munti-yellow-600/30 text-munti-yellow-300 text-sm rounded-lg px-4 py-3">
-                    <strong>Important:</strong> Copy the key now. It will <u>not</u> be shown again after saving.
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Your API Key
-                    </label>
-                    <div class="flex gap-2">
-                        <input type="text" id="modalKeyDisplay" readonly
-                            class="flex-1 min-w-0 px-3.5 py-2.5 border border-border-600 rounded-lg
-                                   bg-surface-900 text-text-100 font-mono text-sm cursor-default">
-                        <button type="button" id="modalCopyBtn"
-                                class="px-3 py-2 bg-surface-700 hover:bg-surface-600 text-text-300 rounded-lg border border-border-600 transition flex items-center shrink-0"
-                                title="Copy key">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-
-                <p id="modalCopyStatus" class="text-sm text-center min-h-[1.25rem]"></p>
-            </div>
-
-            <!-- Footer -->
-            <div class="px-6 py-4 border-t border-border-700 bg-surface-900/50 flex gap-3 justify-end">
-                <button type="button" id="modalCancelBtn"
-                        class="px-4 py-2 text-sm font-medium text-text-300 hover:text-text-100 bg-surface-700 hover:bg-surface-600 rounded-lg border border-border-600 transition">
-                    Cancel
-                </button>
-                <button type="button" id="modalConfirmBtn"
-                        class="px-4 py-2 text-sm font-semibold text-text-100 bg-munti-green-600 hover:bg-munti-green-500 rounded-lg border border-munti-green-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    Confirm & Save
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
     <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex flex-col min-h-0">
 
@@ -320,44 +265,25 @@
 
 <script>
     // ============ API KEY JAVASCRIPT ============
-    const ownerLabelInput   = document.getElementById('ownerLabel');
-    const generateBtn       = document.getElementById('generateBtn');
-    const saveBtn           = document.getElementById('saveBtn');
-    const apiStatus         = document.getElementById('apiStatus');
-    const apiForm           = document.getElementById('apiKeyForm');
+    const ownerLabelInput = document.getElementById('ownerLabel');
+    const generateBtn = document.getElementById('generateBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const apiStatus = document.getElementById('apiStatus');
+    const apiForm = document.getElementById('apiKeyForm');
     const generatedKeyInput = document.getElementById('generatedKey');
 
-    const keyModal          = document.getElementById('keyModal');
-    const modalKeyDisplay   = document.getElementById('modalKeyDisplay');
-    const modalCopyBtn      = document.getElementById('modalCopyBtn');
-    const modalCopyStatus   = document.getElementById('modalCopyStatus');
-    const modalCancelBtn    = document.getElementById('modalCancelBtn');
-    const modalConfirmBtn   = document.getElementById('modalConfirmBtn');
-
     let currentPlainKey = '';
-    let pendingOwnerLabel = '';
 
     function setApiStatus(message, type = 'info') {
         apiStatus.className = 'mt-3 text-sm font-medium text-center min-h-[1.25rem]';
         const classes = {
             'success': 'text-munti-green-400',
-            'error':   'text-munti-red-400',
-            'info':    'text-radar-400',
+            'error': 'text-munti-red-400',
+            'info': 'text-radar-400',
             'warning': 'text-munti-yellow-400'
         };
         apiStatus.classList.add(classes[type] || 'text-text-400');
         apiStatus.textContent = message;
-    }
-
-    function setModalCopyStatus(message, type = 'info') {
-        modalCopyStatus.className = 'text-sm text-center min-h-[1.25rem]';
-        const classes = {
-            'success': 'text-munti-green-400',
-            'error':   'text-munti-red-400',
-            'info':    'text-radar-400'
-        };
-        modalCopyStatus.classList.add(classes[type] || 'text-text-400');
-        modalCopyStatus.textContent = message;
     }
 
     function validateApiForm() {
@@ -368,7 +294,7 @@
     ownerLabelInput.addEventListener('input', validateApiForm);
     generatedKeyInput.addEventListener('input', validateApiForm);
 
-    // Generate key
+    // Generate key function
     async function generateKey() {
         setApiStatus('Generating key...', 'info');
         try {
@@ -377,7 +303,7 @@
             if (data.key) {
                 currentPlainKey = data.key;
                 generatedKeyInput.value = currentPlainKey;
-                setApiStatus('Key generated. Click Save to continue.', 'success');
+                setApiStatus('Key generated. Click Save to store it.', 'success');
                 validateApiForm();
             } else {
                 setApiStatus('Failed to generate key.', 'error');
@@ -390,50 +316,27 @@
 
     // Auto-generate on page load
     generateKey();
+
+    // Manual regenerate button
     generateBtn.addEventListener('click', generateKey);
 
-    // ===== SHOW MODAL ON SAVE CLICK =====
-    apiForm.addEventListener('submit', (e) => {
+    // Form submit – copy key then save
+    apiForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const owner_label = ownerLabelInput.value.trim();
-        const token_hash  = generatedKeyInput.value.trim();
+        const token_hash = generatedKeyInput.value.trim();
         if (!owner_label || !token_hash) return;
 
-        // Store values for later
-        pendingOwnerLabel = owner_label;
-        currentPlainKey   = token_hash;
-
-        // Show modal
-        modalKeyDisplay.value = currentPlainKey;
-        setModalCopyStatus('Please copy the key before confirming.', 'info');
-        modalConfirmBtn.disabled = true;          // force user to copy first
-        keyModal.classList.remove('hidden');
-    });
-
-    // Copy button inside modal
-    modalCopyBtn.addEventListener('click', async () => {
+        // 1. Copy the plain key to clipboard first
         try {
-            await navigator.clipboard.writeText(modalKeyDisplay.value);
-            setModalCopyStatus('Key copied to clipboard!', 'success');
-            modalConfirmBtn.disabled = false;     // now allow saving
+            await navigator.clipboard.writeText(token_hash);
         } catch (err) {
-            modalKeyDisplay.select();
+            // Fallback for older browsers
+            generatedKeyInput.select();
             document.execCommand('copy');
-            setModalCopyStatus('Key copied!', 'success');
-            modalConfirmBtn.disabled = false;
         }
-    });
 
-    // Cancel button
-    modalCancelBtn.addEventListener('click', () => {
-        keyModal.classList.add('hidden');
-        setApiStatus('Save cancelled.', 'info');
-    });
-
-    // Confirm & Save button
-    modalConfirmBtn.addEventListener('click', async () => {
-        modalConfirmBtn.disabled = true;
-        setModalCopyStatus('Saving...', 'info');
+        setApiStatus('Key copied. Saving...', 'info');
 
         try {
             const response = await fetch('{{ route('api.keys.save') }}', {
@@ -442,29 +345,22 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({
-                    owner_label: pendingOwnerLabel,
-                    token_hash:  currentPlainKey
-                })
+                body: JSON.stringify({ owner_label, token_hash })
             });
             const data = await response.json();
 
             if (data.success) {
-                keyModal.classList.add('hidden');
                 ownerLabelInput.value = '';
                 generatedKeyInput.value = '';
                 currentPlainKey = '';
-                pendingOwnerLabel = '';
                 validateApiForm();
-                setApiStatus('Key saved successfully!', 'success');
-                setTimeout(() => location.reload(), 800);
+                setApiStatus('Key copied to clipboard & saved successfully!', 'success');
+                setTimeout(() => location.reload(), 1000);
             } else {
-                setModalCopyStatus(data.error || 'Operation failed', 'error');
-                modalConfirmBtn.disabled = false;
+                setApiStatus(data.error || 'Operation failed', 'error');
             }
         } catch (err) {
-            setModalCopyStatus('Server error', 'error');
-            modalConfirmBtn.disabled = false;
+            setApiStatus('Server error', 'error');
             console.error(err);
         }
     });
