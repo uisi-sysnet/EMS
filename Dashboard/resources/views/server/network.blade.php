@@ -215,6 +215,8 @@
             </div>
         `;
 
+        container.innerHTML = html;
+
         // Restart Ethernet
         document.getElementById('restartEthBtn')?.addEventListener('click', async function () {
             const btn = this;
@@ -245,8 +247,6 @@
                 btn.textContent = originalText;
             }
         });
-
-        container.innerHTML = html;
 
         // Attach event listeners
         const ethDhcp = document.getElementById('eth_dhcp4');
@@ -343,6 +343,8 @@
     }
 
     // ----- Load -----
+    saveBtn.disabled = true;
+    saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
     setStatus("Loading configuration...", "info");
     fetch('{{ route('network.load') }}')
         .then(res => res.json())
@@ -351,10 +353,16 @@
                 buildForm(data.eth, data.wlan);
                 setStatus("Loaded successfully", "success");
             } else {
+                container.innerHTML = `<div class="text-red-400 text-sm">Failed to load network configuration: ${escapeHtml(data.error || 'unknown error')}</div>`;
                 setStatus(data.error || "Failed to load configuration", "error");
+                console.error('Network load failed:', data.error);
             }
         })
-        .catch(() => setStatus("Server error", "error"));
+        .catch((err) => {
+            container.innerHTML = `<div class="text-red-400 text-sm">Could not reach the server to load network configuration.</div>`;
+            setStatus("Server error", "error");
+            console.error(err);
+        });
 
     // ----- Save -----
     saveBtn.addEventListener('click', async () => {
