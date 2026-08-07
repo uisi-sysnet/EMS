@@ -23,7 +23,7 @@ class StationController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'station_mn'   => 'required|string|max:32|unique:stations,station_mn',
+            'station_mn'   => 'required|string|max:32|unique:aq.stations,station_mn',
             'station_name' => 'nullable|string|max:100',
             'enabled'      => 'sometimes|boolean',
             'latitude'     => 'nullable|numeric|between:-90,90',
