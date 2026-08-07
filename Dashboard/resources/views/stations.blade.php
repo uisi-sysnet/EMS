@@ -132,7 +132,7 @@
                                     Enabled
                                 </label>
                                 <div class="flex items-center gap-3 flex-1">
-                                    <div class="flex items-center flex-1 h-11 px-2">
+                                    <div class="flex items-center h-11 px-3.5">
                                         <input type="hidden" name="enabled" value="0">
                                         <input type="checkbox" id="enabled" name="enabled" value="1"
                                             {{ old('enabled', true) ? 'checked' : '' }}
