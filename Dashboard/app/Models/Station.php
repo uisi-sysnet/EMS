@@ -16,7 +16,7 @@ class Station extends Model
     protected $primaryKey = 'station_mn';
     public $incrementing = false;
     protected $keyType = 'string';
-    public $timestamps = true;
+    public $timestamps = false; 
 
     protected $fillable = [
         'station_mn', 'station_name', 'enabled', 'latitude', 'longitude',
