@@ -390,9 +390,17 @@ class NetworkController extends Controller
             }
         }
 
-        // Optionally restart eth0 (if it's up)
-        /* $this->runNmcli("nmcli con up " . escapeshellarg($conn));
-        Log::info("Ethernet connection restarted"); */
+        // Restart eth0 so the new settings (static IP/gateway/DNS or a
+        // switch back to DHCP) actually take effect — mirrors saveWlan()
+        // below, which has always done this for WiFi. Non-fatal: if the
+        // restart fails, the config is still saved and applies on the
+        // next reboot or manual "Restart Connection" click.
+        $output = $this->runNmcli("nmcli con up " . escapeshellarg($conn));
+        if (preg_match('/error|failed/i', $output)) {
+            Log::error("Ethernet restart after save failed: {$output}");
+        } else {
+            Log::info("Ethernet connection restarted");
+        }
     }
 
     public function restartEth()
