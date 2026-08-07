@@ -305,10 +305,18 @@
         };
     }
 
-    function hasChanges() {
+    function hasEthChanges() {
         const current = getCurrentValues();
-        return JSON.stringify(current.eth) !== JSON.stringify(originalValues.eth) ||
-               JSON.stringify(current.wlan) !== JSON.stringify(originalValues.wlan);
+        return JSON.stringify(current.eth) !== JSON.stringify(originalValues.eth);
+    }
+
+    function hasWlanChanges() {
+        const current = getCurrentValues();
+        return JSON.stringify(current.wlan) !== JSON.stringify(originalValues.wlan);
+    }
+
+    function hasChanges() {
+        return hasEthChanges() || hasWlanChanges();
     }
 
     function updateSaveButtonState() {
@@ -366,12 +374,19 @@
 
     // ----- Save -----
     saveBtn.addEventListener('click', async () => {
-        if (!hasChanges()) {
+        const ethChanged = hasEthChanges();
+        const wlanChanged = hasWlanChanges();
+
+        if (!ethChanged && !wlanChanged) {
             setStatus("No changes to save", "warning");
             return;
         }
 
         const current = getCurrentValues();
+        const payload = {};
+        if (ethChanged) payload.eth = current.eth;
+        if (wlanChanged) payload.wlan = current.wlan;
+
         setStatus("Saving...", "info");
 
         try {
@@ -381,12 +396,12 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({ eth: current.eth, wlan: current.wlan })
+                body: JSON.stringify(payload)
             });
 
             const data = await response.json();
             if (data.success) {
-                setStatus("Saved successfully!", "success");
+                setStatus(data.message || "Saved successfully!", "success");
                 originalValues = { ...current };
                 updateSaveButtonState();
             } else {

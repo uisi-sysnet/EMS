@@ -266,25 +266,44 @@ class NetworkController extends Controller
 
         try {
             $validated = $request->validate([
-                // Ethernet
-                'eth.dhcp4'       => 'required|boolean',
+                // Ethernet — rules only fire, and 'eth' only appears in
+                // $validated, when the request actually includes an 'eth'
+                // section. This is what lets an Ethernet-only save skip
+                // WiFi entirely (and vice versa) instead of always
+                // touching/restarting both connections.
+                'eth'             => 'sometimes|array',
+                'eth.dhcp4'       => 'required_with:eth|boolean',
                 'eth.address'     => 'nullable|string|required_if:eth.dhcp4,false',
                 'eth.gateway'     => 'nullable|ip|required_if:eth.dhcp4,false',
                 'eth.nameservers' => 'nullable|string',
 
-                // WiFi (existing)
-                'wlan.dhcp4'       => 'required|boolean',
-                'wlan.ssid'        => 'required|string',
+                // WiFi
+                'wlan'             => 'sometimes|array',
+                'wlan.dhcp4'       => 'required_with:wlan|boolean',
+                'wlan.ssid'        => 'required_with:wlan|string',
                 'wlan.password'    => 'nullable|string',
                 'wlan.address'     => 'nullable|string|required_if:wlan.dhcp4,false',
                 'wlan.gateway'     => 'nullable|ip|required_if:wlan.dhcp4,false',
                 'wlan.nameservers' => 'nullable|string',
             ]);
 
-            $this->saveEth($validated['eth']);
-            $this->saveWlan($validated['wlan']);
+            $updated = [];
 
-            return response()->json(['success' => true, 'message' => 'Network settings updated']);
+            if (array_key_exists('eth', $validated)) {
+                $this->saveEth($validated['eth']);
+                $updated[] = 'Ethernet';
+            }
+
+            if (array_key_exists('wlan', $validated)) {
+                $this->saveWlan($validated['wlan']);
+                $updated[] = 'WiFi';
+            }
+
+            if (empty($updated)) {
+                return response()->json(['success' => false, 'error' => 'No changes were submitted.'], 422);
+            }
+
+            return response()->json(['success' => true, 'message' => implode(' and ', $updated) . ' settings updated']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['success' => false, 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
