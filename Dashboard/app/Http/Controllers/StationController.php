@@ -20,8 +20,9 @@ class StationController extends Controller
     /**
      * Show the form for editing a station.
      */
-    public function edit(Station $station)
+    public function edit(string $station_mn)
     {
+        $station = Station::findOrFail($station_mn);
         return response()->json($station);
     }
 
@@ -31,7 +32,7 @@ class StationController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'station_mn'   => 'required|string|max:32|unique:aq.stations,station_mn',
+            'station_mn'   => 'required|string|max:32|unique:stations,station_mn',
             'station_name' => 'nullable|string|max:100',
             'enabled'      => 'sometimes|boolean',
             'latitude'     => 'nullable|numeric|between:-90,90',
@@ -41,7 +42,6 @@ class StationController extends Controller
             'lead_slave'   => 'nullable|integer',
         ]);
 
-        // Set default for enabled if not provided
         $validated['enabled'] = $request->has('enabled') ? filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN) : true;
 
         Station::create($validated);
@@ -53,14 +53,16 @@ class StationController extends Controller
     /**
      * Update the specified station.
      */
-    public function update(Request $request, Station $station)
+    public function update(Request $request, string $station_mn)
     {
+        $station = Station::findOrFail($station_mn);
+        
         $validated = $request->validate([
             'station_mn'   => [
                 'required',
                 'string',
                 'max:32',
-                Rule::unique('aq.stations', 'station_mn')->ignore($station->id)
+                Rule::unique('stations', 'station_mn')->ignore($station_mn, 'station_mn')
             ],
             'station_name' => 'nullable|string|max:100',
             'enabled'      => 'sometimes|boolean',
@@ -71,7 +73,6 @@ class StationController extends Controller
             'lead_slave'   => 'nullable|integer',
         ]);
 
-        // Set default for enabled if not provided
         $validated['enabled'] = $request->has('enabled') ? filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN) : false;
 
         $station->update($validated);
@@ -83,8 +84,9 @@ class StationController extends Controller
     /**
      * Remove the specified station.
      */
-    public function destroy(Station $station)
+    public function destroy(string $station_mn)
     {
+        $station = Station::findOrFail($station_mn);
         $station->delete();
 
         return redirect()->route('stations.index')

@@ -337,7 +337,7 @@
                                                 <div class="flex items-center justify-center gap-1.5">
                                                     <!-- Edit Button -->
                                                     <button type="button" 
-                                                            onclick="editStation('{{ $station->id }}')"
+                                                            onclick="editStation('{{ $station->station_mn }}')"
                                                             class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group"
                                                             title="Edit Station">
                                                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -347,7 +347,7 @@
 
                                                     <!-- Delete Button -->
                                                     <button type="button" 
-                                                            onclick="deleteStation('{{ $station->id }}', '{{ $station->station_mn }}')"
+                                                            onclick="deleteStation('{{ $station->station_mn }}', '{{ $station->station_mn }}')"
                                                             class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group"
                                                             title="Delete Station">
                                                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -372,87 +372,78 @@
     </div>
 </div>
 <script>
-    // Edit Station
-    function editStation(stationId) {
-        const modal = document.getElementById('editModal');
-        modal.style.display = 'flex';
-        
-        // Fetch station data
-        fetch(`/stations/${stationId}/edit`)
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('edit_station_mn').value = data.station_mn || '';
-                document.getElementById('edit_station_name').value = data.station_name || '';
-                document.getElementById('edit_latitude').value = data.latitude || '';
-                document.getElementById('edit_longitude').value = data.longitude || '';
-                document.getElementById('edit_lead_ip').value = data.lead_ip || '';
-                document.getElementById('edit_lead_port').value = data.lead_port || '';
-                document.getElementById('edit_lead_slave').value = data.lead_slave || '';
-                document.getElementById('edit_enabled').checked = data.enabled === 1;
-                
-                // Set form action
-                document.getElementById('editForm').action = `/stations/${stationId}`;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to load station data.');
-            });
-    }
-
-    function closeEditModal() {
-        document.getElementById('editModal').style.display = 'none';
-    }
-
-    // Replace the deleteStation function with this version
-    function deleteStation(stationId, stationMn) {
-        Swal.fire({
-            title: 'Delete Station?',
-            html: `Are you sure you want to delete station <strong>"${stationMn}"</strong>?<br>This action cannot be undone.`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'Cancel',
-            background: '#1f2937',
-            color: '#e5e7eb',
-            iconColor: '#ef4444'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = `/stations/${stationId}`;
-                
-                const csrfToken = document.createElement('input');
-                csrfToken.type = 'hidden';
-                csrfToken.name = '_token';
-                csrfToken.value = '{{ csrf_token() }}';
-                form.appendChild(csrfToken);
-                
-                const methodField = document.createElement('input');
-                methodField.type = 'hidden';
-                methodField.name = '_method';
-                methodField.value = 'DELETE';
-                form.appendChild(methodField);
-                
-                document.body.appendChild(form);
-                form.submit();
+// Edit Station
+function editStation(stationMn) {
+    const modal = document.getElementById('editModal');
+    modal.style.display = 'flex';
+    
+    // Fetch station data
+    fetch(`/stations/${stationMn}/edit`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
             }
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById('edit_station_mn').value = data.station_mn || '';
+            document.getElementById('edit_station_name').value = data.station_name || '';
+            document.getElementById('edit_latitude').value = data.latitude || '';
+            document.getElementById('edit_longitude').value = data.longitude || '';
+            document.getElementById('edit_lead_ip').value = data.lead_ip || '';
+            document.getElementById('edit_lead_port').value = data.lead_port || '';
+            document.getElementById('edit_lead_slave').value = data.lead_slave || '';
+            document.getElementById('edit_enabled').checked = data.enabled === true;
+            
+            // Set form action
+            document.getElementById('editForm').action = `/stations/${stationMn}`;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to load station data. Please refresh and try again.');
         });
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+// Delete Station
+function deleteStation(stationMn, stationName) {
+    if (confirm(`Are you sure you want to delete station "${stationName}"? This action cannot be undone.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/stations/${stationMn}`;
+        
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = '_token';
+        csrfToken.value = '{{ csrf_token() }}';
+        form.appendChild(csrfToken);
+        
+        const methodField = document.createElement('input');
+        methodField.type = 'hidden';
+        methodField.name = '_method';
+        methodField.value = 'DELETE';
+        form.appendChild(methodField);
+        
+        document.body.appendChild(form);
+        form.submit();
     }
+}
 
-    // Close modal on ESC key
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            closeEditModal();
-        }
-    });
+// Close modal on ESC key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeEditModal();
+    }
+});
 
-    // Close modal on backdrop click
-    document.getElementById('editModal').addEventListener('click', function(event) {
-        if (event.target === this) {
-            closeEditModal();
-        }
-    });
+// Close modal on backdrop click
+document.getElementById('editModal').addEventListener('click', function(event) {
+    if (event.target === this) {
+        closeEditModal();
+    }
+});
 </script>
 @include('layouts.footer')
