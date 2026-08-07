@@ -419,7 +419,6 @@
                         bgColor: 'bg-red-900/20 hover:bg-red-900/30',
                         labelColor: 'text-red-400',
                         label: 'ERROR',
-                        icon: '❌'
                     };
                 case 'warning':
                     return {
@@ -427,7 +426,6 @@
                         bgColor: 'bg-yellow-900/20 hover:bg-yellow-900/30',
                         labelColor: 'text-yellow-400',
                         label: 'WARN',
-                        icon: '⚠️'
                     };
                 case 'info':
                 default:
@@ -436,7 +434,6 @@
                         bgColor: 'bg-blue-900/20 hover:bg-blue-900/30',
                         labelColor: 'text-blue-400',
                         label: 'INFO',
-                        icon: 'ℹ️'
                     };
             }
         }
