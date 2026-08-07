@@ -48,17 +48,17 @@ class NetworkController extends Controller
 
     private function getEthConnectionName(): string
     {
-        // 1. Check if eth0 has an active connection
+        // 1. Check if netplan-eth0 has an active connection
         $output = $this->runNmcli('nmcli -t -f DEVICE,CONNECTION device status');
         if (!preg_match('/error|failed/i', $output)) {
             $lines = explode("\n", trim($output));
             foreach ($lines as $line) {
                 if (empty($line)) continue;
                 $parts = explode(':', $line);
-                if (count($parts) >= 2 && trim($parts[0]) === 'eth0') {
+                if (count($parts) >= 2 && trim($parts[0]) === 'netplan-eth0') {
                     $conn = trim($parts[1]);
                     if (!empty($conn) && $conn !== '--') {
-                        Log::debug("Found active eth0 connection: {$conn}");
+                        Log::debug("Found active netplan-eth0 connection: {$conn}");
                         return $conn;
                     }
                 }
@@ -77,15 +77,15 @@ class NetworkController extends Controller
             if (count($parts) >= 2) {
                 $name = trim($parts[0]);
                 $type = trim($parts[1]);
-                // Look for ethernet type, or name "eth0"
-                if (strpos($type, 'ethernet') !== false || strpos($type, '802-3') !== false || $name === 'eth0') {
+                // Look for ethernet type, or name "netplan-eth0"
+                if (strpos($type, 'ethernet') !== false || strpos($type, '802-3') !== false || $name === 'netplan-eth0') {
                     Log::debug("Found ethernet connection profile: {$name}");
                     return $name;
                 }
             }
         }
 
-        throw new \Exception('No ethernet connection found for eth0.');
+        throw new \Exception('No ethernet connection found for netplan-eth0.');
     }
 
     /**
@@ -160,7 +160,7 @@ class NetworkController extends Controller
         $conn = $this->getEthConnectionName();
         $output = $this->runNmcli("nmcli -t -f ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show " . escapeshellarg($conn));
         if (preg_match('/error|failed/i', $output)) {
-            throw new \Exception('Failed to get eth0 details: ' . $output);
+            throw new \Exception('Failed to get netplan-eth0 details: ' . $output);
         }
 
         $data = $this->parseNmcliShow($output);
@@ -301,7 +301,7 @@ class NetworkController extends Controller
             );
             $output = $this->runNmcli($cmd);
             if (preg_match('/error|failed/i', $output)) {
-                throw new \Exception("Failed to set eth0 static IP: $output");
+                throw new \Exception("Failed to set netplan-eth0 static IP: $output");
             }
         } else {
             $cmd = sprintf(
@@ -310,11 +310,11 @@ class NetworkController extends Controller
             );
             $output = $this->runNmcli($cmd);
             if (preg_match('/error|failed/i', $output)) {
-                throw new \Exception("Failed to set eth0 DHCP: $output");
+                throw new \Exception("Failed to set netplan-eth0 DHCP: $output");
             }
         }
 
-        // Optionally restart eth0 (if it's up)
+        // Optionally restart netplan-eth0 (if it's up)
         /* $this->runNmcli("nmcli con up " . escapeshellarg($conn));
         Log::info("Ethernet connection restarted"); */
     }
