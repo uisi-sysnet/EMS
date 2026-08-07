@@ -373,22 +373,9 @@
 </div>
 <script>
 // Edit Station
-// Edit Station with SweetAlert2 loading
 function editStation(stationMn) {
     const modal = document.getElementById('editModal');
     modal.style.display = 'flex';
-    
-    // Show loading state
-    Swal.fire({
-        title: 'Loading...',
-        text: 'Fetching station data',
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        },
-        background: '#1f2937',
-        color: '#f3f4f6'
-    });
     
     // Fetch station data
     fetch(`/stations/${stationMn}/edit`)
@@ -399,8 +386,6 @@ function editStation(stationMn) {
             return response.json();
         })
         .then(data => {
-            Swal.close();
-            
             document.getElementById('edit_station_mn').value = data.station_mn || '';
             document.getElementById('edit_station_name').value = data.station_name || '';
             document.getElementById('edit_latitude').value = data.latitude || '';
@@ -410,19 +395,12 @@ function editStation(stationMn) {
             document.getElementById('edit_lead_slave').value = data.lead_slave || '';
             document.getElementById('edit_enabled').checked = data.enabled === true;
             
+            // Set form action
             document.getElementById('editForm').action = `/stations/${stationMn}`;
         })
         .catch(error => {
             console.error('Error:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Failed to Load',
-                text: 'Could not load station data. Please refresh and try again.',
-                background: '#1f2937',
-                color: '#f3f4f6',
-                confirmButtonColor: '#059669',
-                confirmButtonText: 'OK'
-            });
+            alert('Failed to load station data. Please refresh and try again.');
         });
 }
 
@@ -430,93 +408,27 @@ function closeEditModal() {
     document.getElementById('editModal').style.display = 'none';
 }
 
-// Delete Station with SweetAlert2
-async function deleteStation(stationMn, stationName) {
-    const result = await Swal.fire({
-        title: 'Delete Station?',
-        html: `Are you sure you want to delete station <strong>"${stationName}"</strong>?<br><span style="color: #ef4444;">This action cannot be undone!</span>`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel',
-        background: '#1f2937',
-        color: '#f3f4f6',
-        iconColor: '#f59e0b'
-    });
-
-    if (result.isConfirmed) {
-        // Show loading
-        Swal.fire({
-            title: 'Deleting...',
-            text: 'Please wait',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            },
-            background: '#1f2937',
-            color: '#f3f4f6'
-        });
-
-        try {
-            const response = await fetch(`/stations/${stationMn}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                }
-            });
-
-            const data = await response.json();
-
-            Swal.close();
-
-            if (data.success) {
-                await Swal.fire({
-                    icon: 'success',
-                    title: 'Deleted!',
-                    text: `Station "${stationName}" has been deleted successfully.`,
-                    background: '#1f2937',
-                    color: '#f3f4f6',
-                    confirmButtonColor: '#059669',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-                
-                // Remove the row from the table
-                const row = document.querySelector(`tr[data-station-id]`);
-                if (row) {
-                    row.remove();
-                }
-                
-                // Reload to refresh the list
-                location.reload();
-            } else {
-                await Swal.fire({
-                    icon: 'error',
-                    title: 'Failed!',
-                    text: data.error || 'Failed to delete the station.',
-                    background: '#1f2937',
-                    color: '#f3f4f6',
-                    confirmButtonColor: '#059669',
-                    confirmButtonText: 'OK'
-                });
-            }
-        } catch (err) {
-            Swal.close();
-            await Swal.fire({
-                icon: 'error',
-                title: 'Server Error',
-                text: 'An unexpected error occurred. Please try again later.',
-                background: '#1f2937',
-                color: '#f3f4f6',
-                confirmButtonColor: '#059669',
-                confirmButtonText: 'OK'
-            });
-            console.error(err);
-        }
+// Delete Station
+function deleteStation(stationMn, stationName) {
+    if (confirm(`Are you sure you want to delete station "${stationName}"? This action cannot be undone.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/stations/${stationMn}`;
+        
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = '_token';
+        csrfToken.value = '{{ csrf_token() }}';
+        form.appendChild(csrfToken);
+        
+        const methodField = document.createElement('input');
+        methodField.type = 'hidden';
+        methodField.name = '_method';
+        methodField.value = 'DELETE';
+        form.appendChild(methodField);
+        
+        document.body.appendChild(form);
+        form.submit();
     }
 }
 
