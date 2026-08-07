@@ -280,13 +280,6 @@
     const generatedKeyInput = document.getElementById('generatedKey');
     const copyKeyBtn = document.getElementById('copyKeyBtn');
 
-    // Modal elements
-    const keyModal = document.getElementById('keyModal');
-    const modalKeyDisplay = document.getElementById('modalKeyDisplay');
-    const modalCopyBtn = document.getElementById('modalCopyBtn');
-    const closeModalBtn = document.getElementById('closeModalBtn');
-    const modalCloseBtn = document.getElementById('modalCloseBtn');
-
     let currentPlainKey = '';
 
     function setApiStatus(message, type = 'info') {
@@ -318,10 +311,6 @@
             if (data.key) {
                 currentPlainKey = data.key;
                 generatedKeyInput.value = currentPlainKey;
-
-                // Show the key in the popup immediately
-                modalKeyDisplay.textContent = currentPlainKey;
-                keyModal.classList.remove('hidden');
 
                 setApiStatus('Key generated. Copy it from the popup, then click Save.', 'success');
                 validateApiForm();
@@ -395,38 +384,6 @@
             setApiStatus('Server error', 'error');
             console.error(err);
         }
-    });
-
-    // Modal copy
-    modalCopyBtn.addEventListener('click', () => {
-        const key = modalKeyDisplay.textContent;
-        if (key) {
-            navigator.clipboard.writeText(key).then(() => {
-                setApiStatus('Key copied from modal!', 'success');
-            }).catch(() => {
-                const range = document.createRange();
-                range.selectNode(modalKeyDisplay);
-                window.getSelection().removeAllRanges();
-                window.getSelection().addRange(range);
-                document.execCommand('copy');
-                setApiStatus('Key copied!', 'success');
-            });
-        }
-    });
-
-    // Close modal
-    function closeModal() {
-        keyModal.classList.add('hidden');
-        // Only reload if the form was already saved (key is empty)
-        // otherwise just hide the popup so you can still save
-        if (!generatedKeyInput.value) {
-            location.reload();
-        }
-    }
-    closeModalBtn.addEventListener('click', closeModal);
-    modalCloseBtn.addEventListener('click', closeModal);
-    keyModal.addEventListener('click', (e) => {
-        if (e.target === keyModal) closeModal();
     });
 
     // ============ ALLOWED IP JAVASCRIPT ============
@@ -518,32 +475,5 @@
         });
     });
 </script>
-
-
-<!-- Modal Overlay -->
-<div id="keyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden transition-opacity">
-    <div class="bg-surface-800 rounded-2xl border border-border-700 shadow-2xl max-w-lg w-full mx-4 p-6 transform transition-all scale-95">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-text-100">New API Key Generated</h3>
-            <button type="button" id="closeModalBtn" class="text-text-400 hover:text-text-200 transition">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
-        <p class="text-text-300 text-sm mb-3">Copy this key now. It will not be shown again.</p>
-        <div class="flex items-center gap-2 bg-surface-900 p-3 rounded-lg border border-border-600">
-            <code id="modalKeyDisplay" class="flex-1 text-munti-green-400 font-mono text-sm break-all select-all"></code>
-            <button type="button" id="modalCopyBtn" class="px-3 py-1.5 bg-radar-600 hover:bg-radar-500 text-text-100 rounded-lg text-sm font-semibold transition">
-                Copy
-            </button>
-        </div>
-        <div class="mt-4 flex justify-end">
-            <button type="button" id="modalCloseBtn" class="px-4 py-2 bg-surface-700 hover:bg-surface-600 text-text-100 rounded-lg transition text-sm">
-                Close
-            </button>
-        </div>
-    </div>
-</div>
 
 @include('layouts.footer')
