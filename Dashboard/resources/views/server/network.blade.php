@@ -252,17 +252,23 @@
 
         container.innerHTML = html;
 
-        // Inside the fetch callback, after buildForm(data.eth, data.wlan):
-        const ethStatus = document.getElementById('eth-status');
-        if (data.eth_state) {
-            const isConnected = data.eth_state === 'connected';
-            ethStatus.textContent = isConnected ? 'Connected' : 'Disconnected';
-            ethStatus.className = `text-xs font-medium px-2 py-1 rounded-full ${
-                isConnected ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-            }`;
-        } else {
-            ethStatus.textContent = 'Unknown';
-        }
+        const setStatusBadge = (id, state) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (state) {
+                const isConnected = state === 'connected';
+                el.textContent = isConnected ? 'Connected' : 'Disconnected';
+                el.className = `text-xs font-medium px-2 py-1 rounded-full ${
+                    isConnected ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                }`;
+            } else {
+                el.textContent = 'Unknown';
+                el.className = 'text-xs font-medium px-2 py-1 rounded-full bg-gray-600 text-gray-300';
+            }
+        };
+
+        setStatusBadge('eth-status', ethState);
+        setStatusBadge('wlan-status', wlanState);
 
         // Attach event listeners
         const ethDhcp = document.getElementById('eth_dhcp4');
@@ -364,7 +370,7 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                buildForm(data.eth, data.wlan);
+                buildForm(data.eth, data.wlan, data.eth_state, data.wlan_state);
                 setStatus("Loaded successfully", "success");
             } else {
                 setStatus(data.error || "Failed to load configuration", "error");

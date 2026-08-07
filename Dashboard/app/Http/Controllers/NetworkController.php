@@ -58,14 +58,13 @@ class NetworkController extends Controller
                 if (count($parts) >= 2 && trim($parts[0]) === 'eth0') {
                     $conn = trim($parts[1]);
                     if (!empty($conn) && $conn !== '--') {
-                        Log::debug("Found active eth0 connection: {$conn}");
                         return $conn;
                     }
                 }
             }
         }
 
-        // 2. No active connection – find an Ethernet connection profile
+        // 2. If no active connection, look for a profile named 'netplan-eth0' or first ethernet
         $output = $this->runNmcli('nmcli -t -f NAME,TYPE con show');
         if (preg_match('/error|failed/i', $output)) {
             throw new \Exception('Failed to get connection list: ' . $output);
@@ -77,9 +76,7 @@ class NetworkController extends Controller
             if (count($parts) >= 2) {
                 $name = trim($parts[0]);
                 $type = trim($parts[1]);
-                // Look for ethernet type, or name "eth0"
-                if (strpos($type, 'ethernet') !== false || strpos($type, '802-3') !== false || $name === 'eth0') {
-                    Log::debug("Found ethernet connection profile: {$name}");
+                if (strpos($type, 'ethernet') !== false || $name === 'netplan-eth0' || $name === 'eth0') {
                     return $name;
                 }
             }
