@@ -420,8 +420,7 @@
                         labelColor: 'text-red-400',
                         label: 'ERROR',
                         icon: `<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"  
-                                fill="currentColor" viewBox="0 0 24 24" >
-                                <!--Boxicons v3.0.8 https://boxicons.com | License  https://docs.boxicons.com/free-->
+                                fill="currentColor" viewBox="0 0 24 24" class="text-red-400">
                                 <path d="M4.93 4.93C3.04 6.82 2 9.33 2 12s1.04 5.18 2.93 7.07c1.95 1.95 4.51 2.92 7.07 2.92s5.12-.97 7.07-2.92S22 14.67 22 12s-1.04-5.18-2.93-7.07c-3.9-3.9-10.24-3.9-14.14 0M12 4.01c1.73 0 3.46.56 4.9 1.68l-4.9 4.9-4.9-4.9A7.97 7.97 0 0 1 12 4.01m-8 8c0-1.8.6-3.5 1.68-4.9l4.9 4.9-4.9 4.9A7.92 7.92 0 0 1 4 12.01m3.1 6.32 4.9-4.9 4.9 4.9a8.014 8.014 0 0 1-9.8 0m11.22-1.41-4.9-4.9 4.9-4.9c1.09 1.4 1.68 3.1 1.68 4.9s-.6 3.5-1.68 4.9"></path>
                                 </svg>`
                     };
@@ -431,10 +430,10 @@
                         bgColor: 'bg-yellow-900/20 hover:bg-yellow-900/30',
                         labelColor: 'text-yellow-400',
                         label: 'WARN',
-                        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24" class="text-yellow-400">
-                                <path d="M11 9h2v6h-2zm0 8h2v2h-2z"/>
-                                <path d="M12.87 2.51c-.35-.63-1.4-.63-1.75 0l-9.99 18c-.17.31-.17.69.01.99.18.31.51.49.86.49h20c.35 0 .68-.19.86-.49a1 1 0 0 0 .01-.99zM3.7 20 12 5.06 20.3 20z"/>
-                            </svg>`
+                        icon: `<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"  
+                                fill="currentColor" viewBox="0 0 24 24" class="text-yellow-400">
+                                <path d="M11 9h2v6h-2zm0 8h2v2h-2z"></path><path d="M12.87 2.51c-.35-.63-1.4-.63-1.75 0l-9.99 18c-.17.31-.17.69.01.99.18.31.51.49.86.49h20c.35 0 .68-.19.86-.49a1 1 0 0 0 .01-.99zM3.7 20 12 5.06 20.3 20z"></path>
+                                </svg>`
                     };
                 case 'info':
                 default:
@@ -443,10 +442,10 @@
                         bgColor: 'bg-blue-900/20 hover:bg-blue-900/30',
                         labelColor: 'text-blue-400',
                         label: 'INFO',
-                        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24" class="text-blue-400">
-                                <path d="M11 7h2v6h-2zm0 8h2v2h-2z"/>
-                                <path d="M12 22c5.51 0 10-4.49 10-10S17.51 2 12 2 2 6.49 2 12s4.49 10 10 10zm0-18c4.41 0 8 3.59 8 8s-3.59 8-8 8-8-3.59-8-8 3.59-8 8-8z"/>
-                            </svg>`
+                        icon: `<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"  
+                                fill="currentColor" viewBox="0 0 24 24" class="text-blue-400">
+                                <path d="M11 7h2v6h-2zm0 8h2v2h-2z"></path><path d="M12 22c5.51 0 10-4.49 10-10S17.51 2 12 2 2 6.49 2 12s4.49 10 10 10m0-18c4.41 0 8 3.59 8 8s-3.59 8-8 8-8-3.59-8-8 3.59-8 8-8"></path>
+                                </svg>`
                     };
             }
         }
