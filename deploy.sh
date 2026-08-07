@@ -839,24 +839,38 @@ else
 # under a user's home directory, since home dirs are commonly created
 # `700`/`750` (owner-only), which silently blocks www-data before nginx even
 # gets to check the file — surfacing as a plain 404 with no obvious cause.
-# We only ADD the "execute" (traversal) bit for "other" where it's missing;
-# we never touch read/write bits or ownership on these directories, so this
-# doesn't expose file contents or change who owns anything outside LARAVEL_DIR.
+#
+# Fix: add www-data to each blocking directory's OWNING GROUP and grant that
+# group execute (g+x) — rather than opening execute to "other" (every user on
+# the box). This is the same effect, scoped to just www-data, so nobody else
+# gets a new way into these directories. We never touch read/write bits or
+# ownership, so this doesn't expose file contents or change who owns anything.
 #
 # This runs FIRST, before composer/npm/artisan below — those can fail and
 # call die() (script exits immediately, set -euo pipefail), and this fix
 # must not depend on any of them succeeding.
 log "Checking that www-data can traverse into ${LARAVEL_DIR} (parent directory permissions)"
+NEEDS_WEBSERVER_RESTART=false
 _check_dir="$LARAVEL_DIR"
 while [[ "$_check_dir" != "/" && -n "$_check_dir" ]]; do
     _perms="$(stat -c '%A' "$_check_dir" 2>/dev/null || true)"
-    # 10-char perms string, e.g. drwxr-x---: char 10 is "other execute".
-    if [[ -n "$_perms" && "${_perms:9:1}" != "x" ]]; then
-        warn "${_check_dir} lacks traversal (execute) permission for other users —"
-        warn "this would block www-data from reaching ${LARAVEL_DIR}/public/index.php,"
-        warn "causing a plain 404 with no obvious error. Adding execute-only (o+x);"
-        warn "this does NOT grant read access to files inside ${_check_dir} itself."
-        chmod o+x "$_check_dir" || warn "Could not chmod ${_check_dir} — fix manually: sudo chmod o+x ${_check_dir}"
+    # 10-char perms string, e.g. drwxr-x---: char 7 is "group execute".
+    if [[ -n "$_perms" && "${_perms:6:1}" != "x" ]]; then
+        _dir_group="$(stat -c '%G' "$_check_dir" 2>/dev/null || true)"
+        if [[ -z "$_dir_group" ]]; then
+            warn "Could not determine owning group of ${_check_dir} — fix manually."
+        else
+            warn "${_check_dir} lacks traversal (execute) permission for its group —"
+            warn "this would block www-data from reaching ${LARAVEL_DIR}/public/index.php,"
+            warn "causing a plain 404 with no obvious error. Adding www-data to group"
+            warn "'${_dir_group}' and granting that group execute (g+x) on ${_check_dir}."
+            if ! id -nG www-data 2>/dev/null | grep -qw "$_dir_group"; then
+                usermod -aG "$_dir_group" www-data || \
+                    warn "Could not add www-data to group '${_dir_group}' — fix manually: sudo usermod -aG ${_dir_group} www-data"
+                NEEDS_WEBSERVER_RESTART=true
+            fi
+            chmod g+x "$_check_dir" || warn "Could not chmod ${_check_dir} — fix manually: sudo chmod g+x ${_check_dir}"
+        fi
     fi
     _check_dir="$(dirname "$_check_dir")"
 done
@@ -1147,7 +1161,12 @@ if ! nginx -t; then
     die "nginx config test failed — see the error above. Fix /etc/nginx/sites-available/ems-dashboard, then: sudo systemctl reload nginx"
 fi
 systemctl enable --now nginx
-systemctl reload nginx
+if [[ "$NEEDS_WEBSERVER_RESTART" == true ]]; then
+    log "Restarting (not just reloading) nginx so its workers pick up www-data's new group membership"
+    systemctl restart nginx
+else
+    systemctl reload nginx
+fi
 
 # Open 80/443 now (443 pre-opened for whenever you point a domain at this
 # box and add TLS via certbot — see the note printed at the end of this
@@ -1202,6 +1221,21 @@ if [[ -n "$_phpfpm_svc" ]]; then
         warn "Could not restart ${_phpfpm_svc} — restart it manually, or the Dashboard will keep getting 'Permission denied' on ${ENV_FILE} until the next restart/reboot."
 else
     warn "Could not detect a php-fpm service to restart — if the Dashboard still can't read ${ENV_FILE} after this run, restart php-fpm manually (e.g. sudo systemctl restart php8.2-fpm) or reboot."
+fi
+
+# Final sanity check: confirm www-data can actually read the entry point,
+# now that group membership + permission fixes above have been applied and
+# php-fpm/nginx restarted to pick them up. This exercises the real
+# credentials nginx/php-fpm use, so it catches anything the earlier
+# directory-by-directory checks missed (ACLs, an unexpected owner, etc.).
+if [[ -d "$LARAVEL_DIR" ]]; then
+    if sudo -u www-data test -r "${LARAVEL_DIR}/public/index.php"; then
+        log "Verified: www-data CAN read ${LARAVEL_DIR}/public/index.php"
+    else
+        warn "www-data CANNOT read ${LARAVEL_DIR}/public/index.php — the Dashboard will 404/500."
+        warn "Re-check ownership/group and permissions the whole way up from ${LARAVEL_DIR}, e.g.:"
+        warn "  namei -l ${LARAVEL_DIR}/public/index.php"
+    fi
 fi
 
 [[ "$DB_IS_LOCAL" == true ]] || warn "Reminder: DB is remote (${SYSTEM_DB_HOST}) — confirm the role/DB/TimescaleDB extension are already set up there."
