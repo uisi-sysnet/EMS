@@ -52,5 +52,4 @@ Route::middleware(['role:administrator'])->group(function () {
     Route::get('/network/load', [NetworkController::class, 'load'])->name('network.load');
     Route::post('/network/save', [NetworkController::class, 'save'])->name('network.save');
     Route::post('/network/restart-eth', [NetworkController::class, 'restartEth'])->name('network.restart-eth');
-
 });

@@ -37,7 +37,7 @@ class NetworkController extends Controller
             if (count($parts) >= 2 && trim($parts[0]) === 'wlan0') {
                 $conn = trim($parts[1]);
                 if (!empty($conn) && $conn !== '--') {
-                    Log::debug("Found connection: {$conn}");
+                    Log::debug("Found WiFi connection: {$conn}");
                     return $conn;
                 }
             }
@@ -46,6 +46,10 @@ class NetworkController extends Controller
         throw new \Exception('No active connection found for wlan0.');
     }
 
+    /**
+     * Get the NetworkManager connection name for eth0.
+     * Fallback: if no active connection, look for a profile named 'netplan-eth0' or any ethernet.
+     */
     private function getEthConnectionName(): string
     {
         // 1. Check if eth0 has an active connection
@@ -58,6 +62,7 @@ class NetworkController extends Controller
                 if (count($parts) >= 2 && trim($parts[0]) === 'eth0') {
                     $conn = trim($parts[1]);
                     if (!empty($conn) && $conn !== '--') {
+                        Log::debug("Found Ethernet connection (active): {$conn}");
                         return $conn;
                     }
                 }
@@ -77,6 +82,7 @@ class NetworkController extends Controller
                 $name = trim($parts[0]);
                 $type = trim($parts[1]);
                 if (strpos($type, 'ethernet') !== false || $name === 'netplan-eth0' || $name === 'eth0') {
+                    Log::debug("Found Ethernet profile: {$name}");
                     return $name;
                 }
             }
@@ -123,9 +129,9 @@ class NetworkController extends Controller
             $wlanState = $this->getDeviceState('wlan0');
 
             return response()->json([
-                'success' => true,
-                'eth'     => $eth,
-                'wlan'    => $wlan,
+                'success'    => true,
+                'eth'        => $eth,
+                'wlan'       => $wlan,
                 'eth_state'  => $ethState,
                 'wlan_state' => $wlanState,
             ]);
@@ -162,34 +168,7 @@ class NetworkController extends Controller
         $conn = $this->getWlanConnectionName();
         $output = $this->runNmcli("nmcli -t -f ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns,802-11-wireless.ssid con show " . escapeshellarg($conn));
         if (preg_match('/error|failed/i', $output)) {
-            throw new \Exception('Failed to get connection details: ' . $output);
-        }
-
-        $data = $this->parseNmcliShow($output);
-
-        $dhcp4 = ($data['ipv4.method'] ?? 'auto') === 'auto';
-        $address = $data['ipv4.addresses'] ?? '';
-        if (strpos($address, ',') !== false) {
-            $address = explode(',', $address)[0];
-        }
-
-        return [
-            'renderer'    => 'NetworkManager',
-            'dhcp4'       => $dhcp4,
-            'ssid'        => $data['802-11-wireless.ssid'] ?? '',
-            'password'    => '',  // cannot retrieve
-            'address'     => $address,
-            'gateway'     => $data['ipv4.gateway'] ?? '',
-            'nameservers' => str_replace(',', ', ', $data['ipv4.dns'] ?? ''),
-        ];
-    }
-
-    private function loadEth(): array
-    {
-        $conn = $this->getEthConnectionName();
-        $output = $this->runNmcli("nmcli -t -f ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show " . escapeshellarg($conn));
-        if (preg_match('/error|failed/i', $output)) {
-            throw new \Exception('Failed to get eth0 details: ' . $output);
+            throw new \Exception('Failed to get WiFi connection details: ' . $output);
         }
 
         $data = $this->parseNmcliShow($output);
@@ -202,6 +181,33 @@ class NetworkController extends Controller
 
         return [
             'renderer'    => 'NetworkManager', // always for nmcli
+            'dhcp4'       => $dhcp4,
+            'ssid'        => $data['802-11-wireless.ssid'] ?? '',
+            'password'    => '',  // cannot retrieve for security
+            'address'     => $address,
+            'gateway'     => $data['ipv4.gateway'] ?? '',
+            'nameservers' => str_replace(',', ', ', $data['ipv4.dns'] ?? ''),
+        ];
+    }
+
+    private function loadEth(): array
+    {
+        $conn = $this->getEthConnectionName();
+        $output = $this->runNmcli("nmcli -t -f ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show " . escapeshellarg($conn));
+        if (preg_match('/error|failed/i', $output)) {
+            throw new \Exception('Failed to get Ethernet details: ' . $output);
+        }
+
+        $data = $this->parseNmcliShow($output);
+
+        $dhcp4 = ($data['ipv4.method'] ?? 'auto') === 'auto';
+        $address = $data['ipv4.addresses'] ?? '';
+        if (strpos($address, ',') !== false) {
+            $address = explode(',', $address)[0];
+        }
+
+        return [
+            'renderer'    => 'NetworkManager',
             'dhcp4'       => $dhcp4,
             'address'     => $address,
             'gateway'     => $data['ipv4.gateway'] ?? '',
@@ -225,7 +231,7 @@ class NetworkController extends Controller
                 'eth.gateway'     => 'nullable|ip|required_if:eth.dhcp4,false',
                 'eth.nameservers' => 'nullable|string',
 
-                // WiFi (existing)
+                // WiFi
                 'wlan.dhcp4'       => 'required|boolean',
                 'wlan.ssid'        => 'required|string',
                 'wlan.password'    => 'nullable|string',
@@ -237,7 +243,11 @@ class NetworkController extends Controller
             $this->saveEth($validated['eth']);
             $this->saveWlan($validated['wlan']);
 
-            return response()->json(['success' => true, 'message' => 'Network settings updated']);
+            // Restart both connections to apply changes
+            $this->restartEthConnection();
+            $this->restartWlanConnection();
+
+            return response()->json(['success' => true, 'message' => 'Network settings updated and connections restarted']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['success' => false, 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
@@ -267,7 +277,7 @@ class NetworkController extends Controller
             );
             $output = $this->runNmcli($cmd);
             if (preg_match('/error|failed/i', $output)) {
-                throw new \Exception("Failed to set static IP: $output");
+                throw new \Exception("Failed to set WiFi static IP: $output");
             }
         } else {
             $cmd = sprintf(
@@ -276,11 +286,11 @@ class NetworkController extends Controller
             );
             $output = $this->runNmcli($cmd);
             if (preg_match('/error|failed/i', $output)) {
-                throw new \Exception("Failed to set DHCP: $output");
+                throw new \Exception("Failed to set WiFi DHCP: $output");
             }
         }
 
-        // ----- 2. SSID and password -----
+        // ----- 2. SSID and password (only if non-empty) -----
         if (!empty($data['ssid'])) {
             $cmd = sprintf('nmcli con mod %s 802-11-wireless.ssid %s', escapeshellarg($conn), escapeshellarg($data['ssid']));
             $output = $this->runNmcli($cmd);
@@ -301,14 +311,10 @@ class NetworkController extends Controller
                 $this->runNmcli(sprintf('nmcli con mod %s 802-11-wireless-security.key-mgmt wpa-psk', escapeshellarg($conn)));
                 $output = $this->runNmcli(sprintf('nmcli con mod %s 802-11-wireless-security.psk %s', escapeshellarg($conn), escapeshellarg($data['password'])));
                 if (preg_match('/error|failed/i', $output)) {
-                    throw new \Exception("Failed to set password: $output");
+                    throw new \Exception("Failed to set WiFi password: $output");
                 }
             }
         }
-
-        // ----- 3. Restart connection to apply changes -----
-        $this->runNmcli("nmcli con up " . escapeshellarg($conn));
-        Log::info("WiFi connection restarted");
     }
 
     private function saveEth(array $data): void
@@ -330,7 +336,7 @@ class NetworkController extends Controller
             );
             $output = $this->runNmcli($cmd);
             if (preg_match('/error|failed/i', $output)) {
-                throw new \Exception("Failed to set eth0 static IP: $output");
+                throw new \Exception("Failed to set Ethernet static IP: $output");
             }
         } else {
             $cmd = sprintf(
@@ -339,22 +345,42 @@ class NetworkController extends Controller
             );
             $output = $this->runNmcli($cmd);
             if (preg_match('/error|failed/i', $output)) {
-                throw new \Exception("Failed to set eth0 DHCP: $output");
+                throw new \Exception("Failed to set Ethernet DHCP: $output");
             }
         }
-
-        // Optionally restart eth0 (if it's up)
-        /* $this->runNmcli("nmcli con up " . escapeshellarg($conn));
-        Log::info("Ethernet connection restarted"); */
     }
 
-    public function restartEth()
+    private function restartEthConnection(): void
     {
-        Log::info('Ethernet restart requested');
         try {
             $conn = $this->getEthConnectionName();
             $output = $this->runNmcli("nmcli con up " . escapeshellarg($conn));
-            Log::info("Ethernet connection restarted");
+            Log::info("Ethernet restarted: " . $output);
+        } catch (\Exception $e) {
+            Log::error("Failed to restart Ethernet: " . $e->getMessage());
+        }
+    }
+
+    private function restartWlanConnection(): void
+    {
+        try {
+            $conn = $this->getWlanConnectionName();
+            $output = $this->runNmcli("nmcli con up " . escapeshellarg($conn));
+            Log::info("WiFi restarted: " . $output);
+        } catch (\Exception $e) {
+            Log::error("Failed to restart WiFi: " . $e->getMessage());
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Restart Endpoint (for the button)
+    // ------------------------------------------------------------------------
+
+    public function restartEth()
+    {
+        Log::info('Ethernet restart requested via button');
+        try {
+            $this->restartEthConnection();
             return response()->json(['success' => true, 'message' => 'Ethernet restarted successfully']);
         } catch (\Exception $e) {
             Log::error('Restart eth error: ' . $e->getMessage());

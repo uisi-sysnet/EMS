@@ -89,7 +89,7 @@
     }
 
     // ----- Build form (both sections) -----
-    function buildForm(eth, wlan) {
+    function buildForm(eth, wlan, ethState, wlanState) {
         originalValues = {
             eth: {
                 renderer: eth.renderer || 'NetworkManager',
@@ -152,19 +152,19 @@
                                class="w-full px-3 py-2 border border-border-600 rounded-lg focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm bg-surface-900 text-text-100 transition">
                     </div>
                 </div>
-                <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80 flex justify-between items-center">
-                    <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">Ethernet (eth0)</h3>
+                <div class="px-4 py-3 border-t border-border-700 bg-surface-900/80 flex justify-end">
                     <button id="restartEthBtn"
                             class="px-3 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition disabled:opacity-50">
-                        Restart Connection
+                        Restart Ethernet
                     </button>
                 </div>
             </div>
 
             <!-- WiFi Section -->
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden">
-                <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80">
+                <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80 flex justify-between items-center">
                     <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">WiFi (wlan0)</h3>
+                    <span id="wlan-status" class="text-xs font-medium px-2 py-1 rounded-full bg-gray-700 text-gray-300"></span>
                 </div>
                 <div class="p-4 space-y-4">
                     <div>
@@ -219,7 +219,9 @@
             </div>
         `;
 
-        // Restart Ethernet
+        container.innerHTML = html;
+
+        // Attach restart Ethernet event
         document.getElementById('restartEthBtn')?.addEventListener('click', async function () {
             const btn = this;
             const originalText = btn.textContent;
@@ -250,8 +252,7 @@
             }
         });
 
-        container.innerHTML = html;
-
+        // Set status badges
         const setStatusBadge = (id, state) => {
             const el = document.getElementById(id);
             if (!el) return;
@@ -270,11 +271,10 @@
         setStatusBadge('eth-status', ethState);
         setStatusBadge('wlan-status', wlanState);
 
-        // Attach event listeners
+        // Attach change listeners for toggle fields
         const ethDhcp = document.getElementById('eth_dhcp4');
         const wlanDhcp = document.getElementById('wlan_dhcp4');
 
-        // Toggle static fields for both
         ethDhcp.addEventListener('change', function() {
             document.getElementById('eth_static_group').style.display = this.checked ? 'none' : 'block';
             document.getElementById('eth_gateway_group').style.display = this.checked ? 'none' : 'block';
@@ -412,8 +412,6 @@
             console.error(err);
         }
     });
-
-
 </script>
 
 @include('layouts.footer')
