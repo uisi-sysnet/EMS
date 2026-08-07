@@ -40,7 +40,7 @@
                 <span class="leading-tight uppercase">Network Configuration</span>
             </h2>
             <span class="text-xs sm:text-sm text-text-400 sm:text-right">
-                Ethernet & WiFi settings
+                Ethernet {{-- & WiFi  --}}settings
             </span>
         </div>
 
@@ -161,7 +161,7 @@
             </div>
 
             <!-- WiFi Section -->
-            <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden">
+            /* <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden">
                 <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80">
                     <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">WiFi (wlan0)</h3>
                 </div>
@@ -215,7 +215,7 @@
                                class="w-full px-3 py-2 border border-border-600 rounded-lg focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm bg-surface-900 text-text-100 transition">
                     </div>
                 </div>
-            </div>
+            </div> */
         `;
 
         // Restart Ethernet
@@ -296,7 +296,7 @@
                 gateway: document.getElementById('eth_gateway')?.value || '',
                 nameservers: document.getElementById('eth_nameservers')?.value || '',
             },
-            wlan: {
+            /* wlan: {
                 renderer: document.getElementById('wlan_renderer')?.value || 'NetworkManager',
                 dhcp4: document.getElementById('wlan_dhcp4')?.checked || false,
                 ssid: document.getElementById('wlan_ssid')?.value || '',
@@ -304,14 +304,14 @@
                 address: document.getElementById('wlan_address')?.value || '',
                 gateway: document.getElementById('wlan_gateway')?.value || '',
                 nameservers: document.getElementById('wlan_nameservers')?.value || '',
-            }
+            } */
         };
     }
 
     function hasChanges() {
         const current = getCurrentValues();
-        return JSON.stringify(current.eth) !== JSON.stringify(originalValues.eth) ||
-               JSON.stringify(current.wlan) !== JSON.stringify(originalValues.wlan);
+        return JSON.stringify(current.eth) !== JSON.stringify(originalValues.eth)/*  ||
+               JSON.stringify(current.wlan) !== JSON.stringify(originalValues.wlan) */;
     }
 
     function updateSaveButtonState() {
@@ -329,7 +329,7 @@
         const current = getCurrentValues();
         const sections = {
             eth: ['renderer', 'dhcp4', 'address', 'gateway', 'nameservers'],
-            wlan: ['renderer', 'dhcp4', 'ssid', 'password', 'address', 'gateway', 'nameservers']
+            /* wlan: ['renderer', 'dhcp4', 'ssid', 'password', 'address', 'gateway', 'nameservers'] */
         };
         for (let [section, fields] of Object.entries(sections)) {
             for (let field of fields) {

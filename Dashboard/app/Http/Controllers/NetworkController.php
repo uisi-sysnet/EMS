@@ -23,7 +23,7 @@ class NetworkController extends Controller
     /**
      * Get the NetworkManager connection name for wlan0.
      */
-    private function getWlanConnectionName(): string
+    /* private function getWlanConnectionName(): string
     {
         $output = $this->runNmcli('nmcli -t -f DEVICE,CONNECTION device status');
         if (preg_match('/error|failed/i', $output)) {
@@ -44,7 +44,7 @@ class NetworkController extends Controller
         }
 
         throw new \Exception('No active connection found for wlan0.');
-    }
+    } */
 
     private function getEthConnectionName(): string
     {
@@ -119,8 +119,8 @@ class NetworkController extends Controller
         Log::info('Network load requested');
         try {
             $eth = $this->loadEth();
-            $wlan = $this->loadWlan();
-            return response()->json(['success' => true, 'eth' => $eth, 'wlan' => $wlan]);
+            /* $wlan = $this->loadWlan(); */
+            return response()->json(['success' => true, 'eth' => $eth, /* 'wlan' => $wlan */]);
         } catch (\Exception $e) {
             Log::error('Load error: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
@@ -130,7 +130,7 @@ class NetworkController extends Controller
 
     private function loadWlan(): array
     {
-        $conn = $this->getWlanConnectionName();
+        /* $conn = $this->getWlanConnectionName(); */
         $output = $this->runNmcli("nmcli -t -f ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns,802-11-wireless.ssid con show " . escapeshellarg($conn));
         if (preg_match('/error|failed/i', $output)) {
             throw new \Exception('Failed to get connection details: ' . $output);
@@ -197,12 +197,12 @@ class NetworkController extends Controller
                 'eth.nameservers' => 'nullable|string',
 
                 // WiFi (existing)
-                'wlan.dhcp4'       => 'required|boolean',
+                /* 'wlan.dhcp4'       => 'required|boolean',
                 'wlan.ssid'        => 'required|string',
                 'wlan.password'    => 'nullable|string',
                 'wlan.address'     => 'nullable|string|required_if:wlan.dhcp4,false',
                 'wlan.gateway'     => 'nullable|ip|required_if:wlan.dhcp4,false',
-                'wlan.nameservers' => 'nullable|string',
+                'wlan.nameservers' => 'nullable|string', */
             ]);
 
             $this->saveEth($validated['eth']);
@@ -218,7 +218,7 @@ class NetworkController extends Controller
         }
     }
 
-    private function saveWlan(array $data): void
+    /* private function saveWlan(array $data): void
     {
         $conn = $this->getWlanConnectionName();
 
@@ -280,7 +280,7 @@ class NetworkController extends Controller
         // ----- 3. Restart connection to apply changes -----
         $this->runNmcli("nmcli con up " . escapeshellarg($conn));
         Log::info("WiFi connection restarted");
-    }
+    } */
 
     private function saveEth(array $data): void
     {
