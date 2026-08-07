@@ -424,22 +424,6 @@ function deleteStation(stationMn, stationName) {
         iconColor: '#f59e0b'
     }).then((result) => {
         if (result.isConfirmed) {
-            // Show loading state
-            Swal.fire({
-                title: 'Deleting...',
-                text: 'Please wait while the station is being deleted.',
-                icon: 'info',
-                background: '#1f2937',
-                color: '#f3f4f6',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                showConfirmButton: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            // Create and submit form
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = `/stations/${stationMn}`;
@@ -457,70 +441,7 @@ function deleteStation(stationMn, stationName) {
             form.appendChild(methodField);
             
             document.body.appendChild(form);
-            
-            // Submit the form and handle response
-            fetch(form.action, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    _method: 'DELETE'
-                })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Deleted!',
-                        text: `Station "${stationName}" has been deleted successfully.`,
-                        background: '#1f2937',
-                        color: '#f3f4f6',
-                        confirmButtonColor: '#059669',
-                        timer: 2000,
-                        showConfirmButton: false
-                    }).then(() => {
-                        // Reload the page or redirect
-                        location.reload();
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Failed!',
-                        text: data.error || 'Failed to delete the station.',
-                        background: '#1f2937',
-                        color: '#f3f4f6',
-                        confirmButtonColor: '#059669',
-                        confirmButtonText: 'OK'
-                    });
-                }
-            })
-            .catch(error => {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'An unexpected error occurred. Please try again later.',
-                    background: '#1f2937',
-                    color: '#f3f4f6',
-                    confirmButtonColor: '#059669',
-                    confirmButtonText: 'OK'
-                });
-                console.error('Error:', error);
-            })
-            .finally(() => {
-                // Clean up
-                if (form.parentNode) {
-                    form.parentNode.removeChild(form);
-                }
-            });
+            form.submit();
         }
     });
 }
