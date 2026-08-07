@@ -394,10 +394,9 @@
             }
         }
 
-        // Helper: get color and icon based on log type and level
+        // In your getLogStyle function, update to handle the level from the log object
         function getLogStyle(log) {
             const type = log.type || 'system';
-            const level = log.level || 'info';
             
             // For API logs
             if (type === 'api') {
@@ -410,8 +409,10 @@
                 };
             }
             
-            // For system logs based on level
-            switch(level.toLowerCase()) {
+            // For system logs - use the level from the log object
+            const level = (log.level || 'info').toLowerCase();
+            
+            switch(level) {
                 case 'error':
                     return {
                         borderColor: 'border-red-500',

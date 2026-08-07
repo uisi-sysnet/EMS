@@ -66,10 +66,14 @@ class RecentLogsController extends Controller
         }
 
         foreach ($systemLogs as $log) {
+            // Extract the actual level from the message if the level field is missing or default
+            $level = $this->extractLogLevel($log);
+            
             $entries->push([
                 'type'      => 'system',
                 'id'        => $log->id,
-                'summary'   => '[' . strtoupper($log->level) . '] ' . $log->service,
+                'level'     => $level, // Add the actual level to the log entry
+                'summary'   => '[' . strtoupper($level) . '] ' . $log->service,
                 'detail'    => substr($log->message, 0, 60) . (strlen($log->message) > 60 ? '…' : ''),
                 'time'      => $log->created_at->diffForHumans(),
                 'timestamp' => $log->created_at->toISOString(),
@@ -78,5 +82,37 @@ class RecentLogsController extends Controller
         }
 
         return $entries;
+    }
+
+    /**
+     * Extract the actual log level from the message or use the level field
+     */
+    private function extractLogLevel($log)
+    {
+        // First, check if the level field exists and is not 'info' (which might be default)
+        if (isset($log->level) && $log->level && strtolower($log->level) !== 'info') {
+            return strtolower($log->level);
+        }
+        
+        // If level is missing or default 'info', try to extract from message
+        $message = $log->message ?? '';
+        
+        // Check for ERROR in message (case insensitive)
+        if (preg_match('/\[ERROR\]/i', $message)) {
+            return 'error';
+        }
+        
+        // Check for WARNING in message (case insensitive)
+        if (preg_match('/\[WARNING\]/i', $message) || preg_match('/\[WARN\]/i', $message)) {
+            return 'warning';
+        }
+        
+        // Check for INFO in message (case insensitive)
+        if (preg_match('/\[INFO\]/i', $message)) {
+            return 'info';
+        }
+        
+        // If no level found in message, return whatever is in the level field or default to 'info'
+        return isset($log->level) && $log->level ? strtolower($log->level) : 'info';
     }
 }
