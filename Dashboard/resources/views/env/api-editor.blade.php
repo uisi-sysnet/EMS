@@ -537,21 +537,18 @@
             if (!confirm(`Delete allowed IP "${label}" (${cidr})? This cannot be undone.`)) return;
 
             try {
-                // Use the route helper or ensure proper URL encoding
-                const response = await fetch(`/allowed-networks/${encodeURIComponent(cidr)}`, {
-                    method: 'DELETE',
+                const response = await fetch('/allowed-networks', {
+                    method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json' // Add this header
-                    }
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        _method: 'DELETE',
+                        cidr: cidr
+                    })
                 });
-                
-                // Check if response is JSON
-                const contentType = response.headers.get("content-type");
-                if (!contentType || !contentType.includes("application/json")) {
-                    throw new Error('Response is not JSON');
-                }
                 
                 const data = await response.json();
                 if (data.success) {

@@ -86,8 +86,9 @@ class ApiKeyController extends Controller
         return response()->json(['success' => true, 'ip' => $ip]);
     }
 
-    public function destroyIp($cidr)
+    public function destroyIp(Request $request)
     {
+        $cidr = $request->input('cidr');
         $ip = AllowedIp::where('cidr', $cidr)->firstOrFail();
         $ip->delete();
         return response()->json(['success' => true]);
