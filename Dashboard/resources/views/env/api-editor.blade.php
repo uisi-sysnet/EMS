@@ -583,7 +583,23 @@
             const cidr = this.dataset.cidr;
             const row = this.closest('tr');
             const label = row.querySelector('td:nth-child(2)')?.textContent.trim() || cidr;
-            if (!confirm(`Delete allowed IP "${label}" (${cidr})? This cannot be undone.`)) return;
+            
+            // SweetAlert confirmation dialog
+            const result = await Swal.fire({
+                title: 'Delete Allowed IP?',
+                html: `Are you sure you want to delete <strong>"${label}"</strong> (<code style="background: #374151; padding: 2px 6px; border-radius: 4px; color: #60a5fa;">${cidr}</code>)?<br><span style="color: #ef4444;">This action cannot be undone!</span>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel',
+                background: '#1f2937',
+                color: '#f3f4f6',
+                iconColor: '#f59e0b'
+            });
+
+            if (!result.isConfirmed) return;
 
             try {
                 const response = await fetch('/allowed-networks', {
@@ -600,13 +616,46 @@
                 });
                 
                 const data = await response.json();
+                
                 if (data.success) {
                     row.remove();
                     setNetworkStatus('IP deleted successfully!', 'success');
+                    
+                    // Success SweetAlert
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Deleted!',
+                        text: `Allowed IP "${label}" (${cidr}) has been removed.`,
+                        background: '#1f2937',
+                        color: '#f3f4f6',
+                        confirmButtonColor: '#059669',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
                 } else {
+                    // Error SweetAlert
+                    await Swal.fire({
+                        icon: 'error',
+                        title: 'Failed!',
+                        text: data.error || 'Failed to delete the IP address.',
+                        background: '#1f2937',
+                        color: '#f3f4f6',
+                        confirmButtonColor: '#059669',
+                        confirmButtonText: 'OK'
+                    });
                     setNetworkStatus('Failed to delete IP.', 'error');
                 }
             } catch (err) {
+                // Server error SweetAlert
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Server Error',
+                    text: 'An unexpected error occurred. Please try again later.',
+                    background: '#1f2937',
+                    color: '#f3f4f6',
+                    confirmButtonColor: '#059669',
+                    confirmButtonText: 'OK'
+                });
                 setNetworkStatus('Server error', 'error');
                 console.error(err);
             }
