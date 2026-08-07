@@ -96,7 +96,7 @@
                                     <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500">
                                         <tr>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Owner</th>
-                                            <th scope="col" class="px-4 py-3 text-left font-medium">Token Hash</th>
+                                            {{-- <th scope="col" class="px-4 py-3 text-left font-medium">Token Hash</th> --}}
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
                                             {{-- <th scope="col" class="px-4 py-3 text-left font-medium">Created</th> --}}
                                             <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
@@ -108,9 +108,9 @@
                                                 <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-munti-green-400">
                                                     {{ $key->owner_label }}
                                                 </td>
-                                                <td class="px-4 py-2.5 font-mono text-xs text-text-400 truncate max-w-[140px]" title="{{ $key->token_hash }}">
+                                                {{-- <td class="px-4 py-2.5 font-mono text-xs text-text-400 truncate max-w-[140px]" title="{{ $key->token_hash }}">
                                                     {{ $key->token_hash }}
-                                                </td>
+                                                </td> --}}
                                                 <td class="px-4 py-2.5 whitespace-nowrap">
                                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border
                                                         {{ $key->enabled
