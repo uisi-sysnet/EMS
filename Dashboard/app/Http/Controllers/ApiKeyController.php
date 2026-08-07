@@ -23,7 +23,7 @@ class ApiKeyController extends Controller
     {
         $request->validate([
             'owner_label' => 'required|string|max:255',
-            'token_hash'  => 'nullable|string',
+            'token_hash'  => 'nullable|string', // plain token (optional)
         ]);
 
         $ownerLabel = trim($request->input('owner_label'));
@@ -31,8 +31,11 @@ class ApiKeyController extends Controller
 
         $sanitizedLabel = strtoupper(preg_replace('/[^A-Za-z0-9_]/', '_', $ownerLabel));
 
+        // If no token provided, generate one
+        $newlyGenerated = false;
         if (empty($plainToken)) {
             $plainToken = bin2hex(random_bytes(20));
+            $newlyGenerated = true;
         }
 
         $hashedToken = hash('sha256', $plainToken);
@@ -45,7 +48,11 @@ class ApiKeyController extends Controller
             ]
         );
 
-        return response()->json(['success' => true]);
+        // Return the plain token only if it was newly generated
+        return response()->json([
+            'success' => true,
+            'plain_token' => $newlyGenerated ? $plainToken : null,
+        ]);
     }
 
     public function destroy($token)

@@ -39,18 +39,43 @@
                             <div>
                                 <label for="ownerLabel" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Owner Label</label>
                                 <input type="text" id="ownerLabel" placeholder="e.g. Dashboard Client" required
-                                       class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
-                                              bg-surface-900 text-text-100 placeholder-text-500
-                                              focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
+                                            bg-surface-900 text-text-100 placeholder-text-500
+                                            focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                             </div>
 
-                            <button type="submit" id="saveBtn"
-                                    class="w-full px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30 flex items-center justify-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                </svg>
-                                Generate & Save API Key
-                            </button>
+                            <!-- Generated key field (hidden until generated) -->
+                            <div id="keyFieldWrapper" class="hidden">
+                                <label for="generatedKey" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Generated API Key</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="generatedKey" readonly
+                                        class="flex-1 px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-100 font-mono text-sm
+                                                focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition cursor-default">
+                                    <button type="button" id="copyKeyBtn"
+                                            class="px-3 py-2 bg-surface-700 hover:bg-surface-600 text-text-300 rounded-lg border border-border-600 transition flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-3">
+                                <button type="button" id="generateBtn"
+                                        class="flex-1 px-4 py-2.5 bg-surface-700 hover:bg-surface-600 text-text-100 font-semibold rounded-lg transition border border-border-600 flex items-center justify-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                    </svg>
+                                    Generate Key
+                                </button>
+                                <button type="submit" id="saveBtn"
+                                        class="flex-1 px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30 flex items-center justify-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    Save Key
+                                </button>
+                            </div>
                         </form>
                         <div id="apiStatus" class="mt-3 text-sm font-medium text-center min-h-[1.25rem]"></div>
                     </div>
@@ -240,33 +265,86 @@
 <script>
     // ============ API KEY JAVASCRIPT ============
     const ownerLabelInput = document.getElementById('ownerLabel');
+    const generateBtn = document.getElementById('generateBtn');
     const saveBtn = document.getElementById('saveBtn');
     const apiStatus = document.getElementById('apiStatus');
     const apiForm = document.getElementById('apiKeyForm');
+    const keyFieldWrapper = document.getElementById('keyFieldWrapper');
+    const generatedKeyInput = document.getElementById('generatedKey');
+    const copyKeyBtn = document.getElementById('copyKeyBtn');
+
+    // Modal elements
+    const keyModal = document.getElementById('keyModal');
+    const modalKeyDisplay = document.getElementById('modalKeyDisplay');
+    const modalCopyBtn = document.getElementById('modalCopyBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+    let currentPlainKey = '';
 
     function setApiStatus(message, type = 'info') {
         apiStatus.className = 'mt-3 text-sm font-medium text-center min-h-[1.25rem]';
-        switch (type) {
-            case 'success': apiStatus.classList.add('text-munti-green-400'); break;
-            case 'error':   apiStatus.classList.add('text-munti-red-400'); break;
-            case 'info':    apiStatus.classList.add('text-radar-400'); break;
-            case 'warning': apiStatus.classList.add('text-munti-yellow-400'); break;
-            default:        apiStatus.classList.add('text-text-400');
-        }
+        const classes = {
+            'success': 'text-munti-green-400',
+            'error': 'text-munti-red-400',
+            'info': 'text-radar-400',
+            'warning': 'text-munti-yellow-400'
+        };
+        apiStatus.classList.add(classes[type] || 'text-text-400');
         apiStatus.textContent = message;
     }
 
     function validateApiForm() {
-        saveBtn.disabled = !ownerLabelInput.value.trim();
+        const label = ownerLabelInput.value.trim();
+        const hasKey = generatedKeyInput.value.trim().length > 0;
+        saveBtn.disabled = !(label && hasKey);
     }
     ownerLabelInput.addEventListener('input', validateApiForm);
-    validateApiForm();
+    generatedKeyInput.addEventListener('input', validateApiForm);
 
+    // Generate a new key (without saving)
+    generateBtn.addEventListener('click', async () => {
+        setApiStatus('Generating...', 'info');
+        try {
+            const response = await fetch('{{ route('api.keys.generate') }}'); // /api-keys/generate
+            const data = await response.json();
+            if (data.key) {
+                currentPlainKey = data.key;
+                generatedKeyInput.value = currentPlainKey;
+                keyFieldWrapper.classList.remove('hidden');
+                setApiStatus('Key generated. Click Save to store it.', 'success');
+                validateApiForm();
+            } else {
+                setApiStatus('Failed to generate key.', 'error');
+            }
+        } catch (err) {
+            setApiStatus('Server error', 'error');
+            console.error(err);
+        }
+    });
+
+    // Copy key from input field
+    copyKeyBtn.addEventListener('click', () => {
+        if (generatedKeyInput.value) {
+            navigator.clipboard.writeText(generatedKeyInput.value).then(() => {
+                setApiStatus('Key copied to clipboard!', 'success');
+            }).catch(() => {
+                // Fallback
+                generatedKeyInput.select();
+                document.execCommand('copy');
+                setApiStatus('Key copied!', 'success');
+            });
+        }
+    });
+
+    // Form submit – save the key
     apiForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const owner_label = ownerLabelInput.value.trim();
-        if (!owner_label) return;
-        setApiStatus('Generating and saving...', 'info');
+        const token_hash = generatedKeyInput.value.trim(); // plain token
+        if (!owner_label || !token_hash) return;
+
+        setApiStatus('Saving...', 'info');
         try {
             const response = await fetch('{{ route('api.keys.save') }}', {
                 method: 'POST',
@@ -274,14 +352,26 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({ owner_label })
+                body: JSON.stringify({ owner_label, token_hash })
             });
             const data = await response.json();
             if (data.success) {
-                setApiStatus('API key generated and saved successfully!', 'success');
-                ownerLabelInput.value = '';
-                validateApiForm();
-                setTimeout(() => location.reload(), 800);
+                // If a plain token was returned (newly generated), show modal
+                if (data.plain_token) {
+                    modalKeyDisplay.textContent = data.plain_token;
+                    keyModal.classList.remove('hidden');
+                    // Optionally clear the form fields
+                    ownerLabelInput.value = '';
+                    generatedKeyInput.value = '';
+                    keyFieldWrapper.classList.add('hidden');
+                    currentPlainKey = '';
+                    validateApiForm();
+                    setApiStatus('Key saved! Check the popup.', 'success');
+                } else {
+                    // Existing key updated (should not happen with this flow, but handle)
+                    setApiStatus('Key updated successfully.', 'success');
+                    setTimeout(() => location.reload(), 800);
+                }
             } else {
                 setApiStatus(data.error || 'Operation failed', 'error');
             }
@@ -291,32 +381,33 @@
         }
     });
 
-    document.querySelectorAll('.delete-key').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            const token = this.dataset.token;
-            const row = this.closest('tr');
-            const ownerLabel = row.querySelector('td:first-child')?.textContent.trim() || 'this key';
-            if (!confirm(`Delete API key "${ownerLabel}"? This cannot be undone.`)) return;
-            try {
-                const response = await fetch(`/api-keys/${token}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Content-Type': 'application/json'
-                    }
-                });
-                const data = await response.json();
-                if (data.success) {
-                    row.remove();
-                    setApiStatus('Key deleted successfully!', 'success');
-                } else {
-                    setApiStatus('Failed to delete key.', 'error');
-                }
-            } catch (err) {
-                setApiStatus('Server error', 'error');
-                console.error(err);
-            }
-        });
+    // Modal copy and close
+    modalCopyBtn.addEventListener('click', () => {
+        const key = modalKeyDisplay.textContent;
+        if (key) {
+            navigator.clipboard.writeText(key).then(() => {
+                setApiStatus('Key copied from modal!', 'success');
+            }).catch(() => {
+                // Fallback
+                const range = document.createRange();
+                range.selectNode(modalKeyDisplay);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+                document.execCommand('copy');
+                setApiStatus('Key copied!', 'success');
+            });
+        }
+    });
+
+    function closeModal() {
+        keyModal.classList.add('hidden');
+        // Reload page to reflect new key in table
+        location.reload();
+    }
+    closeModalBtn.addEventListener('click', closeModal);
+    modalCloseBtn.addEventListener('click', closeModal);
+    keyModal.addEventListener('click', (e) => {
+        if (e.target === keyModal) closeModal();
     });
 
     // ============ ALLOWED IP JAVASCRIPT ============
@@ -408,5 +499,32 @@
         });
     });
 </script>
+
+
+<!-- Modal Overlay -->
+<div id="keyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden transition-opacity">
+    <div class="bg-surface-800 rounded-2xl border border-border-700 shadow-2xl max-w-lg w-full mx-4 p-6 transform transition-all scale-95">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-text-100">New API Key Generated</h3>
+            <button type="button" id="closeModalBtn" class="text-text-400 hover:text-text-200 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <p class="text-text-300 text-sm mb-3">Copy this key now. It will not be shown again.</p>
+        <div class="flex items-center gap-2 bg-surface-900 p-3 rounded-lg border border-border-600">
+            <code id="modalKeyDisplay" class="flex-1 text-munti-green-400 font-mono text-sm break-all select-all"></code>
+            <button type="button" id="modalCopyBtn" class="px-3 py-1.5 bg-radar-600 hover:bg-radar-500 text-text-100 rounded-lg text-sm font-semibold transition">
+                Copy
+            </button>
+        </div>
+        <div class="mt-4 flex justify-end">
+            <button type="button" id="modalCloseBtn" class="px-4 py-2 bg-surface-700 hover:bg-surface-600 text-text-100 rounded-lg transition text-sm">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
 
 @include('layouts.footer')

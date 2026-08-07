@@ -35,8 +35,8 @@ Route::middleware(['role:administrator'])->group(function () {
     Route::post('/env/mqtt/save', [EnvEditorController::class, 'saveMqtt'])->name('env.mqtt.save');
 
     Route::get('/api-editor', [ApiKeyController::class, 'index'])->name('api.editor');
-    Route::post('/api-keys/generate', [ApiKeyController::class, 'generate'])->name('api.keys.generate');
     Route::post('/api-keys/save', [ApiKeyController::class, 'save'])->name('api.keys.save');
+    Route::get('/api-keys/generate', [ApiKeyController::class, 'generate'])->name('api.keys.generate');
     Route::delete('/api-keys/{token}', [ApiKeyController::class, 'destroy'])->name('api.keys.destroy');
 
     Route::post('/allowed-networks', [ApiKeyController::class, 'store'])->name('allowed-networks.store');
