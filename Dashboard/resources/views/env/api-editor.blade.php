@@ -320,14 +320,24 @@
     // Manual regenerate button
     generateBtn.addEventListener('click', generateKey);
 
-    // Form submit – save the key
+    // Form submit – copy key then save
     apiForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const owner_label = ownerLabelInput.value.trim();
         const token_hash = generatedKeyInput.value.trim();
         if (!owner_label || !token_hash) return;
 
-        setApiStatus('Saving...', 'info');
+        // 1. Copy the plain key to clipboard first
+        try {
+            await navigator.clipboard.writeText(token_hash);
+        } catch (err) {
+            // Fallback for older browsers
+            generatedKeyInput.select();
+            document.execCommand('copy');
+        }
+
+        setApiStatus('Key copied. Saving...', 'info');
+
         try {
             const response = await fetch('{{ route('api.keys.save') }}', {
                 method: 'POST',
@@ -344,8 +354,8 @@
                 generatedKeyInput.value = '';
                 currentPlainKey = '';
                 validateApiForm();
-                setApiStatus('Key saved successfully.', 'success');
-                setTimeout(() => location.reload(), 800);
+                setApiStatus('Key copied to clipboard & saved successfully!', 'success');
+                setTimeout(() => location.reload(), 1000);
             } else {
                 setApiStatus(data.error || 'Operation failed', 'error');
             }
