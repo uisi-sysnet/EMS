@@ -59,13 +59,6 @@
                                             class="flex-1 min-w-0 px-3.5 py-2.5 border border-border-600 rounded-lg
                                                 bg-surface-800 text-text-100 font-mono text-sm
                                                 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition cursor-default">
-                                        <button type="button" id="copyKeyBtn"
-                                                class="px-3 py-2 bg-surface-700 hover:bg-surface-600 text-text-300 rounded-lg border border-border-600 transition flex items-center shrink-0"
-                                                title="Copy key">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
-                                            </svg>
-                                        </button>
                                         <button type="button" id="generateBtn"
                                                 class="px-3 py-2 bg-surface-700 hover:bg-surface-600 text-text-300 rounded-lg border border-border-600 transition flex items-center shrink-0"
                                                 title="Regenerate key">
@@ -278,7 +271,6 @@
     const apiStatus = document.getElementById('apiStatus');
     const apiForm = document.getElementById('apiKeyForm');
     const generatedKeyInput = document.getElementById('generatedKey');
-    const copyKeyBtn = document.getElementById('copyKeyBtn');
 
     let currentPlainKey = '';
 
@@ -311,8 +303,7 @@
             if (data.key) {
                 currentPlainKey = data.key;
                 generatedKeyInput.value = currentPlainKey;
-
-                setApiStatus('Key generated. Copy it from the popup, then click Save.', 'success');
+                setApiStatus('Key generated. Click Save to store it.', 'success');
                 validateApiForm();
             } else {
                 setApiStatus('Failed to generate key.', 'error');
@@ -328,19 +319,6 @@
 
     // Manual regenerate button
     generateBtn.addEventListener('click', generateKey);
-
-    // Copy key from input field
-    copyKeyBtn.addEventListener('click', () => {
-        if (generatedKeyInput.value) {
-            navigator.clipboard.writeText(generatedKeyInput.value).then(() => {
-                setApiStatus('Key copied to clipboard!', 'success');
-            }).catch(() => {
-                generatedKeyInput.select();
-                document.execCommand('copy');
-                setApiStatus('Key copied!', 'success');
-            });
-        }
-    });
 
     // Form submit – save the key
     apiForm.addEventListener('submit', async (e) => {
@@ -362,21 +340,12 @@
             const data = await response.json();
 
             if (data.success) {
-                // Show the modal with the plain key
-                if (data.plain_token) {
-                    modalKeyDisplay.textContent = data.plain_token;
-                    keyModal.classList.remove('hidden');
-                    
-                    // Clear form
-                    ownerLabelInput.value = '';
-                    generatedKeyInput.value = '';
-                    currentPlainKey = '';
-                    validateApiForm();
-                    setApiStatus('Key saved! Copy it from the popup.', 'success');
-                } else {
-                    setApiStatus('Key saved successfully.', 'success');
-                    setTimeout(() => location.reload(), 800);
-                }
+                ownerLabelInput.value = '';
+                generatedKeyInput.value = '';
+                currentPlainKey = '';
+                validateApiForm();
+                setApiStatus('Key saved successfully.', 'success');
+                setTimeout(() => location.reload(), 800);
             } else {
                 setApiStatus(data.error || 'Operation failed', 'error');
             }
