@@ -32,7 +32,6 @@ class StationController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'station_mn'   => 'required|string|max:32|unique:' . (new Station())->getTable() . ',station_mn',
             'station_name' => 'nullable|string|max:100',
             'enabled'      => 'sometimes|boolean',
             'latitude'     => 'nullable|numeric|between:-90,90',
@@ -42,25 +41,24 @@ class StationController extends Controller
             'lead_slave'   => 'nullable|integer',
         ]);
 
+        // Add station_mn from request (no validation)
+        $validated['station_mn'] = $request->input('station_mn');
         $validated['enabled'] = $request->has('enabled') ? filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN) : true;
 
         Station::create($validated);
 
         return redirect()->route('stations.index')
-                        ->with('success', 'Station created successfully.');
+                         ->with('success', 'Station created successfully.');
     }
 
+    /**
+     * Update the specified station.
+     */
     public function update(Request $request, string $station_mn)
     {
         $station = Station::findOrFail($station_mn);
         
         $validated = $request->validate([
-            'station_mn'   => [
-                'required',
-                'string',
-                'max:32',
-                Rule::unique((new Station())->getTable(), 'station_mn')->ignore($station_mn, 'station_mn')
-            ],
             'station_name' => 'nullable|string|max:100',
             'enabled'      => 'sometimes|boolean',
             'latitude'     => 'nullable|numeric|between:-90,90',
@@ -70,14 +68,16 @@ class StationController extends Controller
             'lead_slave'   => 'nullable|integer',
         ]);
 
+        // Add station_mn from request (no validation)
+        $validated['station_mn'] = $request->input('station_mn');
         $validated['enabled'] = $request->has('enabled') ? filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN) : false;
 
         $station->update($validated);
 
         return redirect()->route('stations.index')
-                        ->with('success', 'Station updated successfully.');
+                         ->with('success', 'Station updated successfully.');
     }
-    
+
     /**
      * Remove the specified station.
      */
