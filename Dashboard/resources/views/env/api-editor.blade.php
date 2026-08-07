@@ -318,7 +318,12 @@
             if (data.key) {
                 currentPlainKey = data.key;
                 generatedKeyInput.value = currentPlainKey;
-                setApiStatus('Key ready. Enter owner and click Save.', 'success');
+
+                // Show the key in the popup immediately
+                modalKeyDisplay.textContent = currentPlainKey;
+                keyModal.classList.remove('hidden');
+
+                setApiStatus('Key generated. Copy it from the popup, then click Save.', 'success');
                 validateApiForm();
             } else {
                 setApiStatus('Failed to generate key.', 'error');
@@ -412,7 +417,11 @@
     // Close modal
     function closeModal() {
         keyModal.classList.add('hidden');
-        location.reload(); // refresh table
+        // Only reload if the form was already saved (key is empty)
+        // otherwise just hide the popup so you can still save
+        if (!generatedKeyInput.value) {
+            location.reload();
+        }
     }
     closeModalBtn.addEventListener('click', closeModal);
     modalCloseBtn.addEventListener('click', closeModal);
