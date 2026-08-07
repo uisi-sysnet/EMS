@@ -66,23 +66,6 @@
                                 @enderror
                             </div>
 
-                            <!-- Enabled (checkbox) -->
-                            <div>
-                                <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Enabled
-                                </label>
-                                <div class="flex items-center h-11">
-                                    <input type="hidden" name="enabled" value="0">
-                                    <input type="checkbox" id="enabled" name="enabled" value="1"
-                                        {{ old('enabled', true) ? 'checked' : '' }}
-                                        class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
-                                    <label for="enabled" class="ml-2 text-sm text-text-300 select-none cursor-pointer">Enabled</label>
-                                </div>
-                                @error('enabled')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
-
                             <!-- Latitude -->
                             <div>
                                 <label for="latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
@@ -142,16 +125,35 @@
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
-                        </div>
 
-                        <div class="mt-6">
-                            <button type="submit"
-                                    class="w-full sm:w-auto px-6 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center justify-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                </svg>
-                                Create Station
-                            </button>
+                            <!-- Combined: Enabled + Create Station Button -->
+                            <div class="flex flex-col justify-end space-y-3">
+                                <!-- Enabled Checkbox -->
+                                <div>
+                                    <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                        Enabled
+                                    </label>
+                                    <div class="flex items-center">
+                                        <input type="hidden" name="enabled" value="0">
+                                        <input type="checkbox" id="enabled" name="enabled" value="1"
+                                            {{ old('enabled', true) ? 'checked' : '' }}
+                                            class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
+                                        <label for="enabled" class="ml-2 text-sm text-text-300 select-none cursor-pointer">Enabled</label>
+                                    </div>
+                                    @error('enabled')
+                                        <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                <!-- Create Button -->
+                                <button type="submit"
+                                        class="w-full px-6 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center justify-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                    Create Station
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
