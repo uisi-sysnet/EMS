@@ -103,6 +103,16 @@
         const sections = [];
         let currentSection = null;
 
+        // Display label mappings for MQTT settings
+        const displayLabels = {
+            'MQTT_BROKER_HOST': 'Host',
+            'MQTT_BROKER_PORT': 'port',
+            'MQTT_TIMEOUT_SEC': 'timeout (sec)',
+            'MQTT_TOPIC': 'topic',
+            'MQTT_USER': 'username',
+            'MQTT_PASSWORD': 'password'
+        };
+
         lines.forEach(line => {
             const trimmed = line.trim();
 
@@ -113,6 +123,12 @@
                     .replace(/^#\s*----\s*/, '')
                     .replace(/\s*----\s*$/, '')
                     .trim();
+
+                // Clean up the display title
+                displayText = displayText.replace(/^#\s*/, '').trim();
+                if (displayText.includes('MQTT (SEISMIC)')) {
+                    displayText = 'MQTT (Seismic)';
+                }
 
                 currentSection = {
                     title: displayText,
@@ -126,7 +142,7 @@
                 const cleanValue = valueParts.join('=').trim();
 
                 if (!currentSection) {
-                    currentSection = { title: 'Settings', originalComment: null, rows: [] };
+                    currentSection = { title: 'MQTT Settings', originalComment: null, rows: [] };
                 }
 
                 currentSection.rows.push({ key: cleanKey, value: cleanValue });
@@ -137,15 +153,15 @@
 
         let html = '';
 
-        if (sections.length === 2) {
+        if (sections.length >= 2) {
             html += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">`;
             sections.forEach(sec => {
-                html += renderSection(sec);
+                html += renderSection(sec, displayLabels);
             });
             html += `</div>`;
         } else {
             sections.forEach(sec => {
-                html += renderSection(sec);
+                html += renderSection(sec, displayLabels);
             });
         }
 
@@ -164,7 +180,7 @@
         updateSaveButtonState();
     }
 
-    function renderSection(sec) {
+    function renderSection(sec, displayLabels = {}) {
         let html = `
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col">
                 <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80">
@@ -177,29 +193,30 @@
 
         sec.rows.forEach((row, idx) => {
             const isLast = idx === sec.rows.length - 1;
+            const displayLabel = displayLabels[row.key] || row.key;
             html += `
                 <tr class="${isLast ? '' : 'border-b border-border-800'} hover:bg-surface-700/60 transition">
                     <td class="px-4 py-3 font-medium text-text-300 whitespace-nowrap w-40 md:w-48 align-middle">
-                        <label for="${row.key}" class="label-mono">${escapeHtml(row.key)}</label>
+                        <label for="${row.key}" class="label-mono">${escapeHtml(displayLabel)}</label>
                     </td>
                     <td class="px-4 py-2.5 align-middle">
                         <input type="text"
                             id="${row.key}"
                             value="${escapeHtml(row.value)}"
                             class="w-full px-3 py-2 border border-border-600 rounded-lg
-                                   focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500
-                                   text-sm bg-surface-900 text-text-100 placeholder-text-500 transition">
+                                focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500
+                                text-sm bg-surface-900 text-text-100 placeholder-text-500 transition">
                     </td>
                 </tr>
             `;
         });
 
         html += `
-                        </tbody>
-                    </table>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
         return html;
     }
 
