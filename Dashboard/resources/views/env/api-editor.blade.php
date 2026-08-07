@@ -36,37 +36,44 @@
                     <!-- Form Section -->
                     <div class="p-5 border-b border-border-700">
                         <form id="apiKeyForm" class="space-y-4">
-                            <!-- Owner + Generate in same row -->
+                            <!-- Owner + Key in the same row -->
                             <div class="flex flex-col sm:flex-row gap-3 items-end">
-                                <div class="flex-1 w-full">
-                                    <label for="ownerLabel" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Owner Label</label>
+                                <!-- Owner -->
+                                <div class="flex-1 w-full min-w-0">
+                                    <label for="ownerLabel" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                        Owner Label
+                                    </label>
                                     <input type="text" id="ownerLabel" placeholder="e.g. Dashboard Client" required
                                         class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
-                                                bg-surface-900 text-text-100 placeholder-text-500
-                                                focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                                            bg-surface-900 text-text-100 placeholder-text-500
+                                            focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                                 </div>
-                                <button type="button" id="generateBtn"
-                                        class="w-full sm:w-auto px-4 py-2.5 bg-surface-700 hover:bg-surface-600 text-text-100 font-semibold rounded-lg transition border border-border-600 flex items-center justify-center gap-2 shrink-0">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                                    </svg>
-                                    Generate Key
-                                </button>
-                            </div>
 
-                            <!-- Generated key field (hidden until generated) -->
-                            <div id="keyFieldWrapper" class="hidden">
-                                <label for="generatedKey" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Generated API Key</label>
-                                <div class="flex gap-2">
-                                    <input type="text" id="generatedKey" readonly
-                                        class="flex-1 px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-100 font-mono text-sm
+                                <!-- Generated Key (always visible) -->
+                                <div class="flex-1 w-full min-w-0">
+                                    <label for="generatedKey" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                        API Key
+                                    </label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="generatedKey" readonly
+                                            class="flex-1 min-w-0 px-3.5 py-2.5 border border-border-600 rounded-lg
+                                                bg-surface-800 text-text-100 font-mono text-sm
                                                 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition cursor-default">
-                                    <button type="button" id="copyKeyBtn"
-                                            class="px-3 py-2 bg-surface-700 hover:bg-surface-600 text-text-300 rounded-lg border border-border-600 transition flex items-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
-                                        </svg>
-                                    </button>
+                                        <button type="button" id="copyKeyBtn"
+                                                class="px-3 py-2 bg-surface-700 hover:bg-surface-600 text-text-300 rounded-lg border border-border-600 transition flex items-center shrink-0"
+                                                title="Copy key">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                                            </svg>
+                                        </button>
+                                        <button type="button" id="generateBtn"
+                                                class="px-3 py-2 bg-surface-700 hover:bg-surface-600 text-text-300 rounded-lg border border-border-600 transition flex items-center shrink-0"
+                                                title="Regenerate key">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -304,16 +311,15 @@
     generatedKeyInput.addEventListener('input', validateApiForm);
 
     // Generate a new key (without saving)
-    generateBtn.addEventListener('click', async () => {
-        setApiStatus('Generating...', 'info');
+    async function generateKey() {
+        setApiStatus('Generating key...', 'info');
         try {
-            const response = await fetch('{{ route('api.keys.generate') }}'); // /api-keys/generate
+            const response = await fetch('{{ route('api.keys.generate') }}');
             const data = await response.json();
             if (data.key) {
                 currentPlainKey = data.key;
                 generatedKeyInput.value = currentPlainKey;
-                keyFieldWrapper.classList.remove('hidden');
-                setApiStatus('Key generated. Click Save to store it.', 'success');
+                setApiStatus('Key ready. Enter owner and click Save.', 'success');
                 validateApiForm();
             } else {
                 setApiStatus('Failed to generate key.', 'error');
@@ -322,7 +328,13 @@
             setApiStatus('Server error', 'error');
             console.error(err);
         }
-    });
+    }
+
+    // Auto-generate when page loads
+    generateKey();
+
+    // Still allow manual regenerate
+    generateBtn.addEventListener('click', generateKey);
 
     // Copy key from input field
     copyKeyBtn.addEventListener('click', () => {
