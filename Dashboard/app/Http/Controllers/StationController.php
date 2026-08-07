@@ -23,12 +23,7 @@ class StationController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'station_mn' => [
-                'required',
-                'string',
-                'max:32',
-                Rule::unique('stations', 'station_mn')->connection('aq'), // 👈 add connection
-            ],
+            'station_mn'   => 'required|string|max:32|unique:stations,station_mn',
             'station_name' => 'nullable|string|max:100',
             'enabled'      => 'sometimes|boolean',
             'latitude'     => 'nullable|numeric|between:-90,90',
@@ -39,13 +34,11 @@ class StationController extends Controller
         ]);
 
         // Set default for enabled if not provided
-        $validated['enabled'] = $request->has('enabled') 
-            ? filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN) 
-            : true;
+        $validated['enabled'] = $request->has('enabled') ? filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN) : true;
 
         Station::create($validated);
 
         return redirect()->route('stations.index')
-                        ->with('success', 'Station created successfully.');
+                         ->with('success', 'Station created successfully.');
     }
 }
