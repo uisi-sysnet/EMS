@@ -374,20 +374,9 @@
 <script>
 // Edit Station
 function editStation(stationMn) {
-    // Show loading state with SweetAlert
-    Swal.fire({
-        title: 'Loading Station Data...',
-        text: 'Please wait while we fetch the station information.',
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        showConfirmButton: false,
-        background: '#1f2937',
-        color: '#f3f4f6',
-        willOpen: () => {
-            Swal.showLoading();
-        }
-    });
-
+    const modal = document.getElementById('editModal');
+    modal.style.display = 'flex';
+    
     // Fetch station data
     fetch(`/stations/${stationMn}/edit`)
         .then(response => {
@@ -397,13 +386,6 @@ function editStation(stationMn) {
             return response.json();
         })
         .then(data => {
-            // Close loading dialog
-            Swal.close();
-            
-            // Get the modal element
-            const modal = document.getElementById('editModal');
-            
-            // Populate form fields
             document.getElementById('edit_station_mn').value = data.station_mn || '';
             document.getElementById('edit_station_name').value = data.station_name || '';
             document.getElementById('edit_latitude').value = data.latitude || '';
@@ -415,26 +397,13 @@ function editStation(stationMn) {
             
             // Set form action
             document.getElementById('editForm').action = `/stations/${stationMn}`;
-            
-            // Show the modal
-            modal.style.display = 'flex';
         })
         .catch(error => {
             console.error('Error:', error);
-            
-            // Close loading dialog and show error
-            Swal.close();
-            Swal.fire({
-                icon: 'error',
-                title: 'Failed to Load Station',
-                text: 'Unable to load station data. Please refresh the page and try again.',
-                background: '#1f2937',
-                color: '#f3f4f6',
-                confirmButtonColor: '#059669',
-                confirmButtonText: 'OK'
-            });
+            alert('Failed to load station data. Please refresh and try again.');
         });
 }
+
 function closeEditModal() {
     document.getElementById('editModal').style.display = 'none';
 }
