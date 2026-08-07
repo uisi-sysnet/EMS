@@ -64,7 +64,7 @@ class ApiKeyController extends Controller
 
     public function generate()
     {
-        return response()->json(['key' => bin2hex(random_bytes(20))]);
+        return response()->json(['key' => bin2hex(random_bytes(32))]);
     }
 
     // ========== ALLOWED IP METHODS ==========
