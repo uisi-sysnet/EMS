@@ -41,14 +41,14 @@
                     <form action="{{ route('stations.store') }}" method="POST">
                         @csrf
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <!-- Station MN -->
                             <div>
                                 <label for="station_mn" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Station MN <span class="text-munti-red-400">*</span>
                                 </label>
                                 <input type="text" id="station_mn" name="station_mn" value="{{ old('station_mn') }}" required
-                                       class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_mn') border-munti-red-500 @enderror">
+                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_mn') border-munti-red-500 @enderror">
                                 @error('station_mn')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -60,22 +60,24 @@
                                     Station Name
                                 </label>
                                 <input type="text" id="station_name" name="station_name" value="{{ old('station_name') }}"
-                                       class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_name') border-munti-red-500 @enderror">
+                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_name') border-munti-red-500 @enderror">
                                 @error('station_name')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
 
-                            <!-- Enabled -->
+                            <!-- Enabled (checkbox) -->
                             <div>
-                                <label for="enabled" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Enabled
                                 </label>
-                                <select id="enabled" name="enabled"
-                                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('enabled') border-munti-red-500 @enderror">
-                                    <option value="1" {{ old('enabled') == '1' ? 'selected' : '' }}>Yes</option>
-                                    <option value="0" {{ old('enabled') == '0' ? 'selected' : '' }}>No</option>
-                                </select>
+                                <div class="flex items-center h-11 px-3.5 border border-border-600 rounded-lg bg-surface-900">
+                                    <input type="hidden" name="enabled" value="0">
+                                    <input type="checkbox" id="enabled" name="enabled" value="1"
+                                        {{ old('enabled', true) ? 'checked' : '' }}
+                                        class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
+                                    <label for="enabled" class="ml-2 text-sm text-text-300 select-none cursor-pointer">Yes</label>
+                                </div>
                                 @error('enabled')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -87,7 +89,7 @@
                                     Latitude
                                 </label>
                                 <input type="number" step="any" id="latitude" name="latitude" value="{{ old('latitude') }}"
-                                       class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('latitude') border-munti-red-500 @enderror">
+                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('latitude') border-munti-red-500 @enderror">
                                 @error('latitude')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -99,7 +101,7 @@
                                     Longitude
                                 </label>
                                 <input type="number" step="any" id="longitude" name="longitude" value="{{ old('longitude') }}"
-                                       class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('longitude') border-munti-red-500 @enderror">
+                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('longitude') border-munti-red-500 @enderror">
                                 @error('longitude')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -111,7 +113,7 @@
                                     Lead IP
                                 </label>
                                 <input type="text" id="lead_ip" name="lead_ip" value="{{ old('lead_ip') }}"
-                                       class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('lead_ip') border-munti-red-500 @enderror">
+                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('lead_ip') border-munti-red-500 @enderror">
                                 @error('lead_ip')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -123,7 +125,7 @@
                                     Lead Port
                                 </label>
                                 <input type="number" id="lead_port" name="lead_port" value="{{ old('lead_port') }}"
-                                       class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('lead_port') border-munti-red-500 @enderror">
+                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('lead_port') border-munti-red-500 @enderror">
                                 @error('lead_port')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -135,7 +137,7 @@
                                     Lead Slave
                                 </label>
                                 <input type="number" id="lead_slave" name="lead_slave" value="{{ old('lead_slave') }}"
-                                       class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('lead_slave') border-munti-red-500 @enderror">
+                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('lead_slave') border-munti-red-500 @enderror">
                                 @error('lead_slave')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
