@@ -320,23 +320,77 @@
     // Manual regenerate button
     generateBtn.addEventListener('click', generateKey);
 
-    // Form submit – copy key then save
+    // Form submit → show popup first, then save
     apiForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
         const owner_label = ownerLabelInput.value.trim();
         const token_hash = generatedKeyInput.value.trim();
         if (!owner_label || !token_hash) return;
 
-        // 1. Copy the plain key to clipboard first
-        try {
-            await navigator.clipboard.writeText(token_hash);
-        } catch (err) {
-            // Fallback for older browsers
-            generatedKeyInput.select();
-            document.execCommand('copy');
+        // ===== SweetAlert Popup =====
+        const result = await Swal.fire({
+            title: 'Copy Your API Key',
+            html: `
+                <div class="text-left">
+                    <p class="text-sm text-yellow-400 mb-4 font-medium">
+                        ⚠️ <strong>Copy the generated key first before saving.</strong><br>
+                        It will <strong>not be shown again</strong> after you save.
+                    </p>
+                    <div class="flex gap-2 items-center mb-2">
+                        <input id="swal-api-key" type="text" readonly
+                            value="${token_hash}"
+                            class="flex-1 px-3 py-2.5 rounded-lg bg-gray-800 border border-gray-600 
+                                    text-green-400 font-mono text-sm focus:outline-none cursor-text">
+                        <button type="button" id="swal-copy-btn"
+                                class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white 
+                                    rounded-lg text-sm font-semibold transition whitespace-nowrap">
+                            Copy Key
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">This is the only time you will see the plain key.</p>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'I have copied it — Save Key',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#059669',
+            cancelButtonColor: '#6b7280',
+            background: '#1f2937',
+            color: '#f3f4f6',
+            customClass: {
+                popup: 'rounded-2xl border border-gray-700',
+                title: 'text-lg font-semibold',
+                htmlContainer: 'text-sm'
+            },
+            didOpen: () => {
+                const copyBtn = document.getElementById('swal-copy-btn');
+                const keyInput = document.getElementById('swal-api-key');
+
+                copyBtn.addEventListener('click', async () => {
+                    try {
+                        await navigator.clipboard.writeText(token_hash);
+                        copyBtn.textContent = 'Copied!';
+                        copyBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
+                        copyBtn.classList.add('bg-green-700');
+                    } catch (err) {
+                        keyInput.select();
+                        document.execCommand('copy');
+                        copyBtn.textContent = 'Copied!';
+                    }
+                });
+            }
+        });
+
+        // User cancelled
+        if (!result.isConfirmed) {
+            setApiStatus('Save cancelled.', 'warning');
+            return;
         }
 
-        setApiStatus('Key copied. Saving...', 'info');
+        // ===== Proceed to save =====
+        setApiStatus('Saving key...', 'info');
 
         try {
             const response = await fetch('{{ route('api.keys.save') }}', {
@@ -347,6 +401,7 @@
                 },
                 body: JSON.stringify({ owner_label, token_hash })
             });
+
             const data = await response.json();
 
             if (data.success) {
@@ -354,8 +409,20 @@
                 generatedKeyInput.value = '';
                 currentPlainKey = '';
                 validateApiForm();
-                setApiStatus('Key copied to clipboard & saved successfully!', 'success');
-                setTimeout(() => location.reload(), 1000);
+                setApiStatus('Key saved successfully!', 'success');
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Key Saved!',
+                    text: 'The API key has been saved. Make sure you already copied it.',
+                    background: '#1f2937',
+                    color: '#f3f4f6',
+                    confirmButtonColor: '#059669',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+                setTimeout(() => location.reload(), 1800);
             } else {
                 setApiStatus(data.error || 'Operation failed', 'error');
             }
