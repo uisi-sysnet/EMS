@@ -21,12 +21,11 @@
                 </div>
             </div>
 
-
-
             {{-- Desktop Navigation (xl+) --}}
-            <div class="hidden xl:flex items-center gap-x-5 lg:gap-x-16 text-sm font-medium">
+            <div class="hidden xl:flex items-center gap-x-5 lg:gap-x-8 text-sm font-medium">
                 @if(session('role') === 'administrator')
                     <a href="{{ route('home') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Dashboard</a>
+                    <a href="{{ route('stations.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Stations</a>
 
                     {{-- ENV Editor Dropdown --}}
                     <div class="relative group" id="env-dropdown-desktop">
@@ -395,6 +394,65 @@
             }
         }
 
+        // In your getLogStyle function, update to handle the level from the log object
+        function getLogStyle(log) {
+            const type = log.type || 'system';
+            
+            // For API logs
+            if (type === 'api') {
+                return {
+                    borderColor: 'border-indigo-500',
+                    bgColor: 'bg-indigo-900/10 hover:bg-indigo-900/20',
+                    labelColor: 'text-indigo-400',
+                    label: 'API',
+                    icon: `<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"  
+                            fill="currentColor" viewBox="0 0 24 24" class="text-indigo-400">
+                            <path d="M15.7 2h-.18c-2.19 0-4.26 1.21-5.53 3.25-.81 1.3-1.12 2.62-.93 4.03L2.9 15.37c-.57.56-.89 1.34-.89 2.13V19c0 1.65 1.35 3 3 3H6.6c.8 0 1.55-.31 2.12-.88l.56-.56c.26-.26.46-.58.58-.92.34-.12.65-.32.92-.58l.5-.5c.26-.26.46-.58.58-.92.34-.12.65-.32.92-.58l.5-.5c.29-.29.51-.65.62-1.03.35-.11.66-.31.93-.57.23.03.45.04.68.04 1.14 0 2.25-.35 3.3-1.03 2.13-1.38 3.32-3.56 3.18-5.85-.2-3.38-2.9-6.02-6.29-6.12m2.02 10.29c-.8.52-1.54.71-2.22.71-.49 0-.95-.1-1.39-.24l-.68.76c-.08.09-.19.13-.31.13-.15 0-.31-.06-.48-.19L12 13v1.79c0 .13-.05.26-.15.35l-.5.5a.485.485 0 0 1-.7 0l-.65-.65v1.79c0 .13-.05.26-.15.35l-.5.5a.485.485 0 0 1-.7 0L8 16.98v1.79c0 .13-.05.26-.15.35l-.56.56a1 1 0 0 1-.71.29H4.99c-.55 0-1-.45-1-1v-1.5a1 1 0 0 1 .3-.71l6.95-6.88c-.35-1.06-.43-2.24.43-3.61.85-1.35 2.25-2.31 3.84-2.31h.12c2.33.07 4.22 1.92 4.35 4.23.1 1.66-.88 3.15-2.28 4.05Z"></path><path d="M14 6.69 17.31 10c.92-.92.92-2.4 0-3.31s-2.4-.91-3.31 0"></path>
+                        </svg>`
+                };
+            }
+            
+            // For system logs - use the level from the log object
+            const level = (log.level || 'info').toLowerCase();
+            
+            switch(level) {
+                case 'error':
+                    return {
+                        borderColor: 'border-red-500',
+                        bgColor: 'bg-red-900/20 hover:bg-red-900/30',
+                        labelColor: 'text-red-400',
+                        label: 'ERROR',
+                        icon: `<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"  
+                                fill="currentColor" viewBox="0 0 24 24" class="text-red-400">
+                                <path d="M4.93 4.93C3.04 6.82 2 9.33 2 12s1.04 5.18 2.93 7.07c1.95 1.95 4.51 2.92 7.07 2.92s5.12-.97 7.07-2.92S22 14.67 22 12s-1.04-5.18-2.93-7.07c-3.9-3.9-10.24-3.9-14.14 0M12 4.01c1.73 0 3.46.56 4.9 1.68l-4.9 4.9-4.9-4.9A7.97 7.97 0 0 1 12 4.01m-8 8c0-1.8.6-3.5 1.68-4.9l4.9 4.9-4.9 4.9A7.92 7.92 0 0 1 4 12.01m3.1 6.32 4.9-4.9 4.9 4.9a8.014 8.014 0 0 1-9.8 0m11.22-1.41-4.9-4.9 4.9-4.9c1.09 1.4 1.68 3.1 1.68 4.9s-.6 3.5-1.68 4.9"></path>
+                                </svg>`
+                    };
+                case 'warning':
+                    return {
+                        borderColor: 'border-yellow-500',
+                        bgColor: 'bg-yellow-900/20 hover:bg-yellow-900/30',
+                        labelColor: 'text-yellow-400',
+                        label: 'WARN',
+                        icon: `<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"  
+                                fill="currentColor" viewBox="0 0 24 24" class="text-yellow-400">
+                                <path d="M11 9h2v6h-2zm0 8h2v2h-2z"></path><path d="M12.87 2.51c-.35-.63-1.4-.63-1.75 0l-9.99 18c-.17.31-.17.69.01.99.18.31.51.49.86.49h20c.35 0 .68-.19.86-.49a1 1 0 0 0 .01-.99zM3.7 20 12 5.06 20.3 20z"></path>
+                                </svg>`
+                    };
+                case 'info':
+                default:
+                    return {
+                        borderColor: 'border-blue-500',
+                        bgColor: 'bg-blue-900/20 hover:bg-blue-900/30',
+                        labelColor: 'text-blue-400',
+                        label: 'INFO',
+                        icon: `<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"  
+                                fill="currentColor" viewBox="0 0 24 24" class="text-blue-400">
+                                <path d="M11 7h2v6h-2zm0 8h2v2h-2z"></path><path d="M12 22c5.51 0 10-4.49 10-10S17.51 2 12 2 2 6.49 2 12s4.49 10 10 10m0-18c4.41 0 8 3.59 8 8s-3.59 8-8 8-8-3.59-8-8 3.59-8 8-8"></path>
+                                </svg>`
+                    };
+            }
+        }
+
         // Helper: get all unseen log entries from the server
         function fetchRecentLogs() {
             const seen = getSeenIds();
@@ -417,7 +475,7 @@
                 })
                 .catch(error => {
                     notificationList.innerHTML = `
-                        <div class="px-4 py-6 text-sm text-munti-red-400 text-center">Failed to load logs.</div>
+                        <div class="px-4 py-6 text-sm text-red-400 text-center">Failed to load logs.</div>
                     `;
                     console.error('Error fetching recent logs:', error);
                 });
@@ -435,21 +493,30 @@
 
             let html = '';
             logs.forEach(log => {
-                const typeColor = log.type === 'api' ? 'text-blue-400' : 'text-purple-400';
-                const typeLabel = log.type === 'api' ? 'API' : 'System';
+                const style = getLogStyle(log);
                 const url = log.url;
+                // Determine if it's a system or API log for the badge
+                const typeBadge = log.type === 'api' ? 'API' : '';
+                
                 html += `
                     <a href="${url}"
                     data-type="${log.type}"
                     data-id="${log.id}"
-                    class="log-item block px-4 py-3 border-l-4 border-radar-500 bg-radar-900/10 hover:bg-radar-900/20 transition-colors">
-                        <div class="flex items-start gap-2">
-                            <span class="text-xs font-bold ${typeColor} w-12 flex-shrink-0">[${typeLabel}]</span>
+                    class="log-item block px-4 py-3 border-l-4 ${style.borderColor} ${style.bgColor} transition-all duration-200 hover:shadow-lg hover:scale-[1.01] transform">
+                        <div class="flex items-start gap-3">
+                            <span class="text-lg flex-shrink-0 mt-0.5">${style.icon}</span>
                             <div class="flex-1 min-w-0">
-                                <div class="text-sm text-text-100 truncate">${log.summary}</div>
-                                <div class="text-xs text-text-400 truncate">${log.detail}</div>
-                                <div class="text-xs text-text-500 mt-0.5">${log.time}</div>
+                                <div class="flex items-center gap-2 mb-0.5">
+                                    <span class="text-xs font-bold ${style.labelColor} px-2 py-0.5 rounded-full bg-surface-800/50">${style.label}</span>
+                                    ${typeBadge ? `<span class="text-xs font-bold text-indigo-400 px-2 py-0.5 rounded-full bg-indigo-900/30">API</span>` : ''}
+                                </div>
+                                <div class="text-sm text-text-100 font-medium">${log.summary}</div>
+                                <div class="text-xs text-text-400 truncate mt-0.5">${log.detail}</div>
+                                <div class="text-xs text-text-500 mt-1 flex items-center gap-1">
+                                    <span>${log.time}</span>
+                                </div>
                             </div>
+                            <span class="text-xs text-text-500 flex-shrink-0 mt-0.5">●</span>
                         </div>
                     </a>
                 `;
@@ -462,14 +529,18 @@
                     const type = this.dataset.type;
                     const id = this.dataset.id;
                     addSeenId(type, id);
-                    this.remove();
-                    const remaining = document.querySelectorAll('.log-item');
-                    if (remaining.length === 0) {
-                        notificationList.innerHTML = `
-                            <div class="px-4 py-6 text-sm text-text-400 text-center">🎉 All caught up! No new logs.</div>
-                        `;
-                        notificationDot.classList.add('hidden');
-                    }
+                    this.style.opacity = '0.5';
+                    this.style.transform = 'scale(0.98)';
+                    setTimeout(() => {
+                        this.remove();
+                        const remaining = document.querySelectorAll('.log-item');
+                        if (remaining.length === 0) {
+                            notificationList.innerHTML = `
+                                <div class="px-4 py-6 text-sm text-text-400 text-center">🎉 All caught up! No new logs.</div>
+                            `;
+                            notificationDot.classList.add('hidden');
+                        }
+                    }, 150);
                 });
             });
         }
@@ -479,20 +550,16 @@
             const seen = getSeenIds();
             const seenParam = seen.join(',');
 
-            // Fetch all unseen logs (no limit)
             fetch(`{{ route('recent-logs') }}?seen=${encodeURIComponent(seenParam)}&all=1`)
                 .then(response => response.json())
                 .then(logs => {
-                    // Mark every returned log as seen
                     logs.forEach(log => {
                         addSeenId(log.type, log.id);
                     });
-                    // Refresh the dropdown (now it will show "All caught up")
                     fetchRecentLogs();
                 })
                 .catch(error => {
                     console.error('Error marking all as seen:', error);
-                    // Optionally show a user-friendly error message
                 });
         }
 
@@ -506,12 +573,16 @@
                 .then(data => {
                     if (data.count > 0) {
                         notificationDot.classList.remove('hidden');
+                        // Add animation to the bell
+                        bellButton.classList.add('animate-pulse');
                     } else {
                         notificationDot.classList.add('hidden');
+                        bellButton.classList.remove('animate-pulse');
                     }
                 })
                 .catch(() => {
                     notificationDot.classList.add('hidden');
+                    bellButton.classList.remove('animate-pulse');
                 });
         }
 
@@ -525,6 +596,8 @@
 
                 if (!isOpen) {
                     fetchRecentLogs();
+                    // Remove pulse animation when opened
+                    this.classList.remove('animate-pulse');
                 }
             });
 
@@ -575,5 +648,33 @@
     .thin-scrollbar {
         scrollbar-width: thin;
         scrollbar-color: #4B5563 #1A1A1A;
+    }
+    
+    /* Enhanced notification styles */
+    .log-item {
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .log-item::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+    }
+    
+    /* Pulse animation for notification bell */
+    @keyframes gentlePulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    
+    .animate-pulse {
+        animation: gentlePulse 2s ease-in-out infinite;
     }
 </style>

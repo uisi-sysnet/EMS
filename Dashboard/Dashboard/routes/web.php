@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\StationController;
 use App\Http\Controllers\AboutController;
 use App\Http\Controllers\ApiFileController;
 use App\Http\Controllers\EnvEditorController;
@@ -26,6 +27,13 @@ Route::middleware(['role:administrator'])->group(function () {
 
     Route::get('/sms', [SmsController::class, 'index'])->name('sms.index');
 
+    Route::get('/stations', [StationController::class, 'index'])->name('stations.index');
+    Route::post('/stations', [StationController::class, 'store'])->name('stations.store');
+    Route::delete('/allowed-networks', [ApiKeyController::class, 'destroyIp'])->name('allowed-networks.destroy');
+    Route::put('/stations/{station}', [StationController::class, 'update'])->name('stations.update');
+    Route::get('/stations/{station}/edit', [StationController::class, 'edit'])->name('stations.edit');
+    Route::delete('/stations/{station}', [StationController::class, 'destroy'])->name('stations.destroy');
+
     Route::get('/env-editor', [EnvEditorController::class, 'index'])->name('env.editor');
     Route::get('/load-env', [EnvEditorController::class, 'load'])->name('env.load');
     Route::post('/save-env', [EnvEditorController::class, 'save'])->name('env.save');
@@ -35,9 +43,12 @@ Route::middleware(['role:administrator'])->group(function () {
     Route::post('/env/mqtt/save', [EnvEditorController::class, 'saveMqtt'])->name('env.mqtt.save');
 
     Route::get('/api-editor', [ApiKeyController::class, 'index'])->name('api.editor');
-    Route::post('/api-keys/generate', [ApiKeyController::class, 'generate'])->name('api.keys.generate');
     Route::post('/api-keys/save', [ApiKeyController::class, 'save'])->name('api.keys.save');
+    Route::get('/api-keys/generate', [ApiKeyController::class, 'generate'])->name('api.keys.generate');
     Route::delete('/api-keys/{token}', [ApiKeyController::class, 'destroy'])->name('api.keys.destroy');
+
+    Route::post('/allowed-networks', [ApiKeyController::class, 'store'])->name('allowed-networks.store');
+    Route::delete('/allowed-networks/{cidr}', [ApiKeyController::class, 'destroyIp'])->name('allowed-networks.destroy');
 
     Route::get('/logs', [App\Http\Controllers\LogController::class, 'index'])->name('logs.index');
     Route::get('/api-logs', [ApiLogController::class, 'index'])->name('api-logs.index');
