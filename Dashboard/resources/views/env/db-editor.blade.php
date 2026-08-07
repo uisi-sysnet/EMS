@@ -100,10 +100,24 @@
         const lines = blockText.split('\n');
         lineOrder = [];
 
-        // We'll group variables by section
         const groups = {
             connection: { title: 'Database connection', rows: [] },
-            names:      { title: 'Database names', rows: [] }
+            names: { title: 'Database names', rows: [] }
+        };
+
+        // Display label mappings
+        const displayLabels = {
+            'SYSTEM_DB_HOST': 'Host',
+            'SYSTEM_DB_PORT': 'port',
+            'SYSTEM_DB_USER': 'username',
+            'SYSTEM_DB_PASSWORD': 'password',
+            'SYSTEM_DB_POOL_MIN': 'pool min',
+            'SYSTEM_DB_POOL_MAX': 'pool max',
+            'AQ_DB_NAME': 'air quality',
+            'SEISMIC_DB_NAME': 'seismic',
+            'SMS_DB_NAME': 'SMS',
+            'API_DB_NAME': 'API',
+            'LOG_DB_NAME': 'System Log'
         };
 
         lines.forEach(line => {
@@ -115,30 +129,38 @@
             const key = parts[0].trim();
             const value = parts.slice(1).join('=').trim();
 
-            // Determine which group this key belongs to
             let group = null;
             if (CONNECTION_PREFIXES.some(p => key.startsWith(p))) {
                 group = 'connection';
             } else if (NAMES_PREFIXES.some(p => key.startsWith(p))) {
                 group = 'names';
             } else {
-                // Ignore unknown keys (should not happen)
                 return;
             }
 
             groups[group].rows.push({ key, value });
-            lineOrder.push({ key, value }); // preserve order for saving
+            lineOrder.push({ key, value });
         });
 
-        // Render the two sections side‑by‑side
         let html = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">`;
-        for (const [groupName, group] of Object.entries(groups)) {
-            html += renderSection(group.title, group.rows);
-        }
+        
+        // Connection section with display labels
+        html += renderSection(
+            groups.connection.title, 
+            groups.connection.rows,
+            displayLabels
+        );
+        
+        // Names section with display labels
+        html += renderSection(
+            groups.names.title, 
+            groups.names.rows,
+            displayLabels
+        );
+        
         html += `</div>`;
         container.innerHTML = html;
 
-        // Store original values and attach listeners
         originalValues = {};
         lineOrder.forEach(item => {
             const input = document.getElementById(item.key);
@@ -150,7 +172,7 @@
         updateSaveButtonState();
     }
 
-    function renderSection(title, rows) {
+    function renderSection(title, rows, displayLabels = {}) {
         let html = `
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col">
                 <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80">
@@ -162,10 +184,11 @@
         `;
         rows.forEach((row, idx) => {
             const isLast = idx === rows.length - 1;
+            const displayLabel = displayLabels[row.key] || row.key;
             html += `
                 <tr class="${isLast ? '' : 'border-b border-border-800'} hover:bg-surface-700/60 transition">
                     <td class="px-4 py-3 font-medium text-text-300 whitespace-nowrap w-40 md:w-48 align-middle">
-                        <label for="${row.key}" class="label-mono">${escapeHtml(row.key)}</label>
+                        <label for="${row.key}" class="label-mono">${escapeHtml(displayLabel)}</label>
                     </td>
                     <td class="px-4 py-2.5 align-middle">
                         <input type="text"
