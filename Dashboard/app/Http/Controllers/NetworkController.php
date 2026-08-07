@@ -48,7 +48,8 @@ class NetworkController extends Controller
 
     /**
      * Get the NetworkManager connection name for eth0.
-     * Fallback: if no active connection, look for a profile named 'netplan-eth0' or any ethernet.
+     * If no active connection and no existing profile is found,
+     * automatically create a new DHCP connection named "eth0" and bring it up.
      */
     private function getEthConnectionName(): string
     {
@@ -69,26 +70,38 @@ class NetworkController extends Controller
             }
         }
 
-        // 2. If no active connection, look for a profile named 'netplan-eth0' or first ethernet
+        // 2. If no active connection, look for a profile named 'netplan-eth0' or any ethernet
         $output = $this->runNmcli('nmcli -t -f NAME,TYPE con show');
-        if (preg_match('/error|failed/i', $output)) {
-            throw new \Exception('Failed to get connection list: ' . $output);
-        }
-        $lines = explode("\n", trim($output));
-        foreach ($lines as $line) {
-            if (empty($line)) continue;
-            $parts = explode(':', $line);
-            if (count($parts) >= 2) {
-                $name = trim($parts[0]);
-                $type = trim($parts[1]);
-                if (strpos($type, 'ethernet') !== false || $name === 'netplan-eth0' || $name === 'eth0') {
-                    Log::debug("Found Ethernet profile: {$name}");
-                    return $name;
+        if (!preg_match('/error|failed/i', $output)) {
+            $lines = explode("\n", trim($output));
+            foreach ($lines as $line) {
+                if (empty($line)) continue;
+                $parts = explode(':', $line);
+                if (count($parts) >= 2) {
+                    $name = trim($parts[0]);
+                    $type = trim($parts[1]);
+                    if (strpos($type, 'ethernet') !== false || $name === 'netplan-eth0' || $name === 'eth0') {
+                        Log::debug("Found Ethernet profile: {$name}");
+                        return $name;
+                    }
                 }
             }
         }
 
-        throw new \Exception('No ethernet connection found for eth0.');
+        // 3. No connection found – create a new DHCP connection for eth0
+        Log::info('No Ethernet connection found. Creating a new one with DHCP.');
+        $createOutput = $this->runNmcli('nmcli con add type ethernet ifname eth0 con-name eth0 autoconnect yes');
+        if (preg_match('/error|failed/i', $createOutput)) {
+            throw new \Exception('Failed to create Ethernet connection: ' . $createOutput);
+        }
+
+        // Bring it up immediately
+        $upOutput = $this->runNmcli('nmcli con up eth0');
+        if (preg_match('/error|failed/i', $upOutput)) {
+            Log::warning('Could not bring up newly created Ethernet connection: ' . $upOutput);
+        }
+
+        return 'eth0';
     }
 
     /**
@@ -195,7 +208,16 @@ class NetworkController extends Controller
         $conn = $this->getEthConnectionName();
         $output = $this->runNmcli("nmcli -t -f ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show " . escapeshellarg($conn));
         if (preg_match('/error|failed/i', $output)) {
-            throw new \Exception('Failed to get Ethernet details: ' . $output);
+            // If the connection exists but has no IP configuration yet (e.g., freshly created),
+            // we simply return default DHCP values.
+            Log::warning('Could not retrieve Ethernet details, assuming DHCP: ' . $output);
+            return [
+                'renderer'    => 'NetworkManager',
+                'dhcp4'       => true,
+                'address'     => '',
+                'gateway'     => '',
+                'nameservers' => '',
+            ];
         }
 
         $data = $this->parseNmcliShow($output);
