@@ -21,8 +21,6 @@
                 </div>
             </div>
 
-
-
             {{-- Desktop Navigation (xl+) --}}
             <div class="hidden xl:flex items-center gap-x-5 lg:gap-x-8 text-sm font-medium">
                 @if(session('role') === 'administrator')
@@ -396,6 +394,52 @@
             }
         }
 
+        // Helper: get color and icon based on log type and level
+        function getLogStyle(log) {
+            const type = log.type || 'system';
+            const level = log.level || 'info';
+            
+            // For API logs
+            if (type === 'api') {
+                return {
+                    borderColor: 'border-indigo-500',
+                    bgColor: 'bg-indigo-900/10 hover:bg-indigo-900/20',
+                    labelColor: 'text-indigo-400',
+                    label: 'API',
+                    icon: '🔌'
+                };
+            }
+            
+            // For system logs based on level
+            switch(level.toLowerCase()) {
+                case 'error':
+                    return {
+                        borderColor: 'border-red-500',
+                        bgColor: 'bg-red-900/20 hover:bg-red-900/30',
+                        labelColor: 'text-red-400',
+                        label: 'ERROR',
+                        icon: '❌'
+                    };
+                case 'warning':
+                    return {
+                        borderColor: 'border-yellow-500',
+                        bgColor: 'bg-yellow-900/20 hover:bg-yellow-900/30',
+                        labelColor: 'text-yellow-400',
+                        label: 'WARN',
+                        icon: '⚠️'
+                    };
+                case 'info':
+                default:
+                    return {
+                        borderColor: 'border-blue-500',
+                        bgColor: 'bg-blue-900/20 hover:bg-blue-900/30',
+                        labelColor: 'text-blue-400',
+                        label: 'INFO',
+                        icon: 'ℹ️'
+                    };
+            }
+        }
+
         // Helper: get all unseen log entries from the server
         function fetchRecentLogs() {
             const seen = getSeenIds();
@@ -418,7 +462,7 @@
                 })
                 .catch(error => {
                     notificationList.innerHTML = `
-                        <div class="px-4 py-6 text-sm text-munti-red-400 text-center">Failed to load logs.</div>
+                        <div class="px-4 py-6 text-sm text-red-400 text-center">Failed to load logs.</div>
                     `;
                     console.error('Error fetching recent logs:', error);
                 });
@@ -436,21 +480,31 @@
 
             let html = '';
             logs.forEach(log => {
-                const typeColor = log.type === 'api' ? 'text-blue-400' : 'text-purple-400';
-                const typeLabel = log.type === 'api' ? 'API' : 'System';
+                const style = getLogStyle(log);
                 const url = log.url;
+                // Determine if it's a system or API log for the badge
+                const typeBadge = log.type === 'api' ? 'API' : '';
+                
                 html += `
                     <a href="${url}"
                     data-type="${log.type}"
                     data-id="${log.id}"
-                    class="log-item block px-4 py-3 border-l-4 border-radar-500 bg-radar-900/10 hover:bg-radar-900/20 transition-colors">
-                        <div class="flex items-start gap-2">
-                            <span class="text-xs font-bold ${typeColor} w-12 flex-shrink-0">[${typeLabel}]</span>
+                    class="log-item block px-4 py-3 border-l-4 ${style.borderColor} ${style.bgColor} transition-all duration-200 hover:shadow-lg hover:scale-[1.01] transform">
+                        <div class="flex items-start gap-3">
+                            <span class="text-lg flex-shrink-0 mt-0.5">${style.icon}</span>
                             <div class="flex-1 min-w-0">
-                                <div class="text-sm text-text-100 truncate">${log.summary}</div>
-                                <div class="text-xs text-text-400 truncate">${log.detail}</div>
-                                <div class="text-xs text-text-500 mt-0.5">${log.time}</div>
+                                <div class="flex items-center gap-2 mb-0.5">
+                                    <span class="text-xs font-bold ${style.labelColor} px-2 py-0.5 rounded-full bg-surface-800/50">${style.label}</span>
+                                    ${typeBadge ? `<span class="text-xs font-bold text-indigo-400 px-2 py-0.5 rounded-full bg-indigo-900/30">API</span>` : ''}
+                                </div>
+                                <div class="text-sm text-text-100 font-medium">${log.summary}</div>
+                                <div class="text-xs text-text-400 truncate mt-0.5">${log.detail}</div>
+                                <div class="text-xs text-text-500 mt-1 flex items-center gap-1">
+                                    <span>🕐</span>
+                                    <span>${log.time}</span>
+                                </div>
                             </div>
+                            <span class="text-xs text-text-500 flex-shrink-0 mt-0.5">●</span>
                         </div>
                     </a>
                 `;
@@ -463,14 +517,18 @@
                     const type = this.dataset.type;
                     const id = this.dataset.id;
                     addSeenId(type, id);
-                    this.remove();
-                    const remaining = document.querySelectorAll('.log-item');
-                    if (remaining.length === 0) {
-                        notificationList.innerHTML = `
-                            <div class="px-4 py-6 text-sm text-text-400 text-center">🎉 All caught up! No new logs.</div>
-                        `;
-                        notificationDot.classList.add('hidden');
-                    }
+                    this.style.opacity = '0.5';
+                    this.style.transform = 'scale(0.98)';
+                    setTimeout(() => {
+                        this.remove();
+                        const remaining = document.querySelectorAll('.log-item');
+                        if (remaining.length === 0) {
+                            notificationList.innerHTML = `
+                                <div class="px-4 py-6 text-sm text-text-400 text-center">🎉 All caught up! No new logs.</div>
+                            `;
+                            notificationDot.classList.add('hidden');
+                        }
+                    }, 150);
                 });
             });
         }
@@ -480,20 +538,16 @@
             const seen = getSeenIds();
             const seenParam = seen.join(',');
 
-            // Fetch all unseen logs (no limit)
             fetch(`{{ route('recent-logs') }}?seen=${encodeURIComponent(seenParam)}&all=1`)
                 .then(response => response.json())
                 .then(logs => {
-                    // Mark every returned log as seen
                     logs.forEach(log => {
                         addSeenId(log.type, log.id);
                     });
-                    // Refresh the dropdown (now it will show "All caught up")
                     fetchRecentLogs();
                 })
                 .catch(error => {
                     console.error('Error marking all as seen:', error);
-                    // Optionally show a user-friendly error message
                 });
         }
 
@@ -507,12 +561,16 @@
                 .then(data => {
                     if (data.count > 0) {
                         notificationDot.classList.remove('hidden');
+                        // Add animation to the bell
+                        bellButton.classList.add('animate-pulse');
                     } else {
                         notificationDot.classList.add('hidden');
+                        bellButton.classList.remove('animate-pulse');
                     }
                 })
                 .catch(() => {
                     notificationDot.classList.add('hidden');
+                    bellButton.classList.remove('animate-pulse');
                 });
         }
 
@@ -526,6 +584,8 @@
 
                 if (!isOpen) {
                     fetchRecentLogs();
+                    // Remove pulse animation when opened
+                    this.classList.remove('animate-pulse');
                 }
             });
 
@@ -576,5 +636,33 @@
     .thin-scrollbar {
         scrollbar-width: thin;
         scrollbar-color: #4B5563 #1A1A1A;
+    }
+    
+    /* Enhanced notification styles */
+    .log-item {
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .log-item::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+    }
+    
+    /* Pulse animation for notification bell */
+    @keyframes gentlePulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    
+    .animate-pulse {
+        animation: gentlePulse 2s ease-in-out infinite;
     }
 </style>
