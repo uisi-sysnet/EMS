@@ -6,7 +6,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="${SCRIPT_DIR}/.env"
+ENV_FILE="${SCRIPT_DIR}/scripts/.env"
 ENV_TEMPLATE="${SCRIPT_DIR}/_env"
 DEPLOY_SCRIPT="${SCRIPT_DIR}/deploy.sh"
 INSTALL_SERVICES_SCRIPT="${SCRIPT_DIR}/install_services.sh"
@@ -95,6 +95,36 @@ is_valid_ipv4() {
     return 0
 }
 
+# ----------------------------------------------------------------------
+# OS detection
+# ----------------------------------------------------------------------
+# Sets OS_PRETTY_NAME (human-readable string) and returns 0 if the host is
+# running Raspberry Pi OS / Raspbian, 1 otherwise.
+detect_os() {
+    OS_PRETTY_NAME="Unknown"
+
+    if [[ -f /etc/os-release ]]; then
+        # shellcheck source=/dev/null
+        source /etc/os-release
+        OS_PRETTY_NAME="${PRETTY_NAME:-${NAME:-Unknown}}"
+
+        # Raspberry Pi OS reports ID=raspbian (older) or ID=debian with
+        # ID_LIKE containing "raspbian" / "debian raspbian" (newer, incl.
+        # Bookworm). Check both, plus common vendor markers.
+        if [[ "${ID:-}" == "raspbian" ]] || [[ "${ID_LIKE:-}" == *raspbian* ]]; then
+            return 0
+        fi
+    fi
+
+    # Fallback markers used on Raspberry Pi OS regardless of /etc/os-release.
+    if [[ -f /etc/rpi-issue ]] || [[ -f /etc/rpi_repo_files ]] \
+        || grep -qi "raspberry pi" /proc/cpuinfo 2>/dev/null; then
+        return 0
+    fi
+
+    return 1
+}
+
 echo "=========================================="
 echo " IoT Gateway Setup Wizard"
 echo " Raspberry Pi 4B / Raspberry Pi OS Lite"
@@ -102,8 +132,23 @@ echo "=========================================="
 echo
 
 # ----------------------------------------------------------------------
+# OS check
+# ----------------------------------------------------------------------
+if detect_os; then
+    IS_RASPBIAN="yes"
+    log "Detected OS: ${OS_PRETTY_NAME} (Raspberry Pi OS / Raspbian)"
+else
+    IS_RASPBIAN="no"
+    warn "Detected OS: ${OS_PRETTY_NAME} — this does not look like Raspberry Pi OS / Raspbian."
+    warn "Skipping WiFi Access Point and wired (eth0) network setup; continuing to .env configuration."
+fi
+
+if [[ "$IS_RASPBIAN" == "yes" ]]; then
+
+# ----------------------------------------------------------------------
 # 1. Network mode
 # ----------------------------------------------------------------------
+echo
 echo "--- Network mode ---"
 echo "  1) Standalone — turns wlan0 into a WiFi Access Point."
 echo "  2) Stay as-is — no WiFi/AP changes are made."
@@ -162,67 +207,98 @@ else
 fi
 
 # ----------------------------------------------------------------------
-# 2. Static IP for ethernet
+# 2. IP configuration for ethernet (DHCP or Static)
 # ----------------------------------------------------------------------
 echo
-echo "--- Wired (eth0) static IP configuration ---"
-warn "Changing eth0 IP while connected through eth0 will disconnect SSH."
+echo "--- Wired (eth0) IP configuration ---"
+echo "  1) DHCP — obtain an IP address automatically."
+echo "  2) Static — manually set IP, gateway, and DNS."
+warn "Changing eth0 network settings while connected through eth0 will disconnect SSH."
 echo
 
-while true; do
-    ask "Static IP address for eth0" "192.168.1.10" ETH_IP
-    is_valid_ipv4 "$ETH_IP" && break
-    warn "That doesn't look like a valid IPv4 address — try again."
-done
+read -r -p "Select [1/2] (default: 1): " ETH_MODE_CHOICE || true
+ETH_MODE_CHOICE="${ETH_MODE_CHOICE:-1}"
 
-ask "Subnet prefix length (e.g. 24)" "24" ETH_PREFIX
+command -v nmcli >/dev/null 2>&1 \
+    || die "NetworkManager (nmcli) not found."
 
-while true; do
-    ask "Gateway" "192.168.1.1" ETH_GATEWAY
-    is_valid_ipv4 "$ETH_GATEWAY" && break
-    warn "That doesn't look like a valid IPv4 address — try again."
-done
+ETH_CON_NAME="$(nmcli -t -f NAME,DEVICE connection show 2>/dev/null \
+    | awk -F: '$2=="eth0"{print $1; exit}')"
 
-while true; do
-    ask "DNS server" "192.168.1.1" ETH_DNS
-    is_valid_ipv4 "$ETH_DNS" && break
-    warn "That doesn't look like a valid IPv4 address — try again."
-done
+if [[ -z "$ETH_CON_NAME" ]]; then
+    ETH_CON_NAME="Wired connection eth0"
+    log "Creating '${ETH_CON_NAME}'"
+    nmcli connection add type ethernet ifname eth0 con-name "$ETH_CON_NAME" \
+        || die "Could not create ethernet connection profile."
+fi
 
-read -r -p "Apply this static config to eth0 now? (y/n) [y]: " CONFIRM_ETH || true
-CONFIRM_ETH="${CONFIRM_ETH:-y}"
+if [[ "$ETH_MODE_CHOICE" == "2" ]]; then
+    while true; do
+        ask "Static IP address for eth0" "192.168.1.10" ETH_IP
+        is_valid_ipv4 "$ETH_IP" && break
+        warn "That doesn't look like a valid IPv4 address — try again."
+    done
 
-if [[ "$CONFIRM_ETH" == "y" || "$CONFIRM_ETH" == "Y" ]]; then
-    command -v nmcli >/dev/null 2>&1 \
-        || die "NetworkManager (nmcli) not found."
+    ask "Subnet prefix length (e.g. 24)" "24" ETH_PREFIX
 
-    ETH_CON_NAME="$(nmcli -t -f NAME,DEVICE connection show 2>/dev/null \
-        | awk -F: '$2=="eth0"{print $1; exit}')"
+    while true; do
+        ask "Gateway" "192.168.1.1" ETH_GATEWAY
+        is_valid_ipv4 "$ETH_GATEWAY" && break
+        warn "That doesn't look like a valid IPv4 address — try again."
+    done
 
-    if [[ -z "$ETH_CON_NAME" ]]; then
-        ETH_CON_NAME="Wired connection eth0"
-        log "Creating '${ETH_CON_NAME}'"
-        nmcli connection add type ethernet ifname eth0 con-name "$ETH_CON_NAME" \
-            || die "Could not create ethernet connection profile."
-    fi
+    while true; do
+        ask "DNS server" "192.168.1.1" ETH_DNS
+        is_valid_ipv4 "$ETH_DNS" && break
+        warn "That doesn't look like a valid IPv4 address — try again."
+    done
 
-    log "Setting eth0 to ${ETH_IP}/${ETH_PREFIX}, gateway ${ETH_GATEWAY}, DNS ${ETH_DNS}"
+    read -r -p "Apply this static config to eth0 now? (y/n) [y]: " CONFIRM_ETH || true
+    CONFIRM_ETH="${CONFIRM_ETH:-y}"
 
-    nmcli connection modify "$ETH_CON_NAME" \
-        ipv4.addresses "${ETH_IP}/${ETH_PREFIX}" \
-        ipv4.gateway "${ETH_GATEWAY}" \
-        ipv4.dns "${ETH_DNS}" \
-        ipv4.method manual \
-        || die "Failed to modify the eth0 connection profile."
+    if [[ "$CONFIRM_ETH" == "y" || "$CONFIRM_ETH" == "Y" ]]; then
+        log "Setting eth0 to ${ETH_IP}/${ETH_PREFIX}, gateway ${ETH_GATEWAY}, DNS ${ETH_DNS}"
 
-    if nmcli connection up "$ETH_CON_NAME" 2>/dev/null; then
-        log "eth0 is now static at ${ETH_IP}/${ETH_PREFIX}."
+        nmcli connection modify "$ETH_CON_NAME" \
+            ipv4.addresses "${ETH_IP}/${ETH_PREFIX}" \
+            ipv4.gateway "${ETH_GATEWAY}" \
+            ipv4.dns "${ETH_DNS}" \
+            ipv4.method manual \
+            || die "Failed to modify the eth0 connection profile."
+
+        if nmcli connection up "$ETH_CON_NAME" 2>/dev/null; then
+            log "eth0 is now static at ${ETH_IP}/${ETH_PREFIX}."
+        else
+            warn "Config saved but eth0 could not be brought up immediately."
+        fi
     else
-        warn "Config saved but eth0 could not be brought up immediately."
+        log "Skipped applying eth0 static configuration."
     fi
 else
-    log "Skipped applying eth0 static configuration."
+    read -r -p "Apply DHCP config to eth0 now? (y/n) [y]: " CONFIRM_ETH || true
+    CONFIRM_ETH="${CONFIRM_ETH:-y}"
+
+    if [[ "$CONFIRM_ETH" == "y" || "$CONFIRM_ETH" == "Y" ]]; then
+        log "Setting eth0 to DHCP"
+
+        nmcli connection modify "$ETH_CON_NAME" \
+            ipv4.method auto \
+            ipv4.addresses "" \
+            ipv4.gateway "" \
+            ipv4.dns "" \
+            || die "Failed to modify the eth0 connection profile."
+
+        if nmcli connection up "$ETH_CON_NAME" 2>/dev/null; then
+            log "eth0 is now set to DHCP."
+        else
+            warn "Config saved but eth0 could not be brought up immediately."
+        fi
+    else
+        log "Skipped applying eth0 DHCP configuration."
+    fi
 fi
+
+fi # IS_RASPBIAN
 
 # ----------------------------------------------------------------------
 # 3. Database / MQTT location

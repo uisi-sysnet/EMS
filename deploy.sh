@@ -833,6 +833,34 @@ if [[ ! -d "$LARAVEL_DIR" ]]; then
     warn "If it lives somewhere else, re-run as: LARAVEL_DIR=/path/to/Dashboard sudo -E ./deploy.sh"
 else
 
+# nginx/php-fpm run as www-data, which needs execute ("traversal") permission
+# on EVERY parent directory of LARAVEL_DIR to reach public/index.php at all —
+# not just LARAVEL_DIR itself. This is easy to miss when Dashboard/ lives
+# under a user's home directory, since home dirs are commonly created
+# `700`/`750` (owner-only), which silently blocks www-data before nginx even
+# gets to check the file — surfacing as a plain 404 with no obvious cause.
+# We only ADD the "execute" (traversal) bit for "other" where it's missing;
+# we never touch read/write bits or ownership on these directories, so this
+# doesn't expose file contents or change who owns anything outside LARAVEL_DIR.
+#
+# This runs FIRST, before composer/npm/artisan below — those can fail and
+# call die() (script exits immediately, set -euo pipefail), and this fix
+# must not depend on any of them succeeding.
+log "Checking that www-data can traverse into ${LARAVEL_DIR} (parent directory permissions)"
+_check_dir="$LARAVEL_DIR"
+while [[ "$_check_dir" != "/" && -n "$_check_dir" ]]; do
+    _perms="$(stat -c '%A' "$_check_dir" 2>/dev/null || true)"
+    # 10-char perms string, e.g. drwxr-x---: char 10 is "other execute".
+    if [[ -n "$_perms" && "${_perms:9:1}" != "x" ]]; then
+        warn "${_check_dir} lacks traversal (execute) permission for other users —"
+        warn "this would block www-data from reaching ${LARAVEL_DIR}/public/index.php,"
+        warn "causing a plain 404 with no obvious error. Adding execute-only (o+x);"
+        warn "this does NOT grant read access to files inside ${_check_dir} itself."
+        chmod o+x "$_check_dir" || warn "Could not chmod ${_check_dir} — fix manually: sudo chmod o+x ${_check_dir}"
+    fi
+    _check_dir="$(dirname "$_check_dir")"
+done
+
 log "Installing nginx, PHP-FPM, and Composer"
 apt-get install -y --no-install-recommends \
     nginx \
@@ -1043,32 +1071,6 @@ log "Caching Laravel config/routes/views for production"
 # be readable by it.
 chown -R www-data:www-data "$LARAVEL_DIR"
 chmod -R 775 "${LARAVEL_DIR}/storage" "${LARAVEL_DIR}/bootstrap/cache" 2>/dev/null || true
-
-# nginx/php-fpm run as www-data, which needs execute ("traversal") permission
-# on EVERY parent directory of LARAVEL_DIR to reach public/index.php at all —
-# not just LARAVEL_DIR itself. This is easy to miss when Dashboard/ lives
-# under a user's home directory, since home dirs are commonly created
-# `700`/`750` (owner-only), which silently blocks www-data before nginx even
-# gets to check the file — surfacing as a plain 404 with no obvious cause.
-# We only ADD the "execute" (traversal) bit for "other" where it's missing;
-# we never touch read/write bits or ownership on these directories, so this
-# doesn't expose file contents or change who owns anything outside LARAVEL_DIR.
-log "Checking that www-data can traverse into ${LARAVEL_DIR} (parent directory permissions)"
-# Start at LARAVEL_DIR itself (not its parent) — it needs traversal
-# permission too, same as every directory above it.
-_check_dir="$LARAVEL_DIR"
-while [[ "$_check_dir" != "/" && -n "$_check_dir" ]]; do
-    _perms="$(stat -c '%A' "$_check_dir" 2>/dev/null || true)"
-    # 10-char perms string, e.g. drwxr-x---: char 10 is "other execute".
-    if [[ -n "$_perms" && "${_perms:9:1}" != "x" ]]; then
-        warn "${_check_dir} lacks traversal (execute) permission for other users —"
-        warn "this would block www-data from reaching ${LARAVEL_DIR}/public/index.php,"
-        warn "causing a plain 404 with no obvious error. Adding execute-only (o+x);"
-        warn "this does NOT grant read access to files inside ${_check_dir} itself."
-        chmod o+x "$_check_dir" || warn "Could not chmod ${_check_dir} — fix manually: sudo chmod o+x ${_check_dir}"
-    fi
-    _check_dir="$(dirname "$_check_dir")"
-done
 
 # ---- Nginx site ----
 log "Writing nginx site config"
