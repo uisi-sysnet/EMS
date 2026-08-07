@@ -36,12 +36,22 @@
                     <!-- Form Section -->
                     <div class="p-5 border-b border-border-700">
                         <form id="apiKeyForm" class="space-y-4">
-                            <div>
-                                <label for="ownerLabel" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Owner Label</label>
-                                <input type="text" id="ownerLabel" placeholder="e.g. Dashboard Client" required
-                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
-                                            bg-surface-900 text-text-100 placeholder-text-500
-                                            focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                            <!-- Owner + Generate in same row -->
+                            <div class="flex flex-col sm:flex-row gap-3 items-end">
+                                <div class="flex-1 w-full">
+                                    <label for="ownerLabel" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Owner Label</label>
+                                    <input type="text" id="ownerLabel" placeholder="e.g. Dashboard Client" required
+                                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
+                                                bg-surface-900 text-text-100 placeholder-text-500
+                                                focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                                </div>
+                                <button type="button" id="generateBtn"
+                                        class="w-full sm:w-auto px-4 py-2.5 bg-surface-700 hover:bg-surface-600 text-text-100 font-semibold rounded-lg transition border border-border-600 flex items-center justify-center gap-2 shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                    </svg>
+                                    Generate Key
+                                </button>
                             </div>
 
                             <!-- Generated key field (hidden until generated) -->
@@ -60,22 +70,13 @@
                                 </div>
                             </div>
 
-                            <div class="flex gap-3">
-                                <button type="button" id="generateBtn"
-                                        class="flex-1 px-4 py-2.5 bg-surface-700 hover:bg-surface-600 text-text-100 font-semibold rounded-lg transition border border-border-600 flex items-center justify-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                                    </svg>
-                                    Generate Key
-                                </button>
-                                <button type="submit" id="saveBtn"
-                                        class="flex-1 px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30 flex items-center justify-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                    </svg>
-                                    Save Key
-                                </button>
-                            </div>
+                            <button type="submit" id="saveBtn"
+                                    class="w-full px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed border border-munti-green-500/30 flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                Save Key
+                            </button>
                         </form>
                         <div id="apiStatus" class="mt-3 text-sm font-medium text-center min-h-[1.25rem]"></div>
                     </div>
