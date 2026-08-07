@@ -10,14 +10,44 @@ class NetworkController extends Controller
     /**
      * Execute a shell command with sudo and log everything.
      * Always returns a string (empty if command returns null).
+     *
+     * -n (non-interactive) makes sudo fail immediately with a clear
+     * message on stderr if it would otherwise prompt for a password,
+     * instead of hanging the request or silently returning nothing —
+     * which is what happens when this runs under a web server user
+     * (www-data, php-fpm pool user, etc.) that doesn't have a TTY.
      */
     private function runNmcli(string $command): string
     {
-        $fullCmd = 'sudo ' . $command . ' 2>&1';
+        $fullCmd = 'sudo -n ' . $command . ' 2>&1';
         Log::debug("Executing: {$fullCmd}");
         $output = shell_exec($fullCmd);
         Log::debug("Output: " . ($output ?: '(empty)'));
-        return $output ?? '';
+        $output = $output ?? '';
+
+        if ($this->isSudoAuthFailure($output)) {
+            $whoami = trim((string) shell_exec('whoami 2>&1'));
+            $msg = "sudo requires a password for user '{$whoami}' when running nmcli. "
+                 . "Add a NOPASSWD rule for this user and the nmcli binary in /etc/sudoers.d/, "
+                 . "e.g.: {$whoami} ALL=(ALL) NOPASSWD: /usr/bin/nmcli. Raw output: {$output}";
+            Log::error($msg);
+            throw new \Exception($msg);
+        }
+
+        return $output;
+    }
+
+    /**
+     * Detect sudo declining to run non-interactively (missing/blocked
+     * password prompt) so it can be reported clearly instead of being
+     * misread as "no device found".
+     */
+    private function isSudoAuthFailure(string $output): bool
+    {
+        return (bool) preg_match(
+            '/a password is required|no tty present|askpass|sudo:.*password/i',
+            $output
+        );
     }
 
     /**
