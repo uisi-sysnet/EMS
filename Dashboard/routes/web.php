@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\StationController;
 use App\Http\Controllers\AboutController;
 use App\Http\Controllers\ApiFileController;
 use App\Http\Controllers\EnvEditorController;
@@ -25,6 +26,9 @@ Route::middleware(['role:administrator'])->group(function () {
     Route::get('/about', [AboutController::class, 'about'])->name('about');
 
     Route::get('/sms', [SmsController::class, 'index'])->name('sms.index');
+
+    Route::get('/stations', [StationController::class, 'index'])->name('stations.index');
+    Route::post('/stations', [StationController::class, 'store'])->name('stations.store');
 
     Route::get('/env-editor', [EnvEditorController::class, 'index'])->name('env.editor');
     Route::get('/load-env', [EnvEditorController::class, 'load'])->name('env.load');
