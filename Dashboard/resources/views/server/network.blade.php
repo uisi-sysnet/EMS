@@ -112,8 +112,12 @@
         const html = `
             <!-- Ethernet Section -->
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden">
-                <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80">
-                    <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">Ethernet (eth0)</h3>
+                <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80 flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">Ethernet (${escapeHtml(eth.device || 'eth0')})</h3>
+                    <button id="restartEthBtn"
+                            class="px-3 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition disabled:opacity-50">
+                        Restart Connection
+                    </button>
                 </div>
                 <div class="p-4 space-y-4">
                     <div>
@@ -151,19 +155,12 @@
                                class="w-full px-3 py-2 border border-border-600 rounded-lg focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm bg-surface-900 text-text-100 transition">
                     </div>
                 </div>
-                <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80 flex justify-between items-center">
-                    <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">Ethernet (eth0)</h3>
-                    <button id="restartEthBtn"
-                            class="px-3 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition disabled:opacity-50">
-                        Restart Connection
-                    </button>
-                </div>
             </div>
 
             <!-- WiFi Section -->
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden">
                 <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80">
-                    <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">WiFi (wlan0)</h3>
+                    <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">WiFi (${escapeHtml(wlan.device || 'wlan0')})</h3>
                 </div>
                 <div class="p-4 space-y-4">
                     <div>

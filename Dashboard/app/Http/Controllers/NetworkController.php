@@ -21,71 +21,113 @@ class NetworkController extends Controller
     }
 
     /**
-     * Get the NetworkManager connection name for wlan0.
+     * Find the actual device name for a given nmcli device TYPE
+     * (e.g. "ethernet" or "wifi"). Interface names vary a lot between
+     * Ubuntu/Raspberry Pi installs (eth0, end0, enp0s3, enx..., wlan0,
+     * wlp2s0, ...) because of predictable network interface naming and
+     * USB dongles, so we detect by type instead of assuming a name.
+     * Prefers a connected device, falls back to the first one present.
      */
-    private function getWlanConnectionName(): string
+    private function detectDevice(string $type): string
     {
+        $output = $this->runNmcli('nmcli -t -f DEVICE,TYPE,STATE device status');
+        if (preg_match('/error|failed/i', $output)) {
+            throw new \Exception("Failed to get device status: {$output}");
+        }
+
+        $candidates = [];
+        foreach (explode("\n", trim($output)) as $line) {
+            if (empty($line)) continue;
+            $parts = explode(':', $line);
+            if (count($parts) < 3) continue;
+            [$device, $devType, $state] = [trim($parts[0]), trim($parts[1]), trim($parts[2])];
+            if ($devType === $type) {
+                $candidates[] = ['device' => $device, 'state' => $state];
+            }
+        }
+
+        if (empty($candidates)) {
+            throw new \Exception("No {$type} device found on this system.");
+        }
+
+        foreach ($candidates as $c) {
+            if ($c['state'] === 'connected') {
+                Log::debug("Detected {$type} device (connected): {$c['device']}");
+                return $c['device'];
+            }
+        }
+
+        Log::debug("Detected {$type} device (not connected): {$candidates[0]['device']}");
+        return $candidates[0]['device'];
+    }
+
+    private function detectEthDevice(): string
+    {
+        return $this->detectDevice('ethernet');
+    }
+
+    private function detectWlanDevice(): string
+    {
+        return $this->detectDevice('wifi');
+    }
+
+    /**
+     * Resolve the NetworkManager connection profile name bound to a device.
+     * Checks for an active connection first, then falls back to any saved
+     * profile whose TYPE matches (covers devices that exist but aren't
+     * currently connected/activated).
+     */
+    private function resolveConnectionName(string $device, array $typeHints): string
+    {
+        // 1. Active connection on this device
         $output = $this->runNmcli('nmcli -t -f DEVICE,CONNECTION device status');
         if (preg_match('/error|failed/i', $output)) {
             throw new \Exception('Failed to get device status: ' . $output);
         }
-
-        $lines = explode("\n", trim($output));
-        foreach ($lines as $line) {
+        foreach (explode("\n", trim($output)) as $line) {
             if (empty($line)) continue;
             $parts = explode(':', $line);
-            if (count($parts) >= 2 && trim($parts[0]) === 'wlan0') {
+            if (count($parts) >= 2 && trim($parts[0]) === $device) {
                 $conn = trim($parts[1]);
                 if (!empty($conn) && $conn !== '--') {
-                    Log::debug("Found connection: {$conn}");
+                    Log::debug("Found active connection for {$device}: {$conn}");
                     return $conn;
                 }
             }
         }
 
-        throw new \Exception('No active connection found for wlan0.');
-    }
-
-    private function getEthConnectionName(): string
-    {
-        // 1. Check if eth0 has an active connection
-        $output = $this->runNmcli('nmcli -t -f DEVICE,CONNECTION device status');
-        if (!preg_match('/error|failed/i', $output)) {
-            $lines = explode("\n", trim($output));
-            foreach ($lines as $line) {
-                if (empty($line)) continue;
-                $parts = explode(':', $line);
-                if (count($parts) >= 2 && trim($parts[0]) === 'eth0') {
-                    $conn = trim($parts[1]);
-                    if (!empty($conn) && $conn !== '--') {
-                        Log::debug("Found active eth0 connection: {$conn}");
-                        return $conn;
-                    }
-                }
-            }
-        }
-
-        // 2. No active connection – find an Ethernet connection profile
+        // 2. No active connection – find a saved profile of the right type
         $output = $this->runNmcli('nmcli -t -f NAME,TYPE con show');
         if (preg_match('/error|failed/i', $output)) {
             throw new \Exception('Failed to get connection list: ' . $output);
         }
-        $lines = explode("\n", trim($output));
-        foreach ($lines as $line) {
+        foreach (explode("\n", trim($output)) as $line) {
             if (empty($line)) continue;
             $parts = explode(':', $line);
-            if (count($parts) >= 2) {
-                $name = trim($parts[0]);
-                $type = trim($parts[1]);
-                // Look for ethernet type, or name "eth0"
-                if (strpos($type, 'ethernet') !== false || strpos($type, '802-3') !== false || $name === 'eth0') {
-                    Log::debug("Found ethernet connection profile: {$name}");
+            if (count($parts) < 2) continue;
+            $name = trim($parts[0]);
+            $type = trim($parts[1]);
+            foreach ($typeHints as $hint) {
+                if (strpos($type, $hint) !== false || $name === $device) {
+                    Log::debug("Found connection profile for {$device}: {$name}");
                     return $name;
                 }
             }
         }
 
-        throw new \Exception('No ethernet connection found for eth0.');
+        throw new \Exception("No connection profile found for {$device}.");
+    }
+
+    private function getWlanConnectionName(): string
+    {
+        $device = $this->detectWlanDevice();
+        return $this->resolveConnectionName($device, ['wireless', '802-11', 'wifi']);
+    }
+
+    private function getEthConnectionName(): string
+    {
+        $device = $this->detectEthDevice();
+        return $this->resolveConnectionName($device, ['ethernet', '802-3']);
     }
 
     /**
@@ -130,7 +172,8 @@ class NetworkController extends Controller
 
     private function loadWlan(): array
     {
-        $conn = $this->getWlanConnectionName();
+        $device = $this->detectWlanDevice();
+        $conn = $this->resolveConnectionName($device, ['wireless', '802-11', 'wifi']);
         $output = $this->runNmcli("nmcli -t -f ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns,802-11-wireless.ssid con show " . escapeshellarg($conn));
         if (preg_match('/error|failed/i', $output)) {
             throw new \Exception('Failed to get connection details: ' . $output);
@@ -145,6 +188,7 @@ class NetworkController extends Controller
         }
 
         return [
+            'device'      => $device,
             'renderer'    => 'NetworkManager',
             'dhcp4'       => $dhcp4,
             'ssid'        => $data['802-11-wireless.ssid'] ?? '',
@@ -157,10 +201,11 @@ class NetworkController extends Controller
 
     private function loadEth(): array
     {
-        $conn = $this->getEthConnectionName();
+        $device = $this->detectEthDevice();
+        $conn = $this->resolveConnectionName($device, ['ethernet', '802-3']);
         $output = $this->runNmcli("nmcli -t -f ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show " . escapeshellarg($conn));
         if (preg_match('/error|failed/i', $output)) {
-            throw new \Exception('Failed to get eth0 details: ' . $output);
+            throw new \Exception("Failed to get {$device} details: " . $output);
         }
 
         $data = $this->parseNmcliShow($output);
@@ -172,6 +217,7 @@ class NetworkController extends Controller
         }
 
         return [
+            'device'      => $device,
             'renderer'    => 'NetworkManager', // always for nmcli
             'dhcp4'       => $dhcp4,
             'address'     => $address,
