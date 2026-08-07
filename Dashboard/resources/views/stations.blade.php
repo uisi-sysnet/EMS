@@ -137,7 +137,6 @@
                                         <input type="checkbox" id="enabled" name="enabled" value="1"
                                             {{ old('enabled', true) ? 'checked' : '' }}
                                             class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
-                                        <label for="enabled" class="ml-2 text-sm text-text-300 select-none cursor-pointer">Enabled</label>
                                     </div>
 
                                     <button type="submit"
