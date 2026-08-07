@@ -277,7 +277,6 @@
     const saveBtn = document.getElementById('saveBtn');
     const apiStatus = document.getElementById('apiStatus');
     const apiForm = document.getElementById('apiKeyForm');
-    const keyFieldWrapper = document.getElementById('keyFieldWrapper');
     const generatedKeyInput = document.getElementById('generatedKey');
     const copyKeyBtn = document.getElementById('copyKeyBtn');
 
@@ -310,7 +309,7 @@
     ownerLabelInput.addEventListener('input', validateApiForm);
     generatedKeyInput.addEventListener('input', validateApiForm);
 
-    // Generate a new key (without saving)
+    // Generate key function
     async function generateKey() {
         setApiStatus('Generating key...', 'info');
         try {
@@ -330,10 +329,10 @@
         }
     }
 
-    // Auto-generate when page loads
+    // Auto-generate on page load
     generateKey();
 
-    // Still allow manual regenerate
+    // Manual regenerate button
     generateBtn.addEventListener('click', generateKey);
 
     // Copy key from input field
@@ -342,7 +341,6 @@
             navigator.clipboard.writeText(generatedKeyInput.value).then(() => {
                 setApiStatus('Key copied to clipboard!', 'success');
             }).catch(() => {
-                // Fallback
                 generatedKeyInput.select();
                 document.execCommand('copy');
                 setApiStatus('Key copied!', 'success');
@@ -354,7 +352,7 @@
     apiForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const owner_label = ownerLabelInput.value.trim();
-        const token_hash = generatedKeyInput.value.trim(); // plain token
+        const token_hash = generatedKeyInput.value.trim();
         if (!owner_label || !token_hash) return;
 
         setApiStatus('Saving...', 'info');
@@ -368,21 +366,21 @@
                 body: JSON.stringify({ owner_label, token_hash })
             });
             const data = await response.json();
+
             if (data.success) {
-                // If a plain token was returned (newly generated), show modal
+                // Show the modal with the plain key
                 if (data.plain_token) {
                     modalKeyDisplay.textContent = data.plain_token;
                     keyModal.classList.remove('hidden');
-                    // Optionally clear the form fields
+                    
+                    // Clear form
                     ownerLabelInput.value = '';
                     generatedKeyInput.value = '';
-                    keyFieldWrapper.classList.add('hidden');
                     currentPlainKey = '';
                     validateApiForm();
-                    setApiStatus('Key saved! Check the popup.', 'success');
+                    setApiStatus('Key saved! Copy it from the popup.', 'success');
                 } else {
-                    // Existing key updated (should not happen with this flow, but handle)
-                    setApiStatus('Key updated successfully.', 'success');
+                    setApiStatus('Key saved successfully.', 'success');
                     setTimeout(() => location.reload(), 800);
                 }
             } else {
@@ -394,14 +392,13 @@
         }
     });
 
-    // Modal copy and close
+    // Modal copy
     modalCopyBtn.addEventListener('click', () => {
         const key = modalKeyDisplay.textContent;
         if (key) {
             navigator.clipboard.writeText(key).then(() => {
                 setApiStatus('Key copied from modal!', 'success');
             }).catch(() => {
-                // Fallback
                 const range = document.createRange();
                 range.selectNode(modalKeyDisplay);
                 window.getSelection().removeAllRanges();
@@ -412,10 +409,10 @@
         }
     });
 
+    // Close modal
     function closeModal() {
         keyModal.classList.add('hidden');
-        // Reload page to reflect new key in table
-        location.reload();
+        location.reload(); // refresh table
     }
     closeModalBtn.addEventListener('click', closeModal);
     modalCloseBtn.addEventListener('click', closeModal);
