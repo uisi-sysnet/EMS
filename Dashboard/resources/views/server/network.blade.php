@@ -40,13 +40,13 @@
                 <span class="leading-tight uppercase">Network Configuration</span>
             </h2>
             <span class="text-xs sm:text-sm text-text-400 sm:text-right">
-                Ethernet & WiFi settings
+                Ethernet settings
             </span>
         </div>
 
         <!-- Form -->
         <div class="flex-1 p-5 sm:p-8 overflow-y-auto thin-scrollbar min-h-0 bg-background-900">
-            <div id="form-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div id="form-container" class="grid grid-cols-1 gap-6">
                 <!-- populated by JavaScript -->
             </div>
         </div>
@@ -67,7 +67,7 @@
     const status = document.getElementById('status');
     const saveBtn = document.getElementById('save');
 
-    let originalValues = { eth: {}, wlan: {} };
+    let originalValues = { eth: {} };
 
     function setStatus(message, type = 'info') {
         status.className = 'text-sm font-medium text-center sm:text-right';
@@ -88,8 +88,8 @@
         return div.innerHTML;
     }
 
-    // ----- Build form (both sections) -----
-    function buildForm(eth, wlan, ethState, wlanState) {
+    // ----- Build form (only Ethernet) -----
+    function buildForm(eth, ethState) {
         originalValues = {
             eth: {
                 renderer: eth.renderer || 'NetworkManager',
@@ -97,15 +97,6 @@
                 address: eth.address || '',
                 gateway: eth.gateway || '',
                 nameservers: eth.nameservers || '',
-            },
-            wlan: {
-                renderer: wlan.renderer || 'NetworkManager',
-                dhcp4: wlan.dhcp4 ?? true,
-                ssid: wlan.ssid || '',
-                password: wlan.password || '',
-                address: wlan.address || '',
-                gateway: wlan.gateway || '',
-                nameservers: wlan.nameservers || '',
             }
         };
 
@@ -159,64 +150,6 @@
                     </button>
                 </div>
             </div>
-
-            <!-- WiFi Section -->
-            <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden">
-                <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80 flex justify-between items-center">
-                    <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">WiFi (wlan0)</h3>
-                    <span id="wlan-status" class="text-xs font-medium px-2 py-1 rounded-full bg-gray-700 text-gray-300"></span>
-                </div>
-                <div class="p-4 space-y-4">
-                    <div>
-                        <label for="wlan_renderer" class="block text-sm font-medium text-text-300 mb-1">Renderer</label>
-                        <select id="wlan_renderer" class="w-full px-3 py-2 border border-border-600 rounded-lg focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm bg-surface-900 text-text-100 transition">
-                            <option value="networkd" ${wlan.renderer === 'networkd' ? 'selected' : ''}>networkd</option>
-                            <option value="NetworkManager" ${wlan.renderer === 'NetworkManager' ? 'selected' : ''}>NetworkManager</option>
-                        </select>
-                    </div>
-
-                    <div class="flex items-center">
-                        <input type="checkbox" id="wlan_dhcp4" ${wlan.dhcp4 ? 'checked' : ''}
-                               class="w-4 h-4 text-radar-600 bg-surface-900 border-border-600 rounded focus:ring-radar-500 focus:ring-2">
-                        <label for="wlan_dhcp4" class="ml-2 text-sm font-medium text-text-300">Enable DHCP</label>
-                    </div>
-
-                    <div id="wlan_static_group" style="${wlan.dhcp4 ? 'display: none;' : ''}">
-                        <label for="wlan_address" class="block text-sm font-medium text-text-300 mb-1">IP Address / Netmask</label>
-                        <input type="text" id="wlan_address" value="${escapeHtml(wlan.address)}"
-                               placeholder="e.g. 192.168.1.100/24"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm bg-surface-900 text-text-100 transition">
-                    </div>
-
-                    <div id="wlan_gateway_group" style="${wlan.dhcp4 ? 'display: none;' : ''}">
-                        <label for="wlan_gateway" class="block text-sm font-medium text-text-300 mb-1">Gateway</label>
-                        <input type="text" id="wlan_gateway" value="${escapeHtml(wlan.gateway)}"
-                               placeholder="e.g. 192.168.1.1"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm bg-surface-900 text-text-100 transition">
-                    </div>
-
-                    <div>
-                        <label for="wlan_nameservers" class="block text-sm font-medium text-text-300 mb-1">Nameservers (comma separated)</label>
-                        <input type="text" id="wlan_nameservers" value="${escapeHtml(wlan.nameservers)}"
-                               placeholder="e.g. 8.8.8.8, 8.8.4.4"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm bg-surface-900 text-text-100 transition">
-                    </div>
-
-                    <div>
-                        <label for="wlan_ssid" class="block text-sm font-medium text-text-300 mb-1">SSID</label>
-                        <input type="text" id="wlan_ssid" value="${escapeHtml(wlan.ssid)}"
-                               placeholder="Network name"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm bg-surface-900 text-text-100 transition">
-                    </div>
-
-                    <div>
-                        <label for="wlan_password" class="block text-sm font-medium text-text-300 mb-1">WiFi Password (PSK)</label>
-                        <input type="text" id="wlan_password" value="${escapeHtml(wlan.password)}"
-                               placeholder="Leave blank to keep current password"
-                               class="w-full px-3 py-2 border border-border-600 rounded-lg focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm bg-surface-900 text-text-100 transition">
-                    </div>
-                </div>
-            </div>
         `;
 
         container.innerHTML = html;
@@ -252,7 +185,7 @@
             }
         });
 
-        // Set status badges
+        // Set status badge
         const setStatusBadge = (id, state) => {
             const el = document.getElementById(id);
             if (!el) return;
@@ -269,20 +202,12 @@
         };
 
         setStatusBadge('eth-status', ethState);
-        setStatusBadge('wlan-status', wlanState);
 
         // Attach change listeners for toggle fields
         const ethDhcp = document.getElementById('eth_dhcp4');
-        const wlanDhcp = document.getElementById('wlan_dhcp4');
-
         ethDhcp.addEventListener('change', function() {
             document.getElementById('eth_static_group').style.display = this.checked ? 'none' : 'block';
             document.getElementById('eth_gateway_group').style.display = this.checked ? 'none' : 'block';
-            updateSaveButtonState();
-        });
-        wlanDhcp.addEventListener('change', function() {
-            document.getElementById('wlan_static_group').style.display = this.checked ? 'none' : 'block';
-            document.getElementById('wlan_gateway_group').style.display = this.checked ? 'none' : 'block';
             updateSaveButtonState();
         });
 
@@ -290,11 +215,7 @@
         const allFields = [
             document.getElementById('eth_renderer'), ethDhcp,
             document.getElementById('eth_address'), document.getElementById('eth_gateway'),
-            document.getElementById('eth_nameservers'),
-            document.getElementById('wlan_renderer'), wlanDhcp,
-            document.getElementById('wlan_address'), document.getElementById('wlan_gateway'),
-            document.getElementById('wlan_nameservers'),
-            document.getElementById('wlan_ssid'), document.getElementById('wlan_password')
+            document.getElementById('eth_nameservers')
         ];
         allFields.forEach(el => {
             if (el) {
@@ -314,23 +235,13 @@
                 address: document.getElementById('eth_address')?.value || '',
                 gateway: document.getElementById('eth_gateway')?.value || '',
                 nameservers: document.getElementById('eth_nameservers')?.value || '',
-            },
-            wlan: {
-                renderer: document.getElementById('wlan_renderer')?.value || 'NetworkManager',
-                dhcp4: document.getElementById('wlan_dhcp4')?.checked || false,
-                ssid: document.getElementById('wlan_ssid')?.value || '',
-                password: document.getElementById('wlan_password')?.value || '',
-                address: document.getElementById('wlan_address')?.value || '',
-                gateway: document.getElementById('wlan_gateway')?.value || '',
-                nameservers: document.getElementById('wlan_nameservers')?.value || '',
             }
         };
     }
 
     function hasChanges() {
         const current = getCurrentValues();
-        return JSON.stringify(current.eth) !== JSON.stringify(originalValues.eth) ||
-               JSON.stringify(current.wlan) !== JSON.stringify(originalValues.wlan);
+        return JSON.stringify(current.eth) !== JSON.stringify(originalValues.eth);
     }
 
     function updateSaveButtonState() {
@@ -346,20 +257,15 @@
 
         // Highlight changed fields
         const current = getCurrentValues();
-        const sections = {
-            eth: ['renderer', 'dhcp4', 'address', 'gateway', 'nameservers'],
-            wlan: ['renderer', 'dhcp4', 'ssid', 'password', 'address', 'gateway', 'nameservers']
-        };
-        for (let [section, fields] of Object.entries(sections)) {
-            for (let field of fields) {
-                const el = document.getElementById(`${section}_${field}`);
-                if (!el) continue;
-                let val = el.type === 'checkbox' ? el.checked : el.value;
-                if (val !== originalValues[section][field]) {
-                    el.classList.add('changed');
-                } else {
-                    el.classList.remove('changed');
-                }
+        const fields = ['renderer', 'dhcp4', 'address', 'gateway', 'nameservers'];
+        for (let field of fields) {
+            const el = document.getElementById(`eth_${field}`);
+            if (!el) continue;
+            let val = el.type === 'checkbox' ? el.checked : el.value;
+            if (val !== originalValues.eth[field]) {
+                el.classList.add('changed');
+            } else {
+                el.classList.remove('changed');
             }
         }
     }
@@ -370,7 +276,7 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                buildForm(data.eth, data.wlan, data.eth_state, data.wlan_state);
+                buildForm(data.eth, data.eth_state);
                 setStatus("Loaded successfully", "success");
             } else {
                 setStatus(data.error || "Failed to load configuration", "error");
@@ -395,7 +301,7 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({ eth: current.eth, wlan: current.wlan })
+                body: JSON.stringify({ eth: current.eth })
             });
 
             const data = await response.json();
