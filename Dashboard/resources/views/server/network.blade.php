@@ -112,8 +112,9 @@
         const html = `
             <!-- Ethernet Section -->
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden">
-                <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80">
+                <div class="px-4 py-3 border-b border-border-700 bg-surface-900/80 flex justify-between items-center">
                     <h3 class="text-sm font-bold text-text-100 uppercase tracking-wide">Ethernet (eth0)</h3>
+                    <span id="eth-status" class="text-xs font-medium px-2 py-1 rounded-full bg-gray-700 text-gray-300"></span>
                 </div>
                 <div class="p-4 space-y-4">
                     <div>
@@ -250,6 +251,18 @@
         });
 
         container.innerHTML = html;
+
+        // Inside the fetch callback, after buildForm(data.eth, data.wlan):
+        const ethStatus = document.getElementById('eth-status');
+        if (data.eth_state) {
+            const isConnected = data.eth_state === 'connected';
+            ethStatus.textContent = isConnected ? 'Connected' : 'Disconnected';
+            ethStatus.className = `text-xs font-medium px-2 py-1 rounded-full ${
+                isConnected ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+            }`;
+        } else {
+            ethStatus.textContent = 'Unknown';
+        }
 
         // Attach event listeners
         const ethDhcp = document.getElementById('eth_dhcp4');

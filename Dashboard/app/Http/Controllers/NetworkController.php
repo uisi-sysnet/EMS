@@ -120,12 +120,44 @@ class NetworkController extends Controller
         try {
             $eth = $this->loadEth();
             $wlan = $this->loadWlan();
-            return response()->json(['success' => true, 'eth' => $eth, 'wlan' => $wlan]);
+
+            // Add device states
+            $ethState = $this->getDeviceState('eth0');
+            $wlanState = $this->getDeviceState('wlan0');
+
+            return response()->json([
+                'success' => true,
+                'eth'     => $eth,
+                'wlan'    => $wlan,
+                'eth_state'  => $ethState,
+                'wlan_state' => $wlanState,
+            ]);
         } catch (\Exception $e) {
             Log::error('Load error: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Get the current state of a network device (e.g., 'connected', 'disconnected').
+     * Returns null if the device does not exist.
+     */
+    private function getDeviceState(string $device): ?string
+    {
+        $output = $this->runNmcli('nmcli -t -f DEVICE,STATE device status');
+        if (preg_match('/error|failed/i', $output)) {
+            return null;
+        }
+
+        $lines = explode("\n", trim($output));
+        foreach ($lines as $line) {
+            if (empty($line)) continue;
+            $parts = explode(':', $line);
+            if (count($parts) >= 2 && trim($parts[0]) === $device) {
+                return trim($parts[1]);  // e.g. "connected", "disconnected", "unavailable"
+            }
+        }
+        return null;
     }
 
     private function loadWlan(): array
