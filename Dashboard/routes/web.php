@@ -49,7 +49,7 @@ Route::middleware(['role:administrator'])->group(function () {
     Route::get('/recent-logs/count', [RecentLogsController::class, 'count'])->name('recent-logs.count');
 
     Route::get('/network', [NetworkController::class, 'index'])->name('network.index');
-    Route::get('/network/load', [NetworkController::class, 'load'])->name('network.load');
+    Route::post('/network/load', [NetworkController::class, 'load'])->name('network.load');
     Route::post('/network/save', [NetworkController::class, 'save'])->name('network.save');
     Route::post('/network/restart-eth', [NetworkController::class, 'restartEth'])->name('network.restart-eth');
 });
