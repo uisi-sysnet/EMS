@@ -43,7 +43,7 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <!-- Station MN -->
-                            <div>
+                            <div class="flex flex-col">
                                 <label for="station_mn" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Station MN <span class="text-munti-red-400">*</span>
                                 </label>
@@ -55,7 +55,7 @@
                             </div>
 
                             <!-- Station Name -->
-                            <div>
+                            <div class="flex flex-col">
                                 <label for="station_name" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Station Name
                                 </label>
@@ -67,7 +67,7 @@
                             </div>
 
                             <!-- Latitude -->
-                            <div>
+                            <div class="flex flex-col">
                                 <label for="latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Latitude
                                 </label>
@@ -79,7 +79,7 @@
                             </div>
 
                             <!-- Longitude -->
-                            <div>
+                            <div class="flex flex-col">
                                 <label for="longitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Longitude
                                 </label>
@@ -91,7 +91,7 @@
                             </div>
 
                             <!-- Lead IP -->
-                            <div>
+                            <div class="flex flex-col">
                                 <label for="lead_ip" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Lead IP
                                 </label>
@@ -103,7 +103,7 @@
                             </div>
 
                             <!-- Lead Port -->
-                            <div>
+                            <div class="flex flex-col">
                                 <label for="lead_port" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Lead Port
                                 </label>
@@ -115,7 +115,7 @@
                             </div>
 
                             <!-- Lead Slave -->
-                            <div>
+                            <div class="flex flex-col">
                                 <label for="lead_slave" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Lead Slave
                                 </label>
@@ -125,34 +125,32 @@
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
-                            <div class="flex flex-col justify-end">
-                                <!-- Enabled Checkbox -->
-                                <div>
-                                    <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                        Enabled
-                                    </label>
-                                    <div class="flex items-center gap-3">
-                                        <div class="flex items-center flex-1">
-                                            <input type="hidden" name="enabled" value="0">
-                                            <input type="checkbox" id="enabled" name="enabled" value="1"
-                                                {{ old('enabled', true) ? 'checked' : '' }}
-                                                class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
-                                            <label for="enabled" class="ml-2 text-sm text-text-300 select-none cursor-pointer">Enabled</label>
-                                        </div>
 
-                                        <!-- Create Button -->
-                                        <button type="submit"
-                                                class="flex-1 px-6 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center justify-center gap-2">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                            </svg>
-                                            Create Station
-                                        </button>
+                            <!-- Combined: Enabled + Create Station Button -->
+                            <div class="flex flex-col justify-end">
+                                <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                    Enabled
+                                </label>
+                                <div class="flex items-center gap-3 flex-1">
+                                    <div class="flex items-center flex-1 h-11 px-3.5 border border-border-600 rounded-lg bg-surface-900">
+                                        <input type="hidden" name="enabled" value="0">
+                                        <input type="checkbox" id="enabled" name="enabled" value="1"
+                                            {{ old('enabled', true) ? 'checked' : '' }}
+                                            class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
+                                        <label for="enabled" class="ml-2 text-sm text-text-300 select-none cursor-pointer">Enabled</label>
                                     </div>
-                                    @error('enabled')
-                                        <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                    @enderror
+
+                                    <button type="submit"
+                                            class="flex-1 px-6 py-2.5 h-11 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center justify-center gap-2 whitespace-nowrap">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                        </svg>
+                                        Create Station
+                                    </button>
                                 </div>
+                                @error('enabled')
+                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
                     </form>
