@@ -108,13 +108,13 @@
         // Display label mappings
         const displayLabels = {
             'SYSTEM_DB_HOST': 'Host',
-            'SYSTEM_DB_PORT': 'port',
-            'SYSTEM_DB_USER': 'username',
-            'SYSTEM_DB_PASSWORD': 'password',
-            'SYSTEM_DB_POOL_MIN': 'pool min',
-            'SYSTEM_DB_POOL_MAX': 'pool max',
-            'AQ_DB_NAME': 'air quality',
-            'SEISMIC_DB_NAME': 'seismic',
+            'SYSTEM_DB_PORT': 'Port',
+            'SYSTEM_DB_USER': 'Username',
+            'SYSTEM_DB_PASSWORD': 'Password',
+            'SYSTEM_DB_POOL_MIN': 'Pool Min',
+            'SYSTEM_DB_POOL_MAX': 'Pool Max',
+            'AQ_DB_NAME': 'Air Quality',
+            'SEISMIC_DB_NAME': 'Seismic',
             'SMS_DB_NAME': 'SMS',
             'API_DB_NAME': 'API',
             'LOG_DB_NAME': 'System Log'
