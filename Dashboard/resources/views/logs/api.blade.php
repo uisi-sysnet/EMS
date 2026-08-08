@@ -127,7 +127,7 @@
                             @forelse($logs as $log)
                                 <tr class="hover:bg-surface-700/60 transition">
                                     <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
-                                        {{$log->created_at->setTimezone('Asia/Manila')->format('M j, Y H:i:s') }}
+                                        {{ \Carbon\Carbon::parse($log->getRawOriginal('created_at'), 'UTC')->setTimezone('Asia/Manila')->format('M j, Y H:i:s') }}
                                     </td>
                                     <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
                                         {{ $log->client_ip }}
