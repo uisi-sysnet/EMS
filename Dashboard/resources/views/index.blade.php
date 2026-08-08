@@ -62,6 +62,7 @@
                                     <tr class="h-10">
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">No.</th>
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Station</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Status</th>
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">IP Address</th>
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Installation</th>
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Latest</th>
@@ -73,6 +74,13 @@
                                     <tr class="hover:bg-surface-700 transition h-10">
                                         <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">
+                                            @if ($item->status === 'active')
+                                                <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs">Active</span>
+                                            @else
+                                                <span class="bg-red-500 text-white px-2 py-1 rounded-full text-xs">Inactive</span>
+                                            @endif
+                                        </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
                                             {{ \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') }}
@@ -127,6 +135,7 @@
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">No.</th>
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Station</th>
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Station ID</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Status</th>
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Installation</th>
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Latest</th>
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Total</th>
@@ -138,8 +147,15 @@
                                         <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap">
+                                            @if ($item->status === 'active')
+                                                <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs">Active</span>
+                                            @else
+                                                <span class="bg-red-500 text-white px-2 py-1 rounded-full text-xs">Inactive</span>
+                                            @endif
+                                        </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
-                                            {{ \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') }}
+                                            {{ \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') }}   
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
                                             {{ \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d') }}
