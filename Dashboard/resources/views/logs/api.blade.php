@@ -155,8 +155,8 @@
                                     <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
                                         {{ number_format($log->duration_ms, 2) }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-xs max-w-32 truncate {{ $log->api_key_owner === 'Blocked/IP' ? 'text-red-400 font-semibold' : 'text-text-400' }}" title="{{ $log->api_key_owner }}">
-                                        {{ $log->api_key_owner }}
+                                    <td class="px-4 py-2 whitespace-nowrap text-xs max-w-32 truncate {{ $log->api_key_owner === 'Blocked/IP' ? 'text-red-400 font-semibold' : ($log->api_key_owner === 'Unauthorized/None' ? 'text-orange-400 font-semibold' : 'text-text-400') }}" title="{{ $log->api_key_owner }}">
+                                         {{ $log->api_key_owner }}
                                     </td>
                                     <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs max-w-28 truncate" title="{{ $log->api_key_used }}">
                                         {{ $log->api_key_used }}
