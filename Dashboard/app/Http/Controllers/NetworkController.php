@@ -90,13 +90,17 @@ class NetworkController extends Controller
 
     /**
      * Resolve the NetworkManager connection profile name bound to a device.
-     * Checks for an active connection first, then falls back to any saved
-     * profile whose TYPE matches (covers devices that exist but aren't
-     * currently connected/activated).
+     * Checks for an active connection first, then falls back to a saved
+     * profile explicitly bound to that device (via connection.interface-name
+     * or a matching profile name). Only falls further back to an unbound
+     * profile of the right type if nothing device-specific is found —
+     * needed for single-NIC systems, but skipped whenever a device-specific
+     * match exists so multi-port hardware doesn't get every port pointed
+     * at the same profile.
      */
     private function resolveConnectionName(string $device, array $typeHints): string
     {
-        // 1. Active connection on this device
+        // 1. Active connection currently bound to this device
         $output = $this->runNmcli('nmcli -t -f DEVICE,CONNECTION device status');
         if (preg_match('/error|failed/i', $output)) {
             throw new \Exception('Failed to get device status: ' . $output);
@@ -113,11 +117,20 @@ class NetworkController extends Controller
             }
         }
 
-        // 2. No active connection – find a saved profile of the right type
+        // 2. No active connection — check saved profiles of the right type
+        // and match by their explicit connection.interface-name binding.
+        // This matters on multi-port hardware: several ethernet profiles
+        // can exist at once (one per port, e.g. from netplan), so matching
+        // "any profile of type ethernet" would silently hand every port
+        // the same profile. Only an unbound profile (no interface-name
+        // set) is used as a last-resort fallback, and only if nothing
+        // more specific was found.
         $output = $this->runNmcli('nmcli -t -f NAME,TYPE con show');
         if (preg_match('/error|failed/i', $output)) {
             throw new \Exception('Failed to get connection list: ' . $output);
         }
+
+        $candidates = [];
         foreach (explode("\n", trim($output)) as $line) {
             if (empty($line)) continue;
             $parts = explode(':', $line);
@@ -125,11 +138,39 @@ class NetworkController extends Controller
             $name = trim($parts[0]);
             $type = trim($parts[1]);
             foreach ($typeHints as $hint) {
-                if (strpos($type, $hint) !== false || $name === $device) {
-                    Log::debug("Found connection profile for {$device}: {$name}");
-                    return $name;
+                if (strpos($type, $hint) !== false) {
+                    $candidates[] = $name;
+                    break;
                 }
             }
+        }
+
+        $unbound = null;
+        foreach ($candidates as $name) {
+            if ($name === $device) {
+                Log::debug("Found connection profile for {$device} (name match): {$name}");
+                return $name;
+            }
+
+            $ifaceOutput = $this->runNmcli('nmcli -t -f connection.interface-name con show ' . escapeshellarg($name));
+            if (preg_match('/error|failed/i', $ifaceOutput)) {
+                continue; // profile may have vanished between listing and lookup; skip it
+            }
+            $iface = $this->parseNmcliShow($ifaceOutput)['connection.interface-name'] ?? '';
+
+            if ($iface === $device) {
+                Log::debug("Found connection profile for {$device} (bound): {$name}");
+                return $name;
+            }
+
+            if ($iface === '' && $unbound === null) {
+                $unbound = $name;
+            }
+        }
+
+        if ($unbound !== null) {
+            Log::debug("No profile bound to {$device}; falling back to unbound profile: {$unbound}");
+            return $unbound;
         }
 
         throw new \Exception("No connection profile found for {$device}.");
