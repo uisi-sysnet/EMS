@@ -12,6 +12,7 @@ use App\Http\Controllers\ApiLogController;
 use App\Http\Controllers\SmsController;
 use App\Http\Controllers\RecentLogsController;
 use App\Http\Controllers\NetworkController;
+use App\Http\Controllers\MaintenanceController;
 
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
@@ -60,5 +61,10 @@ Route::middleware(['role:administrator'])->group(function () {
     Route::get('/network/load', [NetworkController::class, 'load'])->name('network.load');
     Route::post('/network/save', [NetworkController::class, 'save'])->name('network.save');
     Route::post('/network/restart-eth', [NetworkController::class, 'restartEth'])->name('network.restart-eth');
+
+    Route::get('/maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
+    Route::get('/maintenance/interfaces', [MaintenanceController::class, 'interfaces'])->name('maintenance.interfaces');
+    Route::post('/maintenance/ping', [MaintenanceController::class, 'ping'])->name('maintenance.ping');
+    Route::post('/maintenance/traceroute', [MaintenanceController::class, 'traceroute'])->name('maintenance.traceroute');   
 
 });
