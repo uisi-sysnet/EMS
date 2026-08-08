@@ -74,13 +74,13 @@
                                     <tr class="hover:bg-surface-700 transition h-10">
                                         <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
-                                        <!-- <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">
                                             @if ($item->status === 'active')
                                                 <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs">Active</span>
                                             @else
                                                 <span class="bg-red-500 text-white px-2 py-1 rounded-full text-xs">Inactive</span>
                                             @endif
-                                        </td> -->
+                                        </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
                                             {{ \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') }}
@@ -147,15 +147,15 @@
                                         <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip }}</td>
-                                        <!-- <td class="px-2 py-0 whitespace-nowrap">
+                                        <td class="px-2 py-0 whitespace-nowrap">
                                             @if ($item->status === 'active')
                                                 <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs">Active</span>
                                             @else
                                                 <span class="bg-red-500 text-white px-2 py-1 rounded-full text-xs">Inactive</span>
                                             @endif
-                                        </td> -->
+                                        </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
-                                            {{ \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') }}   
+                                            {{ \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') }}
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
                                             {{ \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d') }}
