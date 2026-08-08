@@ -198,6 +198,76 @@ class NetworkController extends Controller
         return $data;
     }
 
+    /**
+     * Return the device currently holding the system's default IPv4 route,
+     * read straight from the kernel routing table. This reflects reality
+     * regardless of how many connections have a gateway configured, so it's
+     * used to show the current default in the UI (as opposed to inferring
+     * it from per-connection nmcli settings).
+     *
+     * Returns null if there is no default route at all.
+     */
+    private function getDefaultGatewayDevice(): ?string
+    {
+        $output = trim((string) shell_exec('ip -4 route show default 2>&1'));
+        if ($output === '') {
+            return null;
+        }
+
+        // Example: "default via 192.168.1.1 dev eth0 proto dhcp metric 100"
+        if (preg_match('/\bdev\s+(\S+)/', $output, $m)) {
+            return $m[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Set which Ethernet device's gateway should act as the system's
+     * default route, via NetworkManager's ipv4.never-default flag:
+     * - the chosen device gets "no" (allowed to be the default)
+     * - every other device gets "yes" (excluded from being the default)
+     * Passing $device = null clears the override on every device
+     * ("Automatic" in the UI), letting NetworkManager fall back to its
+     * own route-metric based selection.
+     *
+     * Devices that exist but have no resolvable connection profile are
+     * skipped with a logged warning rather than failing the whole save,
+     * matching how loadAllEth() treats the same situation.
+     */
+    private function setDefaultGatewayDevice(?string $device, array $allDevices): void
+    {
+        foreach ($allDevices as $d) {
+            try {
+                $conn = $this->getEthConnectionName($d);
+            } catch (\Exception $e) {
+                Log::warning("Skipping default-gateway update for {$d}: " . $e->getMessage());
+                continue;
+            }
+
+            $neverDefault = ($device === null || $d === $device) ? 'no' : 'yes';
+
+            $cmd = sprintf(
+                'nmcli con mod %s ipv4.never-default %s',
+                escapeshellarg($conn),
+                escapeshellarg($neverDefault)
+            );
+            $output = $this->runNmcli($cmd);
+            if (preg_match('/error|failed/i', $output)) {
+                Log::error("Failed to set ipv4.never-default for {$d}: {$output}");
+                continue;
+            }
+
+            // Reactivate so the routing table picks up the change immediately.
+            // Non-fatal: if it fails, the setting is still saved and takes
+            // effect on the next connection restart or reboot.
+            $upOutput = $this->runNmcli('nmcli con up ' . escapeshellarg($conn));
+            if (preg_match('/error|failed/i', $upOutput)) {
+                Log::warning("{$d} reactivation after default-gateway change failed: {$upOutput}");
+            }
+        }
+    }
+
     // ------------------------------------------------------------------------
     // Load
     // ------------------------------------------------------------------------
@@ -212,7 +282,12 @@ class NetworkController extends Controller
         Log::info('Network load requested');
         try {
             $eth = $this->loadAllEth();
-            return response()->json(['success' => true, 'eth' => $eth]);
+            $defaultGatewayDevice = $this->getDefaultGatewayDevice();
+            return response()->json([
+                'success' => true,
+                'eth' => $eth,
+                'default_gateway_device' => $defaultGatewayDevice,
+            ]);
         } catch (\Exception $e) {
             Log::error('Load error: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
@@ -286,6 +361,11 @@ class NetworkController extends Controller
                 'eth.*.address'     => 'nullable|string|required_if:eth.*.dhcp4,false',
                 'eth.*.gateway'     => 'nullable|ip|required_if:eth.*.dhcp4,false',
                 'eth.*.nameservers' => 'nullable|string',
+
+                // Which Ethernet device's gateway is the system default.
+                // Present only when the user changed the selector; null
+                // means "Automatic" (clear the override on every device).
+                'default_gateway'   => 'sometimes|nullable|string',
             ]);
 
             $updated = [];
@@ -295,11 +375,24 @@ class NetworkController extends Controller
                 $updated[] = $ethItem['device'];
             }
 
-            if (empty($updated)) {
+            $defaultGatewaySubmitted = array_key_exists('default_gateway', $validated);
+            if ($defaultGatewaySubmitted) {
+                $this->setDefaultGatewayDevice($validated['default_gateway'] ?: null, $this->detectEthDevices());
+            }
+
+            if (empty($updated) && !$defaultGatewaySubmitted) {
                 return response()->json(['success' => false, 'error' => 'No changes were submitted.'], 422);
             }
 
-            return response()->json(['success' => true, 'message' => implode(', ', $updated) . ' updated']);
+            $messages = [];
+            if (!empty($updated)) {
+                $messages[] = implode(', ', $updated) . ' updated';
+            }
+            if ($defaultGatewaySubmitted) {
+                $messages[] = 'default gateway set to ' . ($validated['default_gateway'] ?: 'automatic');
+            }
+
+            return response()->json(['success' => true, 'message' => implode('; ', $messages)]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['success' => false, 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {

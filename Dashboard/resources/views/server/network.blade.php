@@ -46,6 +46,9 @@
 
         <!-- Form -->
         <div class="flex-1 p-5 sm:p-8 overflow-y-auto thin-scrollbar min-h-0 bg-background-900">
+            <div id="default-gateway-container" class="mb-6 hidden">
+                <!-- populated by JavaScript -->
+            </div>
             <div id="form-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- populated by JavaScript -->
             </div>
@@ -64,11 +67,13 @@
 
 <script>
     const container = document.getElementById('form-container');
+    const defaultGatewayContainer = document.getElementById('default-gateway-container');
     const status = document.getElementById('status');
     const saveBtn = document.getElementById('save');
 
     let originalValues = {}; // keyed by device name, e.g. { eth0: {...}, enp0s3: {...} }
     let deviceList = [];     // device names currently rendered, in display order
+    let originalDefaultGateway = ''; // device name, or '' for "Automatic"
 
     function setStatus(message, type = 'info') {
         status.className = 'text-sm font-medium text-center sm:text-right';
@@ -219,6 +224,45 @@
         updateSaveButtonState();
     }
 
+    // ----- Build default gateway selector -----
+    function buildDefaultGatewaySection(ethList, currentDefault) {
+        originalDefaultGateway = currentDefault || '';
+
+        if (ethList.length === 0) {
+            defaultGatewayContainer.classList.add('hidden');
+            defaultGatewayContainer.innerHTML = '';
+            return;
+        }
+
+        const options = ethList.map(eth => {
+            const d = escapeHtml(eth.device);
+            const selected = eth.device === currentDefault ? 'selected' : '';
+            return `<option value="${d}" ${selected}>${d}</option>`;
+        }).join('');
+
+        defaultGatewayContainer.innerHTML = `
+            <div class="bg-surface-800 rounded-xl border border-border-700 p-4">
+                <label for="default_gateway_select" class="block text-sm font-medium text-text-300 mb-1">Default Gateway Interface</label>
+                <select id="default_gateway_select" class="w-full sm:w-80 px-3 py-2 border border-border-600 rounded-lg focus:ring-2 focus:ring-radar-500/50 focus:border-radar-500 text-sm bg-surface-900 text-text-100 transition">
+                    <option value="" ${currentDefault ? '' : 'selected'}>Automatic (let system decide)</option>
+                    ${options}
+                </select>
+                <p class="text-xs text-text-500 mt-2">
+                    Choose which Ethernet connection's gateway should be used as the default route when more than one interface is connected. "Automatic" lets NetworkManager decide.
+                </p>
+            </div>
+        `;
+        defaultGatewayContainer.classList.remove('hidden');
+
+        document.getElementById('default_gateway_select').addEventListener('change', updateSaveButtonState);
+    }
+
+    function defaultGatewayChanged() {
+        const select = document.getElementById('default_gateway_select');
+        if (!select) return false;
+        return select.value !== originalDefaultGateway;
+    }
+
     function getCurrentValues() {
         const current = {};
         deviceList.forEach(device => {
@@ -239,7 +283,7 @@
     }
 
     function hasChanges() {
-        return getChangedDevices().length > 0;
+        return getChangedDevices().length > 0 || defaultGatewayChanged();
     }
 
     function updateSaveButtonState() {
@@ -269,6 +313,16 @@
                 }
             });
         });
+
+        // Highlight the default gateway selector if changed
+        const gwSelect = document.getElementById('default_gateway_select');
+        if (gwSelect) {
+            if (defaultGatewayChanged()) {
+                gwSelect.classList.add('changed');
+            } else {
+                gwSelect.classList.remove('changed');
+            }
+        }
     }
 
     // ----- Load -----
@@ -281,17 +335,20 @@
             if (data.success) {
                 const ethList = data.eth || [];
                 buildForm(ethList);
+                buildDefaultGatewaySection(ethList, data.default_gateway_device || '');
                 if (ethList.length > 0) {
                     setStatus("Loaded successfully", "success");
                 }
             } else {
                 container.innerHTML = `<div class="text-red-400 text-sm">Failed to load network configuration: ${escapeHtml(data.error || 'unknown error')}</div>`;
+                defaultGatewayContainer.classList.add('hidden');
                 setStatus(data.error || "Failed to load configuration", "error");
                 console.error('Network load failed:', data.error);
             }
         })
         .catch((err) => {
             container.innerHTML = `<div class="text-red-400 text-sm">Could not reach the server to load network configuration.</div>`;
+            defaultGatewayContainer.classList.add('hidden');
             setStatus("Server error", "error");
             console.error(err);
         });
@@ -299,16 +356,21 @@
     // ----- Save -----
     saveBtn.addEventListener('click', async () => {
         const changedDevices = getChangedDevices();
+        const gwChanged = defaultGatewayChanged();
 
-        if (changedDevices.length === 0) {
+        if (changedDevices.length === 0 && !gwChanged) {
             setStatus("No changes to save", "warning");
             return;
         }
 
         const current = getCurrentValues();
-        const payload = {
-            eth: changedDevices.map(device => ({ device, ...current[device] }))
-        };
+        const payload = {};
+        if (changedDevices.length > 0) {
+            payload.eth = changedDevices.map(device => ({ device, ...current[device] }));
+        }
+        if (gwChanged) {
+            payload.default_gateway = document.getElementById('default_gateway_select').value || null;
+        }
 
         setStatus("Saving...", "info");
 
@@ -326,6 +388,9 @@
             if (data.success) {
                 setStatus(data.message || "Saved successfully!", "success");
                 originalValues = getCurrentValues();
+                if (gwChanged) {
+                    originalDefaultGateway = document.getElementById('default_gateway_select').value || '';
+                }
                 updateSaveButtonState();
             } else {
                 setStatus(data.error || data.message || "Save failed", "error");
