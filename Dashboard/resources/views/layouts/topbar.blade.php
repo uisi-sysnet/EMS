@@ -24,28 +24,9 @@
             {{-- Desktop Navigation (xl+) --}}
             <div class="hidden xl:flex items-center gap-x-5 lg:gap-x-8 text-sm font-medium">
                 @if(session('role') === 'administrator')
-                    <a href="{{ route('home') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Dashboard</a>
+                    <a href="{{ route('home') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Dashboards</a>
                     <a href="{{ route('stations.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Stations</a>
-
-                    {{-- ENV Editor Dropdown --}}
-                    <div class="relative group" id="env-dropdown-desktop">
-                        <button type="button"
-                                class="env-dropdown-toggle flex items-center gap-x-1 text-text-400 hover:text-text-100 transition-colors py-1 focus:outline-none"
-                                aria-expanded="false">
-                            ENV Editor
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
-                        <div class="env-dropdown-menu absolute left-0 mt-2 w-48 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-20 overflow-hidden">
-                            <a href="{{ route('env.editor') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Database</a>
-                            <a href="{{ route('mqtt.editor') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">MQTT</a>
-                        </div>
-                    </div>
-
-                    <a href="{{ route('api.editor') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">API</a>
                     <a href="{{ route('sms.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">SMS</a>
-                    <a href="{{ route('network.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Network</a>
 
                     {{-- Logs Dropdown --}}
                     <div class="relative group" id="logs-dropdown-desktop">
@@ -60,6 +41,39 @@
                         <div class="logs-dropdown-menu absolute left-0 mt-2 w-48 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-20 overflow-hidden">
                             <a href="{{ route('api-logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">API Logs</a>
                             <a href="{{ route('logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">System Logs</a>
+                        </div>
+                    </div>
+
+                    {{-- Maintenance Dropdown --}}
+                    <div class="relative group" id="maintenance-dropdown-desktop">
+                        <button type="button"
+                                class="maintenance-dropdown-toggle flex items-center gap-x-1 text-text-400 hover:text-text-100 transition-colors py-1 focus:outline-none"
+                                aria-expanded="false">
+                            Maintenance
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <div class="maintenance-dropdown-menu absolute left-0 mt-2 w-52 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-20 overflow-hidden">
+                            <a href="{{ route('maintenance.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Network Diagnostic</a>
+                        </div>
+                    </div>
+
+                    {{-- Settings Dropdown --}}
+                    <div class="relative group" id="settings-dropdown-desktop">
+                        <button type="button"
+                                class="settings-dropdown-toggle flex items-center gap-x-1 text-text-400 hover:text-text-100 transition-colors py-1 focus:outline-none"
+                                aria-expanded="false">
+                            Settings
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <div class="settings-dropdown-menu absolute left-0 mt-2 w-48 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-20 overflow-hidden">
+                            <a href="{{ route('env.editor') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Database</a>
+                            <a href="{{ route('mqtt.editor') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">MQTT</a>
+                            <a href="{{ route('network.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">Network</a>
+                            <a href="{{ route('api.editor') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">API</a>
                         </div>
                     </div>
 
@@ -158,27 +172,9 @@
         <div class="px-4 pt-2 pb-4 space-y-1">
 
             @if(session('role') === 'administrator')
-                <a href="{{ route('home') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">Dashboard</a>
-
-                {{-- ENV Editor submenu --}}
-                <div class="relative" id="env-mobile-wrapper">
-                    <button type="button"
-                            class="env-mobile-toggle w-full flex items-center justify-between px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition"
-                            aria-expanded="false">
-                        <span>ENV Editor</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-                    <div class="env-mobile-submenu hidden pl-4 space-y-1 mt-1">
-                        <a href="{{ route('env.editor') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Database</a>
-                        <a href="{{ route('mqtt.editor') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">MQTT</a>
-                    </div>
-                </div>
-
-                <a href="{{ route('api.editor') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">API</a>
+                <a href="{{ route('home') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">Dashboards</a>
+                <a href="{{ route('stations.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">Stations</a>
                 <a href="{{ route('sms.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">SMS</a>
-                <a href="{{ route('network.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">Network</a>
 
                 {{-- Logs submenu --}}
                 <div class="relative" id="logs-mobile-wrapper">
@@ -193,6 +189,39 @@
                     <div class="logs-mobile-submenu hidden pl-4 space-y-1 mt-1">
                         <a href="{{ route('api-logs.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">API Logs</a>
                         <a href="{{ route('logs.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">System Logs</a>
+                    </div>
+                </div>
+
+                {{-- Maintenance submenu --}}
+                <div class="relative" id="maintenance-mobile-wrapper">
+                    <button type="button"
+                            class="maintenance-mobile-toggle w-full flex items-center justify-between px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition"
+                            aria-expanded="false">
+                        <span>Maintenance</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="maintenance-mobile-submenu hidden pl-4 space-y-1 mt-1">
+                        <a href="{{ route('maintenance.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Network Diagnostic</a>
+                    </div>
+                </div>
+
+                {{-- Settings submenu --}}
+                <div class="relative" id="settings-mobile-wrapper">
+                    <button type="button"
+                            class="settings-mobile-toggle w-full flex items-center justify-between px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition"
+                            aria-expanded="false">
+                        <span>Settings</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="settings-mobile-submenu hidden pl-4 space-y-1 mt-1">
+                        <a href="{{ route('env.editor') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Database</a>
+                        <a href="{{ route('mqtt.editor') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">MQTT</a>
+                        <a href="{{ route('network.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Network</a>
+                        <a href="{{ route('api.editor') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">API</a>
                     </div>
                 </div>
 
@@ -248,99 +277,75 @@
             });
         }
 
-        // ----- Desktop ENV dropdown toggle (click) -----
-        const desktopToggle = document.querySelector('#env-dropdown-desktop .env-dropdown-toggle');
-        const desktopMenu = document.querySelector('#env-dropdown-desktop .env-dropdown-menu');
+        // ----- Desktop dropdowns: Logs, Maintenance, Settings (mutually exclusive) -----
+        const desktopDropdowns = [
+            { id: 'logs-dropdown-desktop', toggleClass: '.logs-dropdown-toggle', menuClass: '.logs-dropdown-menu' },
+            { id: 'maintenance-dropdown-desktop', toggleClass: '.maintenance-dropdown-toggle', menuClass: '.maintenance-dropdown-menu' },
+            { id: 'settings-dropdown-desktop', toggleClass: '.settings-dropdown-toggle', menuClass: '.settings-dropdown-menu' },
+        ];
 
-        if (desktopToggle && desktopMenu) {
-            desktopToggle.addEventListener('click', function (e) {
+        const desktopDropdownState = desktopDropdowns.map(d => {
+            const wrapper = document.getElementById(d.id);
+            return {
+                wrapper,
+                toggle: wrapper ? wrapper.querySelector(d.toggleClass) : null,
+                menu: wrapper ? wrapper.querySelector(d.menuClass) : null,
+            };
+        }).filter(d => d.wrapper && d.toggle && d.menu);
+
+        function closeAllDesktopDropdowns(except) {
+            desktopDropdownState.forEach(d => {
+                if (d === except) return;
+                d.menu.classList.add('hidden');
+                d.toggle.setAttribute('aria-expanded', 'false');
+                const chevron = d.toggle.querySelector('svg');
+                if (chevron) chevron.classList.remove('rotate-180');
+            });
+        }
+
+        desktopDropdownState.forEach(d => {
+            d.toggle.addEventListener('click', function (e) {
                 e.stopPropagation();
-                const isOpen = !desktopMenu.classList.contains('hidden');
-                desktopMenu.classList.toggle('hidden');
+                const isOpen = !d.menu.classList.contains('hidden');
+                closeAllDesktopDropdowns(d);
+                d.menu.classList.toggle('hidden');
                 this.setAttribute('aria-expanded', String(!isOpen));
                 const chevron = this.querySelector('svg');
                 if (chevron) chevron.classList.toggle('rotate-180');
             });
+        });
 
-            document.addEventListener('click', function (e) {
-                const wrapper = document.querySelector('#env-dropdown-desktop');
-                if (wrapper && !wrapper.contains(e.target)) {
-                    desktopMenu.classList.add('hidden');
-                    desktopToggle.setAttribute('aria-expanded', 'false');
-                    const chevron = desktopToggle.querySelector('svg');
+        document.addEventListener('click', function (e) {
+            desktopDropdownState.forEach(d => {
+                if (!d.wrapper.contains(e.target)) {
+                    d.menu.classList.add('hidden');
+                    d.toggle.setAttribute('aria-expanded', 'false');
+                    const chevron = d.toggle.querySelector('svg');
                     if (chevron) chevron.classList.remove('rotate-180');
                 }
             });
-        }
+        });
 
-        // ----- Mobile ENV submenu toggle (accordion) -----
-        const mobileToggle = document.querySelector('.env-mobile-toggle');
-        const mobileSubmenu = document.querySelector('.env-mobile-submenu');
+        // ----- Mobile submenu accordions: Logs, Maintenance, Settings -----
+        const mobileSubmenus = [
+            { toggleClass: '.logs-mobile-toggle', submenuClass: '.logs-mobile-submenu' },
+            { toggleClass: '.maintenance-mobile-toggle', submenuClass: '.maintenance-mobile-submenu' },
+            { toggleClass: '.settings-mobile-toggle', submenuClass: '.settings-mobile-submenu' },
+        ];
 
-        if (mobileToggle && mobileSubmenu) {
-            mobileToggle.addEventListener('click', function () {
-                const isOpen = !mobileSubmenu.classList.contains('hidden');
-                mobileSubmenu.classList.toggle('hidden');
-                this.setAttribute('aria-expanded', String(!isOpen));
-                const chevron = this.querySelector('svg');
-                if (chevron) chevron.classList.toggle('rotate-180');
-            });
-        }
-
-        // ----- Desktop Logs dropdown toggle -----
-        const logsDesktopToggle = document.querySelector('#logs-dropdown-desktop .logs-dropdown-toggle');
-        const logsDesktopMenu = document.querySelector('#logs-dropdown-desktop .logs-dropdown-menu');
-
-        function closeLogsDesktop() {
-            if (logsDesktopMenu && logsDesktopToggle) {
-                logsDesktopMenu.classList.add('hidden');
-                logsDesktopToggle.setAttribute('aria-expanded', 'false');
-                const chevron = logsDesktopToggle.querySelector('svg');
-                if (chevron) chevron.classList.remove('rotate-180');
+        mobileSubmenus.forEach(({ toggleClass, submenuClass }) => {
+            const toggle = document.querySelector(toggleClass);
+            const submenu = document.querySelector(submenuClass);
+            if (toggle && submenu) {
+                toggle.addEventListener('click', function () {
+                    const isOpen = !submenu.classList.contains('hidden');
+                    submenu.classList.toggle('hidden');
+                    this.setAttribute('aria-expanded', String(!isOpen));
+                    const chevron = this.querySelector('svg');
+                    if (chevron) chevron.classList.toggle('rotate-180');
+                });
             }
-        }
-
-        function closeEnvDesktop() {
-            if (desktopMenu && desktopToggle) {
-                desktopMenu.classList.add('hidden');
-                desktopToggle.setAttribute('aria-expanded', 'false');
-                const chevron = desktopToggle.querySelector('svg');
-                if (chevron) chevron.classList.remove('rotate-180');
-            }
-        }
-
-        if (logsDesktopToggle && logsDesktopMenu) {
-            logsDesktopToggle.addEventListener('click', function (e) {
-                e.stopPropagation();
-                closeEnvDesktop();
-                const isOpen = !logsDesktopMenu.classList.contains('hidden');
-                logsDesktopMenu.classList.toggle('hidden');
-                this.setAttribute('aria-expanded', String(!isOpen));
-                const chevron = this.querySelector('svg');
-                if (chevron) chevron.classList.toggle('rotate-180');
-            });
-
-            document.addEventListener('click', function (e) {
-                const wrapper = document.querySelector('#logs-dropdown-desktop');
-                if (wrapper && !wrapper.contains(e.target)) {
-                    closeLogsDesktop();
-                }
-            });
-        }
-
-        // ----- Mobile Logs submenu toggle -----
-        const logsMobileToggle = document.querySelector('.logs-mobile-toggle');
-        const logsMobileSubmenu = document.querySelector('.logs-mobile-submenu');
-
-        if (logsMobileToggle && logsMobileSubmenu) {
-            logsMobileToggle.addEventListener('click', function () {
-                const isOpen = !logsMobileSubmenu.classList.contains('hidden');
-                logsMobileSubmenu.classList.toggle('hidden');
-                this.setAttribute('aria-expanded', String(!isOpen));
-                const chevron = this.querySelector('svg');
-                if (chevron) chevron.classList.toggle('rotate-180');
-            });
-        }
+        });
 
         // ----- Avatar dropdown toggle -----
         const avatarButton = document.getElementById('avatar-button');
@@ -623,8 +628,12 @@
 
 {{-- Extra style for smooth rotation and scrollbar --}}
 <style>
-    .env-dropdown-toggle svg,
-    .env-mobile-toggle svg {
+    .logs-dropdown-toggle svg,
+    .logs-mobile-toggle svg,
+    .maintenance-dropdown-toggle svg,
+    .maintenance-mobile-toggle svg,
+    .settings-dropdown-toggle svg,
+    .settings-mobile-toggle svg {
         transition: transform 0.2s ease;
     }
     .rotate-180 {
