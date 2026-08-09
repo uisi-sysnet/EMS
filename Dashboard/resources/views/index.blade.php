@@ -1,6 +1,76 @@
 @include('layouts.header')
 @include('layouts.topbar')
 
+@php
+    // --- System stats -------------------------------------------------
+    // Note: this reads Linux's /proc filesystem + PHP's disk_*_space()
+    // functions. It works out of the box on a typical Linux server /
+    // Raspberry Pi. On shared hosting these can be disabled, and on
+    // Windows /proc simply won't exist — in that case the tiles below
+    // fall back to 0 / "—" instead of erroring. Ideally this logic
+    // moves into a controller/service and gets passed to the view (or
+    // exposed via a small JSON endpoint for AJAX refresh), but it's
+    // inlined here since only the view file is in hand.
+
+    $formatBytes = function ($bytes, $decimals = 1) {
+        if (!$bytes) return '0 GB';
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $factor = (int) floor((strlen((string) (int) $bytes) - 1) / 3);
+        $factor = max(0, min($factor, count($units) - 1));
+        return sprintf("%.{$decimals}f", $bytes / (1024 ** $factor)) . ' ' . $units[$factor];
+    };
+
+    $barColor = function ($percent) {
+        if ($percent >= 85) return ['text-red-400', 'bg-red-500'];
+        if ($percent >= 60) return ['text-amber-400', 'bg-amber-500'];
+        return ['text-munti-green-400', 'bg-munti-green-500'];
+    };
+
+    // Storage (root filesystem)
+    $diskTotal   = @disk_total_space('/') ?: 0;
+    $diskFree    = @disk_free_space('/') ?: 0;
+    $diskUsed    = $diskTotal ? $diskTotal - $diskFree : 0;
+    $diskPercent = $diskTotal ? round(($diskUsed / $diskTotal) * 100, 1) : 0;
+
+    // Memory
+    $memTotal = 0;
+    $memAvailable = 0;
+    if (@is_readable('/proc/meminfo')) {
+        foreach (file('/proc/meminfo') as $line) {
+            if (str_starts_with($line, 'MemTotal:')) {
+                $memTotal = (int) filter_var($line, FILTER_SANITIZE_NUMBER_INT) * 1024;
+            }
+            if (str_starts_with($line, 'MemAvailable:')) {
+                $memAvailable = (int) filter_var($line, FILTER_SANITIZE_NUMBER_INT) * 1024;
+            }
+        }
+    }
+    $memUsed    = $memTotal ? $memTotal - $memAvailable : 0;
+    $memPercent = $memTotal ? round(($memUsed / $memTotal) * 100, 1) : 0;
+
+    // CPU (approximated from 1-minute load average / core count)
+    $cpuCores = 1;
+    if (@is_readable('/proc/cpuinfo')) {
+        $cpuCores = max(1, substr_count(file_get_contents('/proc/cpuinfo'), 'processor'));
+    }
+    $load = function_exists('sys_getloadavg') ? sys_getloadavg() : false;
+    $load = $load ?: [0, 0, 0];
+    $cpuPercent = round(min(($load[0] / $cpuCores) * 100, 100), 1);
+
+    // Uptime
+    $uptimeSeconds = 0;
+    if (@is_readable('/proc/uptime')) {
+        $uptimeSeconds = (int) floatval(explode(' ', file_get_contents('/proc/uptime'))[0]);
+    }
+    $uptimeDays    = intdiv($uptimeSeconds, 86400);
+    $uptimeHours   = intdiv($uptimeSeconds % 86400, 3600);
+    $uptimeMinutes = intdiv($uptimeSeconds % 3600, 60);
+
+    $cpuColors  = $barColor($cpuPercent);
+    $memColors  = $barColor($memPercent);
+    $diskColors = $barColor($diskPercent);
+@endphp
+
 <style>
     /* Hide scrollbar but keep scrolling */
     .thin-scrollbar {
@@ -28,6 +98,79 @@
         <!-- Body – scrollable -->
         <div class="flex-1 p-3 sm:p-4 overflow-y-auto thin-scrollbar min-h-0 bg-background-900">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                <!-- SYSTEM HEALTH: CPU / Memory / Storage / Uptime -->
+                <div class="lg:col-span-2 bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                    <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                        <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                            <span class="truncate">System Health</span>
+                        </h3>
+                        <span class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
+                            Live
+                        </span>
+                    </div>
+                    <div class="p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+                        <!-- CPU -->
+                        <div class="bg-surface-900/60 rounded-lg border border-border-700 p-3 flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] uppercase tracking-wider text-text-400 flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 7h10v10H7V7z"/></svg>
+                                    CPU
+                                </span>
+                                <span class="text-xs font-semibold {{ $cpuColors[0] }}">{{ $cpuPercent }}%</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-surface-700 rounded-full overflow-hidden">
+                                <div class="h-full {{ $cpuColors[1] }} rounded-full" style="width: {{ min($cpuPercent, 100) }}%"></div>
+                            </div>
+                            <span class="text-[10px] text-text-500">{{ $cpuCores }} core{{ $cpuCores > 1 ? 's' : '' }} · load {{ number_format($load[0], 2) }}</span>
+                        </div>
+
+                        <!-- Memory -->
+                        <div class="bg-surface-900/60 rounded-lg border border-border-700 p-3 flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] uppercase tracking-wider text-text-400 flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V7a2 2 0 012-2h14a2 2 0 012 2v3a2 2 0 01-2 2M5 12a2 2 0 00-2 2v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 00-2-2"/></svg>
+                                    Memory
+                                </span>
+                                <span class="text-xs font-semibold {{ $memColors[0] }}">{{ $memPercent }}%</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-surface-700 rounded-full overflow-hidden">
+                                <div class="h-full {{ $memColors[1] }} rounded-full" style="width: {{ min($memPercent, 100) }}%"></div>
+                            </div>
+                            <span class="text-[10px] text-text-500">{{ $formatBytes($memUsed) }} / {{ $formatBytes($memTotal) }}</span>
+                        </div>
+
+                        <!-- Storage -->
+                        <div class="bg-surface-900/60 rounded-lg border border-border-700 p-3 flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] uppercase tracking-wider text-text-400 flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H6a2 2 0 00-2 2z"/></svg>
+                                    Storage
+                                </span>
+                                <span class="text-xs font-semibold {{ $diskColors[0] }}">{{ $diskPercent }}%</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-surface-700 rounded-full overflow-hidden">
+                                <div class="h-full {{ $diskColors[1] }} rounded-full" style="width: {{ min($diskPercent, 100) }}%"></div>
+                            </div>
+                            <span class="text-[10px] text-text-500">{{ $formatBytes($diskUsed) }} / {{ $formatBytes($diskTotal) }}</span>
+                        </div>
+
+                        <!-- Uptime -->
+                        <div class="bg-surface-900/60 rounded-lg border border-border-700 p-3 flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] uppercase tracking-wider text-text-400 flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    Uptime
+                                </span>
+                                <span class="text-xs font-semibold text-munti-green-400">Online</span>
+                            </div>
+                            <span class="text-sm font-medium text-text-100">{{ $uptimeDays }}d {{ $uptimeHours }}h {{ $uptimeMinutes }}m</span>
+                            <span class="text-[10px] text-text-500">Since last reboot</span>
+                        </div>
+
+                    </div>
+                </div>
 
                 <!-- LEFT COLUMN: Air Quality -->
                 <div class="flex flex-col gap-4">
