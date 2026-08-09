@@ -1126,9 +1126,6 @@ server {
     access_log /var/log/nginx/ems-dashboard.access.log;
     error_log  /var/log/nginx/ems-dashboard.error.log;
 
-    # Python API (api_server.py / uvicorn, bound to 127.0.0.1:${API_PORT:-8000}
-    # only — see API_BIND_HOST in api_server.py). Every route in api_server.py
-    # already starts with /api/, so this forwards the path through unchanged.
     location /api/ {
         proxy_pass http://127.0.0.1:${API_PORT:-8000};
         proxy_http_version 1.1;
@@ -1146,6 +1143,33 @@ server {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:${PHP_FPM_SOCK};
         fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
+
+server {
+    listen 8443 default_server;
+    listen [::]:8443 default_server;
+    server_name _;
+
+    client_max_body_size 20m;
+
+    access_log /var/log/nginx/ems-api.access.log;
+    error_log  /var/log/nginx/ems-api.error.log;
+
+    # Python API (api_server.py / uvicorn, bound to 127.0.0.1:${API_PORT:-8000}
+    # only — see API_BIND_HOST in api_server.py). Every route in api_server.py
+    # already starts with /api/, so this forwards the path through unchanged.
+    location /api/ {
+        proxy_pass http://127.0.0.1:${API_PORT:-8000};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
     location ~ /\.(?!well-known).* {
@@ -1175,6 +1199,7 @@ if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
     log "ufw is active — opening ports 80/tcp and 443/tcp"
     ufw allow 80/tcp comment "nginx HTTP"
     ufw allow 443/tcp comment "nginx HTTPS (future)"
+    ufw allow 8443/tcp comment "API"
     if ufw status | grep -qE '^8000\b'; then
         log "Removing old direct-access ufw rule for 8000/tcp — the API is now only reachable through nginx"
         ufw delete allow 8000/tcp 2>/dev/null || true
