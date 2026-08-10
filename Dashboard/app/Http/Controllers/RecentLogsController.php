@@ -29,7 +29,13 @@ class RecentLogsController extends Controller
             // Also check if seen_at is null in the database
             $log['is_seen'] = $isSeen || $log['is_seen'];
             return $log;
-        })->sortByDesc('timestamp')->values();
+        })
+        // Sort by timestamp (created_at) in descending order (newest first)
+        // This sorts across both API and System logs by date
+        ->sortByDesc('timestamp')
+        // Take the 20 most recent entries overall (combined from both sources)
+        ->take(20)
+        ->values();
 
         return response()->json($logs);
     }
