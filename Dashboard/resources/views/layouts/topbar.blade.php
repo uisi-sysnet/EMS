@@ -477,7 +477,7 @@
                         <div class="text-xs text-text-500 truncate mt-0.5">
                             ${log.detail}
                         </div>
-                        <div class="text-[11px] text-text-600 mt-1">
+                        <div class="text-[11px] text-text-500 mt-1">
                             ${log.time}
                         </div>
                     </a>`;
