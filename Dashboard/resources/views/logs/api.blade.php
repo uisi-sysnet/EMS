@@ -26,13 +26,10 @@
     tr.log-row-unseen {
         background-color: rgba(59, 130, 246, 0.08) !important;
         border-left: 3px solid rgba(59, 130, 246, 0.45);
-        cursor: pointer;
-        transition: all 0.2s ease;
     }
     
     tr.log-row-unseen:hover {
         background-color: rgba(59, 130, 246, 0.14) !important;
-        transform: scale(1.001);
     }
 
     /* Status code badges */
@@ -280,141 +277,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Get CSRF token from meta tag
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        
-        if (!csrfToken) {
-            console.error('CSRF token not found');
-        }
-
-        // Individual row click handler
-        document.querySelectorAll('tbody tr[data-log-id]').forEach(row => {
-            row.addEventListener('click', async function(e) {
-                // Don't trigger if clicking on a button or link inside the row
-                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) {
-                    return;
-                }
-                
-                const logId = this.dataset.logId;
-                const isUnseen = this.dataset.isUnseen === 'true';
-                
-                // Only mark as seen if it's currently unseen
-                if (!isUnseen) {
-                    return;
-                }
-                
-                // Show loading state
-                this.style.opacity = '0.6';
-                this.style.cursor = 'wait';
-                
-                try {
-                    // Method 1: Use a simple string concatenation (no double slash)
-                    const url = '/api-logs/' + logId + '/mark-seen';
-                    console.log('Request URL:', url);
-                    
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken
-                        }
-                    });
-                    
-                    // Check if response is OK before trying to parse JSON
-                    if (!response.ok) {
-                        const text = await response.text();
-                        console.error('Server response:', text);
-                        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
-                    }
-                    
-                    const contentType = response.headers.get('content-type');
-                    if (!contentType || !contentType.includes('application/json')) {
-                        const text = await response.text();
-                        console.error('Non-JSON response:', text);
-                        throw new Error('Server returned non-JSON response');
-                    }
-                    
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        // Update the row visually
-                        this.dataset.isUnseen = 'false';
-                        this.classList.remove('log-row-unseen');
-                        this.style.cursor = 'default';
-                        
-                        // Update the seen cell
-                        const seenCell = this.querySelector('.seen-cell');
-                        if (seenCell) {
-                            seenCell.innerHTML = `<span class="seen-text">Seen</span>`;
-                        }
-                        
-                        // Reset opacity
-                        this.style.opacity = '1';
-                        
-                        // Update the unseen badge in header
-                        updateUnseenBadge();
-                    } else {
-                        throw new Error(data.message || 'Failed to mark log as seen');
-                    }
-                } catch (err) {
-                    console.error('Error marking log as seen:', err);
-                    this.style.opacity = '1';
-                    this.style.cursor = 'default';
-                    showToast('Failed to mark log as seen: ' + err.message, 'error');
-                }
-            });
-        });
-        
-        // Update the unseen badge count
-        function updateUnseenBadge() {
-            const unseenRows = document.querySelectorAll('tbody tr[data-is-unseen="true"]');
-            const unseenCount = unseenRows.length;
-            
-            const badge = document.querySelector('.unseen-badge');
-            if (badge) {
-                if (unseenCount > 0) {
-                    badge.innerHTML = `
-                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400 mr-1.5"></span>
-                        ${unseenCount} new
-                    `;
-                    badge.style.display = 'inline-flex';
-                } else {
-                    badge.style.display = 'none';
-                }
-            }
-        }
-        
-        // Toast notification function
-        function showToast(message, type = 'info') {
-            const colors = {
-                success: 'bg-green-600',
-                error: 'bg-red-600',
-                info: 'bg-blue-600'
-            };
-            
-            const toast = document.createElement('div');
-            toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg text-white text-sm z-50 transition-all duration-300 shadow-lg ${colors[type] || colors.info}`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            
-            // Auto dismiss
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(20px)';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-        
-        // Mark All as Seen button
         document.getElementById('markAllSeenBtn')?.addEventListener('click', async function() {
-            // Check if Swal is available
-            if (typeof Swal === 'undefined') {
-                console.error('SweetAlert2 not loaded');
-                showToast('SweetAlert2 not loaded', 'error');
-                return;
-            }
-            
             const confirmResult = await Swal.fire({
                 title: 'Mark All as Seen?',
                 text: 'This will mark all unseen logs as seen.',
@@ -430,21 +293,14 @@
             if (!confirmResult.isConfirmed) return;
             
             try {
-                const response = await fetch('/api-logs/mark-seen', {
+                const response = await fetch('{{ route("api-logs.mark-as-seen") }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                     },
                     body: JSON.stringify({ ids: [] })
                 });
-                
-                if (!response.ok) {
-                    const text = await response.text();
-                    console.error('Server response:', text);
-                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
-                }
                 
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
