@@ -96,7 +96,7 @@
                         <div class="flex items-center justify-between px-4 py-3 border-b border-border-700">
                             <h3 class="text-sm font-semibold text-text-100">Recent Logs</h3>
                             <div class="flex items-center gap-3">
-                                <button id="mark-all-seen" class="text-xs text-text-400 hover:text-text-100 transition px-2 py-1 rounded hover:bg-surface-700">Mark all as seen</button>
+                                <button id="mark-all-seen" class="text-xs text-text-400 hover:text-text-100 transition px-2 py-1 rounded hover:bg-surface-700">Archive All</button>
                             </div>
                         </div>
                         <div id="notification-list" class="max-h-72 overflow-y-auto divide-y divide-border-700 thin-scrollbar">
