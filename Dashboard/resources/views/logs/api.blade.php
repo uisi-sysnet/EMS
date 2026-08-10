@@ -86,6 +86,42 @@
         0%, 100% { opacity: 1; }
         50% { opacity: 0.5; }
     }
+
+    /* Consistent "Seen At" column styling */
+    .seen-at-cell {
+        min-width: 80px;
+        text-align: center;
+        font-size: 0.75rem;
+        padding: 0.5rem 1rem;
+        white-space: nowrap;
+    }
+
+    .seen-at-cell .unseen-text {
+        color: #60a5fa;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+    }
+
+    .seen-at-cell .unseen-text .dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: #60a5fa;
+        animation: pulse-dot 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.3; transform: scale(0.8); }
+    }
+
+    .seen-at-cell .seen-text {
+        color: #9ca3af;
+    }
 </style>
 
 <div id="main-content"
@@ -230,14 +266,14 @@
                                     <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs max-w-28 truncate" title="{{ $log->api_key_used }}">
                                         {{ $log->api_key_used }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-xs text-center min-w-[80px]">
+                                    <td class="seen-at-cell">
                                         @if($isUnseen)
-                                            <span class="text-blue-400 font-medium inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block"></span>
+                                            <span class="unseen-text">
+                                                <span class="dot"></span>
                                                 Unseen
                                             </span>
                                         @else
-                                            <span class="text-text-500 whitespace-nowrap">
+                                            <span class="seen-text">
                                                 {{ $log->seen_at->setTimezone('Asia/Manila')->format('h:i A') }}
                                             </span>
                                         @endif
