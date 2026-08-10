@@ -9,12 +9,12 @@
     .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
 
     /* Highlight for unseen logs - BLUE background */
-    .log-row-unseen {
+    tr.log-row-unseen {
         background-color: rgba(59, 130, 246, 0.15) !important;
         border-left: 3px solid #3b82f6;
     }
 
-    .log-row-unseen:hover {
+    tr.log-row-unseen:hover {
         background-color: rgba(59, 130, 246, 0.25) !important;
     }
     
@@ -140,7 +140,7 @@
                                         @php
                                             $isUnseen = is_null($log->seen_at);
                                         @endphp
-                                        <tr class="hover:bg-surface-700/50 transition {{ $isUnseen ? 'log-row-unseen' : '' }}">
+                                        <tr class="transition {{ $isUnseen ? 'log-row-unseen' : 'hover:bg-surface-700/50' }}">
                                             <td class="px-4 py-2.5 whitespace-nowrap">
                                                 <input type="checkbox" class="log-checkbox rounded border-border-600 bg-surface-900 text-radar-600" 
                                                     data-id="{{ $log->id }}" {{ $isUnseen ? 'data-unseen="true"' : '' }}>
@@ -183,7 +183,7 @@
                                                 @if($isUnseen)
                                                     <span class="text-blue-400 font-medium flex items-center gap-1">
                                                         <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
-                                                        Unseen
+                                                        Unseen (raw: {{ var_export($log->seen_at, true) }})
                                                     </span>
                                                 @else
                                                     <span class="text-text-500">
