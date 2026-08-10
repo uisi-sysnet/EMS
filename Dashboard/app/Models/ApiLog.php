@@ -20,12 +20,14 @@ class ApiLog extends Model
         'duration_ms',
         'api_key_owner',
         'api_key_used',
+        'seen_at',
     ];
 
     protected $casts = [
         'duration_ms' => 'float',
         'status_code' => 'integer',
         'created_at'  => 'datetime',
+        'seen_at'     => 'datetime',
     ];
 
     /**
@@ -46,6 +48,26 @@ class ApiLog extends Model
             'duration_ms'    => $durationMs,
             'api_key_owner'  => $apiKeyOwner,
             'api_key_used'   => $apiKeyUsed ?? $request->header('X-API-Key'),
+            'seen_at'        => null, 
         ]);
+    }
+
+
+    // Helper method to mark as seen
+    public function markAsSeen(): void
+    {
+        $this->update(['seen_at' => now()]);
+    }
+
+    // Helper method to mark multiple as seen
+    public static function markAllAsSeen(array $ids): void
+    {
+        static::whereIn('id', $ids)->update(['seen_at' => now()]);
+    }
+
+    // Scope for unseen logs
+    public function scopeUnseen($query)
+    {
+        return $query->whereNull('seen_at');
     }
 }

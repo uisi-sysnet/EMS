@@ -7,9 +7,6 @@ use Illuminate\Http\Request;
 
 class ApiLogController extends Controller
 {
-    /**
-     * Display a paginated list of API logs (for the Blade view).
-     */
     public function index(Request $request)
     {
         $query = ApiLog::query();
@@ -43,43 +40,42 @@ class ApiLogController extends Controller
             ->paginate(1000)
             ->withQueryString();
 
+        // Get unseen count for notification badge
+        $unseenCount = ApiLog::unseen()->count();
+
         $defaultFrom = ApiLog::min('created_at');
         $defaultTo   = ApiLog::max('created_at');
 
-        // Convert to 'Y-m-d' format for the date input, or keep null if no logs exist
         $defaultFrom = $defaultFrom ? \Carbon\Carbon::parse($defaultFrom)->toDateString() : null;
         $defaultTo   = $defaultTo   ? \Carbon\Carbon::parse($defaultTo)->toDateString()   : null;
 
-        // Pass them to the view
-        return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo'));
+        return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo', 'unseenCount'));
     }
 
-    /**
-     * (Optional) Manual log insertion, e.g. from a CLI command or external source.
-     * POST /api-logs
-     */
-    public function store(Request $request)
+    // Add this method to mark logs as seen
+    public function markAsSeen(Request $request)
     {
-        $validated = $request->validate([
-            'client_ip'      => 'required|ip',
-            'method'         => 'required|string|max:10',
-            'path'           => 'required|string',
-            'status_code'    => 'required|integer',
-            'duration_ms'    => 'required|numeric',
-            'api_key_owner'  => 'nullable|string|max:100',
-            'api_key_used'   => 'nullable|string|max:100',
+        $ids = $request->input('ids', []);
+        
+        if (empty($ids)) {
+            // Mark all as seen
+            ApiLog::unseen()->update(['seen_at' => now()]);
+            $message = 'All logs marked as seen.';
+        } else {
+            ApiLog::whereIn('id', $ids)->update(['seen_at' => now()]);
+            $message = 'Selected logs marked as seen.';
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $message
         ]);
-
-        $log = ApiLog::create($validated);
-
-        return response()->json($log, 201);
     }
 
     public function exportCsv(Request $request)
     {
         $query = ApiLog::query();
 
-        // Apply ALL the same filters as index()
         if ($request->filled('client_ip')) {
             $query->where('client_ip', 'like', '%' . $request->client_ip . '%');
         }
@@ -106,7 +102,6 @@ class ApiLogController extends Controller
 
         $logs = $query->orderBy('created_at', 'desc')->get();
         
-        // Generate CSV
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="api-logs-' . date('Y-m-d-His') . '.csv"',
@@ -114,17 +109,13 @@ class ApiLogController extends Controller
         
         $callback = function() use ($logs) {
             $file = fopen('php://output', 'w');
-            
-            // Add BOM for UTF-8 (Excel compatibility)
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
             
-            // Headers
             fputcsv($file, [
                 'Date', 'Client IP', 'Method', 'Path', 'Status Code', 
-                'Duration (ms)', 'API Key Owner', 'API Key Used'
+                'Duration (ms)', 'API Key Owner', 'API Key Used', 'Seen At'
             ]);
             
-            // Data rows
             foreach ($logs as $log) {
                 fputcsv($file, [
                     \Carbon\Carbon::parse($log->created_at)->setTimezone('Asia/Manila')->format('Y-m-d H:i:s'),
@@ -134,7 +125,8 @@ class ApiLogController extends Controller
                     $log->status_code,
                     number_format($log->duration_ms, 2),
                     $log->api_key_owner,
-                    $log->api_key_used
+                    $log->api_key_used,
+                    $log->seen_at ? \Carbon\Carbon::parse($log->seen_at)->setTimezone('Asia/Manila')->format('Y-m-d H:i:s') : 'Unseen'
                 ]);
             }
             
