@@ -528,6 +528,54 @@
                 });
         }
 
+        function updateBadges(apiCount, systemCount) {
+            // Desktop badges
+            const desktopApiBadge = document.getElementById('desktop-api-unseen-badge');
+            const desktopSystemBadge = document.getElementById('desktop-system-unseen-badge');
+            
+            // Mobile badges
+            const mobileApiBadge = document.getElementById('mobile-api-unseen-badge');
+            const mobileSystemBadge = document.getElementById('mobile-system-unseen-badge');
+            
+            // Update API badges
+            if (desktopApiBadge) {
+                if (apiCount > 0) {
+                    desktopApiBadge.textContent = apiCount;
+                    desktopApiBadge.classList.remove('hidden');
+                } else {
+                    desktopApiBadge.classList.add('hidden');
+                }
+            }
+            
+            if (mobileApiBadge) {
+                if (apiCount > 0) {
+                    mobileApiBadge.textContent = apiCount;
+                    mobileApiBadge.classList.remove('hidden');
+                } else {
+                    mobileApiBadge.classList.add('hidden');
+                }
+            }
+            
+            // Update System badges
+            if (desktopSystemBadge) {
+                if (systemCount > 0) {
+                    desktopSystemBadge.textContent = systemCount;
+                    desktopSystemBadge.classList.remove('hidden');
+                } else {
+                    desktopSystemBadge.classList.add('hidden');
+                }
+            }
+            
+            if (mobileSystemBadge) {
+                if (systemCount > 0) {
+                    mobileSystemBadge.textContent = systemCount;
+                    mobileSystemBadge.classList.remove('hidden');
+                } else {
+                    mobileSystemBadge.classList.add('hidden');
+                }
+            }
+        }
+
         function renderLogs(logs) {
             if (logs.length === 0) {
                 notificationList.innerHTML = `
@@ -712,55 +760,6 @@
 
         updateDot();
     });
-
-    // Update badges for API and System logs
-    function updateBadges(apiCount, systemCount) {
-        // Desktop badges
-        const desktopApiBadge = document.getElementById('desktop-api-unseen-badge');
-        const desktopSystemBadge = document.getElementById('desktop-system-unseen-badge');
-        
-        // Mobile badges
-        const mobileApiBadge = document.getElementById('mobile-api-unseen-badge');
-        const mobileSystemBadge = document.getElementById('mobile-system-unseen-badge');
-        
-        // Update API badges
-        if (desktopApiBadge) {
-            if (apiCount > 0) {
-                desktopApiBadge.textContent = apiCount;
-                desktopApiBadge.classList.remove('hidden');
-            } else {
-                desktopApiBadge.classList.add('hidden');
-            }
-        }
-        
-        if (mobileApiBadge) {
-            if (apiCount > 0) {
-                mobileApiBadge.textContent = apiCount;
-                mobileApiBadge.classList.remove('hidden');
-            } else {
-                mobileApiBadge.classList.add('hidden');
-            }
-        }
-        
-        // Update System badges
-        if (desktopSystemBadge) {
-            if (systemCount > 0) {
-                desktopSystemBadge.textContent = systemCount;
-                desktopSystemBadge.classList.remove('hidden');
-            } else {
-                desktopSystemBadge.classList.add('hidden');
-            }
-        }
-        
-        if (mobileSystemBadge) {
-            if (systemCount > 0) {
-                mobileSystemBadge.textContent = systemCount;
-                mobileSystemBadge.classList.remove('hidden');
-            } else {
-                mobileSystemBadge.classList.add('hidden');
-            }
-        }
-    }
 </script>
 
 {{-- Extra style for smooth rotation and scrollbar --}}
