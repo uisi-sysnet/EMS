@@ -33,10 +33,11 @@
     </div>{{-- /card --}}
 </div>{{-- /main-content --}}
 
-{{-- xterm.js --}}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/css/xterm.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/lib/xterm.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm-addon-fit/0.8.0/lib/xterm-addon-fit.min.js"></script>
+{{-- xterm.js — served from jsDelivr (mirrors npm directly; cdnjs has moved this
+     package to a differently-structured scoped release and 404s on old paths) --}}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -44,17 +45,35 @@ document.addEventListener('DOMContentLoaded', function () {
         ?? '{{ csrf_token() }}';
 
     const termStatus = document.getElementById('term-status');
+
+    if (typeof Terminal === 'undefined') {
+        termStatus.className = 'text-xs px-2 py-0.5 rounded-full bg-munti-red-700/20 text-munti-red-400 border border-munti-red-600/30';
+        termStatus.textContent = 'Failed to load';
+        document.getElementById('terminal').innerHTML =
+            '<p class="text-xs text-munti-red-400 p-3">xterm.js failed to load from the CDN. Check your network/ad-blocker, or the browser console for the failed request.</p>';
+        return;
+    }
+
     const term = new Terminal({
         convertEol: true,
         cursorBlink: true,
         fontSize: 13,
         theme: { background: '#000000' },
     });
-    const fitAddon = new FitAddon.FitAddon();
-    term.loadAddon(fitAddon);
+
+    let fitAddon = null;
+    try {
+        if (window.FitAddon) {
+            fitAddon = new FitAddon.FitAddon();
+            term.loadAddon(fitAddon);
+        }
+    } catch (e) {
+        console.error('FitAddon failed to load; terminal will not auto-resize.', e);
+    }
+
     term.open(document.getElementById('terminal'));
-    fitAddon.fit();
-    window.addEventListener('resize', () => fitAddon.fit());
+    if (fitAddon) fitAddon.fit();
+    window.addEventListener('resize', () => { if (fitAddon) fitAddon.fit(); });
 
     let ws = null;
 
