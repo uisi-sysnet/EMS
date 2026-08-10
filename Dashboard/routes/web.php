@@ -23,6 +23,7 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::middleware(['role:administrator,user'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('home');
     Route::get('/dashboard/report', [DashboardController::class, 'generateReport'])->name('dashboard.report');
+    Route::get('/dashboard/data', [DashboardController::class, 'data'])->name('dashboard.data');
 });
 
 Route::middleware(['role:administrator'])->group(function () {
