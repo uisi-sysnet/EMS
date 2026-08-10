@@ -49,6 +49,35 @@ class LogController extends Controller
         return view('logs.system', compact('logs', 'defaultFrom', 'defaultTo'));
     }
 
+    // Mark logs as seen
+    public function markAsSeen(Request $request)
+    {
+        try {
+            $ids = $request->input('ids', []);
+            
+            if (empty($ids)) {
+                // Mark all as seen
+                $count = SystemLog::unseen()->update(['seen_at' => now()]);
+                $message = "All {$count} logs marked as seen.";
+            } else {
+                $count = SystemLog::whereIn('id', $ids)->update(['seen_at' => now()]);
+                $message = "{$count} selected logs marked as seen.";
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'count' => $count ?? 0
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error marking logs as seen: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error marking logs as seen: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function exportCsv(Request $request)
     {
         $query = SystemLog::query();

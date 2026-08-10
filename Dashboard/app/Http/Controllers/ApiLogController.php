@@ -53,119 +53,15 @@ class ApiLogController extends Controller
         return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo', 'unseenCount'));
     }
 
-    // Mark a single log as seen
-    public function markSingleAsSeen(Request $request)
-    {
-        try {
-            // Debug: Log the incoming request
-            Log::info('markSingleAsSeen called', [
-                'all' => $request->all(),
-                'json' => $request->json()->all(),
-                'input' => $request->input(),
-                'method' => $request->method(),
-                'content_type' => $request->header('Content-Type')
-            ]);
-
-            // Try multiple ways to get the ID
-            $id = null;
-            
-            // 1. Try from request input
-            if ($request->has('id')) {
-                $id = $request->input('id');
-            }
-            
-            // 2. Try from JSON if not found
-            if (!$id && $request->isJson()) {
-                $data = $request->json()->all();
-                $id = $data['id'] ?? null;
-            }
-            
-            // 3. Try from route parameters
-            if (!$id) {
-                $id = $request->route('id');
-            }
-
-            // 4. Last resort: try to get from the raw request body
-            if (!$id) {
-                $content = $request->getContent();
-                if (!empty($content)) {
-                    $data = json_decode($content, true);
-                    $id = $data['id'] ?? null;
-                }
-            }
-
-            Log::info('Extracted ID:', ['id' => $id, 'type' => gettype($id)]);
-
-            if (!$id) {
-                Log::warning('Log ID not provided in request', [
-                    'all_input' => $request->all(),
-                    'json_input' => $request->json()->all(),
-                    'content' => $request->getContent()
-                ]);
-                
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Log ID is required'
-                ], 400);
-            }
-
-            // Ensure ID is numeric
-            $id = (int) $id;
-
-            $log = ApiLog::find($id);
-            
-            if (!$log) {
-                Log::warning('Log not found:', ['id' => $id]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Log not found'
-                ], 404);
-            }
-
-            if ($log->seen_at) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Log already marked as seen',
-                    'already_seen' => true
-                ]);
-            }
-
-            // Use the model's markAsSeen method
-            $log->markAsSeen();
-
-            Log::info('Log marked as seen:', ['id' => $id]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Log marked as seen successfully'
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error marking log as seen: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Error marking log as seen: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    // Mark logs as seen (bulk)
+    // Mark logs as seen
     public function markAsSeen(Request $request)
     {
         try {
             $ids = $request->input('ids', []);
             
-            // Try to get IDs from JSON if not found in input
-            if (empty($ids) && $request->isJson()) {
-                $data = $request->json()->all();
-                $ids = $data['ids'] ?? [];
-            }
-
             if (empty($ids)) {
                 // Mark all as seen
-                $count = ApiLog::unseen()->count();
-                ApiLog::unseen()->update(['seen_at' => now()]);
+                $count = ApiLog::unseen()->update(['seen_at' => now()]);
                 $message = "All {$count} logs marked as seen.";
             } else {
                 $count = ApiLog::whereIn('id', $ids)->update(['seen_at' => now()]);
