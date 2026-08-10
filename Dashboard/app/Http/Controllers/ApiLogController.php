@@ -53,24 +53,42 @@ class ApiLogController extends Controller
         return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo', 'unseenCount'));
     }
 
-    public function markAsSeenSingle($id)
+    // NEW: Mark a single log as seen
+    public function markSingleAsSeen(Request $request)
     {
         try {
-            $log = ApiLog::findOrFail($id);
+            $id = $request->input('id');
             
-            if (is_null($log->seen_at)) {
-                $log->update(['seen_at' => now()]);
+            if (!$id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Log ID is required'
+                ], 400);
+            }
+
+            $log = ApiLog::find($id);
+            
+            if (!$log) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Log not found'
+                ], 404);
+            }
+
+            if ($log->seen_at) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Log marked as seen.',
-                    'log_id' => $id
+                    'message' => 'Log already marked as seen',
+                    'already_seen' => true
                 ]);
             }
-            
+
+            $log->seen_at = now();
+            $log->save();
+
             return response()->json([
                 'success' => true,
-                'message' => 'Log already seen.',
-                'log_id' => $id
+                'message' => 'Log marked as seen successfully'
             ]);
         } catch (\Exception $e) {
             Log::error('Error marking log as seen: ' . $e->getMessage());
@@ -81,7 +99,7 @@ class ApiLogController extends Controller
         }
     }
 
-    // Update your existing markAsSeen method to handle multiple IDs
+    // Mark logs as seen (existing method)
     public function markAsSeen(Request $request)
     {
         try {
