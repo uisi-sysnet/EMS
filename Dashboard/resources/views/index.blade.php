@@ -427,7 +427,7 @@
                                             {{ $item->installed_at ? \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') : '—' }}
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
-                                            {{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d') : '—' }}
+                                            {{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d h:i A') : '—' }}
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap">
@@ -498,7 +498,7 @@
                                             {{ $item->installed_at ? \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') : '—' }}
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
-                                            {{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d') : '—' }}
+                                            {{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d h:i A') : '—' }}
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap">
@@ -565,6 +565,21 @@
             // we only ever display Y-m-d anyway, we don't need a Date object.
             const match = String(str).match(/^(\d{4}-\d{2}-\d{2})/);
             return match ? match[1] : '—';
+        }
+
+        // Same regex-extraction approach as fmtDate, but keeps the time
+        // portion too and formats it to match the server-rendered
+        // 'Y-m-d h:i A' style (12-hour, leading zero, AM/PM) used for the
+        // Latest column and the "generatedAt" tile elsewhere on this page.
+        function fmtDateTime(str) {
+            if (!str) return '—';
+            const match = String(str).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
+            if (!match) return fmtDate(str);
+            const [, datePart, hh, mm] = match;
+            let hour = parseInt(hh, 10) % 12;
+            if (hour === 0) hour = 12;
+            const ampm = parseInt(hh, 10) >= 12 ? 'PM' : 'AM';
+            return `${datePart} ${String(hour).padStart(2, '0')}:${mm} ${ampm}`;
         }
 
         // Color palette (dynamically sized)
@@ -651,7 +666,7 @@
                 <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">${esc(item.station)}</td>
                 <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">${esc(item.ip ?? '—')}</td>
                 <td class="px-2 py-0 whitespace-nowrap text-text-400">${fmtDate(item.installed_at)}</td>
-                <td class="px-2 py-0 whitespace-nowrap text-text-400">${fmtDate(item.latest_at)}</td>
+                <td class="px-2 py-0 whitespace-nowrap text-text-400">${fmtDateTime(item.latest_at)}</td>
                 <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">${Number(item.total || 0).toLocaleString()}</td>
                 <td class="px-2 py-0 whitespace-nowrap">
                     <span class="inline-flex items-center gap-1 text-[10px] font-medium ${meta.text} ${meta.bg} border ${meta.border} px-1.5 py-0.5 rounded-full">
