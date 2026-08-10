@@ -23,35 +23,35 @@
     }
 
     /* ============================================ */
-    /* BLUE HIGHLIGHT FOR UNSEEN LOGS - FIXED */
+    /* SUBTLE BLUE HIGHLIGHT FOR UNSEEN LOGS */
     /* ============================================ */
     tr.log-row-unseen {
-        background-color: rgba(59, 130, 246, 0.2) !important;
-        border-left: 4px solid #3b82f6 !important;
+        background-color: rgba(59, 130, 246, 0.08) !important;
+        border-left: 3px solid rgba(59, 130, 246, 0.3) !important;
         position: relative;
     }
     
     tr.log-row-unseen td {
-        background-color: rgba(59, 130, 246, 0.2) !important;
+        background-color: rgba(59, 130, 246, 0.08) !important;
     }
     
     tr.log-row-unseen:hover {
-        background-color: rgba(59, 130, 246, 0.35) !important;
+        background-color: rgba(59, 130, 246, 0.15) !important;
     }
     
     tr.log-row-unseen:hover td {
-        background-color: rgba(59, 130, 246, 0.35) !important;
+        background-color: rgba(59, 130, 246, 0.15) !important;
     }
     
-    /* Blue left border using pseudo-element */
+    /* Blue left border using pseudo-element - more subtle */
     tr.log-row-unseen::before {
         content: '';
         position: absolute;
         left: 0;
         top: 0;
         bottom: 0;
-        width: 4px;
-        background: #3b82f6;
+        width: 3px;
+        background: rgba(59, 130, 246, 0.4);
         border-radius: 0 2px 2px 0;
         z-index: 2;
     }
