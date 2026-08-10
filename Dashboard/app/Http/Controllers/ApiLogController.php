@@ -59,23 +59,48 @@ class ApiLogController extends Controller
         try {
             // Debug: Log the incoming request
             Log::info('markSingleAsSeen called', [
-                'all_input' => $request->all(),
+                'all' => $request->all(),
                 'json' => $request->json()->all(),
+                'input' => $request->input(),
+                'method' => $request->method(),
                 'content_type' => $request->header('Content-Type')
             ]);
 
-            $id = $request->input('id');
+            // Try multiple ways to get the ID
+            $id = null;
             
-            // Try to get ID from JSON if not found in input
+            // 1. Try from request input
+            if ($request->has('id')) {
+                $id = $request->input('id');
+            }
+            
+            // 2. Try from JSON if not found
             if (!$id && $request->isJson()) {
                 $data = $request->json()->all();
                 $id = $data['id'] ?? null;
             }
+            
+            // 3. Try from route parameters
+            if (!$id) {
+                $id = $request->route('id');
+            }
+
+            // 4. Last resort: try to get from the raw request body
+            if (!$id) {
+                $content = $request->getContent();
+                if (!empty($content)) {
+                    $data = json_decode($content, true);
+                    $id = $data['id'] ?? null;
+                }
+            }
+
+            Log::info('Extracted ID:', ['id' => $id, 'type' => gettype($id)]);
 
             if (!$id) {
                 Log::warning('Log ID not provided in request', [
-                    'request_data' => $request->all(),
-                    'json_data' => $request->json()->all()
+                    'all_input' => $request->all(),
+                    'json_input' => $request->json()->all(),
+                    'content' => $request->getContent()
                 ]);
                 
                 return response()->json([
@@ -84,9 +109,13 @@ class ApiLogController extends Controller
                 ], 400);
             }
 
+            // Ensure ID is numeric
+            $id = (int) $id;
+
             $log = ApiLog::find($id);
             
             if (!$log) {
+                Log::warning('Log not found:', ['id' => $id]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Log not found'
@@ -104,12 +133,16 @@ class ApiLogController extends Controller
             // Use the model's markAsSeen method
             $log->markAsSeen();
 
+            Log::info('Log marked as seen:', ['id' => $id]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Log marked as seen successfully'
             ]);
         } catch (\Exception $e) {
-            Log::error('Error marking log as seen: ' . $e->getMessage());
+            Log::error('Error marking log as seen: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Error marking log as seen: ' . $e->getMessage()

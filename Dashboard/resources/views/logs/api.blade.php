@@ -342,21 +342,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Individual row click to mark as seen
     document.querySelectorAll('tr[data-log-id]').forEach(row => {
+        // Debug: Log the row data
+        console.log('Row found:', {
+            id: row.dataset.logId,
+            isUnseen: row.dataset.isUnseen,
+            row: row
+        });
+
         row.addEventListener('click', async function(e) {
             // Don't trigger if clicking on a button or interactive element inside the row
             if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) {
+                console.log('Click ignored - interactive element clicked');
                 return;
             }
 
             const logId = this.dataset.logId;
             const isUnseen = this.dataset.isUnseen === 'true';
             
+            console.log('Row clicked:', { logId, isUnseen }); // Debug log
+            
             // Only mark if it's unseen
-            if (!isUnseen) return;
+            if (!isUnseen) {
+                console.log('Row already seen, ignoring click');
+                return;
+            }
+
+            if (!logId) {
+                console.error('No log ID found on row');
+                return;
+            }
 
             try {
-                console.log('Marking log as seen:', logId); // Debug log
-
+                // Try sending as JSON first
                 const response = await fetch('{{ route("api-logs.mark-single-as-seen") }}', {
                     method: 'POST',
                     headers: {
@@ -364,11 +381,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                     },
-                    body: JSON.stringify({ id: parseInt(logId) })
+                    body: JSON.stringify({ 
+                        id: parseInt(logId) 
+                    })
                 });
 
-                console.log('Response status:', response.status); // Debug log
-
+                console.log('Response status:', response.status);
+                
                 if (!response.ok) {
                     const text = await response.text();
                     console.error('Server response:', text);
@@ -376,7 +395,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 const data = await response.json();
-                console.log('Response data:', data); // Debug log
+                console.log('Response data:', data);
                 
                 if (data.success) {
                     // Update the row visually
