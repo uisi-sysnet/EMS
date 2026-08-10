@@ -41,6 +41,7 @@ class ApiLogController extends Controller
             ->withQueryString();
 
         // Get unseen count for notification badge
+        $unseenCount = ApiLog::unseen()->count();
 
         $defaultFrom = ApiLog::min('created_at');
         $defaultTo   = ApiLog::max('created_at');
@@ -48,7 +49,7 @@ class ApiLogController extends Controller
         $defaultFrom = $defaultFrom ? \Carbon\Carbon::parse($defaultFrom)->toDateString() : null;
         $defaultTo   = $defaultTo   ? \Carbon\Carbon::parse($defaultTo)->toDateString()   : null;
 
-        return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo'));
+        return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo', 'unseenCount'));
     }
 
     // Add this method to mark logs as seen

@@ -8,13 +8,12 @@
     .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #6B7280; }
     .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
 
-    
     /* Highlight for unseen logs - BLUE background */
     .log-row-unseen {
         background-color: rgba(59, 130, 246, 0.15) !important;
         border-left: 3px solid #3b82f6;
     }
-    
+
     .log-row-unseen:hover {
         background-color: rgba(59, 130, 246, 0.25) !important;
     }
@@ -891,7 +890,7 @@
             });
         });
     });
-    
+
 </script>
 
 @include('layouts.footer')
