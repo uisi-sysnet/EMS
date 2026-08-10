@@ -88,5 +88,6 @@ Route::middleware(['role:administrator'])->group(function () {
     Route::get('/maintenance/services/status', [ServicesController::class, 'status'])->name('services.status');
     Route::post('/maintenance/services/{service}/action', [ServicesController::class, 'action'])->name('services.action');
     Route::post('/maintenance/terminal/token', [TerminalAuthController::class, 'issue'])->name('terminal.token');
+    Route::get('/maintenance/terminal', [ServicesController::class, 'terminal'])->name('services.terminal');
 
 });
