@@ -119,11 +119,11 @@
                 @endif
             </div>
             <div class="flex items-center gap-2">
+                <span class="text-xs sm:text-sm text-text-400">Inspect incoming API requests</span>
                 <button type="button" id="markAllSeenBtn" 
                         class="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition">
                     Mark All as Seen
                 </button>
-                <span class="text-xs sm:text-sm text-text-400">Inspect incoming API requests</span>
             </div>
         </div>
 
