@@ -59,6 +59,7 @@ Route::middleware(['role:administrator'])->group(function () {
 
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
     Route::get('/logs/export', [LogController::class, 'exportCsv'])->name('logs.export');
+    Route::post('/logs/mark-as-seen', [LogController::class, 'markAsSeen'])->name('logs.mark-as-seen');
 
     Route::get('/api-logs', [ApiLogController::class, 'index'])->name('api-logs.index');
     Route::get('/api-logs/export', [ApiLogController::class, 'exportCsv'])->name('api-logs.export');
