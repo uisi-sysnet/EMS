@@ -57,6 +57,17 @@
             <span class="text-xs sm:text-sm text-text-400">Inspect incoming API requests</span>
         </div>
 
+        <!-- In the header section, add this alongside the "API Logs" title or near the filter -->
+        <div class="flex items-center gap-2">
+            <a href="{{ route('api-logs.export', request()->query()) }}" 
+            class="inline-flex items-center px-3 py-1.5 bg-green-600 hover:bg-green-500 text-text-100 text-xs font-semibold rounded-lg transition border border-green-500/40">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Export CSV
+            </a>
+        </div>
+
         <!-- Filter Bar – responsive rows -->
         <div class="shrink-0 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 bg-background-900 border-b border-border-800">
             <form method="GET" action="{{ route('api-logs.index') }}" class="bg-surface-800 rounded-xl border border-border-700 p-3 sm:p-4">
