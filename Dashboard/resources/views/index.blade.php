@@ -389,12 +389,12 @@
                                     <tr class="hover:bg-surface-700 transition h-10">
                                         <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
-                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip ?? '—' }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
-                                            {{ \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') }}
+                                            {{ $item->installed_at ? \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') : '—' }}
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
-                                            {{ \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d') }}
+                                            {{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d') : '—' }}
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap">
