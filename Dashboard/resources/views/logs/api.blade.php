@@ -279,12 +279,6 @@
 </div>
 
 <script>
-    window.routeUrls = {
-        markSeenSingle: '{{ route("api-logs.mark-seen-single", ["id" => "REPLACE_ID"]) }}',
-        markSeenAll: '{{ route("api-logs.mark-as-seen") }}'
-    };
-</script>
-<script>
     document.addEventListener('DOMContentLoaded', function() {
         // Get CSRF token from meta tag
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -297,7 +291,7 @@
         document.querySelectorAll('tbody tr[data-log-id]').forEach(row => {
             row.addEventListener('click', async function(e) {
                 // Don't trigger if clicking on a button or link inside the row
-                if (e.target.closest('button') || e.target.closest('a')) {
+                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) {
                     return;
                 }
                 
@@ -311,10 +305,12 @@
                 
                 // Show loading state
                 this.style.opacity = '0.6';
+                this.style.cursor = 'wait';
                 
                 try {
-                    // Use the correct route with proper URL construction
-                    const url = window.routeUrls.markSeenSingle.replace('REPLACE_ID', logId);
+                    // Method 1: Use a simple string concatenation (no double slash)
+                    const url = '/api-logs/' + logId + '/mark-seen';
+                    console.log('Request URL:', url);
                     
                     const response = await fetch(url, {
                         method: 'POST',
@@ -345,6 +341,7 @@
                         // Update the row visually
                         this.dataset.isUnseen = 'false';
                         this.classList.remove('log-row-unseen');
+                        this.style.cursor = 'default';
                         
                         // Update the seen cell
                         const seenCell = this.querySelector('.seen-cell');
@@ -357,15 +354,13 @@
                         
                         // Update the unseen badge in header
                         updateUnseenBadge();
-                        
-                        // Show success toast
-                        showToast('Marked as seen', 'success');
                     } else {
                         throw new Error(data.message || 'Failed to mark log as seen');
                     }
                 } catch (err) {
                     console.error('Error marking log as seen:', err);
                     this.style.opacity = '1';
+                    this.style.cursor = 'default';
                     showToast('Failed to mark log as seen: ' + err.message, 'error');
                 }
             });
@@ -399,19 +394,14 @@
             };
             
             const toast = document.createElement('div');
-            toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg text-white text-sm z-50 transition-all duration-300 transform translate-y-0 ${colors[type] || colors.info}`;
+            toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg text-white text-sm z-50 transition-all duration-300 shadow-lg ${colors[type] || colors.info}`;
             toast.textContent = message;
             document.body.appendChild(toast);
             
-            // Animate in
-            setTimeout(() => {
-                toast.style.transform = 'translateY(0)';
-            }, 10);
-            
             // Auto dismiss
             setTimeout(() => {
-                toast.style.transform = 'translateY(20px)';
                 toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px)';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
@@ -421,6 +411,7 @@
             // Check if Swal is available
             if (typeof Swal === 'undefined') {
                 console.error('SweetAlert2 not loaded');
+                showToast('SweetAlert2 not loaded', 'error');
                 return;
             }
             
