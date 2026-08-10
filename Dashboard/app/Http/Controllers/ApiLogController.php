@@ -74,4 +74,55 @@ class ApiLogController extends Controller
 
         return response()->json($log, 201);
     }
+
+    public function exportCsv(Request $request)
+    {
+        // Reuse the same filtering logic as index()
+        $query = ApiLog::query();
+        
+        // Apply all the same filters (copy from index method)
+        if ($request->filled('client_ip')) {
+            $query->where('client_ip', 'like', '%' . $request->client_ip . '%');
+        }
+        // ... (copy all other filter conditions)
+        
+        $logs = $query->orderBy('created_at', 'desc')->get();
+        
+        // Generate CSV
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="api-logs-' . date('Y-m-d-His') . '.csv"',
+        ];
+        
+        $callback = function() use ($logs) {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for UTF-8 (Excel compatibility)
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Headers
+            fputcsv($file, [
+                'Date', 'Client IP', 'Method', 'Path', 'Status Code', 
+                'Duration (ms)', 'API Key Owner', 'API Key Used'
+            ]);
+            
+            // Data rows
+            foreach ($logs as $log) {
+                fputcsv($file, [
+                    \Carbon\Carbon::parse($log->created_at)->setTimezone('Asia/Manila')->format('Y-m-d H:i:s'),
+                    $log->client_ip,
+                    $log->method,
+                    $log->path,
+                    $log->status_code,
+                    number_format($log->duration_ms, 2),
+                    $log->api_key_owner,
+                    $log->api_key_used
+                ]);
+            }
+            
+            fclose($file);
+        };
+        
+        return response()->stream($callback, 200, $headers);
+    }
 }
