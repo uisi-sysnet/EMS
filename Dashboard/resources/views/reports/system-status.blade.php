@@ -146,6 +146,18 @@
             if ($percent >= 81) return 'Warning';
             return 'Critical';
         };
+
+        // For binary services (MQTT broker, database, ems.target) rather
+        // than percentage metrics: true = Online, false = Offline,
+        // null = Unknown (not reported by the backend check).
+        $serviceStatusClass = function ($isUp) {
+            if ($isUp === null) return 'status-idle';
+            return $isUp ? 'status-online' : 'status-offline';
+        };
+        $serviceStatusLabel = function ($isUp) {
+            if ($isUp === null) return 'Unknown';
+            return $isUp ? 'Online' : 'Offline';
+        };
     @endphp
 
     <div class="header">
@@ -211,11 +223,11 @@
         <tbody>
             <tr>
                 <td>System Uptime</td>
+                <td>Since last restart</td>
                 <td>{{ $systemUptimeHuman ?? '—' }}</td>
-                <td>{{ isset($systemUptimePercent) ? number_format($systemUptimePercent, 2) . '%' : '—' }}</td>
                 <td>
-                    <span class="status {{ $systemStatusClass($systemUptimePercent ?? null) }}">
-                        {{ $systemStatusLabel($systemUptimePercent ?? null) }}
+                    <span class="status {{ $serviceStatusClass(isset($systemUptimeHuman)) }}">
+                        {{ $serviceStatusLabel(isset($systemUptimeHuman)) }}
                     </span>
                 </td>
             </tr>
@@ -232,6 +244,36 @@
                 <td>
                     <span class="status {{ $systemStatusClass($storagePercent ?? null) }}">
                         {{ $systemStatusLabel($storagePercent ?? null) }}
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td>MQTT Broker (Mosquitto)</td>
+                <td>mosquitto.service</td>
+                <td>{{ $mqttStatusText ?? (($mqttOnline ?? null) === null ? '—' : ($mqttOnline ? 'Running' : 'Stopped')) }}</td>
+                <td>
+                    <span class="status {{ $serviceStatusClass($mqttOnline ?? null) }}">
+                        {{ $serviceStatusLabel($mqttOnline ?? null) }}
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td>Database (PostgreSQL)</td>
+                <td>postgresql.service</td>
+                <td>{{ $databaseStatusText ?? (($databaseOnline ?? null) === null ? '—' : ($databaseOnline ? 'Running' : 'Stopped')) }}</td>
+                <td>
+                    <span class="status {{ $serviceStatusClass($databaseOnline ?? null) }}">
+                        {{ $serviceStatusLabel($databaseOnline ?? null) }}
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td>EMS Gateway</td>
+                <td>ems.target</td>
+                <td>{{ $emsStatusText ?? (($emsOnline ?? null) === null ? '—' : ($emsOnline ? 'Running' : 'Stopped')) }}</td>
+                <td>
+                    <span class="status {{ $serviceStatusClass($emsOnline ?? null) }}">
+                        {{ $serviceStatusLabel($emsOnline ?? null) }}
                     </span>
                 </td>
             </tr>

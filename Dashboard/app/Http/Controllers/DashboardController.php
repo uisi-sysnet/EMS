@@ -7,6 +7,7 @@ use App\Models\Station;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\Process\Process;
 
 class DashboardController extends Controller
 {
@@ -64,6 +65,29 @@ class DashboardController extends Controller
             ?? optional($request->user())->username
             ?? 'Unknown user';
 
+        $health = $this->buildSystemHealth();
+
+        $uptimeParts = [];
+        if ($health['uptime']['days'] > 0)  $uptimeParts[] = $health['uptime']['days'] . 'd';
+        if ($health['uptime']['hours'] > 0) $uptimeParts[] = $health['uptime']['hours'] . 'h';
+        $uptimeParts[]     = $health['uptime']['minutes'] . 'm';
+        $systemUptimeHuman = implode(' ', $uptimeParts);
+
+        // buildSystemHealth()'s disk.percent is "% used" (matches the live
+        // dashboard's red/amber/green bars, high = bad). The PDF report's
+        // Good/Warning/Critical bands run the other direction (high =
+        // good), so what we hand the report is the inverse: % of the disk
+        // that's still free.
+        $storageTotalGb = round($health['disk']['total_bytes'] / (1024 ** 3), 1);
+        $storageUsedGb  = round($health['disk']['used_bytes'] / (1024 ** 3), 1);
+        $storagePercent = $health['disk']['total_bytes']
+            ? round(100 - $health['disk']['percent'], 1)
+            : null;
+
+        $mqtt     = $this->checkUnitStatus('mosquitto.service');
+        $database = $this->checkUnitStatus('postgresql.service');
+        $ems      = $this->checkUnitStatus('ems.target');
+
         $pdf = Pdf::loadView('reports.system-status', [
             'airQualityData'   => $airQualityData,
             'seismicData'      => $seismicData,
@@ -71,6 +95,18 @@ class DashboardController extends Controller
             'seismicCounts'    => $seismicCounts,
             'generatedAt'      => $generatedAt,
             'generatedBy'      => $generatedBy,
+
+            'systemUptimeHuman' => $systemUptimeHuman,
+            'storagePercent'    => $storagePercent,
+            'storageUsedGb'     => $storageUsedGb,
+            'storageTotalGb'    => $storageTotalGb,
+
+            'mqttOnline'         => $mqtt['running'],
+            'mqttStatusText'     => $mqtt['active'],
+            'databaseOnline'     => $database['running'],
+            'databaseStatusText' => $database['active'],
+            'emsOnline'          => $ems['running'],
+            'emsStatusText'      => $ems['active'],
         ])->setPaper('a4', 'portrait');
 
         $filename = 'system-status-report-' . $generatedAt->format('Y-m-d_His') . '.pdf';
@@ -276,16 +312,46 @@ class DashboardController extends Controller
                 'colors'  => $barColor($memPercent),
             ],
             'disk' => [
-                'percent' => $diskPercent,
-                'used'    => $this->formatBytes($diskUsed),
-                'total'   => $this->formatBytes($diskTotal),
-                'colors'  => $barColor($diskPercent),
+                'percent'     => $diskPercent,
+                'used'        => $this->formatBytes($diskUsed),
+                'total'       => $this->formatBytes($diskTotal),
+                // Raw bytes alongside the formatted strings above, so
+                // generateReport() can compute a precise GB figure for the
+                // PDF without re-parsing "120.5 GB" back into a number.
+                'used_bytes'  => $diskUsed,
+                'total_bytes' => $diskTotal,
+                'colors'      => $barColor($diskPercent),
             ],
             'uptime' => [
                 'days'    => intdiv($uptimeSeconds, 86400),
                 'hours'   => intdiv($uptimeSeconds % 86400, 3600),
                 'minutes' => intdiv($uptimeSeconds % 3600, 60),
             ],
+        ];
+    }
+
+    /**
+     * Duplicated (deliberately, in miniature) from ServicesController's
+     * runQuiet()/statusFor() rather than shared — this report only needs
+     * a running/stopped bool plus the raw `systemctl is-active` word for
+     * three fixed units, not the enabled-state or start/stop/restart
+     * machinery ServicesController owns for the managed-services page.
+     * Same rule MaintenanceController already follows for its nmcli
+     * duplication: pull this into a shared trait/service if a third
+     * consumer needs the same check.
+     */
+    private function checkUnitStatus(string $unit): array
+    {
+        $process = new Process(['systemctl', 'is-active', $unit]);
+        $process->setTimeout(5);
+        // is-active exits non-zero for inactive/failed units — expected,
+        // stdout ("inactive", "failed", etc.) is still what we want.
+        $process->run();
+        $active = trim($process->getOutput()) ?: 'unknown';
+
+        return [
+            'active'  => $active,
+            'running' => $active === 'active',
         ];
     }
 
