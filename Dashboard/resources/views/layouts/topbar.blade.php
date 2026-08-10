@@ -206,8 +206,18 @@
                     <div class="maintenance-mobile-submenu hidden pl-4 space-y-1 mt-1">
                         <a href="{{ route('maintenance.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Network Diagnostic</a>
                         <a href="{{ route('services.terminal') }}" target="_blank" rel="noopener" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Terminal</a>
-                        <a href="{{ route('api-logs.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">API Logs</a>
-                        <a href="{{ route('logs.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">System Logs</a>
+                        <a href="{{ route('api-logs.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition flex items-center justify-between">
+                            <span>API Logs</span>
+                            <span id="mobile-api-unseen-badge" class="hidden ml-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-600/30 text-blue-300 border border-blue-500/40">
+                                0
+                            </span>
+                        </a>
+                        <a href="{{ route('logs.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition flex items-center justify-between">
+                            <span>System Logs</span>
+                            <span id="mobile-system-unseen-badge" class="hidden ml-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-600/30 text-blue-300 border border-blue-500/40">
+                                0
+                            </span>
+                        </a>
                         <a href="{{ route('services.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Services</a>
                     </div>
                 </div>
