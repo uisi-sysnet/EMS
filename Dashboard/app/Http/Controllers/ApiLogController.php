@@ -56,31 +56,19 @@ class ApiLogController extends Controller
     public function markAsSeen(Request $request)
     {
         try {
-            $ids = $request->input('ids', []);
+            // Mark ALL unseen logs as seen (simplest approach)
+            $updated = ApiLog::whereNull('seen_at')->update(['seen_at' => now()]);
             
-            if (empty($ids)) {
-                return response()->json(['success' => false, 'message' => 'No IDs provided']);
-            }
-
-            // Extract just the IDs from the array
-            $apiIds = [];
-            foreach ($ids as $item) {
-                if ($item['type'] === 'api') {
-                    $apiIds[] = $item['id'];
-                }
-            }
-
-            // Update the logs in the database
-            if (!empty($apiIds)) {
-                ApiLog::whereIn('id', $apiIds)
-                    ->whereNull('seen_at')
-                    ->update(['seen_at' => now()]);
-            }
-
-            return response()->json(['success' => true]);
+            return response()->json([
+                'success' => true,
+                'message' => "Marked {$updated} log(s) as seen"
+            ]);
         } catch (\Exception $e) {
             \Log::error('Error marking API logs as seen: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to mark logs as seen'
+            ], 500);
         }
     }
 
