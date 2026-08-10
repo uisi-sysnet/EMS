@@ -12,6 +12,9 @@ class ApiLog extends Model
     protected $connection = 'api';
     protected $table = 'api_request_logs';
 
+    // 👇 DISABLE timestamps (no updated_at column)
+    public $timestamps = false;
+
     protected $fillable = [
         'client_ip',
         'method',
@@ -51,7 +54,6 @@ class ApiLog extends Model
             'seen_at'        => null, 
         ]);
     }
-
 
     // Helper method to mark as seen
     public function markAsSeen(): void

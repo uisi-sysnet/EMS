@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ApiLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ApiLogController extends Controller
 {
@@ -52,24 +53,33 @@ class ApiLogController extends Controller
         return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo', 'unseenCount'));
     }
 
-    // Add this method to mark logs as seen
+    // Mark logs as seen
     public function markAsSeen(Request $request)
     {
-        $ids = $request->input('ids', []);
-        
-        if (empty($ids)) {
-            // Mark all as seen
-            ApiLog::unseen()->update(['seen_at' => now()]);
-            $message = 'All logs marked as seen.';
-        } else {
-            ApiLog::whereIn('id', $ids)->update(['seen_at' => now()]);
-            $message = 'Selected logs marked as seen.';
-        }
+        try {
+            $ids = $request->input('ids', []);
+            
+            if (empty($ids)) {
+                // Mark all as seen
+                $count = ApiLog::unseen()->update(['seen_at' => now()]);
+                $message = "All {$count} logs marked as seen.";
+            } else {
+                $count = ApiLog::whereIn('id', $ids)->update(['seen_at' => now()]);
+                $message = "{$count} selected logs marked as seen.";
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => $message
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'count' => $count ?? 0
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error marking logs as seen: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error marking logs as seen: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function exportCsv(Request $request)
