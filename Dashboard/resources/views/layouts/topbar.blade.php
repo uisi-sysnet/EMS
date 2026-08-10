@@ -118,6 +118,60 @@
                 </div>
                 @endif
 
+                {{-- Settings Gear Icon --}}
+                @if(session('role') === 'administrator')
+                <div class="relative" id="settings-gear-container">
+                    <button type="button"
+                            id="settings-gear-button"
+                            class="relative text-text-300 hover:text-text-100 transition-colors focus:outline-none p-1.5 rounded-lg hover:bg-surface-700"
+                            aria-label="Settings"
+                            aria-expanded="false">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4m0 6c-1.08 0-2-.92-2-2s.92-2 2-2 2 .92 2 2-.92 2-2 2"></path>
+                            <path d="m20.42 13.4-.51-.29c.05-.37.08-.74.08-1.11s-.03-.74-.08-1.11l.51-.29c.96-.55 1.28-1.78.73-2.73l-1-1.73a2.006 2.006 0 0 0-2.73-.73l-.53.31c-.58-.46-1.22-.83-1.9-1.11v-.6c0-1.1-.9-2-2-2h-2c-1.1 0-2 .9-2 2v.6c-.67.28-1.31.66-1.9 1.11l-.53-.31c-.96-.55-2.18-.22-2.73.73l-1 1.73c-.55.96-.22 2.18.73 2.73l.51.29c-.05.37-.08.74-.08 1.11s.03.74.08 1.11l-.51.29c-.96.55-1.28 1.78-.73 2.73l1 1.73c.55.95 1.77 1.28 2.73.73l.53-.31c.58.46 1.22.83 1.9 1.11v.6c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2v-.6a8.7 8.7 0 0 0 1.9-1.11l.53.31c.95.55 2.18.22 2.73-.73l1-1.73c.55-.96.22-2.18-.73-2.73m-2.59-2.78c.11.45.17.92.17 1.38s-.06.92-.17 1.38a1 1 0 0 0 .47 1.11l1.12.65-1 1.73-1.14-.66c-.38-.22-.87-.16-1.19.14-.68.65-1.51 1.13-2.38 1.4-.42.13-.71.52-.71.96v1.3h-2v-1.3c0-.44-.29-.83-.71-.96-.88-.27-1.7-.75-2.38-1.4a1.01 1.01 0 0 0-1.19-.15l-1.14.66-1-1.73 1.12-.65c.39-.22.58-.68.47-1.11-.11-.45-.17-.92-.17-1.38s.06-.93.17-1.38A1 1 0 0 0 5.7 9.5l-1.12-.65 1-1.73 1.14.66c.38.22.87.16 1.19-.14.68-.65 1.51-1.13 2.38-1.4.42-.13.71-.52.71-.96v-1.3h2v1.3c0 .44.29.83.71.96.88.27 1.7.75 2.38 1.4.32.31.81.36 1.19.14l1.14-.66 1 1.73-1.12.65c-.39.22-.58.68-.47 1.11Z"></path>
+                        </svg>
+                    </button>
+
+                    {{-- Settings Gear Dropdown --}}
+                    <div id="settings-gear-dropdown"
+                        class="absolute right-0 mt-2 w-48 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-30 overflow-hidden">
+                        <a href="{{ route('env.editor') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M19.38 7.25C18.79 4.25 16.12 2 13 2c-2.04 0-3.92.94-5.15 2.54-.21-.03-.4-.04-.6-.04a5.25 5.25 0 1 0 0 10.5H18c2.21 0 4-1.79 4-4 0-1.71-1.07-3.19-2.62-3.75M18 13H7.25C5.46 13 4 11.54 4 9.75S5.46 6.5 7.25 6.5c.24 0 .5.04.81.12l.72.18.39-.63A4.47 4.47 0 0 1 13.01 4c2.32 0 4.29 1.81 4.48 4.13l.06.78.77.12c.97.16 1.68.98 1.68 1.96 0 1.1-.9 2-2 2Z"></path>
+                            </svg>
+                            Database
+                        </a>
+                        <a href="{{ route('mqtt.editor') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path>
+                                <path d="M16.59 7.58 10 14.17l-2.59-2.58L6 13l4 4 8-8z"></path>
+                            </svg>
+                            MQTT
+                        </a>
+                        <a href="{{ route('network.index') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M2 9h20v2H2V9zm0 4h20v2H2v-2z"></path>
+                                <path d="M4 5h16v2H4V5z"></path>
+                            </svg>
+                            Network
+                        </a>
+                        <a href="{{ route('api.editor') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M7.33 6.83 4.19 9.97 7.33 13.1l1.41-1.41-2.14-2.14 2.14-2.14zM16.67 6.83l-1.41 1.41 2.14 2.14-2.14 2.14 1.41 1.41 3.14-3.14z"></path>
+                                <path d="M12 6.97 9.27 16.97l1.75.53L13.75 7.5z"></path>
+                            </svg>
+                            API
+                        </a>
+                        <a href="{{ route('about') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path>
+                            </svg>
+                            About
+                        </a>
+                    </div>
+                </div>
+                @endif
+
                 {{-- Avatar --}}
                 <div class="relative" id="avatar-dropdown">
                     <button type="button"
@@ -347,6 +401,33 @@
                 });
             }
         });
+
+        // ----- Settings Gear Dropdown -----
+        const settingsGearButton = document.getElementById('settings-gear-button');
+        const settingsGearDropdown = document.getElementById('settings-gear-dropdown');
+
+        if (settingsGearButton && settingsGearDropdown) {
+            settingsGearButton.addEventListener('click', function (e) {
+                e.stopPropagation();
+                const isOpen = !settingsGearDropdown.classList.contains('hidden');
+                settingsGearDropdown.classList.toggle('hidden');
+                this.setAttribute('aria-expanded', String(!isOpen));
+                
+                // Close avatar dropdown if open
+                if (avatarMenu && !avatarMenu.classList.contains('hidden')) {
+                    avatarMenu.classList.add('hidden');
+                    avatarButton.setAttribute('aria-expanded', 'false');
+                }
+            });
+
+            document.addEventListener('click', function (e) {
+                const container = document.getElementById('settings-gear-container');
+                if (container && !container.contains(e.target)) {
+                    settingsGearDropdown.classList.add('hidden');
+                    settingsGearButton.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
 
         // ----- Avatar dropdown toggle -----
         const avatarButton = document.getElementById('avatar-button');
