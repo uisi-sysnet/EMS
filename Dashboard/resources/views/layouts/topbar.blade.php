@@ -30,25 +30,10 @@
 
                     {{-- Maintenance Dropdown --}}
                     <div class="relative group" id="maintenance-dropdown-desktop">
-                        @php
-                            $apiUnseenCount = \App\Models\ApiLog::unseen()->count();
-                            $systemUnseenCount = \App\Models\SystemLog::unseen()->count();
-                            $hasUnseenLogs = ($apiUnseenCount > 0 || $systemUnseenCount > 0);
-                        @endphp
-                        
                         <button type="button"
-                                class="maintenance-dropdown-toggle flex items-center gap-x-1 text-text-400 hover:text-text-100 transition-colors py-1 focus:outline-none relative"
+                                class="maintenance-dropdown-toggle flex items-center gap-x-1 text-text-400 hover:text-text-100 transition-colors py-1 focus:outline-none"
                                 aria-expanded="false">
                             Maintenance
-                            
-                            <!-- Red Dot Indicator -->
-                            @if($hasUnseenLogs)
-                                <span class="absolute -top-1 -right-2 flex h-3 w-3">
-                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                    <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                                </span>
-                            @endif
-                            
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                             </svg>
