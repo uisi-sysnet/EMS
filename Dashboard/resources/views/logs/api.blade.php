@@ -268,7 +268,8 @@
 <script>
     // ============ MARK AS SEEN FUNCTIONALITY ============
     document.addEventListener('DOMContentLoaded', function() {
-        // Mark all unseen logs as seen
+
+        // In the mark as seen functionality, replace the fetch call with:
         document.getElementById('markAllSeenBtn')?.addEventListener('click', async function() {
             const confirmResult = await Swal.fire({
                 title: 'Mark All as Seen?',
@@ -294,6 +295,14 @@
                     body: JSON.stringify({ ids: [] })
                 });
                 
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text);
+                    throw new Error('Server returned non-JSON response');
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
@@ -308,13 +317,15 @@
                         showConfirmButton: false
                     });
                     location.reload();
+                } else {
+                    throw new Error(data.message || 'Failed to mark logs as seen');
                 }
             } catch (err) {
-                console.error(err);
+                console.error('Error:', err);
                 await Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'Failed to mark logs as seen.',
+                    text: err.message || 'Failed to mark logs as seen.',
                     background: '#1f2937',
                     color: '#f3f4f6',
                     confirmButtonColor: '#3b82f6'
