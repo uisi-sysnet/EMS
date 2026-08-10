@@ -96,15 +96,17 @@
                         <div class="flex items-center justify-between px-4 py-3 border-b border-border-700">
                             <h3 class="text-sm font-semibold text-text-100">Recent Logs</h3>
                             <div class="flex items-center gap-3">
-                                <button id="mark-all-seen" class="text-xs text-text-400 hover:text-text-100 transition px-2 py-1 rounded hover:bg-surface-700">Mark all as seen</button>
-                                <a href="{{ route('api-logs.index') }}" class="text-xs text-radar-400 hover:underline">View all</a>
+                                <button id="mark-all-seen" class="text-xs text-text-400 hover:text-text-100 transition px-2 py-1 rounded hover:bg-surface-700">Archive All</button>
                             </div>
                         </div>
                         <div id="notification-list" class="max-h-72 overflow-y-auto divide-y divide-border-700 thin-scrollbar">
                             <div class="px-4 py-6 text-sm text-text-400 text-center">Loading…</div>
                         </div>
-                        <div class="px-4 py-2 border-t border-border-700 text-center">
-                            <a href="{{ route('api-logs.index') }}" class="text-xs text-radar-400 hover:underline">View all API logs</a>
+                        <div class="px-4 py-2 border-t border-border-700 text-right">
+                            <a href="{{ route('api-logs.index') }}" class="text-xs text-radar-400 hover:underline">API Logs</a>
+                            <span class="mx-1 text-text-500">|</span>
+                            <a href="{{ route('logs.index') }}" class="text-xs text-radar-400 hover:underline">System Logs</a>
+
                         </div>
                     </div>
                 </div>
