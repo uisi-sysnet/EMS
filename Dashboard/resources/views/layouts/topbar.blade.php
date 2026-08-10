@@ -518,21 +518,35 @@
                 });
         }
 
-        // Render the logs in the dropdown
         function renderLogs(logs) {
             if (logs.length === 0) {
                 notificationList.innerHTML = `
                     <div class="px-4 py-6 text-sm text-text-400 text-center">🎉 All caught up! No new logs.</div>
                 `;
                 notificationDot.classList.add('hidden');
+                updateBadges(0, 0);
                 return;
             }
+
+            // Count API and System logs
+            let apiCount = 0;
+            let systemCount = 0;
+            
+            logs.forEach(log => {
+                if (log.type === 'api') {
+                    apiCount++;
+                } else {
+                    systemCount++;
+                }
+            });
+            
+            // Update badges
+            updateBadges(apiCount, systemCount);
 
             let html = '';
             logs.forEach(log => {
                 const style = getLogStyle(log);
                 const url = log.url;
-                // Determine if it's a system or API log for the badge
                 const typeBadge = log.type === 'api' ? 'API' : '';
                 
                 html += `
@@ -576,6 +590,19 @@
                                 <div class="px-4 py-6 text-sm text-text-400 text-center">🎉 All caught up! No new logs.</div>
                             `;
                             notificationDot.classList.add('hidden');
+                            updateBadges(0, 0);
+                        } else {
+                            // Recalculate counts
+                            let newApiCount = 0;
+                            let newSystemCount = 0;
+                            remaining.forEach(item => {
+                                if (item.dataset.type === 'api') {
+                                    newApiCount++;
+                                } else {
+                                    newSystemCount++;
+                                }
+                            });
+                            updateBadges(newApiCount, newSystemCount);
                         }
                     }, 150);
                 });
@@ -600,7 +627,6 @@
                 });
         }
 
-        // Update the dot visibility on page load
         function updateDot() {
             const seen = getSeenIds();
             const seenParam = seen.join(',');
@@ -610,16 +636,36 @@
                 .then(data => {
                     if (data.count > 0) {
                         notificationDot.classList.remove('hidden');
-                        // Add animation to the bell
                         bellButton.classList.add('animate-pulse');
+                        
+                        // Get breakdown of API vs System logs
+                        fetch(`{{ route('recent-logs') }}?seen=${encodeURIComponent(seenParam)}`)
+                            .then(response => response.json())
+                            .then(logs => {
+                                let apiCount = 0;
+                                let systemCount = 0;
+                                logs.forEach(log => {
+                                    if (log.type === 'api') {
+                                        apiCount++;
+                                    } else {
+                                        systemCount++;
+                                    }
+                                });
+                                updateBadges(apiCount, systemCount);
+                            })
+                            .catch(() => {
+                                updateBadges(1, 1);
+                            });
                     } else {
                         notificationDot.classList.add('hidden');
                         bellButton.classList.remove('animate-pulse');
+                        updateBadges(0, 0);
                     }
                 })
                 .catch(() => {
                     notificationDot.classList.add('hidden');
                     bellButton.classList.remove('animate-pulse');
+                    updateBadges(0, 0);
                 });
         }
 
@@ -656,6 +702,55 @@
 
         updateDot();
     });
+
+    // Update badges for API and System logs
+    function updateBadges(apiCount, systemCount) {
+        // Desktop badges
+        const desktopApiBadge = document.getElementById('desktop-api-unseen-badge');
+        const desktopSystemBadge = document.getElementById('desktop-system-unseen-badge');
+        
+        // Mobile badges
+        const mobileApiBadge = document.getElementById('mobile-api-unseen-badge');
+        const mobileSystemBadge = document.getElementById('mobile-system-unseen-badge');
+        
+        // Update API badges
+        if (desktopApiBadge) {
+            if (apiCount > 0) {
+                desktopApiBadge.textContent = apiCount;
+                desktopApiBadge.classList.remove('hidden');
+            } else {
+                desktopApiBadge.classList.add('hidden');
+            }
+        }
+        
+        if (mobileApiBadge) {
+            if (apiCount > 0) {
+                mobileApiBadge.textContent = apiCount;
+                mobileApiBadge.classList.remove('hidden');
+            } else {
+                mobileApiBadge.classList.add('hidden');
+            }
+        }
+        
+        // Update System badges
+        if (desktopSystemBadge) {
+            if (systemCount > 0) {
+                desktopSystemBadge.textContent = systemCount;
+                desktopSystemBadge.classList.remove('hidden');
+            } else {
+                desktopSystemBadge.classList.add('hidden');
+            }
+        }
+        
+        if (mobileSystemBadge) {
+            if (systemCount > 0) {
+                mobileSystemBadge.textContent = systemCount;
+                mobileSystemBadge.classList.remove('hidden');
+            } else {
+                mobileSystemBadge.classList.add('hidden');
+            }
+        }
+    }
 </script>
 
 {{-- Extra style for smooth rotation and scrollbar --}}
