@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SeismicStation;
 use App\Models\Station;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -49,23 +50,41 @@ class DashboardController extends Controller
             ->sortByDesc('total')
             ->values();
 
-        // ---------- Seismic (from 'seismic' connection) ----------
-        $seismicData = DB::connection('seismic')
+        // ---------- Seismic ----------
+        // Same pattern as air quality: `seismic_stations` (local app DB) is
+        // the source of truth for which stations are registered. We left
+        // -join readings from `station_metrics` on the 'seismic' connection
+        // (IOT_seismic_sensor_data Postgres DB), keyed on station_id.
+        $seismicStations = SeismicStation::orderBy('station_id')->get();
+
+        $seismicReadings = DB::connection('seismic')
             ->table('station_metrics')
             ->select(
-                'station_name as station',
-                'station_id',                     // not directly used but included if needed
+                'station_id',
+                'station_name',
                 DB::raw('MIN(time) as installed_at'),
                 DB::raw('MAX(time) as latest_at'),
                 DB::raw('COUNT(*) as total')
             )
             ->groupBy('station_id', 'station_name')
-            ->orderBy('station_name')
             ->get()
-            ->map(function ($item) {
-                // The view expects an 'ip' field – we'll use station_id as a placeholder
-                $item->ip = $item->station_id;   // or '--' or null
-                return $item;
+            ->keyBy('station_id');
+
+        $seismicData = $seismicStations
+            ->map(function ($station) use ($seismicReadings) {
+                $reading = $seismicReadings->get($station->station_id);
+
+                return (object) [
+                    'station_id'   => $station->station_id,
+                    'station'      => $station->station_name ?: $station->station_id,
+                    // The view expects an 'ip' field – seismic stations don't
+                    // have one, so we reuse station_id as a placeholder, same
+                    // as the original query did.
+                    'ip'           => $station->station_id,
+                    'installed_at' => $reading->installed_at ?? null,
+                    'latest_at'    => $reading->latest_at ?? null,
+                    'total'        => $reading->total ?? 0,
+                ];
             })
             ->sortByDesc('total')
             ->values();
