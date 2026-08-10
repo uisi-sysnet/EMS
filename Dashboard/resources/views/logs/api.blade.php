@@ -105,27 +105,38 @@
 
     <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex flex-col min-h-0">
 
-        <!-- Header with Unseen Badge -->
-        <div class="px-5 sm:px-8 py-4 sm:py-5 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0">
-            <div class="flex items-center gap-3">
-                <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2">
-                    <span class="leading-tight uppercase">API Logs</span>
-                </h2>
-                @if(isset($unseenCount) && $unseenCount > 0)
-                    <span class="unseen-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-600/20 text-blue-400 border border-blue-500/30">
-                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400 mr-1.5"></span>
-                        {{ $unseenCount }} new
-                    </span>
-                @endif
-            </div>
+    <!-- Header with Unseen Badge -->
+    <div class="px-5 sm:px-8 py-4 sm:py-5 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0">
+        <div class="flex items-center gap-3">
+            <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2">
+                <span class="leading-tight uppercase">API Logs</span>
+            </h2>
+            @if(isset($unseenCount) && $unseenCount > 0)
+                <span class="unseen-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-600/20 text-blue-400 border border-blue-500/30">
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-400 mr-1.5"></span>
+                    {{ $unseenCount }} new
+                </span>
+            @endif
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="text-xs sm:text-sm text-text-400">Inspect incoming API requests</span>
             <div class="flex items-center gap-2">
-                <span class="text-xs sm:text-sm text-text-400">Inspect incoming API requests</span>
                 <button type="button" id="markAllSeenBtn" 
                         class="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition">
                     Mark All as Seen
                 </button>
+                @if(isset($unseenCount) && $unseenCount > 0)
+                    <span class="inline-flex items-center justify-center min-w-[24px] h-6 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-600/30 text-blue-300 border border-blue-500/40">
+                        {{ $unseenCount }}
+                    </span>
+                @else
+                    <span class="inline-flex items-center justify-center min-w-[24px] h-6 px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-700/50 text-text-500 border border-border-600/50">
+                        0
+                    </span>
+                @endif
             </div>
         </div>
+    </div>
 
         <!-- Filter Bar -->
         <div class="shrink-0 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 bg-background-900 border-b border-border-800">
