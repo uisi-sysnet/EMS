@@ -43,11 +43,13 @@
                             <a href="{{ route('services.terminal') }}" target="_blank" rel="noopener" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Terminal</a>
                             <a href="{{ route('services.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Services</a>
                             <a href="{{ route('api-logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700 flex items-center justify-between">
+                                <span>API Logs</span>
                                 <span id="desktop-api-unseen-badge" class="hidden ml-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-600/30 text-blue-300 border border-blue-500/40">
                                     0
                                 </span>
                             </a>
                             <a href="{{ route('logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors flex items-center justify-between">
+                                <span>System Logs</span>
                                 <span id="desktop-system-unseen-badge" class="hidden ml-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-600/30 text-blue-300 border border-blue-500/40">
                                     0
                                 </span>
