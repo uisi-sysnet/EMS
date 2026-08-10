@@ -8,6 +8,7 @@ use App\Http\Controllers\AboutController;
 use App\Http\Controllers\ApiFileController;
 use App\Http\Controllers\EnvEditorController;
 use App\Http\Controllers\ApiKeyController;
+use App\Http\Controllers\LogController;
 use App\Http\Controllers\ApiLogController;
 use App\Http\Controllers\SmsController;
 use App\Http\Controllers\RecentLogsController;
@@ -53,7 +54,7 @@ Route::middleware(['role:administrator'])->group(function () {
 
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
     Route::get('/logs/export', [LogController::class, 'exportCsv'])->name('logs.export');
-    
+
     Route::get('/api-logs', [ApiLogController::class, 'index'])->name('api-logs.index');
     Route::get('/api-logs/export', [ApiLogController::class, 'exportCsv'])->name('api-logs.export');
 
