@@ -59,25 +59,6 @@
                         </div>
                     </div>
 
-                    {{-- Settings Dropdown --}}
-                    <div class="relative group" id="settings-dropdown-desktop">
-                        <button type="button"
-                                class="settings-dropdown-toggle flex items-center gap-x-1 text-text-400 hover:text-text-100 transition-colors py-1 focus:outline-none"
-                                aria-expanded="false">
-                            Settings
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
-                        <div class="settings-dropdown-menu absolute left-0 mt-2 w-48 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-20 overflow-hidden">
-                            <a href="{{ route('env.editor') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Database</a>
-                            <a href="{{ route('mqtt.editor') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">MQTT</a>
-                            <a href="{{ route('network.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">Network</a>
-                            <a href="{{ route('api.editor') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">API</a>
-                            <a href="{{ route('about') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">About</a>
-                        </div>
-                    </div>
-
                     <a href="{{ route('about') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">About</a>
                 @endif
             </div>
@@ -136,36 +117,18 @@
                     <div id="settings-gear-dropdown"
                         class="absolute right-0 mt-2 w-48 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-30 overflow-hidden">
                         <a href="{{ route('env.editor') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M19.38 7.25C18.79 4.25 16.12 2 13 2c-2.04 0-3.92.94-5.15 2.54-.21-.03-.4-.04-.6-.04a5.25 5.25 0 1 0 0 10.5H18c2.21 0 4-1.79 4-4 0-1.71-1.07-3.19-2.62-3.75M18 13H7.25C5.46 13 4 11.54 4 9.75S5.46 6.5 7.25 6.5c.24 0 .5.04.81.12l.72.18.39-.63A4.47 4.47 0 0 1 13.01 4c2.32 0 4.29 1.81 4.48 4.13l.06.78.77.12c.97.16 1.68.98 1.68 1.96 0 1.1-.9 2-2 2Z"></path>
-                            </svg>
                             Database
                         </a>
                         <a href="{{ route('mqtt.editor') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path>
-                                <path d="M16.59 7.58 10 14.17l-2.59-2.58L6 13l4 4 8-8z"></path>
-                            </svg>
                             MQTT
                         </a>
                         <a href="{{ route('network.index') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M2 9h20v2H2V9zm0 4h20v2H2v-2z"></path>
-                                <path d="M4 5h16v2H4V5z"></path>
-                            </svg>
                             Network
                         </a>
                         <a href="{{ route('api.editor') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M7.33 6.83 4.19 9.97 7.33 13.1l1.41-1.41-2.14-2.14 2.14-2.14zM16.67 6.83l-1.41 1.41 2.14 2.14-2.14 2.14 1.41 1.41 3.14-3.14z"></path>
-                                <path d="M12 6.97 9.27 16.97l1.75.53L13.75 7.5z"></path>
-                            </svg>
                             API
                         </a>
                         <a href="{{ route('about') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path>
-                            </svg>
                             About
                         </a>
                     </div>
