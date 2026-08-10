@@ -28,22 +28,6 @@
                     <a href="{{ route('stations.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Stations</a>
                     <a href="{{ route('sms.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">SMS</a>
 
-                    {{-- Logs Dropdown --}}
-                    <div class="relative group" id="logs-dropdown-desktop">
-                        <button type="button"
-                                class="logs-dropdown-toggle flex items-center gap-x-1 text-text-400 hover:text-text-100 transition-colors py-1 focus:outline-none"
-                                aria-expanded="false">
-                            Logs
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
-                        <div class="logs-dropdown-menu absolute left-0 mt-2 w-48 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-20 overflow-hidden">
-                            <a href="{{ route('api-logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">API Logs</a>
-                            <a href="{{ route('logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">System Logs</a>
-                        </div>
-                    </div>
-
                     {{-- Maintenance Dropdown --}}
                     <div class="relative group" id="maintenance-dropdown-desktop">
                         <button type="button"
@@ -56,6 +40,8 @@
                         </button>
                         <div class="maintenance-dropdown-menu absolute left-0 mt-2 w-52 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-20 overflow-hidden">
                             <a href="{{ route('maintenance.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Network Diagnostic</a>
+                            <a href="{{ route('api-logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">API Logs</a>
+                            <a href="{{ route('logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">System Logs</a>
                         </div>
                     </div>
 
