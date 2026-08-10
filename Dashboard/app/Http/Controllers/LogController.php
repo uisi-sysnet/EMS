@@ -46,7 +46,10 @@ class LogController extends Controller
             ->paginate(1000)
             ->withQueryString();
 
-        return view('logs.system', compact('logs', 'defaultFrom', 'defaultTo'));
+        // Get unseen count for notification badge
+        $unseenCount = SystemLog::unseen()->count();
+
+        return view('logs.system', compact('logs', 'defaultFrom', 'defaultTo', 'unseenCount'));
     }
 
     // Mark logs as seen
@@ -122,7 +125,7 @@ class LogController extends Controller
             
             // Headers
             fputcsv($file, [
-                'Date', 'Service', 'Level', 'Logger', 'Thread', 'Message'
+                'Date', 'Service', 'Level', 'Logger', 'Thread', 'Message', 'Seen At'
             ]);
             
             // Data rows
@@ -133,7 +136,8 @@ class LogController extends Controller
                     $log->level,
                     $log->logger_name,
                     $log->thread_name,
-                    $log->message
+                    $log->message,
+                    $log->seen_at ? \Carbon\Carbon::parse($log->seen_at)->setTimezone('Asia/Manila')->format('Y-m-d H:i:s') : 'Unseen'
                 ]);
             }
             
