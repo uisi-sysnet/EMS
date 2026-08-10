@@ -53,93 +53,15 @@ class ApiLogController extends Controller
         return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo', 'unseenCount'));
     }
 
-    // Mark a single log as seen
-    public function markSingleAsSeen(Request $request)
-    {
-        try {
-            Log::info('markSingleAsSeen called', $request->all());
-
-            $log = null;
-            
-            // Find the log using the composite identifier
-            if ($request->has('log_created') && $request->has('log_ip')) {
-                // Method 1: Using created_at and client_ip combination
-                $log = ApiLog::where('created_at', $request->log_created)
-                            ->where('client_ip', $request->log_ip)
-                            ->first();
-                if ($log) {
-                    Log::info('Found log by created_at + IP:', [
-                        'created' => $request->log_created,
-                        'ip' => $request->log_ip
-                    ]);
-                }
-            }
-            
-            if (!$log && $request->has('log_index')) {
-                // Method 2: Using index (get all logs and use index)
-                $logs = ApiLog::orderBy('created_at', 'desc')->get();
-                $index = (int) $request->log_index;
-                if (isset($logs[$index])) {
-                    $log = $logs[$index];
-                    Log::info('Found log by index:', ['index' => $index]);
-                }
-            }
-            
-            if (!$log) {
-                Log::warning('Log not found with any identifier', $request->all());
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Log not found'
-                ], 404);
-            }
-
-            if ($log->seen_at) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Log already marked as seen',
-                    'already_seen' => true
-                ]);
-            }
-
-            // Use the model's markAsSeen method
-            $log->markAsSeen();
-
-            Log::info('Log marked as seen:', [
-                'created_at' => $log->created_at,
-                'client_ip' => $log->client_ip
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Log marked as seen successfully'
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error marking log as seen: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Error marking log as seen: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    // Mark logs as seen (bulk)
+    // Mark logs as seen
     public function markAsSeen(Request $request)
     {
         try {
             $ids = $request->input('ids', []);
             
-            // Try to get IDs from JSON if not found in input
-            if (empty($ids) && $request->isJson()) {
-                $data = $request->json()->all();
-                $ids = $data['ids'] ?? [];
-            }
-
             if (empty($ids)) {
                 // Mark all as seen
-                $count = ApiLog::unseen()->count();
-                ApiLog::unseen()->update(['seen_at' => now()]);
+                $count = ApiLog::unseen()->update(['seen_at' => now()]);
                 $message = "All {$count} logs marked as seen.";
             } else {
                 $count = ApiLog::whereIn('id', $ids)->update(['seen_at' => now()]);

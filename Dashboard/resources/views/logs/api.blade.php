@@ -200,14 +200,12 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border-800">
-                            @forelse($logs as $index => $log)
+                            @forelse($logs as $log)
                                 @php
                                     $isUnseen = is_null($log->seen_at);
                                 @endphp
                                 <tr class="{{ $isUnseen ? 'log-row-unseen' : '' }} hover:bg-surface-700/60 transition"
-                                    data-log-index="{{ $index }}"
-                                    data-log-created="{{ $log->created_at }}"
-                                    data-log-ip="{{ $log->client_ip }}"
+                                    data-log-id="{{ $log->id }}"
                                     data-is-unseen="{{ $isUnseen ? 'true' : 'false' }}">
                                     <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
                                         {{ \Carbon\Carbon::parse($log->getRawOriginal('created_at'), 'UTC')->setTimezone('Asia/Manila')->format('M j, Y H:i:s') }}
@@ -278,214 +276,69 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Mark All as Seen
-    document.getElementById('markAllSeenBtn')?.addEventListener('click', async function() {
-        const confirmResult = await Swal.fire({
-            title: 'Mark All as Seen?',
-            text: 'This will mark all unseen logs as seen.',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#3b82f6',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Yes, mark all',
-            background: '#1f2937',
-            color: '#f3f4f6'
-        });
-        
-        if (!confirmResult.isConfirmed) return;
-        
-        try {
-            const response = await fetch('{{ route("api-logs.mark-as-seen") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                },
-                body: JSON.stringify({ ids: [] })
-            });
-            
-            if (!response.ok) {
-                const text = await response.text();
-                console.error('Server response:', text);
-                throw new Error(`Server returned ${response.status}: ${text}`);
-            }
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                await Swal.fire({
-                    icon: 'success',
-                    title: 'Success!',
-                    text: data.message,
-                    background: '#1f2937',
-                    color: '#f3f4f6',
-                    confirmButtonColor: '#3b82f6',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-                location.reload();
-            } else {
-                throw new Error(data.message || 'Failed to mark logs as seen');
-            }
-        } catch (err) {
-            console.error('Error:', err);
-            await Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: err.message || 'Failed to mark logs as seen.',
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('markAllSeenBtn')?.addEventListener('click', async function() {
+            const confirmResult = await Swal.fire({
+                title: 'Mark All as Seen?',
+                text: 'This will mark all unseen logs as seen.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, mark all',
                 background: '#1f2937',
-                color: '#f3f4f6',
-                confirmButtonColor: '#3b82f6'
+                color: '#f3f4f6'
             });
-        }
-    });
-
-    // Individual row click to mark as seen
-    document.querySelectorAll('tr[data-log-id]').forEach(row => {
-        // Debug: Log the row data
-        console.log('Row found:', {
-            logId: row.dataset.logId,
-            logIndex: row.dataset.logIndex,
-            logCreated: row.dataset.logCreated,
-            logIp: row.dataset.logIp,
-            isUnseen: row.dataset.isUnseen
-        });
-
-        row.addEventListener('click', async function(e) {
-            // Don't trigger if clicking on a button or interactive element inside the row
-            if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input')) {
-                console.log('Click ignored - interactive element clicked');
-                return;
-            }
-
-            const logId = this.dataset.logId;
-            const logIndex = this.dataset.logIndex;
-            const logCreated = this.dataset.logCreated;
-            const logIp = this.dataset.logIp;
-            const isUnseen = this.dataset.isUnseen === 'true';
             
-            console.log('Row clicked:', { logId, logIndex, logCreated, logIp, isUnseen });
+            if (!confirmResult.isConfirmed) return;
             
-            // Only mark if it's unseen
-            if (!isUnseen) {
-                console.log('Row already seen, ignoring click');
-                return;
-            }
-
-            // Try to get ID from various sources
-            let identifier = null;
-            
-            // 1. Try using the ID if available
-            if (logId && logId !== '') {
-                identifier = { type: 'id', value: logId };
-            } 
-            // 2. If no ID, try using created_at + client_ip combination
-            else if (logCreated && logIp) {
-                identifier = { type: 'composite', created: logCreated, ip: logIp };
-            }
-            // 3. Fallback to index
-            else if (logIndex !== undefined) {
-                identifier = { type: 'index', value: logIndex };
-            }
-
-            if (!identifier) {
-                console.error('No identifier found for this row');
-                await Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Could not identify this log entry.',
-                    background: '#1f2937',
-                    color: '#f3f4f6',
-                    confirmButtonColor: '#3b82f6'
-                });
-                return;
-            }
-
             try {
-                // Send the identifier to the server
-                const response = await fetch('{{ route("api-logs.mark-single-as-seen") }}', {
+                const response = await fetch('{{ route("api-logs.mark-as-seen") }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                     },
-                    body: JSON.stringify({ 
-                        identifier: identifier,
-                        log_id: logId,
-                        log_index: logIndex,
-                        log_created: logCreated,
-                        log_ip: logIp
-                    })
+                    body: JSON.stringify({ ids: [] })
                 });
-
-                console.log('Response status:', response.status);
                 
-                if (!response.ok) {
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
                     const text = await response.text();
-                    console.error('Server response:', text);
-                    throw new Error(`Server returned ${response.status}: ${text}`);
+                    console.error('Non-JSON response:', text);
+                    throw new Error('Server returned non-JSON response');
                 }
-
+                
                 const data = await response.json();
-                console.log('Response data:', data);
                 
                 if (data.success) {
-                    // Update the row visually
-                    this.dataset.isUnseen = 'false';
-                    this.classList.remove('log-row-unseen');
-                    
-                    // Update the Seen column
-                    const seenCell = this.querySelector('.seen-cell');
-                    if (seenCell) {
-                        seenCell.innerHTML = '<span class="seen-text">Seen</span>';
-                    }
-                    
-                    // Update the unseen badge count if it exists
-                    const badge = document.querySelector('.unseen-badge');
-                    if (badge) {
-                        const currentText = badge.textContent.trim();
-                        const match = currentText.match(/(\d+)/);
-                        if (match) {
-                            const currentCount = parseInt(match[1]);
-                            if (currentCount > 1) {
-                                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-blue-400 mr-1.5"></span> ${currentCount - 1} new`;
-                            } else {
-                                badge.remove();
-                            }
-                        }
-                    }
-
-                    // Show a subtle success indication
-                    this.style.transition = 'background-color 0.3s';
-                    this.style.backgroundColor = 'rgba(34, 197, 94, 0.15)';
-                    setTimeout(() => {
-                        this.style.backgroundColor = '';
-                    }, 500);
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: data.message,
+                        background: '#1f2937',
+                        color: '#f3f4f6',
+                        confirmButtonColor: '#3b82f6',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    location.reload();
                 } else {
-                    throw new Error(data.message || 'Failed to mark log as seen');
+                    throw new Error(data.message || 'Failed to mark logs as seen');
                 }
             } catch (err) {
-                console.error('Error marking log as seen:', err);
+                console.error('Error:', err);
                 await Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: err.message || 'Failed to mark log as seen.',
+                    text: err.message || 'Failed to mark logs as seen.',
                     background: '#1f2937',
                     color: '#f3f4f6',
                     confirmButtonColor: '#3b82f6'
                 });
             }
         });
-
-        // Add cursor pointer for unseen rows
-        if (row.dataset.isUnseen === 'true') {
-            row.style.cursor = 'pointer';
-        }
     });
-});
 </script>
 
 @include('layouts.footer')
