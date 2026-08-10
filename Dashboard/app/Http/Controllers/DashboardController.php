@@ -6,6 +6,7 @@ use App\Models\SeismicStation;
 use App\Models\Station;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Process\Process;
 
@@ -61,8 +62,15 @@ class DashboardController extends Controller
         $seismicCounts    = $this->annotateStatus($seismicData, $idleThresholdMinutes, $offlineThresholdMinutes);
 
         $generatedAt = now()->timezone('Asia/Manila');
-        $generatedBy = optional($request->user())->name
-            ?? optional($request->user())->username
+
+        // $request->user() only resolves if the auth guard actually
+        // populated the request — this app doesn't always rely on that
+        // (see ServicesController::action(), which falls back to
+        // session('username') for the exact same reason). Match that
+        // pattern here instead of defaulting straight to 'Unknown user'.
+        $generatedBy = optional(Auth::user())->name
+            ?? optional(Auth::user())->username
+            ?? session('username')
             ?? 'Unknown user';
 
         $health = $this->buildSystemHealth();
