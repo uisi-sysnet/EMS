@@ -279,6 +279,12 @@
 </div>
 
 <script>
+    window.routeUrls = {
+        markSeenSingle: '{{ route("api-logs.mark-seen-single", ["id" => "REPLACE_ID"]) }}',
+        markSeenAll: '{{ route("api-logs.mark-as-seen") }}'
+    };
+</script>
+<script>
     document.addEventListener('DOMContentLoaded', function() {
         // Get CSRF token from meta tag
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -308,7 +314,7 @@
                 
                 try {
                     // Use the correct route with proper URL construction
-                    const url = `/api-logs/${logId}/mark-seen`;
+                    const url = window.routeUrls.markSeenSingle.replace('REPLACE_ID', logId);
                     
                     const response = await fetch(url, {
                         method: 'POST',
