@@ -455,28 +455,61 @@
 
             notificationList.innerHTML = logs.map(log => {
                 const isNew = !log.is_seen;
+                const type = log.type || 'api';
+                const badgeText = log.badge_text || (type === 'api' ? 'API' : 'SYS');
+                const badgeColor = log.badge_color || (type === 'api' ? 'text-blue-400' : 'text-purple-400');
+                const icon = log.icon || (type === 'api' ? '📡' : '📝');
+                
+                // Determine background color based on type and level
+                let bgClass = 'hover:bg-surface-700/60';
+                let borderClass = 'border-transparent';
+                let textClass = 'text-text-400';
+                
+                if (isNew) {
+                    if (type === 'api') {
+                        bgClass = 'bg-blue-500/10 hover:bg-blue-500/20';
+                        borderClass = 'border-blue-500/60';
+                        textClass = 'text-text-100';
+                    } else {
+                        // System logs - color based on level
+                        const level = (log.level || '').toLowerCase();
+                        if (['emergency', 'alert', 'critical', 'error'].includes(level)) {
+                            bgClass = 'bg-red-500/10 hover:bg-red-500/20';
+                            borderClass = 'border-red-500/60';
+                            textClass = 'text-text-100';
+                        } else if (['warning'].includes(level)) {
+                            bgClass = 'bg-yellow-500/10 hover:bg-yellow-500/20';
+                            borderClass = 'border-yellow-500/60';
+                            textClass = 'text-text-100';
+                        } else {
+                            bgClass = 'bg-purple-500/10 hover:bg-purple-500/20';
+                            borderClass = 'border-purple-500/60';
+                            textClass = 'text-text-100';
+                        }
+                    }
+                }
+
                 return `
                     <a href="${log.url}"
                     data-type="${log.type}"
                     data-id="${log.id}"
                     data-seen="${log.is_seen}"
-                    class="log-item block px-4 py-3 transition-colors
-                            ${isNew
-                                ? 'bg-blue-500/10 hover:bg-blue-500/20 border-l-[3px] border-blue-500/60'
-                                : 'hover:bg-surface-700/60 border-l-[3px] border-transparent opacity-70'}">
+                    class="log-item block px-4 py-3 transition-colors border-l-[3px] ${bgClass} ${borderClass}">
                         <div class="flex items-center justify-between gap-2 mb-1">
                             <div class="flex items-center gap-2">
-                                <span class="text-[10px] font-semibold uppercase tracking-wide text-blue-400">API</span>
+                                <span class="text-sm">${icon}</span>
+                                <span class="text-[10px] font-semibold uppercase tracking-wide ${badgeColor}">${badgeText}</span>
                                 ${isNew ? '<span class="text-[10px] font-bold text-blue-400">NEW</span>' : ''}
                             </div>
-                            <span class="text-xs font-mono ${log.status_color}">${log.status_code}</span>
+                            <span class="text-xs font-mono ${log.status_color}">${log.status_code || '--'}</span>
                         </div>
-                        <div class="text-sm ${isNew ? 'text-text-100' : 'text-text-400'} font-medium truncate">
+                        <div class="text-sm ${textClass} font-medium truncate">
                             ${log.summary}
                         </div>
                         <div class="text-xs text-text-500 truncate mt-0.5">
                             ${log.detail}
                         </div>
+                        ${log.level ? `<div class="text-[11px] text-text-500 mt-0.5">Level: ${log.level}</div>` : ''}
                         <div class="text-[11px] text-text-500 mt-1">
                             ${log.time}
                         </div>
@@ -491,37 +524,55 @@
                 bellButton.classList.remove('animate-pulse');
             }
 
+            // Click handler for individual log items
             document.querySelectorAll('.log-item').forEach(item => {
-                item.addEventListener('click', function () {
+                item.addEventListener('click', function(e) {
+                    // Don't prevent navigation, but mark as seen
                     if (this.dataset.seen === 'true' || this.dataset.seen === '1') return;
 
-                    addSeenId(this.dataset.type, this.dataset.id);
-                    this.dataset.seen = 'true';
-
-                    this.classList.remove(
-                        'bg-blue-500/10', 
-                        'hover:bg-blue-500/20', 
-                        'border-blue-500/60'
-                    );
-                    this.classList.add(
-                        'hover:bg-surface-700/60', 
-                        'border-transparent', 
-                        'opacity-70'
-                    );
-
-                    const newBadge = this.querySelector('.text-blue-400');
-                    if (newBadge && newBadge.textContent === 'NEW') newBadge.remove();
-
-                    const summary = this.querySelector('.text-text-100');
-                    if (summary) {
-                        summary.classList.remove('text-text-100');
-                        summary.classList.add('text-text-400');
-                    }
-
-                    if (!document.querySelector('.log-item:not([data-seen="true"])')) {
-                        notificationDot.classList.add('hidden');
-                        bellButton.classList.remove('animate-pulse');
-                    }
+                    // Mark as seen via API
+                    const type = this.dataset.type;
+                    const id = this.dataset.id;
+                    
+                    fetch('/mark-log-seen', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({ type: type, id: id })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            addSeenId(type, id);
+                            this.dataset.seen = 'true';
+                            
+                            // Update UI
+                            this.classList.remove(
+                                'bg-blue-500/10', 'bg-red-500/10', 'bg-yellow-500/10', 'bg-purple-500/10',
+                                'hover:bg-blue-500/20', 'hover:bg-red-500/20', 'hover:bg-yellow-500/20', 'hover:bg-purple-500/20',
+                                'border-blue-500/60', 'border-red-500/60', 'border-yellow-500/60', 'border-purple-500/60'
+                            );
+                            this.classList.add('hover:bg-surface-700/60', 'border-transparent', 'opacity-70');
+                            
+                            const newBadge = this.querySelector('.text-blue-400');
+                            if (newBadge && newBadge.textContent === 'NEW') newBadge.remove();
+                            
+                            const summary = this.querySelector('.text-text-100');
+                            if (summary) {
+                                summary.classList.remove('text-text-100');
+                                summary.classList.add('text-text-400');
+                            }
+                            
+                            // Check if any unseen items remain
+                            if (!document.querySelector('.log-item:not([data-seen="true"])')) {
+                                notificationDot.classList.add('hidden');
+                                bellButton.classList.remove('animate-pulse');
+                            }
+                        }
+                    })
+                    .catch(err => console.error('Error marking log as seen:', err));
                 });
             });
         }
@@ -532,7 +583,7 @@
 
             const ids = Array.from(unseenItems).map(item => ({
                 type: item.dataset.type,
-                id: item.dataset.id
+                id: parseInt(item.dataset.id)
             }));
 
             markAllBtn.textContent = 'Processing…';
@@ -555,7 +606,11 @@
                     ids.forEach(({ type, id }) => addSeenId(type, id));
                     unseenItems.forEach(item => {
                         item.dataset.seen = 'true';
-                        item.classList.remove('bg-blue-500/10', 'hover:bg-blue-500/20', 'border-blue-500/60');
+                        item.classList.remove(
+                            'bg-blue-500/10', 'bg-red-500/10', 'bg-yellow-500/10', 'bg-purple-500/10',
+                            'hover:bg-blue-500/20', 'hover:bg-red-500/20', 'hover:bg-yellow-500/20', 'hover:bg-purple-500/20',
+                            'border-blue-500/60', 'border-red-500/60', 'border-yellow-500/60', 'border-purple-500/60'
+                        );
                         item.classList.add('hover:bg-surface-700/60', 'border-transparent', 'opacity-70');
 
                         const badge = item.querySelector('.text-blue-400');

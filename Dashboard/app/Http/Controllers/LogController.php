@@ -57,14 +57,21 @@ class LogController extends Controller
     {
         try {
             $ids = $request->input('ids', []);
+            $type = $request->input('type', 'system'); // 'api' or 'system'
+            
+            if ($type === 'api') {
+                $model = ApiLog::class;
+            } else {
+                $model = SystemLog::class;
+            }
             
             if (empty($ids)) {
                 // Mark all as seen
-                $count = SystemLog::unseen()->update(['seen_at' => now()]);
-                $message = "All {$count} logs marked as seen.";
+                $count = $model::unseen()->update(['seen_at' => now()]);
+                $message = "All {$count} {$type} logs marked as seen.";
             } else {
-                $count = SystemLog::whereIn('id', $ids)->update(['seen_at' => now()]);
-                $message = "{$count} selected logs marked as seen.";
+                $count = $model::whereIn('id', $ids)->update(['seen_at' => now()]);
+                $message = "{$count} selected {$type} logs marked as seen.";
             }
 
             return response()->json([
