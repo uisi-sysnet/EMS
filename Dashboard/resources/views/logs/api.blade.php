@@ -22,6 +22,40 @@
         scrollbar-color: #4B5563 #1A1A1A;
     }
 
+    /* ============================================ */
+    /* BLUE HIGHLIGHT FOR UNSEEN LOGS - FIXED */
+    /* ============================================ */
+    tr.log-row-unseen {
+        background-color: rgba(59, 130, 246, 0.2) !important;
+        border-left: 4px solid #3b82f6 !important;
+        position: relative;
+    }
+    
+    tr.log-row-unseen td {
+        background-color: rgba(59, 130, 246, 0.2) !important;
+    }
+    
+    tr.log-row-unseen:hover {
+        background-color: rgba(59, 130, 246, 0.35) !important;
+    }
+    
+    tr.log-row-unseen:hover td {
+        background-color: rgba(59, 130, 246, 0.35) !important;
+    }
+    
+    /* Blue left border using pseudo-element */
+    tr.log-row-unseen::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: #3b82f6;
+        border-radius: 0 2px 2px 0;
+        z-index: 2;
+    }
+
     /* Status code badges */
     .status-2xx { background: rgba(34, 197, 94, 0.2); color: #4ade80; border-color: #22c55e; }
     .status-4xx { background: rgba(234, 179, 8, 0.2); color: #facc15; border-color: #eab308; }
@@ -42,6 +76,16 @@
     .method-DELETE { background: #3b1e1e; color: #f87171; border-color: #ef4444; }
     .method-HEAD { background: #2d2d2d; color: #9ca3af; border-color: #6b7280; }
     .method-OPTIONS { background: #2d2d2d; color: #9ca3af; border-color: #6b7280; }
+
+    /* Unseen badge pulse */
+    .unseen-badge {
+        animation: pulse-badge 2s infinite;
+    }
+    
+    @keyframes pulse-badge {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
 </style>
 
 <div id="main-content"
@@ -49,15 +93,29 @@
 
     <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex flex-col min-h-0">
 
-        <!-- Header -->
+        <!-- Header with Unseen Badge -->
         <div class="px-5 sm:px-8 py-4 sm:py-5 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0">
-            <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2">
-                <span class="leading-tight uppercase">API Logs</span>
-            </h2>
-            <span class="text-xs sm:text-sm text-text-400">Inspect incoming API requests</span>
+            <div class="flex items-center gap-3">
+                <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2">
+                    <span class="leading-tight uppercase">API Logs</span>
+                </h2>
+                @if(isset($unseenCount) && $unseenCount > 0)
+                    <span class="unseen-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-600/20 text-blue-400 border border-blue-500/30">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400 mr-1.5"></span>
+                        {{ $unseenCount }} new
+                    </span>
+                @endif
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" id="markAllSeenBtn" 
+                        class="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition">
+                    Mark All as Seen
+                </button>
+                <span class="text-xs sm:text-sm text-text-400">Inspect incoming API requests</span>
+            </div>
         </div>
 
-        <!-- Filter Bar – responsive rows -->
+        <!-- Filter Bar -->
         <div class="shrink-0 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 bg-background-900 border-b border-border-800">
             <form method="GET" action="{{ route('api-logs.index') }}" class="bg-surface-800 rounded-xl border border-border-700 p-3 sm:p-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-2">
@@ -126,27 +184,32 @@
                                 <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Duration (ms)</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">API Key Owner</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">API Key</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Seen At</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border-800">
-
                             @forelse($logs as $log)
-                                <tr class="hover:bg-surface-700/60 transition">
-                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
+                                @php
+                                    $isUnseen = is_null($log->seen_at);
+                                @endphp
+                                <tr class="{{ $isUnseen ? 'log-row-unseen' : '' }} hover:bg-surface-700/60 transition"
+                                    data-log-id="{{ $log->id }}"
+                                    data-is-unseen="{{ $isUnseen ? 'true' : 'false' }}">
+                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs {{ $isUnseen ? 'bg-transparent' : '' }}">
                                         {{ \Carbon\Carbon::parse($log->getRawOriginal('created_at'), 'UTC')->setTimezone('Asia/Manila')->format('M j, Y H:i:s') }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
+                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs {{ $isUnseen ? 'bg-transparent' : '' }}">
                                         {{ $log->client_ip }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap">
+                                    <td class="px-4 py-2 whitespace-nowrap {{ $isUnseen ? 'bg-transparent' : '' }}">
                                         <span class="method-badge method-{{ $log->method }} text-xs">
                                             {{ $log->method }}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-2 text-text-400 max-w-xs truncate" title="{{ $log->path }}">
+                                    <td class="px-4 py-2 text-text-400 max-w-xs truncate {{ $isUnseen ? 'bg-transparent' : '' }}" title="{{ $log->path }}">
                                         {{ $log->path }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap">
+                                    <td class="px-4 py-2 whitespace-nowrap {{ $isUnseen ? 'bg-transparent' : '' }}">
                                         @php
                                             $status = $log->status_code;
                                             $class = 'status-default';
@@ -158,19 +221,31 @@
                                             {{ $status }}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
+                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs {{ $isUnseen ? 'bg-transparent' : '' }}">
                                         {{ number_format($log->duration_ms, 2) }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-xs max-w-32 truncate {{ $log->api_key_owner === 'Blocked/IP' ? 'text-red-400 font-semibold' : ($log->api_key_owner === 'Unauthorized/None' ? 'text-orange-400 font-semibold' : 'text-text-400') }}" title="{{ $log->api_key_owner }}">
-                                         {{ $log->api_key_owner }}
+                                    <td class="px-4 py-2 whitespace-nowrap text-xs max-w-32 truncate {{ $isUnseen ? 'bg-transparent' : '' }} {{ $log->api_key_owner === 'Blocked/IP' ? 'text-red-400 font-semibold' : ($log->api_key_owner === 'Unauthorized/None' ? 'text-orange-400 font-semibold' : 'text-text-400') }}" title="{{ $log->api_key_owner }}">
+                                        {{ $log->api_key_owner }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs max-w-28 truncate" title="{{ $log->api_key_used }}">
+                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs max-w-28 truncate {{ $isUnseen ? 'bg-transparent' : '' }}" title="{{ $log->api_key_used }}">
                                         {{ $log->api_key_used }}
+                                    </td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-xs {{ $isUnseen ? 'bg-transparent' : '' }}">
+                                        @if($isUnseen)
+                                            <span class="text-blue-400 font-medium flex items-center gap-1">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+                                                Unseen
+                                            </span>
+                                        @else
+                                            <span class="text-text-500">
+                                                {{ $log->seen_at->setTimezone('Asia/Manila')->format('h:i A') }}
+                                            </span>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="px-4 py-10 text-center text-text-500">
+                                    <td colspan="9" class="px-4 py-10 text-center text-text-500">
                                         No API logs found.
                                     </td>
                                 </tr>
@@ -189,5 +264,76 @@
         @endif
     </div>
 </div>
+
+<script>
+    // ============ MARK AS SEEN FUNCTIONALITY ============
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mark all unseen logs as seen
+        document.getElementById('markAllSeenBtn')?.addEventListener('click', async function() {
+            const confirmResult = await Swal.fire({
+                title: 'Mark All as Seen?',
+                text: 'This will mark all unseen logs as seen.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, mark all',
+                background: '#1f2937',
+                color: '#f3f4f6'
+            });
+            
+            if (!confirmResult.isConfirmed) return;
+            
+            try {
+                const response = await fetch('{{ route("api-logs.mark-as-seen") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ ids: [] })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: data.message,
+                        background: '#1f2937',
+                        color: '#f3f4f6',
+                        confirmButtonColor: '#3b82f6',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    location.reload();
+                }
+            } catch (err) {
+                console.error(err);
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to mark logs as seen.',
+                    background: '#1f2937',
+                    color: '#f3f4f6',
+                    confirmButtonColor: '#3b82f6'
+                });
+            }
+        });
+        
+        // Debug: Check what rows have the class
+        const unseenRows = document.querySelectorAll('.log-row-unseen');
+        console.log('Unseen rows found:', unseenRows.length);
+        unseenRows.forEach((row, i) => {
+            console.log(`Row ${i + 1}:`, {
+                id: row.dataset.logId,
+                isUnseen: row.dataset.isUnseen,
+                classList: row.className,
+                bgColor: getComputedStyle(row).backgroundColor
+            });
+        });
+    });
+</script>
 
 @include('layouts.footer')
