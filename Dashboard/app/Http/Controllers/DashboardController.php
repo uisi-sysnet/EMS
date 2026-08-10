@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SeismicStation;
 use App\Models\Station;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -11,14 +12,56 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        [$airQualityData, $seismicData] = $this->buildDashboardData();
+
+        return view('index', compact('airQualityData', 'seismicData'));
+    }
+
+    /**
+     * Generates a point-in-time PDF snapshot of system status: air quality
+     * and seismic station tables (location, status, total readings), plus
+     * who generated it and when. Mirrors the same online/idle/offline
+     * thresholds used on the live dashboard so the numbers on the PDF match
+     * what the user was looking at when they clicked the button.
+     */
+    public function generateReport(Request $request)
+    {
+        [$airQualityData, $seismicData] = $this->buildDashboardData();
+
+        $idleThresholdMinutes    = 2;
+        $offlineThresholdMinutes = 3;
+
+        $airQualityCounts = $this->annotateStatus($airQualityData, $idleThresholdMinutes, $offlineThresholdMinutes);
+        $seismicCounts    = $this->annotateStatus($seismicData, $idleThresholdMinutes, $offlineThresholdMinutes);
+
+        $generatedAt = now()->timezone('Asia/Manila');
+        $generatedBy = optional($request->user())->name
+            ?? optional($request->user())->username
+            ?? 'Unknown user';
+
+        $pdf = Pdf::loadView('reports.system-status', [
+            'airQualityData'   => $airQualityData,
+            'seismicData'      => $seismicData,
+            'airQualityCounts' => $airQualityCounts,
+            'seismicCounts'    => $seismicCounts,
+            'generatedAt'      => $generatedAt,
+            'generatedBy'      => $generatedBy,
+        ])->setPaper('a4', 'portrait');
+
+        $filename = 'system-status-report-' . $generatedAt->format('Y-m-d_His') . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Shared query/merge logic for both the live dashboard and the PDF
+     * report, so the two never drift out of sync.
+     *
+     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     */
+    private function buildDashboardData(): array
+    {
         // ---------- Air Quality ----------
-        // Source of truth for WHICH stations exist is the app's own
-        // `stations` table (managed via Manage Stations). We then left-join
-        // in whatever readings happen to exist in the 'aq' connection's
-        // sensor_data table (populated by the external Python ingestion
-        // service). This way a station shows up on the dashboard as soon
-        // as it's registered, even before its first sensor reading comes
-        // in — instead of being invisible until sensor_data has rows for it.
         $stations = Station::orderBy('station_mn')->get();
 
         $aqReadings = DB::connection('aq')
@@ -42,6 +85,10 @@ class DashboardController extends Controller
                     'station_mn'   => $station->station_mn,
                     'station'      => $station->station_name ?: $station->station_mn,
                     'ip'           => $reading->ip ?? $station->lead_ip,
+                    // TODO: swap for a real location/address column on the
+                    // stations table if one exists — currently falling
+                    // back to the IP, same as the rest of the dashboard.
+                    'location'     => $station->location ?? $station->lead_ip ?? '—',
                     'installed_at' => $reading->installed_at ?? null,
                     'latest_at'    => $reading->latest_at ?? null,
                     'total'        => $reading->total ?? 0,
@@ -51,15 +98,6 @@ class DashboardController extends Controller
             ->values();
 
         // ---------- Seismic ----------
-        // Unlike air quality (where stations must be manually provisioned
-        // with lead_ip/port before they can talk to the app), seismic
-        // devices just start pushing readings straight into station_metrics
-        // once they're online — there's nothing to pre-configure. So instead
-        // of requiring a manual "Add Station" step first, we auto-register
-        // any station_id that's already reporting data but doesn't have a
-        // registry row yet. Existing registrations (including anything an
-        // admin has manually renamed/disabled) are left untouched — this
-        // only adds new ones, never overwrites or removes.
         $this->syncNewSeismicStations();
 
         $seismicStations = SeismicStation::orderBy('station_id')->get();
@@ -84,10 +122,10 @@ class DashboardController extends Controller
                 return (object) [
                     'station_id'   => $station->station_id,
                     'station'      => $station->station_name ?: $station->station_id,
-                    // The view expects an 'ip' field – seismic stations don't
-                    // have one, so we reuse station_id as a placeholder, same
-                    // as the original query did.
                     'ip'           => $station->station_id,
+                    'location'     => ($station->latitude !== null && $station->longitude !== null)
+                        ? number_format((float) $station->latitude, 4) . ', ' . number_format((float) $station->longitude, 4)
+                        : '—',
                     'installed_at' => $reading->installed_at ?? null,
                     'latest_at'    => $reading->latest_at ?? null,
                     'total'        => $reading->total ?? 0,
@@ -96,7 +134,33 @@ class DashboardController extends Controller
             ->sortByDesc('total')
             ->values();
 
-        return view('index', compact('airQualityData', 'seismicData'));
+        return [$airQualityData, $seismicData];
+    }
+
+    /**
+     * Attaches an ->status ('online'|'idle'|'offline') to every item in the
+     * collection based on how long ago its last reading came in, and
+     * returns the tallies. Same thresholds as the dashboard blade view.
+     */
+    private function annotateStatus($collection, int $idleThresholdMinutes, int $offlineThresholdMinutes): array
+    {
+        $counts = ['online' => 0, 'idle' => 0, 'offline' => 0];
+
+        foreach ($collection as $item) {
+            $status = 'offline';
+            if (!empty($item->latest_at)) {
+                $minutesAgo = \Carbon\Carbon::parse($item->latest_at)->diffInMinutes(now());
+                if ($minutesAgo <= $idleThresholdMinutes) {
+                    $status = 'online';
+                } elseif ($minutesAgo <= $offlineThresholdMinutes) {
+                    $status = 'idle';
+                }
+            }
+            $item->status = $status;
+            $counts[$status]++;
+        }
+
+        return $counts;
     }
 
     /**

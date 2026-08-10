@@ -175,11 +175,22 @@
     <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex flex-col min-h-0">
 
         <!-- Header -->
-        <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+        <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2">
                 <span class="leading-tight uppercase">Dashboard</span>
             </h2>
-            <span class="text-xs text-text-400">Overview of stations</span>
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-text-400">Overview of stations</span>
+                <a href="{{ route('dashboard.report') }}"
+                   target="_blank"
+                   class="inline-flex items-center gap-1.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 px-3 py-1.5 rounded-lg hover:bg-munti-green-700/30 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H8a2 2 0 01-2-2V5a2 2 0 012-2h6l6 6v11a2 2 0 01-2 2z" />
+                    </svg>
+                    Generate Report
+                </a>
+            </div>
         </div>
 
         <!-- Body – scrollable -->
