@@ -15,6 +15,8 @@ use App\Http\Controllers\RecentLogsController;
 use App\Http\Controllers\NetworkController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\SeismicStationController;
+use App\Http\Controllers\ServicesController;
+use App\Http\Controllers\TerminalAuthController;
 
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
@@ -80,5 +82,10 @@ Route::middleware(['role:administrator'])->group(function () {
     Route::get('/seismic-stations/{station_id}/edit', [SeismicStationController::class, 'edit']);
     Route::put('/seismic-stations/{station_id}', [SeismicStationController::class, 'update'])->name('seismic-stations.update');
     Route::delete('/seismic-stations/{station_id}', [SeismicStationController::class, 'destroy'])->name('seismic-stations.destroy');
+
+    Route::get('/maintenance/services', [ServicesController::class, 'index'])->name('services.index');
+    Route::get('/maintenance/services/status', [ServicesController::class, 'status'])->name('services.status');
+    Route::post('/maintenance/services/{service}/action', [ServicesController::class, 'action'])->name('services.action');
+    Route::post('/maintenance/terminal/token', [TerminalAuthController::class, 'issue'])->name('terminal.token');
 
 });

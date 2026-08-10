@@ -14,6 +14,9 @@ return [
     |
     */
 
+    'terminal_secret' => env('TERMINAL_SHARED_SECRET'),
+    'terminal_ws_url' => env('TERMINAL_WS_URL', 'wss://your-domain.example/pty'),
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
