@@ -53,6 +53,38 @@ class ApiLogController extends Controller
         return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo', 'unseenCount'));
     }
 
+    /* public function markAsSeen(Request $request)
+    {
+        try {
+            $ids = $request->input('ids', []);
+            
+            if (empty($ids)) {
+                return response()->json(['success' => false, 'message' => 'No IDs provided']);
+            }
+
+            // Extract just the IDs from the array
+            $apiIds = [];
+            foreach ($ids as $item) {
+                if ($item['type'] === 'api') {
+                    $apiIds[] = $item['id'];
+                }
+            }
+
+            // Update the logs in the database
+            if (!empty($apiIds)) {
+                ApiLog::whereIn('id', $apiIds)
+                    ->whereNull('seen_at')
+                    ->update(['seen_at' => now()]);
+            }
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            \Log::error('Error marking API logs as seen: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    } */
+
+
     public function markAsSeen(Request $request)
     {
         try {
