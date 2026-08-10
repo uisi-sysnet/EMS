@@ -14,6 +14,7 @@ use App\Http\Controllers\SmsController;
 use App\Http\Controllers\RecentLogsController;
 use App\Http\Controllers\NetworkController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\SeismicStationController;
 
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
@@ -71,5 +72,11 @@ Route::middleware(['role:administrator'])->group(function () {
     Route::get('/maintenance/interfaces', [MaintenanceController::class, 'interfaces'])->name('maintenance.interfaces');
     Route::post('/maintenance/ping', [MaintenanceController::class, 'ping'])->name('maintenance.ping');
     Route::post('/maintenance/traceroute', [MaintenanceController::class, 'traceroute'])->name('maintenance.traceroute');   
+
+    Route::get('/seismic-stations', [SeismicStationController::class, 'index'])->name('seismic-stations.index');
+    Route::post('/seismic-stations', [SeismicStationController::class, 'store'])->name('seismic-stations.store');
+    Route::get('/seismic-stations/{station_id}/edit', [SeismicStationController::class, 'edit']);
+    Route::put('/seismic-stations/{station_id}', [SeismicStationController::class, 'update'])->name('seismic-stations.update');
+    Route::delete('/seismic-stations/{station_id}', [SeismicStationController::class, 'destroy'])->name('seismic-stations.destroy');
 
 });

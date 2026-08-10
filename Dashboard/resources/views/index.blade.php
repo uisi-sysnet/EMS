@@ -124,10 +124,13 @@
     $overallOnlinePercent = $totalStations > 0 ? round(($totalOnline / $totalStations) * 100, 1) : 100;
 
     // System status thresholds (based on % of stations online):
+    //   no stations -> Idle (nothing configured yet, not a "good" or "bad" state)
     //   100%        -> Good
     //   80% - 99%   -> Warning
     //   below 80%   -> Critical
-    if ($overallOnlinePercent >= 100) {
+    if ($totalStations === 0) {
+        $systemStatus = 'idle';
+    } elseif ($overallOnlinePercent >= 100) {
         $systemStatus = 'good';
     } elseif ($overallOnlinePercent >= 80) {
         $systemStatus = 'warning';
@@ -136,6 +139,10 @@
     }
 
     $systemStatusMeta = [
+        'idle' => [
+            'label' => 'No Stations Configured', 'text' => 'text-amber-400',
+            'bg' => 'bg-amber-700/10', 'border' => 'border-amber-600/30', 'dot' => 'bg-amber-400',
+        ],
         'good' => [
             'label' => 'All Systems Good', 'text' => 'text-munti-green-400',
             'bg' => 'bg-munti-green-700/10', 'border' => 'border-munti-green-600/30', 'dot' => 'bg-munti-green-400',
@@ -191,7 +198,13 @@
                             </span>
                             <span class="text-sm font-semibold {{ $systemStatusMeta['text'] }}">{{ $systemStatusMeta['label'] }}</span>
                         </div>
-                        <span class="text-xs text-text-300">{{ $totalOnline }}/{{ $totalStations }} stations online ({{ $overallOnlinePercent }}%)</span>
+                        <span class="text-xs text-text-300">
+                            @if($totalStations === 0)
+                                No stations added yet
+                            @else
+                                {{ $totalOnline }}/{{ $totalStations }} stations online ({{ $overallOnlinePercent }}%)
+                            @endif
+                        </span>
                     </div>
                 </div>
 
@@ -282,8 +295,13 @@
                         <div class="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0">
                             <canvas id="airQualityStatusChart"></canvas>
                             <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <span class="text-sm sm:text-base font-bold text-text-100">{{ $airQualityTotal > 0 ? round(($airQualityOnline / $airQualityTotal) * 100) : 100 }}%</span>
+                                @if($airQualityTotal > 0)
+                                <span class="text-sm sm:text-base font-bold text-text-100">{{ round(($airQualityOnline / $airQualityTotal) * 100) }}%</span>
                                 <span class="text-[9px] text-text-400 uppercase">Online</span>
+                                @else
+                                <span class="text-sm sm:text-base font-bold text-amber-400">—</span>
+                                <span class="text-[9px] text-amber-400 uppercase">No Stations</span>
+                                @endif
                             </div>
                         </div>
                         <div class="flex flex-col gap-1.5 text-xs w-full">
@@ -320,8 +338,13 @@
                         <div class="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0">
                             <canvas id="seismicStatusChart"></canvas>
                             <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <span class="text-sm sm:text-base font-bold text-text-100">{{ $seismicTotal > 0 ? round(($seismicOnline / $seismicTotal) * 100) : 100 }}%</span>
+                                @if($seismicTotal > 0)
+                                <span class="text-sm sm:text-base font-bold text-text-100">{{ round(($seismicOnline / $seismicTotal) * 100) }}%</span>
                                 <span class="text-[9px] text-text-400 uppercase">Online</span>
+                                @else
+                                <span class="text-sm sm:text-base font-bold text-amber-400">—</span>
+                                <span class="text-[9px] text-amber-400 uppercase">No Stations</span>
+                                @endif
                             </div>
                         </div>
                         <div class="flex flex-col gap-1.5 text-xs w-full">
@@ -460,12 +483,12 @@
                                     <tr class="hover:bg-surface-700 transition h-10">
                                         <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
-                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip ?? '—' }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
-                                            {{ \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') }}
+                                            {{ $item->installed_at ? \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') : '—' }}
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-text-400">
-                                            {{ \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d') }}
+                                            {{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d') : '—' }}
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap">
@@ -581,13 +604,19 @@
         function makeStatusChart(canvasId, online, idle, offline) {
             const el = document.getElementById(canvasId);
             if (!el) return;
+            const total = online + idle + offline;
+            // No stations configured yet -> show a solid amber "idle" ring
+            // instead of an empty/blank doughnut.
+            const labels = total > 0 ? ['Online', 'Idle', 'Offline'] : ['No Stations'];
+            const data = total > 0 ? [online, idle, offline] : [1];
+            const colors = total > 0 ? ['#2DD4BF', '#FBBF24', '#F87171'] : ['#FBBF24'];
             new Chart(el.getContext('2d'), {
                 type: 'doughnut',
                 data: {
-                    labels: ['Online', 'Idle', 'Offline'],
+                    labels: labels,
                     datasets: [{
-                        data: [online, idle, offline],
-                        backgroundColor: ['#2DD4BF', '#FBBF24', '#F87171'],
+                        data: data,
+                        backgroundColor: colors,
                         borderColor: '#1E293B',
                         borderWidth: 2,
                     }]
