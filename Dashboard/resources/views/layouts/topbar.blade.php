@@ -42,9 +42,31 @@
                             <a href="{{ route('maintenance.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Network Diagnostic</a>
                             <a href="{{ route('services.terminal') }}" target="_blank" rel="noopener" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Terminal</a>
                             <a href="{{ route('services.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Services</a>
-                            <a href="{{ route('api-logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">API Logs</a>
-                            <a href="{{ route('logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">System Logs</a>
+                            <!-- API Logs with badge -->
+                            <a href="{{ route('api-logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700 flex items-center justify-between">
+                                <span>API Logs</span>
+                                @php
+                                    $apiUnseenCount = \App\Models\ApiLog::unseen()->count();
+                                @endphp
+                                @if($apiUnseenCount > 0)
+                                    <span class="inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
+                                        {{ $apiUnseenCount }}
+                                    </span>
+                                @endif
+                            </a>
                             
+                            <!-- System Logs with badge -->
+                            <a href="{{ route('logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors flex items-center justify-between">
+                                <span>System Logs</span>
+                                @php
+                                    $systemUnseenCount = \App\Models\SystemLog::unseen()->count();
+                                @endphp
+                                @if($systemUnseenCount > 0)
+                                    <span class="inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
+                                        {{ $systemUnseenCount }}
+                                    </span>
+                                @endif
+                            </a>
                         </div>
                     </div>
 
