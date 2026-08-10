@@ -557,9 +557,14 @@
 
         function fmtDate(str) {
             if (!str) return '—';
-            const d = new Date(str.replace(' ', 'T'));
-            if (isNaN(d)) return '—';
-            return d.toISOString().slice(0, 10);
+            // Extract YYYY-MM-DD directly instead of round-tripping through
+            // the native Date object — new Date() is strict about format
+            // (timezone suffix, fractional-second precision, separators)
+            // and can silently fail to Invalid Date on strings Carbon::parse
+            // (used for the server-rendered first load) handles fine. Since
+            // we only ever display Y-m-d anyway, we don't need a Date object.
+            const match = String(str).match(/^(\d{4}-\d{2}-\d{2})/);
+            return match ? match[1] : '—';
         }
 
         // Color palette (dynamically sized)
