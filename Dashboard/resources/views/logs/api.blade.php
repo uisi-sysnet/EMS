@@ -195,21 +195,21 @@
                                 <tr class="{{ $isUnseen ? 'log-row-unseen' : '' }} hover:bg-surface-700/60 transition"
                                     data-log-id="{{ $log->id }}"
                                     data-is-unseen="{{ $isUnseen ? 'true' : 'false' }}">
-                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs {{ $isUnseen ? 'bg-transparent' : '' }}">
+                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
                                         {{ \Carbon\Carbon::parse($log->getRawOriginal('created_at'), 'UTC')->setTimezone('Asia/Manila')->format('M j, Y H:i:s') }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs {{ $isUnseen ? 'bg-transparent' : '' }}">
+                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
                                         {{ $log->client_ip }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap {{ $isUnseen ? 'bg-transparent' : '' }}">
+                                    <td class="px-4 py-2 whitespace-nowrap">
                                         <span class="method-badge method-{{ $log->method }} text-xs">
                                             {{ $log->method }}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-2 text-text-400 max-w-xs truncate {{ $isUnseen ? 'bg-transparent' : '' }}" title="{{ $log->path }}">
+                                    <td class="px-4 py-2 text-text-400 max-w-xs truncate" title="{{ $log->path }}">
                                         {{ $log->path }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap {{ $isUnseen ? 'bg-transparent' : '' }}">
+                                    <td class="px-4 py-2 whitespace-nowrap">
                                         @php
                                             $status = $log->status_code;
                                             $class = 'status-default';
@@ -221,16 +221,16 @@
                                             {{ $status }}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs {{ $isUnseen ? 'bg-transparent' : '' }}">
+                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
                                         {{ number_format($log->duration_ms, 2) }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-xs max-w-32 truncate {{ $isUnseen ? 'bg-transparent' : '' }} {{ $log->api_key_owner === 'Blocked/IP' ? 'text-red-400 font-semibold' : ($log->api_key_owner === 'Unauthorized/None' ? 'text-orange-400 font-semibold' : 'text-text-400') }}" title="{{ $log->api_key_owner }}">
+                                    <td class="px-4 py-2 whitespace-nowrap text-xs max-w-32 truncate {{ $log->api_key_owner === 'Blocked/IP' ? 'text-red-400 font-semibold' : ($log->api_key_owner === 'Unauthorized/None' ? 'text-orange-400 font-semibold' : 'text-text-400') }}" title="{{ $log->api_key_owner }}">
                                         {{ $log->api_key_owner }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs max-w-28 truncate {{ $isUnseen ? 'bg-transparent' : '' }}" title="{{ $log->api_key_used }}">
+                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs max-w-28 truncate" title="{{ $log->api_key_used }}">
                                         {{ $log->api_key_used }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-xs {{ $isUnseen ? 'bg-transparent' : '' }}">
+                                    <td class="px-4 py-2 whitespace-nowrap text-xs">
                                         @if($isUnseen)
                                             <span class="text-blue-400 font-medium flex items-center gap-1">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
