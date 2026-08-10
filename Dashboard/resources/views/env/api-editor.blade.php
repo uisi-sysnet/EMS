@@ -7,17 +7,53 @@
     .thin-scrollbar::-webkit-scrollbar-thumb { background: #4B5563; border-radius: 10px; }
     .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #6B7280; }
     .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
+
+    
+    /* Highlight for unseen logs - BLUE background */
+    .log-row-unseen {
+        background-color: rgba(59, 130, 246, 0.15) !important;
+        border-left: 3px solid #3b82f6;
+    }
+    
+    .log-row-unseen:hover {
+        background-color: rgba(59, 130, 246, 0.25) !important;
+    }
+    
+    /* Unseen badge pulse animation */
+    .unseen-badge {
+        animation: pulse-badge 2s infinite;
+    }
+    
+    @keyframes pulse-badge {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
 </style>
 
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
     <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex flex-col min-h-0">
 
-        <!-- Header -->
-        <div class="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-            <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2.5">
-                <span class="leading-tight uppercase tracking-wide">API & Allowed IP Settings</span>
-            </h2>
-            <span class="text-xs sm:text-sm text-text-400">Manage API keys and allowed IP/Network whitelist</span>
+        <!-- Header with Unseen Badge -->
+        <div class="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div class="flex items-center gap-3">
+                <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2.5">
+                    <span class="leading-tight uppercase tracking-wide">API Logs</span>
+                </h2>
+                @if(isset($unseenCount) && $unseenCount > 0)
+                    <span class="unseen-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-600/20 text-blue-400 border border-blue-500/30">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400 mr-1.5"></span>
+                        {{ $unseenCount }} new
+                    </span>
+                @endif
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" id="markAllSeenBtn" 
+                        class="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition">
+                    Mark All as Seen
+                </button>
+                <span class="text-xs sm:text-sm text-text-400">View API request logs</span>
+            </div>
         </div>
 
         <!-- Content -->
@@ -82,66 +118,89 @@
                     </div>
 
                     <!-- Table Section -->
-                    <div class="flex-1 flex flex-col min-h-0">
-                        <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40">
-                            <h4 class="text-xs font-semibold text-text-400 uppercase tracking-wider flex items-center gap-2">
-                                <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span>
-                                Active API Keys
-                            </h4>
-                        </div>
-
-                        <div class="overflow-x-auto thin-scrollbar flex-1">
-                            @if($keys->isNotEmpty())
-                                <table class="min-w-full divide-y divide-border-700">
-                                    <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500">
-                                        <tr>
-                                            <th scope="col" class="px-4 py-3 text-left font-medium">Owner</th>
-                                            {{-- <th scope="col" class="px-4 py-3 text-left font-medium">Token Hash</th> --}}
-                                            <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
-                                            {{-- <th scope="col" class="px-4 py-3 text-left font-medium">Created</th> --}}
-                                            <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-border-800">
-                                        @foreach($keys as $key)
-                                            <tr class="hover:bg-surface-700/50 transition">
-                                                <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-munti-green-400">
-                                                    {{ $key->owner_label }}
-                                                </td>
-                                                {{-- <td class="px-4 py-2.5 font-mono text-xs text-text-400 truncate max-w-[140px]" title="{{ $key->token_hash }}">
-                                                    {{ $key->token_hash }}
-                                                </td> --}}
-                                                <td class="px-4 py-2.5 whitespace-nowrap">
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border
-                                                        {{ $key->enabled
-                                                            ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30'
-                                                            : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
-                                                        {{ $key->enabled ? 'Enabled' : 'Disabled' }}
+                    <div class="overflow-x-auto">
+                        @if($logs->isNotEmpty())
+                            <table class="min-w-full divide-y divide-border-700">
+                                <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">
+                                            <input type="checkbox" id="selectAllLogs" class="rounded border-border-600 bg-surface-900 text-radar-600">
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Date</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Client IP</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Method</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Path</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Duration</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">API Key</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Seen At</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-border-800">
+                                    @foreach($logs as $log)
+                                        @php
+                                            $isUnseen = is_null($log->seen_at);
+                                        @endphp
+                                        <tr class="hover:bg-surface-700/50 transition {{ $isUnseen ? 'log-row-unseen' : '' }}">
+                                            <td class="px-4 py-2.5 whitespace-nowrap">
+                                                <input type="checkbox" class="log-checkbox rounded border-border-600 bg-surface-900 text-radar-600" 
+                                                    data-id="{{ $log->id }}" {{ $isUnseen ? 'data-unseen="true"' : '' }}>
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
+                                                {{ $log->created_at->setTimezone('Asia/Manila')->format('Y-m-d h:i:s A') }}
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
+                                                {{ $log->client_ip }}
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs">
+                                                <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                                                    @if($log->method == 'GET') bg-blue-600/20 text-blue-400
+                                                    @elseif($log->method == 'POST') bg-green-600/20 text-green-400
+                                                    @elseif($log->method == 'PUT') bg-yellow-600/20 text-yellow-400
+                                                    @elseif($log->method == 'DELETE') bg-red-600/20 text-red-400
+                                                    @else bg-gray-600/20 text-gray-400 @endif">
+                                                    {{ $log->method }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-2.5 text-xs text-text-400 max-w-[200px] truncate" title="{{ $log->path }}">
+                                                {{ $log->path }}
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                                    @if($log->status_code >= 200 && $log->status_code < 300) bg-green-600/20 text-green-400
+                                                    @elseif($log->status_code >= 400 && $log->status_code < 500) bg-yellow-600/20 text-yellow-400
+                                                    @elseif($log->status_code >= 500) bg-red-600/20 text-red-400
+                                                    @else bg-gray-600/20 text-gray-400 @endif">
+                                                    {{ $log->status_code }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-400">
+                                                {{ number_format($log->duration_ms, 2) }}ms
+                                            </td>
+                                            <td class="px-4 py-2.5 text-xs text-text-400 max-w-[150px] truncate" title="{{ $log->api_key_owner ?? 'N/A' }}">
+                                                {{ $log->api_key_owner ?? 'N/A' }}
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs">
+                                                @if($isUnseen)
+                                                    <span class="text-blue-400 font-medium flex items-center gap-1">
+                                                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+                                                        Unseen
                                                     </span>
-                                                </td>
-                                                {{-- <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                                    {{ $key->created_at->format('Y-m-d h:i A') }}
-                                                </td> --}}
-                                                <td class="px-4 py-2.5 whitespace-nowrap text-right">
-                                                    <button type="button"
-                                                            class="delete-key text-munti-red-400 hover:text-munti-red-300 transition p-1.5 rounded-lg hover:bg-munti-red-700/20"
-                                                            data-token="{{ $key->token_hash }}"
-                                                            title="Delete key">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24">
-                                                            <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                                        </svg>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            @else
-                                <div class="flex items-center justify-center h-32 text-sm text-text-500">
-                                    No API keys yet
-                                </div>
-                            @endif
-                        </div>
+                                                @else
+                                                    <span class="text-text-500">
+                                                        {{ $log->seen_at->setTimezone('Asia/Manila')->format('h:i A') }}
+                                                    </span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        @else
+                            <div class="flex items-center justify-center h-32 text-sm text-text-500">
+                                No API logs found
+                            </div>
+                        @endif
                     </div>
                 </div>
 
@@ -661,6 +720,178 @@
             }
         });
     });
+
+        // ============ MARK AS SEEN FUNCTIONALITY ============
+    
+    // Mark individual or selected logs as seen
+    document.addEventListener('DOMContentLoaded', function() {
+        // Select all checkbox
+        const selectAll = document.getElementById('selectAllLogs');
+        const checkboxes = document.querySelectorAll('.log-checkbox');
+        
+        if (selectAll) {
+            selectAll.addEventListener('change', function() {
+                checkboxes.forEach(cb => cb.checked = this.checked);
+            });
+        }
+        
+        // Mark selected as seen
+        document.getElementById('markAllSeenBtn')?.addEventListener('click', async function() {
+            const selectedIds = [];
+            const checkboxes = document.querySelectorAll('.log-checkbox:checked');
+            
+            checkboxes.forEach(cb => {
+                const id = cb.dataset.id;
+                if (id) selectedIds.push(parseInt(id));
+            });
+            
+            if (selectedIds.length === 0) {
+                // If no checkboxes selected, mark all unseen logs as seen
+                const confirmResult = await Swal.fire({
+                    title: 'Mark All as Seen?',
+                    text: 'This will mark all unseen logs as seen.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3b82f6',
+                    cancelButtonColor: '#6b7280',
+                    confirmButtonText: 'Yes, mark all',
+                    background: '#1f2937',
+                    color: '#f3f4f6'
+                });
+                
+                if (!confirmResult.isConfirmed) return;
+                
+                try {
+                    const response = await fetch('{{ route("api-logs.mark-as-seen") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({ ids: [] })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: data.message,
+                            background: '#1f2937',
+                            color: '#f3f4f6',
+                            confirmButtonColor: '#3b82f6',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                        location.reload();
+                    }
+                } catch (err) {
+                    console.error(err);
+                    await Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to mark logs as seen.',
+                        background: '#1f2937',
+                        color: '#f3f4f6',
+                        confirmButtonColor: '#3b82f6'
+                    });
+                }
+                return;
+            }
+            
+            // Mark selected logs as seen
+            try {
+                const response = await fetch('{{ route("api-logs.mark-as-seen") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ ids: selectedIds })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: data.message,
+                        background: '#1f2937',
+                        color: '#f3f4f6',
+                        confirmButtonColor: '#3b82f6',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    location.reload();
+                }
+            } catch (err) {
+                console.error(err);
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to mark logs as seen.',
+                    background: '#1f2937',
+                    color: '#f3f4f6',
+                    confirmButtonColor: '#3b82f6'
+                });
+            }
+        });
+        
+        // Individual checkbox - auto mark as seen when clicking on row?
+        document.querySelectorAll('.log-row-unseen').forEach(row => {
+            row.addEventListener('click', async function(e) {
+                // Don't trigger if clicking checkbox or button
+                if (e.target.closest('input[type="checkbox"]') || e.target.closest('button')) {
+                    return;
+                }
+                
+                const checkbox = this.querySelector('.log-checkbox');
+                if (checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    // Optionally auto-mark as seen when checked
+                    // You can uncomment this if you want auto-mark when clicked
+                    // checkbox.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+        
+        // Optional: Auto-mark as seen when checkbox is checked
+        document.querySelectorAll('.log-checkbox').forEach(cb => {
+            cb.addEventListener('change', async function() {
+                if (this.checked && this.dataset.unseen === 'true') {
+                    const id = parseInt(this.dataset.id);
+                    try {
+                        const response = await fetch('{{ route("api-logs.mark-as-seen") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            },
+                            body: JSON.stringify({ ids: [id] })
+                        });
+                        
+                        const data = await response.json();
+                        if (data.success) {
+                            // Update the row visually
+                            const row = this.closest('tr');
+                            if (row) {
+                                row.classList.remove('log-row-unseen');
+                                const seenCell = row.querySelector('td:last-child');
+                                if (seenCell) {
+                                    seenCell.innerHTML = `<span class="text-text-500">Just now</span>`;
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }
+            });
+        });
+    });
+    
 </script>
 
 @include('layouts.footer')
