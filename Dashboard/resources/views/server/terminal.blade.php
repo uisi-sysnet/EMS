@@ -36,7 +36,7 @@
 {{-- xterm.js --}}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/css/xterm.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/lib/xterm.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm-addon-fit/0.8.0/lib/xterm-addon-fit.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -50,11 +50,20 @@ document.addEventListener('DOMContentLoaded', function () {
         fontSize: 13,
         theme: { background: '#000000' },
     });
-    const fitAddon = new FitAddon.FitAddon();
-    term.loadAddon(fitAddon);
+
+    let fitAddon = null;
+    try {
+        if (window.FitAddon) {
+            fitAddon = new FitAddon.FitAddon();
+            term.loadAddon(fitAddon);
+        }
+    } catch (e) {
+        console.error('FitAddon failed to load; terminal will not auto-resize.', e);
+    }
+
     term.open(document.getElementById('terminal'));
-    fitAddon.fit();
-    window.addEventListener('resize', () => fitAddon.fit());
+    if (fitAddon) fitAddon.fit();
+    window.addEventListener('resize', () => { if (fitAddon) fitAddon.fit(); });
 
     let ws = null;
 
