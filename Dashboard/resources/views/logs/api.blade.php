@@ -99,7 +99,7 @@
             <span class="text-xs sm:text-sm text-text-400">Inspect incoming API requests</span>
         </div>
 
-        <!-- Filter Bar – responsive rows -->
+        <!-- Filter Bar -->
         <div class="shrink-0 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 bg-background-900 border-b border-border-800">
             <form method="GET" action="{{ route('api-logs.index') }}" class="bg-surface-800 rounded-xl border border-border-700 p-3 sm:p-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-2">
@@ -175,9 +175,7 @@
                                 @php
                                     $isUnseen = is_null($log->seen_at);
                                 @endphp
-                                <tr class="{{ $isUnseen ? 'log-row-unseen' : '' }} hover:bg-surface-700/60 transition"
-                                    data-log-id="{{ $log->id }}"
-                                    data-is-unseen="{{ $isUnseen ? 'true' : 'false' }}">
+                                <tr class="{{ $isUnseen ? 'log-row-unseen' : '' }} hover:bg-surface-700/60 transition">
                                     <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
                                         {{ \Carbon\Carbon::parse($log->getRawOriginal('created_at'), 'UTC')->setTimezone('Asia/Manila')->format('M j, Y H:i:s') }}
                                     </td>
