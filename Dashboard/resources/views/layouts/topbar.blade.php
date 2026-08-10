@@ -458,7 +458,6 @@
                 const type = log.type || 'api';
                 const badgeText = log.badge_text || (type === 'api' ? 'API' : 'SYS');
                 const badgeColor = log.badge_color || (type === 'api' ? 'text-blue-400' : 'text-purple-400');
-                const icon = log.icon || (type === 'api' ? '📡' : '📝');
                 
                 // Determine background color based on type and level
                 let bgClass = 'hover:bg-surface-700/60';
@@ -497,7 +496,6 @@
                     class="log-item block px-4 py-3 transition-colors border-l-[3px] ${bgClass} ${borderClass}">
                         <div class="flex items-center justify-between gap-2 mb-1">
                             <div class="flex items-center gap-2">
-                                <span class="text-sm">${icon}</span>
                                 <span class="text-[10px] font-semibold uppercase tracking-wide ${badgeColor}">${badgeText}</span>
                                 ${isNew ? '<span class="text-[10px] font-bold text-blue-400">NEW</span>' : ''}
                             </div>

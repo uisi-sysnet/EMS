@@ -84,7 +84,6 @@ class RecentLogsController extends Controller
                 'status_code'  => $log->status_code,
                 'status_color' => $statusColor,
                 'is_seen'      => $log->seen_at !== null,
-                'icon'         => '📡', // API icon
                 'badge_color'  => 'text-blue-400',
                 'badge_text'   => 'API',
             ]);
@@ -94,7 +93,6 @@ class RecentLogsController extends Controller
         foreach ($systemLogs as $log) {
             // Determine level color
             $levelColor = $this->getLevelColor($log->level);
-            $levelIcon = $this->getLevelIcon($log->level);
             
             $entries->push([
                 'type'         => 'system',
@@ -107,7 +105,6 @@ class RecentLogsController extends Controller
                 'status_code'  => $log->level,
                 'status_color' => $levelColor,
                 'is_seen'      => $log->seen_at !== null,
-                'icon'         => $levelIcon,
                 'badge_color'  => $levelColor,
                 'badge_text'   => strtoupper($log->level ?? 'INFO'),
                 'level'        => $log->level,
@@ -139,28 +136,6 @@ class RecentLogsController extends Controller
                 return 'text-gray-400';
             default:
                 return 'text-gray-300';
-        }
-    }
-
-    private function getLevelIcon($level)
-    {
-        switch (strtolower($level)) {
-            case 'emergency':
-            case 'alert':
-            case 'critical':
-                return '🚨';
-            case 'error':
-                return '❌';
-            case 'warning':
-                return '⚠️';
-            case 'notice':
-                return '📢';
-            case 'info':
-                return 'ℹ️';
-            case 'debug':
-                return '🐛';
-            default:
-                return '📝';
         }
     }
 
