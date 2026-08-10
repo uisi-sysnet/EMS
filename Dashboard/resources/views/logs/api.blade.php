@@ -230,14 +230,14 @@
                                     <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs max-w-28 truncate" title="{{ $log->api_key_used }}">
                                         {{ $log->api_key_used }}
                                     </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-xs">
+                                    <td class="px-4 py-2 whitespace-nowrap text-xs text-center min-w-[80px]">
                                         @if($isUnseen)
-                                            <span class="text-blue-400 font-medium flex items-center gap-1">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+                                            <span class="text-blue-400 font-medium inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block"></span>
                                                 Unseen
                                             </span>
                                         @else
-                                            <span class="text-text-500">
+                                            <span class="text-text-500 whitespace-nowrap">
                                                 {{ $log->seen_at->setTimezone('Asia/Manila')->format('h:i A') }}
                                             </span>
                                         @endif
