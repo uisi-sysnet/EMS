@@ -10,11 +10,11 @@ class RecentLogsController extends Controller
 {
     public function index(Request $request)
     {
-        // Fetch 20 most recent API logs
-        $apiLogs = ApiLog::latest()->limit(20)->get();
+        // Fetch 50 most recent API logs
+        $apiLogs = ApiLog::latest()->limit(50)->get();
         
-        // Fetch 20 most recent System logs
-        $systemLogs = SystemLog::latest()->limit(20)->get();
+        // Fetch 50 most recent System logs
+        $systemLogs = SystemLog::latest()->limit(50)->get();
 
         $seenIds = $this->parseSeenIds($request->input('seen', ''));
         
@@ -33,8 +33,8 @@ class RecentLogsController extends Controller
         // Sort by timestamp (created_at) in descending order (newest first)
         // This sorts across both API and System logs by date
         ->sortByDesc('timestamp')
-        // Take the 20 most recent entries overall (combined from both sources)
-        ->take(20)
+        // Take the 50 most recent entries overall (combined from both sources)
+        ->take(50)
         ->values();
 
         return response()->json($logs);
@@ -42,9 +42,9 @@ class RecentLogsController extends Controller
 
     public function count(Request $request)
     {
-        // Get the 20 most recent API logs
-        $apiLogs = ApiLog::latest()->limit(20)->get();
-        $systemLogs = SystemLog::latest()->limit(20)->get();
+        // Get the 50 most recent API logs
+        $apiLogs = ApiLog::latest()->limit(50)->get();
+        $systemLogs = SystemLog::latest()->limit(50)->get();
         
         // Count how many of these have seen_at null
         $unseenCount = 0;

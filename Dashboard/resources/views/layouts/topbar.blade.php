@@ -496,7 +496,7 @@
                     class="log-item block px-4 py-3 transition-colors border-l-[3px] ${bgClass} ${borderClass}">
                         <div class="flex items-center justify-between gap-2 mb-1">
                             <div class="flex items-center gap-2">
-                                <span class="text-[10px] font-semibold uppercase tracking-wide ${badgeColor}">${badgeText}</span>
+                                <span class="text-[10px] font-semibold uppercase tracking-wide ${badgeColor}">${log.time}</span>
                                 ${isNew ? '<span class="text-[10px] font-bold text-blue-400">NEW</span>' : ''}
                             </div>
                             <span class="text-xs font-mono ${log.status_color}">${log.status_code || '--'}</span>
@@ -506,10 +506,6 @@
                         </div>
                         <div class="text-xs text-text-500 truncate mt-0.5">
                             ${log.detail}
-                        </div>
-                        ${log.level ? `<div class="text-[11px] text-text-500 mt-0.5">Level: ${log.level}</div>` : ''}
-                        <div class="text-[11px] text-text-500 mt-1">
-                            ${log.time}
                         </div>
                     </a>`;
             }).join('');
