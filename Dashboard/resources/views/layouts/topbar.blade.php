@@ -92,7 +92,7 @@
                     </button>
 
                     <div id="notification-dropdown"
-                         class="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-[400px] bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-40 overflow-hidden">
+                        class="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-[400px] bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-40 overflow-hidden">
                         <div class="flex items-center justify-between px-4 py-3 border-b border-border-700">
                             <h3 class="text-sm font-semibold text-text-100">Recent Logs</h3>
                             <div class="flex items-center gap-3">
@@ -412,14 +412,13 @@
             });
         }
 
-        // ----- Notification Bell with local storage tracking -----
+        // ----- Notification Bell -----
         const bellButton = document.getElementById('notification-bell');
         const bellDropdown = document.getElementById('notification-dropdown');
         const notificationList = document.getElementById('notification-list');
         const notificationDot = document.getElementById('notification-dot');
         const markAllBtn = document.getElementById('mark-all-seen');
 
-        // Helper: get seen IDs from localStorage
         function getSeenIds() {
             try {
                 return JSON.parse(localStorage.getItem('seen_logs') || '[]');
@@ -428,12 +427,10 @@
             }
         }
 
-        // Helper: save seen IDs
         function setSeenIds(ids) {
             localStorage.setItem('seen_logs', JSON.stringify(ids));
         }
 
-        // Helper: add a single log ID to seen list
         function addSeenId(type, id) {
             const composite = type + '-' + id;
             let seen = getSeenIds();
@@ -443,112 +440,49 @@
             }
         }
 
-        function getLogStyle(log) {
-            // For API logs only
-            const isSeen = log.is_seen || false;
-            
-            return {
-                borderColor: isSeen ? 'border-border-700' : 'border-indigo-500',
-                bgColor: isSeen ? 'bg-surface-800/50' : 'bg-indigo-900/20',
-                hoverBg: isSeen ? 'hover:bg-surface-700/50' : 'hover:bg-indigo-900/30',
-                labelColor: 'text-indigo-400',
-                label: 'API',
-                opacityClass: isSeen ? 'opacity-60' : '',
-                icon: `<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"  
-                        fill="currentColor" viewBox="0 0 24 24" class="text-indigo-400">
-                        <path d="M15.7 2h-.18c-2.19 0-4.26 1.21-5.53 3.25-.81 1.3-1.12 2.62-.93 4.03L2.9 15.37c-.57.56-.89 1.34-.89 2.13V19c0 1.65 1.35 3 3 3H6.6c.8 0 1.55-.31 2.12-.88l.56-.56c.26-.26.46-.58.58-.92.34-.12.65-.32.92-.58l.5-.5c.26-.26.46-.58.58-.92.34-.12.65-.32.92-.58l.5-.5c.29-.29.51-.65.62-1.03.35-.11.66-.31.93-.57.23.03.45.04.68.04 1.14 0 2.25-.35 3.3-1.03 2.13-1.38 3.32-3.56 3.18-5.85-.2-3.38-2.9-6.02-6.29-6.12m2.02 10.29c-.8.52-1.54.71-2.22.71-.49 0-.95-.1-1.39-.24l-.68.76c-.08.09-.19.13-.31.13-.15 0-.31-.06-.48-.19L12 13v1.79c0 .13-.05.26-.15.35l-.5.5a.485.485 0 0 1-.7 0l-.65-.65v1.79c0 .13-.05.26-.15.35l-.5.5a.485.485 0 0 1-.7 0L8 16.98v1.79c0 .13-.05.26-.15.35l-.56.56a1 1 0 0 1-.71.29H4.99c-.55 0-1-.45-1-1v-1.5a1 1 0 0 1 .3-.71l6.95-6.88c-.35-1.06-.43-2.24.43-3.61.85-1.35 2.25-2.31 3.84-2.31h.12c2.33.07 4.22 1.92 4.35 4.23.1 1.66-.88 3.15-2.28 4.05Z"></path><path d="M14 6.69 17.31 10c.92-.92.92-2.4 0-3.31s-2.4-.91-3.31 0"></path>
-                    </svg>`
-            };
-        }
-
-        // Helper: get all unseen log entries from the server
-        function fetchRecentLogs() {
-            const seen = getSeenIds();
-            const seenParam = seen.join(',');
-
-            notificationList.innerHTML = `
-                <div class="px-4 py-6 text-sm text-text-400 text-center">
-                    <svg class="animate-spin h-5 w-5 mx-auto text-radar-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Loading logs…
-                </div>
-            `;
-
-            fetch(`{{ route('recent-logs') }}?seen=${encodeURIComponent(seenParam)}`)
-                .then(response => response.json())
-                .then(logs => {
-                    renderLogs(logs);
-                })
-                .catch(error => {
-                    notificationList.innerHTML = `
-                        <div class="px-4 py-6 text-sm text-red-400 text-center">Failed to load logs.</div>
-                    `;
-                    console.error('Error fetching recent logs:', error);
-                });
-        }
-
         function renderLogs(logs) {
-            if (logs.length === 0) {
+            if (!logs.length) {
                 notificationList.innerHTML = `
-                    <div class="px-4 py-6 text-sm text-text-400 text-center">📭 No API logs available.</div>
-                `;
+                    <div class="px-4 py-8 text-center text-text-500 text-sm">
+                        No recent logs
+                    </div>`;
                 notificationDot.classList.add('hidden');
                 bellButton.classList.remove('animate-pulse');
                 return;
             }
 
-            // Check if there are any unseen logs
             const hasUnseen = logs.some(log => !log.is_seen);
-            
-            let html = '';
-            logs.forEach(log => {
-                const style = getLogStyle(log);
-                const url = log.url;
-                // Determine if it's a new log (not seen)
+
+            notificationList.innerHTML = logs.map(log => {
                 const isNew = !log.is_seen;
-                const newBadge = isNew ? `
-                    <span class="text-xs font-bold text-green-400 px-2 py-0.5 rounded-full bg-green-900/30 border border-green-500/30 animate-pulse ml-1">
-                        NEW
-                    </span>
-                ` : '';
-                
-                // Different styling for seen vs unseen
-                const bgClass = isNew ? 'bg-indigo-900/20 hover:bg-indigo-900/30' : 'bg-surface-800/50 hover:bg-surface-700/50';
-                const borderClass = isNew ? 'border-indigo-500' : 'border-border-700';
-                const opacityClass = isNew ? '' : 'opacity-60';
-                const hoverScale = isNew ? 'hover:scale-[1.01]' : '';
-                
-                html += `
-                    <a href="${url}"
+                return `
+                    <a href="${log.url}"
                     data-type="${log.type}"
                     data-id="${log.id}"
                     data-seen="${log.is_seen}"
-                    class="log-item block px-4 py-3 border-l-4 ${borderClass} ${bgClass} ${opacityClass} transition-all duration-200 hover:shadow-lg ${hoverScale} transform">
-                        <div class="flex items-start gap-3">
-                            <span class="text-lg flex-shrink-0 mt-0.5">${style.icon}</span>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2 mb-0.5 flex-wrap">
-                                    <span class="text-xs font-bold ${style.labelColor} px-2 py-0.5 rounded-full bg-surface-800/50">${style.label}</span>
-                                    ${newBadge}
-                                    <span class="text-xs font-mono ${log.status_color} px-2 py-0.5 rounded-full bg-surface-800/50">${log.status_code}</span>
-                                </div>
-                                <div class="text-sm ${isNew ? 'text-text-100' : 'text-text-400'} font-medium">${log.summary}</div>
-                                <div class="text-xs ${isNew ? 'text-text-400' : 'text-text-500'} truncate mt-0.5">${log.detail}</div>
-                                <div class="text-xs ${isNew ? 'text-text-500' : 'text-text-600'} mt-1 flex items-center gap-1">
-                                    <span>${log.time}</span>
-                                    ${isNew ? '<span class="text-green-400">●</span>' : '<span class="text-text-600">●</span>'}
-                                </div>
+                    class="log-item block px-4 py-3 transition-colors
+                            ${isNew
+                                ? 'bg-indigo-900/15 hover:bg-indigo-900/25 border-l-2 border-indigo-500'
+                                : 'hover:bg-surface-700/60 border-l-2 border-transparent opacity-70'}">
+                        <div class="flex items-center justify-between gap-2 mb-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-semibold uppercase tracking-wide text-indigo-400">API</span>
+                                ${isNew ? '<span class="text-[10px] font-bold text-green-400">NEW</span>' : ''}
                             </div>
-                            ${isNew ? '<span class="text-xs text-green-400 flex-shrink-0 mt-0.5 animate-pulse">✦</span>' : '<span class="text-xs text-text-600 flex-shrink-0 mt-0.5">●</span>'}
+                            <span class="text-xs font-mono ${log.status_color}">${log.status_code}</span>
                         </div>
-                    </a>
-                `;
-            });
-            notificationList.innerHTML = html;
-            
-            // Show dot and pulse if there are any unseen logs
+                        <div class="text-sm ${isNew ? 'text-text-100' : 'text-text-400'} font-medium truncate">
+                            ${log.summary}
+                        </div>
+                        <div class="text-xs text-text-500 truncate mt-0.5">
+                            ${log.detail}
+                        </div>
+                        <div class="text-[11px] text-text-600 mt-1">
+                            ${log.time}
+                        </div>
+                    </a>`;
+            }).join('');
+
             if (hasUnseen) {
                 notificationDot.classList.remove('hidden');
                 bellButton.classList.add('animate-pulse');
@@ -558,185 +492,88 @@
             }
 
             document.querySelectorAll('.log-item').forEach(item => {
-                item.addEventListener('click', function(e) {
-                    const type = this.dataset.type;
-                    const id = this.dataset.id;
-                    const isSeen = this.dataset.seen === 'true' || this.dataset.seen === '1';
-                    
-                    // Only mark as seen if it wasn't already
-                    if (!isSeen) {
-                        addSeenId(type, id);
-                        
-                        // Update the UI to show it as seen
-                        this.dataset.seen = 'true';
-                        this.classList.remove('bg-indigo-900/20', 'hover:bg-indigo-900/30', 'border-indigo-500', 'hover:scale-[1.01]');
-                        this.classList.add('bg-surface-800/50', 'hover:bg-surface-700/50', 'border-border-700', 'opacity-60');
-                        
-                        // Remove NEW badge and indicators
-                        const newBadge = this.querySelector('.animate-pulse');
-                        if (newBadge) newBadge.remove();
-                        
-                        const indicators = this.querySelectorAll('.text-green-400');
-                        indicators.forEach(el => {
-                            if (el.textContent === '●' || el.textContent === '✦') {
-                                el.className = 'text-text-600';
-                                el.textContent = '●';
-                            }
-                        });
-                        
-                        // Update text colors
-                        const summary = this.querySelector('.text-text-100');
-                        if (summary) summary.className = 'text-sm text-text-400 font-medium';
-                        
-                        const detail = this.querySelector('.text-text-400');
-                        if (detail) detail.className = 'text-xs text-text-500 truncate mt-0.5';
-                        
-                        const time = this.querySelector('.text-text-500');
-                        if (time) time.className = 'text-xs text-text-600 mt-1 flex items-center gap-1';
-                        
-                        // Check if any unseen logs remain
-                        const remainingUnseen = document.querySelectorAll('.log-item:not([data-seen="true"])');
-                        if (remainingUnseen.length === 0) {
-                            notificationDot.classList.add('hidden');
-                            bellButton.classList.remove('animate-pulse');
-                        }
+                item.addEventListener('click', function () {
+                    if (this.dataset.seen === 'true' || this.dataset.seen === '1') return;
+
+                    addSeenId(this.dataset.type, this.dataset.id);
+                    this.dataset.seen = 'true';
+
+                    this.classList.remove('bg-indigo-900/15', 'hover:bg-indigo-900/25', 'border-indigo-500');
+                    this.classList.add('hover:bg-surface-700/60', 'border-transparent', 'opacity-70');
+
+                    const newBadge = this.querySelector('.text-green-400');
+                    if (newBadge) newBadge.remove();
+
+                    const summary = this.querySelector('.text-text-100');
+                    if (summary) {
+                        summary.classList.remove('text-text-100');
+                        summary.classList.add('text-text-400');
+                    }
+
+                    if (!document.querySelector('.log-item:not([data-seen="true"])')) {
+                        notificationDot.classList.add('hidden');
+                        bellButton.classList.remove('animate-pulse');
                     }
                 });
             });
         }
 
         function markAllAsSeen() {
-            // Get all unseen log items
             const unseenItems = document.querySelectorAll('.log-item:not([data-seen="true"])');
-            
-            if (unseenItems.length === 0) {
-                // Show a temporary message
-                const tempMsg = document.createElement('div');
-                tempMsg.className = 'px-4 py-2 text-sm text-text-400 text-center bg-surface-700/50';
-                tempMsg.textContent = 'No unseen logs to mark.';
-                const list = document.getElementById('notification-list');
-                list.prepend(tempMsg);
-                setTimeout(() => tempMsg.remove(), 2000);
-                return;
-            }
-            
-            // Collect IDs
-            const ids = [];
-            unseenItems.forEach(item => {
-                const type = item.dataset.type;
-                const id = item.dataset.id;
-                ids.push({ type, id });
-            });
-            
-            // Show loading state on the button
-            const markAllBtn = document.getElementById('mark-all-seen');
-            const originalText = markAllBtn.textContent;
-            markAllBtn.textContent = 'Processing...';
+            if (!unseenItems.length) return;
+
+            const ids = Array.from(unseenItems).map(item => ({
+                type: item.dataset.type,
+                id: item.dataset.id
+            }));
+
+            markAllBtn.textContent = 'Processing…';
             markAllBtn.disabled = true;
-            
-            // Send to server to mark as seen
+
             fetch('{{ route("api-logs.mark-as-seen") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
                 },
-                body: JSON.stringify({ ids: ids })
+                body: JSON.stringify({ ids })
             })
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
-                // Restore button
-                markAllBtn.textContent = originalText;
+                markAllBtn.textContent = 'Mark all as seen';
                 markAllBtn.disabled = false;
-                
+
                 if (data.success) {
-                    // Also mark in local storage
-                    ids.forEach(({ type, id }) => {
-                        addSeenId(type, id);
-                    });
-                    
-                    // Mark all items as seen in UI
+                    ids.forEach(({ type, id }) => addSeenId(type, id));
                     unseenItems.forEach(item => {
-                        markItemAsSeen(item);
+                        item.dataset.seen = 'true';
+                        item.classList.remove('bg-indigo-900/15', 'hover:bg-indigo-900/25', 'border-indigo-500');
+                        item.classList.add('hover:bg-surface-700/60', 'border-transparent', 'opacity-70');
+                        const badge = item.querySelector('.text-green-400');
+                        if (badge) badge.remove();
+                        const summary = item.querySelector('.text-text-100');
+                        if (summary) {
+                            summary.classList.remove('text-text-100');
+                            summary.classList.add('text-text-400');
+                        }
                     });
-                    
                     notificationDot.classList.add('hidden');
                     bellButton.classList.remove('animate-pulse');
-                    
-                    // Show success message
-                    const successMsg = document.createElement('div');
-                    successMsg.className = 'px-4 py-2 text-sm text-green-400 text-center bg-green-900/20';
-                    successMsg.textContent = `✅ ${unseenItems.length} log(s) marked as seen.`;
-                    const list = document.getElementById('notification-list');
-                    list.prepend(successMsg);
-                    setTimeout(() => successMsg.remove(), 3000);
-                } else {
-                    // Show error message
-                    const errorMsg = document.createElement('div');
-                    errorMsg.className = 'px-4 py-2 text-sm text-red-400 text-center bg-red-900/20';
-                    errorMsg.textContent = '❌ Failed to mark logs as seen. Please try again.';
-                    const list = document.getElementById('notification-list');
-                    list.prepend(errorMsg);
-                    setTimeout(() => errorMsg.remove(), 3000);
                 }
             })
-            .catch(error => {
-                // Restore button
-                markAllBtn.textContent = originalText;
+            .catch(() => {
+                markAllBtn.textContent = 'Mark all as seen';
                 markAllBtn.disabled = false;
-                
-                console.error('Error marking all as seen:', error);
-                
-                // Show error message
-                const errorMsg = document.createElement('div');
-                errorMsg.className = 'px-4 py-2 text-sm text-red-400 text-center bg-red-900/20';
-                errorMsg.textContent = '❌ Network error. Please try again.';
-                const list = document.getElementById('notification-list');
-                list.prepend(errorMsg);
-                setTimeout(() => errorMsg.remove(), 3000);
             });
         }
 
-        // Helper function to mark a single item as seen in UI
-        function markItemAsSeen(item) {
-            item.dataset.seen = 'true';
-            item.classList.remove('bg-indigo-900/20', 'hover:bg-indigo-900/30', 'border-indigo-500', 'hover:scale-[1.01]');
-            item.classList.add('bg-surface-800/50', 'hover:bg-surface-700/50', 'border-border-700', 'opacity-60');
-            
-            // Remove NEW badge and indicators
-            const newBadge = item.querySelector('.animate-pulse');
-            if (newBadge) newBadge.remove();
-            
-            const indicators = item.querySelectorAll('.text-green-400');
-            indicators.forEach(el => {
-                if (el.textContent === '●' || el.textContent === '✦') {
-                    el.className = 'text-text-600';
-                    el.textContent = '●';
-                }
-            });
-            
-            // Update text colors
-            const summary = item.querySelector('.text-text-100');
-            if (summary) summary.className = 'text-sm text-text-400 font-medium';
-            
-            const detail = item.querySelector('.text-text-400');
-            if (detail) detail.className = 'text-xs text-text-500 truncate mt-0.5';
-            
-            const time = item.querySelector('.text-text-500');
-            if (time) time.className = 'text-xs text-text-600 mt-1 flex items-center gap-1';
-        }
-
-        // Update the dot visibility on page load
         function updateDot() {
-            const seen = getSeenIds();
-            const seenParam = seen.join(',');
-
+            const seenParam = getSeenIds().join(',');
             fetch(`{{ route('recent-logs.count') }}?seen=${encodeURIComponent(seenParam)}`)
-                .then(response => response.json())
+                .then(r => r.json())
                 .then(data => {
                     if (data.count > 0) {
                         notificationDot.classList.remove('hidden');
-                        // Add animation to the bell
                         bellButton.classList.add('animate-pulse');
                     } else {
                         notificationDot.classList.add('hidden');
@@ -749,7 +586,6 @@
                 });
         }
 
-        // Bell click toggle and fetch
         if (bellButton && bellDropdown) {
             bellButton.addEventListener('click', function (e) {
                 e.stopPropagation();
@@ -758,38 +594,26 @@
                 this.setAttribute('aria-expanded', String(!isOpen));
 
                 if (!isOpen) {
-                    // Fetch all 20 most recent API logs
                     notificationList.innerHTML = `
                         <div class="px-4 py-6 text-sm text-text-400 text-center">
-                            <svg class="animate-spin h-5 w-5 mx-auto text-radar-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Loading API logs…
-                        </div>
-                    `;
-                    
-                    // Get seen IDs from localStorage
-                    const seen = getSeenIds();
-                    const seenParam = seen.join(',');
-                    
+                            Loading…
+                        </div>`;
+                    const seenParam = getSeenIds().join(',');
                     fetch(`{{ route('recent-logs') }}?seen=${encodeURIComponent(seenParam)}`)
-                        .then(response => response.json())
-                        .then(logs => {
-                            renderLogs(logs);
-                        })
-                        .catch(error => {
+                        .then(r => r.json())
+                        .then(renderLogs)
+                        .catch(() => {
                             notificationList.innerHTML = `
-                                <div class="px-4 py-6 text-sm text-red-400 text-center">Failed to load API logs.</div>
-                            `;
-                            console.error('Error fetching recent logs:', error);
+                                <div class="px-4 py-6 text-sm text-red-400 text-center">
+                                    Failed to load logs
+                                </div>`;
                         });
                 }
             });
         }
 
         if (markAllBtn) {
-            markAllBtn.addEventListener('click', function(e) {
+            markAllBtn.addEventListener('click', e => {
                 e.preventDefault();
                 markAllAsSeen();
             });
