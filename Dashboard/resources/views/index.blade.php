@@ -69,6 +69,65 @@
     $cpuColors  = $barColor($cpuPercent);
     $memColors  = $barColor($memPercent);
     $diskColors = $barColor($diskPercent);
+
+    // --- Station status -------------------------------------------------
+    // There's no explicit "status" field coming from the query, so a
+    // station is treated as Online if it has reported data within this
+    // many minutes; otherwise Offline. Adjust to match how often your
+    // stations actually check in (or swap this out entirely for a real
+    // $item->status column if/when the controller provides one).
+    $onlineThresholdMinutes = 60;
+
+    $annotateStatus = function ($collection) use ($onlineThresholdMinutes) {
+        $online = 0;
+        foreach ($collection as $item) {
+            $isOnline = false;
+            if (!empty($item->latest_at)) {
+                $isOnline = \Carbon\Carbon::parse($item->latest_at)->diffInMinutes(now()) <= $onlineThresholdMinutes;
+            }
+            $item->is_online = $isOnline;
+            if ($isOnline) $online++;
+        }
+        return $online;
+    };
+
+    $airQualityData    = $airQualityData ?? [];
+    $seismicData       = $seismicData ?? [];
+    $airQualityOnline  = $annotateStatus($airQualityData);
+    $seismicOnline     = $annotateStatus($seismicData);
+    $airQualityTotal   = count($airQualityData);
+    $seismicTotal      = count($seismicData);
+
+    $totalStations = $airQualityTotal + $seismicTotal;
+    $totalOnline   = $airQualityOnline + $seismicOnline;
+    $overallOnlinePercent = $totalStations > 0 ? round(($totalOnline / $totalStations) * 100, 1) : 100;
+
+    // System status thresholds (based on % of stations online):
+    //   100%        -> Good
+    //   80% - 99%   -> Warning
+    //   below 80%   -> Critical
+    if ($overallOnlinePercent >= 100) {
+        $systemStatus = 'good';
+    } elseif ($overallOnlinePercent >= 80) {
+        $systemStatus = 'warning';
+    } else {
+        $systemStatus = 'critical';
+    }
+
+    $systemStatusMeta = [
+        'good' => [
+            'label' => 'All Systems Good', 'text' => 'text-munti-green-400',
+            'bg' => 'bg-munti-green-700/10', 'border' => 'border-munti-green-600/30', 'dot' => 'bg-munti-green-400',
+        ],
+        'warning' => [
+            'label' => 'Warning', 'text' => 'text-amber-400',
+            'bg' => 'bg-amber-700/10', 'border' => 'border-amber-600/30', 'dot' => 'bg-amber-400',
+        ],
+        'critical' => [
+            'label' => 'Critical', 'text' => 'text-red-400',
+            'bg' => 'bg-red-700/10', 'border' => 'border-red-600/30', 'dot' => 'bg-red-400',
+        ],
+    ][$systemStatus];
 @endphp
 
 <style>
@@ -98,6 +157,22 @@
         <!-- Body – scrollable -->
         <div class="flex-1 p-3 sm:p-4 overflow-y-auto thin-scrollbar min-h-0 bg-background-900">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                <!-- SYSTEM STATUS BANNER -->
+                <div class="lg:col-span-2 rounded-xl border {{ $systemStatusMeta['border'] }} {{ $systemStatusMeta['bg'] }} overflow-hidden">
+                    <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-2.5 w-2.5">
+                                @if($systemStatus !== 'good')
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full {{ $systemStatusMeta['dot'] }} opacity-60"></span>
+                                @endif
+                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 {{ $systemStatusMeta['dot'] }}"></span>
+                            </span>
+                            <span class="text-sm font-semibold {{ $systemStatusMeta['text'] }}">{{ $systemStatusMeta['label'] }}</span>
+                        </div>
+                        <span class="text-xs text-text-300">{{ $totalOnline }}/{{ $totalStations }} stations online ({{ $overallOnlinePercent }}%)</span>
+                    </div>
+                </div>
 
                 <!-- SYSTEM HEALTH: CPU / Memory / Storage / Uptime -->
                 <div class="lg:col-span-2 bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
@@ -172,6 +247,72 @@
                     </div>
                 </div>
 
+                <!-- Air Quality Station Status -->
+                <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                    <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                        <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                            <span class="truncate">Air Quality Station Status</span>
+                        </h3>
+                        <span class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
+                            {{ $airQualityOnline }}/{{ $airQualityTotal }} online
+                        </span>
+                    </div>
+                    <div class="p-3 sm:p-4 flex items-center gap-4">
+                        <div class="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0">
+                            <canvas id="airQualityStatusChart"></canvas>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span class="text-sm sm:text-base font-bold text-text-100">{{ $airQualityTotal > 0 ? round(($airQualityOnline / $airQualityTotal) * 100) : 100 }}%</span>
+                                <span class="text-[9px] text-text-400 uppercase">Online</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-1.5 text-xs w-full">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-munti-green-400"></span>
+                                <span class="text-text-300">Online</span>
+                                <span class="text-text-100 font-semibold ml-auto">{{ $airQualityOnline }}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                                <span class="text-text-300">Offline</span>
+                                <span class="text-text-100 font-semibold ml-auto">{{ $airQualityTotal - $airQualityOnline }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seismic Station Status -->
+                <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                    <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                        <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                            <span class="truncate">Seismic Station Status</span>
+                        </h3>
+                        <span class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
+                            {{ $seismicOnline }}/{{ $seismicTotal }} online
+                        </span>
+                    </div>
+                    <div class="p-3 sm:p-4 flex items-center gap-4">
+                        <div class="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0">
+                            <canvas id="seismicStatusChart"></canvas>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span class="text-sm sm:text-base font-bold text-text-100">{{ $seismicTotal > 0 ? round(($seismicOnline / $seismicTotal) * 100) : 100 }}%</span>
+                                <span class="text-[9px] text-text-400 uppercase">Online</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-1.5 text-xs w-full">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-munti-green-400"></span>
+                                <span class="text-text-300">Online</span>
+                                <span class="text-text-100 font-semibold ml-auto">{{ $seismicOnline }}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                                <span class="text-text-300">Offline</span>
+                                <span class="text-text-100 font-semibold ml-auto">{{ $seismicTotal - $seismicOnline }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- LEFT COLUMN: Air Quality -->
                 <div class="flex flex-col gap-4">
                     <!-- Graph Card -->
@@ -209,10 +350,11 @@
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Installation</th>
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Latest</th>
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Total</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-surface-800 divide-y divide-border-800">
-                                    @forelse ($airQualityData ?? [] as $item)
+                                    @forelse ($airQualityData as $item)
                                     <tr class="hover:bg-surface-700 transition h-10">
                                         <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
@@ -224,10 +366,21 @@
                                             {{ \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d') }}
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap">
+                                            @if($item->is_online)
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 px-1.5 py-0.5 rounded-full">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span> Online
+                                            </span>
+                                            @else
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium text-red-400 bg-red-700/20 border border-red-600/30 px-1.5 py-0.5 rounded-full">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span> Offline
+                                            </span>
+                                            @endif
+                                        </td>
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="6" class="px-2 py-4 text-center text-text-400">No air quality data available</td>
+                                        <td colspan="7" class="px-2 py-4 text-center text-text-400">No air quality data available</td>
                                     </tr>
                                     @endforelse
                                 </tbody>
@@ -273,10 +426,11 @@
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Installation</th>
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Latest</th>
                                         <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Total</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-surface-800 divide-y divide-border-800">
-                                    @forelse ($seismicData ?? [] as $item)
+                                    @forelse ($seismicData as $item)
                                     <tr class="hover:bg-surface-700 transition h-10">
                                         <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
@@ -288,10 +442,21 @@
                                             {{ \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d') }}
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap">
+                                            @if($item->is_online)
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 px-1.5 py-0.5 rounded-full">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span> Online
+                                            </span>
+                                            @else
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium text-red-400 bg-red-700/20 border border-red-600/30 px-1.5 py-0.5 rounded-full">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span> Offline
+                                            </span>
+                                            @endif
+                                        </td>
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="6" class="px-2 py-4 text-center text-text-400">No seismic data available</td>
+                                        <td colspan="7" class="px-2 py-4 text-center text-text-400">No seismic data available</td>
                                     </tr>
                                     @endforelse
                                 </tbody>
@@ -390,6 +555,42 @@
             },
             options: chartDefaults
         });
+
+        // Station status donut charts (Online vs Offline)
+        function makeStatusChart(canvasId, online, offline) {
+            const el = document.getElementById(canvasId);
+            if (!el) return;
+            new Chart(el.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Online', 'Offline'],
+                    datasets: [{
+                        data: [online, offline],
+                        backgroundColor: ['#2DD4BF', '#F87171'],
+                        borderColor: '#1E293B',
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '72%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1A1A1A',
+                            titleColor: '#F3F4F6',
+                            bodyColor: '#E5E7EB',
+                            borderColor: '#374151',
+                            borderWidth: 1
+                        }
+                    }
+                }
+            });
+        }
+
+        makeStatusChart('airQualityStatusChart', {{ $airQualityOnline }}, {{ $airQualityTotal - $airQualityOnline }});
+        makeStatusChart('seismicStatusChart', {{ $seismicOnline }}, {{ $seismicTotal - $seismicOnline }});
     });
     setTimeout(function() {
         location.reload();
