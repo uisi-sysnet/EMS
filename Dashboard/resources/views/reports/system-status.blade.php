@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>System Status Report</title>
+    <title>Environment Monitoring System Status Report</title>
     <style>
         /* dompdf only understands a subset of CSS: no flexbox/grid, so
            this template sticks to block/table layout and inline-safe
@@ -45,15 +45,34 @@
         .summary-box table {
             width: 100%;
         }
+        .summary-box th {
+            font-size: 9.5px;
+            font-weight: normal;
+            color: #777;
+            text-transform: uppercase;
+            text-align: center;
+            padding: 2px 0 6px 0;
+        }
         .summary-box td {
             font-size: 11px;
             text-align: center;
             padding: 2px 0;
         }
+        .summary-box th:first-child,
+        .summary-box td:first-child {
+            text-align: left;
+            width: 100px;
+            font-weight: bold;
+            color: #333;
+        }
         .summary-box .num {
             font-size: 16px;
             font-weight: bold;
             color: #0F766E;
+        }
+        .summary-box .total-row td {
+            border-top: 1px solid #ccc;
+            padding-top: 6px;
         }
         h2.section-title {
             font-size: 13px;
@@ -91,9 +110,14 @@
             font-weight: bold;
             color: #fff;
         }
-        .status-online  { background: #16A34A; }
-        .status-idle    { background: #D97706; }
-        .status-offline { background: #DC2626; }
+        .status-online   { background: #16A34A; }
+        .status-idle     { background: #D97706; }
+        .status-offline  { background: #DC2626; }
+        /* System status (uptime / storage) thresholds:
+           <=80% critical, 81-99% warning, 100% good */
+        .status-good     { background: #16A34A; }
+        .status-warning  { background: #D97706; }
+        .status-critical { background: #DC2626; }
         .footer {
             margin-top: 24px;
             padding-top: 8px;
@@ -106,8 +130,26 @@
 </head>
 <body>
 
+    @php
+        // Shared threshold logic for percentage-based system metrics
+        // (uptime %, storage %): 100% = good, 81-99% = warning,
+        // 80% and below = critical.
+        $systemStatusClass = function ($percent) {
+            if ($percent === null) return 'status-warning';
+            if ($percent >= 100) return 'status-good';
+            if ($percent >= 81) return 'status-warning';
+            return 'status-critical';
+        };
+        $systemStatusLabel = function ($percent) {
+            if ($percent === null) return 'N/A';
+            if ($percent >= 100) return 'Good';
+            if ($percent >= 81) return 'Warning';
+            return 'Critical';
+        };
+    @endphp
+
     <div class="header">
-        <h1>System Status Report</h1>
+        <h1>Environment Monitoring System Status Report</h1>
         <table class="meta-table">
             <tr>
                 <td class="label">Report Date/Time:</td>
@@ -120,28 +162,81 @@
         </table>
     </div>
 
+    {{-- ---------- Stations Status Summary ---------- --}}
+    <h2 class="section-title">Stations Status Summary</h2>
     <div class="summary-box">
         <table>
             <tr>
-                <td>
-                    <div class="num">{{ $airQualityCounts['online'] + $seismicCounts['online'] }}</div>
-                    Online
-                </td>
-                <td>
-                    <div class="num">{{ $airQualityCounts['idle'] + $seismicCounts['idle'] }}</div>
-                    Idle
-                </td>
-                <td>
-                    <div class="num">{{ $airQualityCounts['offline'] + $seismicCounts['offline'] }}</div>
-                    Offline
-                </td>
-                <td>
-                    <div class="num">{{ count($airQualityData) + count($seismicData) }}</div>
-                    Total Stations
-                </td>
+                <th></th>
+                <th>Online</th>
+                <th>Idle</th>
+                <th>Offline</th>
+                <th>Total</th>
+            </tr>
+            <tr>
+                <td>Air Quality</td>
+                <td class="num">{{ $airQualityCounts['online'] }}</td>
+                <td class="num">{{ $airQualityCounts['idle'] }}</td>
+                <td class="num">{{ $airQualityCounts['offline'] }}</td>
+                <td class="num">{{ count($airQualityData) }}</td>
+            </tr>
+            <tr>
+                <td>Seismic</td>
+                <td class="num">{{ $seismicCounts['online'] }}</td>
+                <td class="num">{{ $seismicCounts['idle'] }}</td>
+                <td class="num">{{ $seismicCounts['offline'] }}</td>
+                <td class="num">{{ count($seismicData) }}</td>
+            </tr>
+            <tr class="total-row">
+                <td>Total</td>
+                <td class="num">{{ $airQualityCounts['online'] + $seismicCounts['online'] }}</td>
+                <td class="num">{{ $airQualityCounts['idle'] + $seismicCounts['idle'] }}</td>
+                <td class="num">{{ $airQualityCounts['offline'] + $seismicCounts['offline'] }}</td>
+                <td class="num">{{ count($airQualityData) + count($seismicData) }}</td>
             </tr>
         </table>
     </div>
+
+    {{-- ---------- System Status (uptime / storage) ---------- --}}
+    <h2 class="section-title">System Status</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>Detail</th>
+                <th>Value</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>System Uptime</td>
+                <td>{{ $systemUptimeHuman ?? '—' }}</td>
+                <td>{{ isset($systemUptimePercent) ? number_format($systemUptimePercent, 2) . '%' : '—' }}</td>
+                <td>
+                    <span class="status {{ $systemStatusClass($systemUptimePercent ?? null) }}">
+                        {{ $systemStatusLabel($systemUptimePercent ?? null) }}
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td>Storage</td>
+                <td>
+                    @if (isset($storageUsedGb, $storageTotalGb))
+                        {{ number_format($storageUsedGb, 1) }} GB used of {{ number_format($storageTotalGb, 1) }} GB
+                    @else
+                        —
+                    @endif
+                </td>
+                <td>{{ isset($storagePercent) ? number_format($storagePercent, 2) . '% free' : '—' }}</td>
+                <td>
+                    <span class="status {{ $systemStatusClass($storagePercent ?? null) }}">
+                        {{ $systemStatusLabel($storagePercent ?? null) }}
+                    </span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
 
     {{-- ---------- Air Quality ---------- --}}
     <h2 class="section-title">
@@ -151,12 +246,11 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th>#</th>
-                <th>Station</th>
-                <th>Location</th>
-                <th>Installed</th>
-                <th>Latest Reading</th>
-                <th>Total Data</th>
+                <th>No.</th>
+                <th>Station Name</th>
+                <th>Total no. of Data</th>
+                <th>Latest Data</th>
+                <th>Last Seen</th>
                 <th>Status</th>
             </tr>
         </thead>
@@ -165,16 +259,21 @@
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td>{{ $item->station }}</td>
-                    <td>{{ $item->location ?? '—' }}</td>
-                    <td>{{ $item->installed_at ? \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') : '—' }}</td>
-                    <td>{{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d H:i') : '—' }}</td>
                     <td>{{ number_format($item->total) }}</td>
+                    <td>{{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d H:i') : '—' }}</td>
+                    <td>
+                        @if ($item->status === 'offline' && $item->latest_at)
+                            {{ \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d H:i') }}
+                        @else
+                            —
+                        @endif
+                    </td>
                     <td>
                         <span class="status status-{{ $item->status }}">{{ ucfirst($item->status) }}</span>
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="7">No air quality data available</td></tr>
+                <tr><td colspan="6">No air quality data available</td></tr>
             @endforelse
         </tbody>
     </table>
@@ -187,12 +286,11 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th>#</th>
-                <th>Station</th>
-                <th>Location (Lat, Long)</th>
-                <th>Installed</th>
-                <th>Latest Reading</th>
-                <th>Total Data</th>
+                <th>No.</th>
+                <th>Station Name</th>
+                <th>Total no. of Data</th>
+                <th>Latest Data</th>
+                <th>Last Seen</th>
                 <th>Status</th>
             </tr>
         </thead>
@@ -201,16 +299,21 @@
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td>{{ $item->station }}</td>
-                    <td>{{ $item->location ?? '—' }}</td>
-                    <td>{{ $item->installed_at ? \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') : '—' }}</td>
-                    <td>{{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d H:i') : '—' }}</td>
                     <td>{{ number_format($item->total) }}</td>
+                    <td>{{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d H:i') : '—' }}</td>
+                    <td>
+                        @if ($item->status === 'offline' && $item->latest_at)
+                            {{ \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d H:i') }}
+                        @else
+                            —
+                        @endif
+                    </td>
                     <td>
                         <span class="status status-{{ $item->status }}">{{ ucfirst($item->status) }}</span>
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="7">No seismic data available</td></tr>
+                <tr><td colspan="6">No seismic data available</td></tr>
             @endforelse
         </tbody>
     </table>
