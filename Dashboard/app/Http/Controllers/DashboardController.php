@@ -79,6 +79,29 @@ class DashboardController extends Controller
     }
 
     /**
+     * The aq/seismic database connections store data_time/time as naive
+     * UTC (no offset in the string), while the server/app displays in
+     * Asia/Manila (UTC+8). Left unconverted, the dashboard's "Latest"
+     * column silently showed the raw UTC value as if it were already
+     * local time — e.g. reading 05:31 AM when the server clock actually
+     * read 01:28 PM. This normalizes every installed_at/latest_at value
+     * to a Manila-local string as soon as it leaves the DB, so both the
+     * server-rendered first load and the JSON used by AJAX/PDF are
+     * already correct — no timezone math left for the blade/JS to get
+     * wrong.
+     */
+    private function toManila($rawUtcTimestamp): ?string
+    {
+        if (empty($rawUtcTimestamp)) {
+            return null;
+        }
+
+        return \Carbon\Carbon::parse($rawUtcTimestamp, 'UTC')
+            ->timezone('Asia/Manila')
+            ->format('Y-m-d H:i:s');
+    }
+
+    /**
      * Shared query/merge logic for both the live dashboard and the PDF
      * report, so the two never drift out of sync.
      *
@@ -134,8 +157,8 @@ class DashboardController extends Controller
                     // stations table if one exists — currently falling
                     // back to the IP, same as the rest of the dashboard.
                     'location'     => $station->location ?? $station->lead_ip ?? '—',
-                    'installed_at' => $reading->installed_at ?? null,
-                    'latest_at'    => $reading->latest_at ?? null,
+                    'installed_at' => $this->toManila($reading->installed_at ?? null),
+                    'latest_at'    => $this->toManila($reading->latest_at ?? null),
                     'total'        => $reading->total ?? 0,
                 ];
             })
@@ -174,8 +197,8 @@ class DashboardController extends Controller
                     'location'     => ($station->latitude !== null && $station->longitude !== null)
                         ? number_format((float) $station->latitude, 4) . ', ' . number_format((float) $station->longitude, 4)
                         : '—',
-                    'installed_at' => $reading->installed_at ?? null,
-                    'latest_at'    => $reading->latest_at ?? null,
+                    'installed_at' => $this->toManila($reading->installed_at ?? null),
+                    'latest_at'    => $this->toManila($reading->latest_at ?? null),
                     'total'        => $reading->total ?? 0,
                 ];
             })
@@ -290,7 +313,13 @@ class DashboardController extends Controller
         foreach ($collection as $item) {
             $status = 'offline';
             if (!empty($item->latest_at)) {
-                $minutesAgo = \Carbon\Carbon::parse($item->latest_at)->diffInMinutes(now());
+                // $item->latest_at has already been normalized to an
+                // Asia/Manila-local string by toManila() in
+                // buildDashboardData(), so it must be parsed with that
+                // timezone explicitly — parsing without it would fall
+                // back to the app's default timezone and reintroduce an
+                // 8-hour skew into the online/idle/offline calculation.
+                $minutesAgo = \Carbon\Carbon::parse($item->latest_at, 'Asia/Manila')->diffInMinutes(now());
                 if ($minutesAgo <= $idleThresholdMinutes) {
                     $status = 'online';
                 } elseif ($minutesAgo <= $offlineThresholdMinutes) {
