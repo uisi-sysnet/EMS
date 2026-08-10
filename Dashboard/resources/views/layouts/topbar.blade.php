@@ -462,12 +462,12 @@
                     data-seen="${log.is_seen}"
                     class="log-item block px-4 py-3 transition-colors
                             ${isNew
-                                ? 'bg-indigo-900/15 hover:bg-indigo-900/25 border-l-2 border-indigo-500'
-                                : 'hover:bg-surface-700/60 border-l-2 border-transparent opacity-70'}">
+                                ? 'bg-blue-500/10 hover:bg-blue-500/20 border-l-[3px] border-blue-500/60'
+                                : 'hover:bg-surface-700/60 border-l-[3px] border-transparent opacity-70'}">
                         <div class="flex items-center justify-between gap-2 mb-1">
                             <div class="flex items-center gap-2">
-                                <span class="text-[10px] font-semibold uppercase tracking-wide text-indigo-400">API</span>
-                                ${isNew ? '<span class="text-[10px] font-bold text-green-400">NEW</span>' : ''}
+                                <span class="text-[10px] font-semibold uppercase tracking-wide text-blue-400">API</span>
+                                ${isNew ? '<span class="text-[10px] font-bold text-blue-400">NEW</span>' : ''}
                             </div>
                             <span class="text-xs font-mono ${log.status_color}">${log.status_code}</span>
                         </div>
@@ -498,11 +498,19 @@
                     addSeenId(this.dataset.type, this.dataset.id);
                     this.dataset.seen = 'true';
 
-                    this.classList.remove('bg-indigo-900/15', 'hover:bg-indigo-900/25', 'border-indigo-500');
-                    this.classList.add('hover:bg-surface-700/60', 'border-transparent', 'opacity-70');
+                    this.classList.remove(
+                        'bg-blue-500/10', 
+                        'hover:bg-blue-500/20', 
+                        'border-blue-500/60'
+                    );
+                    this.classList.add(
+                        'hover:bg-surface-700/60', 
+                        'border-transparent', 
+                        'opacity-70'
+                    );
 
-                    const newBadge = this.querySelector('.text-green-400');
-                    if (newBadge) newBadge.remove();
+                    const newBadge = this.querySelector('.text-blue-400');
+                    if (newBadge && newBadge.textContent === 'NEW') newBadge.remove();
 
                     const summary = this.querySelector('.text-text-100');
                     if (summary) {
@@ -547,10 +555,11 @@
                     ids.forEach(({ type, id }) => addSeenId(type, id));
                     unseenItems.forEach(item => {
                         item.dataset.seen = 'true';
-                        item.classList.remove('bg-indigo-900/15', 'hover:bg-indigo-900/25', 'border-indigo-500');
+                        item.classList.remove('bg-blue-500/10', 'hover:bg-blue-500/20', 'border-blue-500/60');
                         item.classList.add('hover:bg-surface-700/60', 'border-transparent', 'opacity-70');
-                        const badge = item.querySelector('.text-green-400');
-                        if (badge) badge.remove();
+
+                        const badge = item.querySelector('.text-blue-400');
+                        if (badge && badge.textContent === 'NEW') badge.remove();
                         const summary = item.querySelector('.text-text-100');
                         if (summary) {
                             summary.classList.remove('text-text-100');
