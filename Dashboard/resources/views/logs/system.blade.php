@@ -244,7 +244,7 @@
                                     <td class="px-4 py-2 whitespace-nowrap text-text-400 text-xs font-mono">
                                         {{ $log->thread_name }}
                                     </td>
-                                    <td class="px-6 py-2 text-text-400">
+                                    <td class="px-4 py-2 text-text-400">
                                         <div class="log-message collapsed rounded px-1 -mx-1"
                                              title="Click to expand / collapse"
                                              onclick="this.classList.toggle('collapsed'); this.classList.toggle('expanded');">
