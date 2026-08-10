@@ -61,17 +61,9 @@ class ApiLogController extends Controller
 
             $log = null;
             
-            // Try to find the log using various methods
-            if ($request->has('log_id') && $request->log_id) {
-                // Method 1: Using ID
-                $log = ApiLog::find($request->log_id);
-                if ($log) {
-                    Log::info('Found log by ID:', ['id' => $request->log_id]);
-                }
-            }
-            
-            if (!$log && $request->has('log_created') && $request->has('log_ip')) {
-                // Method 2: Using created_at and client_ip combination
+            // Find the log using the composite identifier
+            if ($request->has('log_created') && $request->has('log_ip')) {
+                // Method 1: Using created_at and client_ip combination
                 $log = ApiLog::where('created_at', $request->log_created)
                             ->where('client_ip', $request->log_ip)
                             ->first();
@@ -84,7 +76,7 @@ class ApiLogController extends Controller
             }
             
             if (!$log && $request->has('log_index')) {
-                // Method 3: Using index (fallback - get all logs and use index)
+                // Method 2: Using index (get all logs and use index)
                 $logs = ApiLog::orderBy('created_at', 'desc')->get();
                 $index = (int) $request->log_index;
                 if (isset($logs[$index])) {
@@ -112,7 +104,10 @@ class ApiLogController extends Controller
             // Use the model's markAsSeen method
             $log->markAsSeen();
 
-            Log::info('Log marked as seen:', ['id' => $log->id]);
+            Log::info('Log marked as seen:', [
+                'created_at' => $log->created_at,
+                'client_ip' => $log->client_ip
+            ]);
 
             return response()->json([
                 'success' => true,

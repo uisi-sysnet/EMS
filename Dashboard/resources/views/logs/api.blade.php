@@ -203,13 +203,8 @@
                             @forelse($logs as $index => $log)
                                 @php
                                     $isUnseen = is_null($log->seen_at);
-                                    // Create a unique identifier from timestamp and IP (since ID might not exist)
-                                    $uniqueKey = $log->created_at . '_' . $log->client_ip . '_' . $log->path . '_' . $index;
-                                    // Or use the index as fallback
-                                    $rowId = $log->id ?? $index;
                                 @endphp
                                 <tr class="{{ $isUnseen ? 'log-row-unseen' : '' }} hover:bg-surface-700/60 transition"
-                                    data-log-id="{{ $rowId }}"
                                     data-log-index="{{ $index }}"
                                     data-log-created="{{ $log->created_at }}"
                                     data-log-ip="{{ $log->client_ip }}"
