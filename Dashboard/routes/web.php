@@ -62,7 +62,8 @@ Route::middleware(['role:administrator'])->group(function () {
 
     Route::get('/api-logs', [ApiLogController::class, 'index'])->name('api-logs.index');
     Route::get('/api-logs/export', [ApiLogController::class, 'exportCsv'])->name('api-logs.export');
-    Route::post('/api-logs/mark-as-seen', [ApiLogController::class, 'markAsSeen'])->name('api-logs.mark-as-seen');
+    Route::post('/api-logs/{id}/mark-seen', [ApiLogController::class, 'markAsSeenSingle'])->name('api-logs.mark-seen-single');
+    Route::post('/api-logs/mark-seen', [ApiLogController::class, 'markAsSeen'])->name('api-logs.mark-as-seen');
 
     Route::get('/recent-logs', [RecentLogsController::class, 'index'])->name('recent-logs');
     Route::get('/recent-logs/count', [RecentLogsController::class, 'count'])->name('recent-logs.count');

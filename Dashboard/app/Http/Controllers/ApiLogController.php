@@ -53,7 +53,35 @@ class ApiLogController extends Controller
         return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo', 'unseenCount'));
     }
 
-    // Mark logs as seen
+    public function markAsSeenSingle($id)
+    {
+        try {
+            $log = ApiLog::findOrFail($id);
+            
+            if (is_null($log->seen_at)) {
+                $log->update(['seen_at' => now()]);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Log marked as seen.',
+                    'log_id' => $id
+                ]);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Log already seen.',
+                'log_id' => $id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error marking log as seen: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error marking log as seen: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Update your existing markAsSeen method to handle multiple IDs
     public function markAsSeen(Request $request)
     {
         try {
