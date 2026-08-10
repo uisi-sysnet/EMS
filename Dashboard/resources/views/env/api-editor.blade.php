@@ -8,14 +8,39 @@
     .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #6B7280; }
     .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
 
-    /* Highlight for unseen logs - BLUE background */
-    tr.log-row-unseen {
-        background-color: rgba(59, 130, 246, 0.15) !important;
-        border-left: 3px solid #3b82f6;
+    /* Highlight for unseen logs - BLUE background - AGGRESSIVE VERSION */
+    table tbody tr.log-row-unseen {
+        background-color: rgba(59, 130, 246, 0.25) !important;
+        border-left: 4px solid #3b82f6 !important;
+        border-left-style: solid !important;
     }
 
-    tr.log-row-unseen:hover {
+    table tbody tr.log-row-unseen:hover {
+        background-color: rgba(59, 130, 246, 0.35) !important;
+    }
+    
+    /* Force override for all cells in unseen rows */
+    table tbody tr.log-row-unseen td {
+        background-color: transparent !important;
+    }
+    
+    /* Make sure the border-left is visible */
+    table tbody tr.log-row-unseen td:first-child {
+        border-left: none !important;
+    }
+    
+    /* Alternative: Apply to TD elements if row background doesn't work */
+    table tbody tr.log-row-unseen td {
+        background-color: rgba(59, 130, 246, 0.15) !important;
+    }
+
+    table tbody tr.log-row-unseen:hover td {
         background-color: rgba(59, 130, 246, 0.25) !important;
+    }
+
+    /* Add border-left to first TD */
+    table tbody tr.log-row-unseen td:first-child {
+        border-left: 3px solid #3b82f6 !important;
     }
     
     /* Unseen badge pulse animation */
@@ -28,6 +53,11 @@
         50% { opacity: 0.5; }
     }
 
+    /* Debug highlight - temporary */
+    .debug-unseen {
+        outline: 2px solid #f59e0b !important;
+        outline-offset: -2px !important;
+    }
 </style>
 
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
@@ -136,11 +166,22 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-border-800">
+                                    @php
+                                        $unseenCountDebug = 0;
+                                        $totalCountDebug = 0;
+                                    @endphp
                                     @foreach($logs as $log)
                                         @php
                                             $isUnseen = is_null($log->seen_at);
+                                            $unseenCountDebug += $isUnseen ? 1 : 0;
+                                            $totalCountDebug++;
                                         @endphp
-                                        <tr class="transition {{ $isUnseen ? 'log-row-unseen' : 'hover:bg-surface-700/50' }}">
+                                        <!-- Debug: Row {{ $loop->index + 1 }} - ID: {{ $log->id }} - IsUnseen: {{ $isUnseen ? 'YES' : 'NO' }} - seen_at: {{ var_export($log->seen_at, true) }} -->
+                                        <tr class="transition {{ $isUnseen ? 'log-row-unseen' : 'hover:bg-surface-700/50' }}" 
+                                            data-log-id="{{ $log->id }}" 
+                                            data-is-unseen="{{ $isUnseen ? 'true' : 'false' }}"
+                                            data-seen-at="{{ $log->seen_at }}"
+                                            @if($isUnseen) style="background-color: rgba(59, 130, 246, 0.25) !important; border-left: 4px solid #3b82f6 !important;" @endif>
                                             <td class="px-4 py-2.5 whitespace-nowrap">
                                                 <input type="checkbox" class="log-checkbox rounded border-border-600 bg-surface-900 text-radar-600" 
                                                     data-id="{{ $log->id }}" {{ $isUnseen ? 'data-unseen="true"' : '' }}>
@@ -193,6 +234,17 @@
                                             </td>
                                         </tr>
                                     @endforeach
+                                    <!-- Debug Info Bar -->
+                                    <tr>
+                                        <td colspan="9" class="px-4 py-2 bg-surface-900/50 border-t border-border-700">
+                                            <div class="text-xs text-text-500 flex flex-wrap gap-4">
+                                                <span>Total logs: <strong class="text-text-300">{{ $totalCountDebug }}</strong></span>
+                                                <span>Unseen: <strong class="text-blue-400">{{ $unseenCountDebug }}</strong></span>
+                                                <span>Class applied: <strong class="{{ $unseenCountDebug > 0 ? 'text-green-400' : 'text-red-400' }}">{{ $unseenCountDebug > 0 ? 'YES' : 'NO' }}</strong></span>
+                                                <span>PHP Unseen Count: <strong class="text-yellow-400">{{ $unseenCount ?? 'undefined' }}</strong></span>
+                                            </div>
+                                        </td>
+                                    </tr>
                                 </tbody>
                             </table>
                         @else
@@ -262,14 +314,13 @@
                         </div>
 
                         <div class="overflow-x-auto thin-scrollbar flex-1">
-                            @if($ips->isNotEmpty())
+                            @if(isset($ips) && $ips->isNotEmpty())
                                 <table class="min-w-full divide-y divide-border-700">
                                     <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500">
                                         <tr>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">IP/Network</th>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Label</th>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
-                                            {{-- <th scope="col" class="px-4 py-3 text-left font-medium">Created</th> --}}
                                             <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
                                         </tr>
                                     </thead>
@@ -290,9 +341,6 @@
                                                         {{ $ip->enabled ? 'Enabled' : 'Disabled' }}
                                                     </span>
                                                 </td>
-                                                {{-- <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                                    {{ \Carbon\Carbon::parse($ip->created_at)->format('Y-m-d h:i A') }}
-                                                </td> --}}
                                                 <td class="px-4 py-2.5 whitespace-nowrap text-right">
                                                     <button type="button"
                                                             class="delete-ip text-munti-red-400 hover:text-munti-red-300 transition p-1.5 rounded-lg hover:bg-munti-red-700/20"
@@ -720,10 +768,95 @@
         });
     });
 
-        // ============ MARK AS SEEN FUNCTIONALITY ============
+    // ============ MARK AS SEEN FUNCTIONALITY ============
     
     // Mark individual or selected logs as seen
     document.addEventListener('DOMContentLoaded', function() {
+        // ============ COMPLETE DEBUGGING ============
+        console.log('=== API LOGS DEBUG ===');
+        
+        // Check PHP variables
+        console.log('Unseen count from PHP:', {{ $unseenCount ?? 'undefined' }});
+        
+        // Check all rows
+        const rows = document.querySelectorAll('tbody tr');
+        console.log('Total rows found:', rows.length);
+        
+        let unseenClassCount = 0;
+        let unseenTextCount = 0;
+        
+        rows.forEach((row, index) => {
+            const isUnseen = row.classList.contains('log-row-unseen');
+            const logId = row.dataset.logId;
+            const seenAt = row.dataset.seenAt;
+            const seenAtText = row.querySelector('td:last-child')?.textContent?.trim();
+            
+            if (isUnseen) unseenClassCount++;
+            if (seenAtText && seenAtText.includes('Unseen')) unseenTextCount++;
+            
+            console.log(`Row ${index + 1}:`, {
+                id: logId,
+                hasClass: isUnseen,
+                seenAt: seenAt,
+                seenAtText: seenAtText,
+                className: row.className,
+                style: row.getAttribute('style'),
+                computedBg: getComputedStyle(row).backgroundColor
+            });
+            
+            // Add a yellow border for debugging if it should be unseen
+            if (seenAtText && seenAtText.includes('Unseen')) {
+                if (!isUnseen) {
+                    console.warn(`⚠️ Row ${index + 1} has "Unseen" text but no class!`);
+                    row.style.outline = '3px solid #f59e0b';
+                    row.style.outlineOffset = '-3px';
+                } else {
+                    console.log(`✅ Row ${index + 1} correctly has class and text`);
+                }
+            }
+        });
+        
+        console.log('Rows with log-row-unseen class:', unseenClassCount);
+        console.log('Rows with "Unseen" text:', unseenTextCount);
+        
+        // Check if there's any conflict with CSS
+        const allStyles = document.styleSheets;
+        let foundStyle = false;
+        let styleRules = [];
+        
+        for (let sheet of allStyles) {
+            try {
+                const rules = sheet.cssRules || sheet.rules;
+                if (rules) {
+                    for (let rule of rules) {
+                        if (rule.selectorText && rule.selectorText.includes('log-row-unseen')) {
+                            console.log('Found CSS rule:', rule.selectorText, rule.style.cssText);
+                            styleRules.push(rule);
+                            foundStyle = true;
+                        }
+                    }
+                }
+            } catch(e) {
+                // CORS or other errors accessing stylesheets
+            }
+        }
+        
+        if (!foundStyle) {
+            console.warn('⚠️ No CSS rules found for .log-row-unseen!');
+        } else {
+            console.log('✅ Found', styleRules.length, 'CSS rules for .log-row-unseen');
+        }
+        
+        // Check if any row has inline style
+        rows.forEach((row, index) => {
+            const style = row.getAttribute('style');
+            if (style && style.includes('background-color')) {
+                console.log(`Row ${index + 1} has inline style:`, style);
+            }
+        });
+        
+        console.log('=== END DEBUG ===');
+        
         // Select all checkbox
         const selectAll = document.getElementById('selectAllLogs');
         const checkboxes = document.querySelectorAll('.log-checkbox');
