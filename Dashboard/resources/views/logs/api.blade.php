@@ -280,6 +280,13 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+        }
+
         // Individual row click handler
         document.querySelectorAll('tbody tr[data-log-id]').forEach(row => {
             row.addEventListener('click', async function(e) {
@@ -296,14 +303,28 @@
                     return;
                 }
                 
+                // Show loading state
+                this.style.opacity = '0.6';
+                
                 try {
-                    const response = await fetch(`/api-logs/${logId}/mark-seen`, {
+                    // Use the correct route with proper URL construction
+                    const url = `/api-logs/${logId}/mark-seen`;
+                    
+                    const response = await fetch(url, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken
                         }
                     });
+                    
+                    // Check if response is OK before trying to parse JSON
+                    if (!response.ok) {
+                        const text = await response.text();
+                        console.error('Server response:', text);
+                        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                    }
                     
                     const contentType = response.headers.get('content-type');
                     if (!contentType || !contentType.includes('application/json')) {
@@ -325,14 +346,20 @@
                             seenCell.innerHTML = `<span class="seen-text">Seen</span>`;
                         }
                         
+                        // Reset opacity
+                        this.style.opacity = '1';
+                        
                         // Update the unseen badge in header
                         updateUnseenBadge();
+                        
+                        // Show success toast
+                        showToast('Marked as seen', 'success');
                     } else {
                         throw new Error(data.message || 'Failed to mark log as seen');
                     }
                 } catch (err) {
                     console.error('Error marking log as seen:', err);
-                    // Show a small toast/notification instead of full alert
+                    this.style.opacity = '1';
                     showToast('Failed to mark log as seen: ' + err.message, 'error');
                 }
             });
@@ -357,16 +384,27 @@
             }
         }
         
-        // Toast notification function (optional)
+        // Toast notification function
         function showToast(message, type = 'info') {
-            // You can implement a simple toast here or use SweetAlert
-            // For now, use a simpler approach
+            const colors = {
+                success: 'bg-green-600',
+                error: 'bg-red-600',
+                info: 'bg-blue-600'
+            };
+            
             const toast = document.createElement('div');
-            toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg text-white text-sm z-50 transition-opacity duration-300 ${type === 'error' ? 'bg-red-600' : 'bg-blue-600'}`;
+            toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg text-white text-sm z-50 transition-all duration-300 transform translate-y-0 ${colors[type] || colors.info}`;
             toast.textContent = message;
             document.body.appendChild(toast);
             
+            // Animate in
             setTimeout(() => {
+                toast.style.transform = 'translateY(0)';
+            }, 10);
+            
+            // Auto dismiss
+            setTimeout(() => {
+                toast.style.transform = 'translateY(20px)';
                 toast.style.opacity = '0';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
@@ -374,6 +412,12 @@
         
         // Mark All as Seen button
         document.getElementById('markAllSeenBtn')?.addEventListener('click', async function() {
+            // Check if Swal is available
+            if (typeof Swal === 'undefined') {
+                console.error('SweetAlert2 not loaded');
+                return;
+            }
+            
             const confirmResult = await Swal.fire({
                 title: 'Mark All as Seen?',
                 text: 'This will mark all unseen logs as seen.',
@@ -389,14 +433,21 @@
             if (!confirmResult.isConfirmed) return;
             
             try {
-                const response = await fetch('{{ route("api-logs.mark-as-seen") }}', {
+                const response = await fetch('/api-logs/mark-seen', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
                     },
                     body: JSON.stringify({ ids: [] })
                 });
+                
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.error('Server response:', text);
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
                 
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
@@ -436,4 +487,5 @@
         });
     });
 </script>
+
 @include('layouts.footer')
