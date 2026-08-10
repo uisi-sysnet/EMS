@@ -499,7 +499,7 @@
                                 <span class="text-[10px] font-semibold uppercase tracking-wide ${badgeColor}">${badgeText}</span>
                                 ${isNew ? '<span class="text-[10px] font-bold text-blue-400">NEW</span>' : ''}
                             </div>
-                            <span class="text-xs font-mono ${log.status_color}">${log.status_code || '--'}</span>
+                            <span class="text-xs font-mono ${log.time}</span>
                         </div>
                         <div class="text-sm ${textClass} font-medium truncate">
                             ${log.summary}
@@ -507,7 +507,6 @@
                         <div class="text-xs text-text-500 truncate mt-0.5">
                             ${log.detail}
                         </div>
-                        ${log.time ? `<div class="text-[11px] text-text-500 mt-0.5">${log.time}</div>` : ''}
                     </a>`;
             }).join('');
 
