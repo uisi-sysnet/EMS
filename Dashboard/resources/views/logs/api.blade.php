@@ -23,104 +23,136 @@
     }
 
     /* ============================================ */
-    /* SUBTLE BLUE HIGHLIGHT FOR UNSEEN LOGS */
+    /* IMPROVED UNSEEN LOG HIGHLIGHT               */
     /* ============================================ */
     tr.log-row-unseen {
-        background-color: rgba(59, 130, 246, 0.08) !important;
-        border-left: 3px solid rgba(59, 130, 246, 0.3) !important;
+        background: linear-gradient(
+            90deg,
+            rgba(59, 130, 246, 0.12) 0%,
+            rgba(59, 130, 246, 0.05) 100%
+        ) !important;
         position: relative;
     }
-    
+
     tr.log-row-unseen td {
-        background-color: rgba(59, 130, 246, 0.08) !important;
+        background: transparent !important;
     }
-    
-    tr.log-row-unseen:hover {
-        background-color: rgba(59, 130, 246, 0.15) !important;
-    }
-    
-    tr.log-row-unseen:hover td {
-        background-color: rgba(59, 130, 246, 0.15) !important;
-    }
-    
-    /* Blue left border using pseudo-element */
+
+    /* Strong left accent bar */
     tr.log-row-unseen::before {
         content: '';
         position: absolute;
         left: 0;
         top: 0;
         bottom: 0;
-        width: 3px;
-        background: rgba(59, 130, 246, 0.4);
-        border-radius: 0 2px 2px 0;
+        width: 4px;
+        background: linear-gradient(to bottom, #3b82f6, #60a5fa);
+        border-radius: 0 3px 3px 0;
         z-index: 2;
+        box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
     }
 
-    /* Status code badges */
-    .status-2xx { background: rgba(34, 197, 94, 0.2); color: #4ade80; border-color: #22c55e; }
-    .status-4xx { background: rgba(234, 179, 8, 0.2); color: #facc15; border-color: #eab308; }
-    .status-5xx { background: rgba(239, 68, 68, 0.2); color: #f87171; border-color: #ef4444; }
-    .status-default { background: rgba(156, 163, 175, 0.2); color: #9ca3af; border-color: #6b7280; }
+    tr.log-row-unseen:hover {
+        background: linear-gradient(
+            90deg,
+            rgba(59, 130, 246, 0.18) 0%,
+            rgba(59, 130, 246, 0.08) 100%
+        ) !important;
+    }
 
+    /* Status badges */
+    .status-2xx { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.35); }
+    .status-4xx { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.35); }
+    .status-5xx { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); }
+    .status-default { background: rgba(156, 163, 175, 0.12); color: #9ca3af; border: 1px solid rgba(156, 163, 175, 0.25); }
+
+    /* Method badges */
     .method-badge {
-        font-family: monospace;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         font-weight: 600;
-        padding: 0.1rem 0.5rem;
-        border-radius: 0.25rem;
+        font-size: 0.7rem;
+        padding: 0.15rem 0.55rem;
+        border-radius: 0.3rem;
+        letter-spacing: 0.02em;
         border: 1px solid transparent;
+        display: inline-block;
+        min-width: 52px;
+        text-align: center;
     }
-    .method-GET { background: #1e3a5f; color: #60a5fa; border-color: #3b82f6; }
-    .method-POST { background: #1e3a3a; color: #34d399; border-color: #10b981; }
-    .method-PUT { background: #3b1e3b; color: #c084fc; border-color: #a855f7; }
-    .method-PATCH { background: #3b2e1e; color: #fbbf24; border-color: #f59e0b; }
+    .method-GET    { background: #1e3a5f; color: #60a5fa; border-color: #3b82f6; }
+    .method-POST   { background: #1e3a3a; color: #34d399; border-color: #10b981; }
+    .method-PUT    { background: #3b1e3b; color: #c084fc; border-color: #a855f7; }
+    .method-PATCH  { background: #3b2e1e; color: #fbbf24; border-color: #f59e0b; }
     .method-DELETE { background: #3b1e1e; color: #f87171; border-color: #ef4444; }
-    .method-HEAD { background: #2d2d2d; color: #9ca3af; border-color: #6b7280; }
+    .method-HEAD,
     .method-OPTIONS { background: #2d2d2d; color: #9ca3af; border-color: #6b7280; }
 
     /* Unseen badge pulse */
     .unseen-badge {
         animation: pulse-badge 2s infinite;
     }
-    
     @keyframes pulse-badge {
         0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+        50% { opacity: 0.55; }
     }
 
-    /* Consistent "Seen At" column styling */
+    /* Seen At column */
     .seen-at-cell {
-        min-width: 80px;
+        min-width: 90px;
         text-align: center;
         font-size: 0.75rem;
-        padding: 0.5rem 1rem;
+        padding: 0.5rem 0.75rem;
         white-space: nowrap;
     }
 
     .seen-at-cell .unseen-text {
         color: #60a5fa;
-        font-weight: 500;
+        font-weight: 600;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.375rem;
+        gap: 0.4rem;
+        letter-spacing: 0.01em;
     }
 
     .seen-at-cell .unseen-text .dot {
         display: inline-block;
-        width: 6px;
-        height: 6px;
+        width: 7px;
+        height: 7px;
         border-radius: 50%;
-        background-color: #60a5fa;
-        animation: pulse-dot 1.5s ease-in-out infinite;
+        background-color: #3b82f6;
+        box-shadow: 0 0 6px rgba(59, 130, 246, 0.7);
+        animation: pulse-dot 1.6s ease-in-out infinite;
     }
 
     @keyframes pulse-dot {
         0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.3; transform: scale(0.8); }
+        50% { opacity: 0.35; transform: scale(0.75); }
     }
 
     .seen-at-cell .seen-text {
         color: #9ca3af;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Table refinements */
+    .api-logs-table th {
+        font-size: 0.7rem;
+        letter-spacing: 0.04em;
+        padding-top: 0.85rem;
+        padding-bottom: 0.85rem;
+    }
+
+    .api-logs-table td {
+        vertical-align: middle;
+    }
+
+    .api-logs-table tbody tr {
+        transition: background-color 0.15s ease;
+    }
+
+    .api-logs-table tbody tr:not(.log-row-unseen):hover {
+        background-color: rgba(255, 255, 255, 0.03);
     }
 </style>
 
@@ -206,91 +238,88 @@
         </div>
 
         <!-- Table (scrollable) -->
-        <div class="flex-1 overflow-y-auto thin-scrollbar min-h-0 bg-background-900 px-4 sm:px-6 py-3">
-            <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden">
-                <div class="overflow-x-auto thin-scrollbar">
-                    <table class="min-w-full divide-y divide-border-700 text-sm">
-                        <thead class="bg-surface-900/80 sticky top-0 z-10">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Date</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Client IP</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Method</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Path</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Status</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Duration (ms)</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">API Key Owner</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">API Key</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Seen At</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-border-800">
-                            @forelse($logs as $log)
-                                @php
-                                    $isUnseen = is_null($log->seen_at);
-                                @endphp
-                                <tr class="{{ $isUnseen ? 'log-row-unseen' : '' }} hover:bg-surface-700/60 transition"
-                                    data-log-id="{{ $log->id }}"
-                                    data-is-unseen="{{ $isUnseen ? 'true' : 'false' }}">
-                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
-                                        {{ \Carbon\Carbon::parse($log->getRawOriginal('created_at'), 'UTC')->setTimezone('Asia/Manila')->format('M j, Y H:i:s') }}
-                                    </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
-                                        {{ $log->client_ip }}
-                                    </td>
-                                    <td class="px-4 py-2 whitespace-nowrap">
-                                        <span class="method-badge method-{{ $log->method }} text-xs">
-                                            {{ $log->method }}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-2 text-text-400 max-w-xs truncate" title="{{ $log->path }}">
-                                        {{ $log->path }}
-                                    </td>
-                                    <td class="px-4 py-2 whitespace-nowrap">
-                                        @php
-                                            $status = $log->status_code;
-                                            $class = 'status-default';
-                                            if ($status >= 200 && $status < 300) $class = 'status-2xx';
-                                            elseif ($status >= 400 && $status < 500) $class = 'status-4xx';
-                                            elseif ($status >= 500) $class = 'status-5xx';
-                                        @endphp
-                                        <span class="px-2.5 py-0.5 rounded-full text-xs font-medium border {{ $class }}">
-                                            {{ $status }}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
-                                        {{ number_format($log->duration_ms, 2) }}
-                                    </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-xs max-w-32 truncate {{ $log->api_key_owner === 'Blocked/IP' ? 'text-red-400 font-semibold' : ($log->api_key_owner === 'Unauthorized/None' ? 'text-orange-400 font-semibold' : 'text-text-400') }}" title="{{ $log->api_key_owner }}">
-                                        {{ $log->api_key_owner }}
-                                    </td>
-                                    <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs max-w-28 truncate" title="{{ $log->api_key_used }}">
-                                        {{ $log->api_key_used }}
-                                    </td>
-                                    <td class="seen-at-cell">
-                                        @if($isUnseen)
-                                            <span class="unseen-text">
-                                                <span class="dot"></span>
-                                                Unseen
-                                            </span>
-                                        @else
-                                            <span class="seen-text">
-                                                {{ $log->seen_at->setTimezone('Asia/Manila')->format('h:i A') }}
-                                            </span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="9" class="px-4 py-10 text-center text-text-500">
-                                        No API logs found.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        <table class="min-w-full divide-y divide-border-700 text-sm api-logs-table">
+            <thead class="bg-surface-900/90 sticky top-0 z-10 backdrop-blur-sm">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Date</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Client IP</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Method</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Path</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Status</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Duration</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">API Key Owner</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">API Key</th>
+                    <th class="px-4 py-3 text-center text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Seen At</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-border-800">
+                @forelse($logs as $log)
+                    @php
+                        $isUnseen = is_null($log->seen_at);
+                    @endphp
+                    <tr class="{{ $isUnseen ? 'log-row-unseen' : '' }}"
+                        data-log-id="{{ $log->id }}"
+                        data-is-unseen="{{ $isUnseen ? 'true' : 'false' }}">
+                        <td class="px-4 py-2.5 whitespace-nowrap text-text-400 font-mono text-xs">
+                            {{ \Carbon\Carbon::parse($log->getRawOriginal('created_at'), 'UTC')->setTimezone('Asia/Manila')->format('M j, Y H:i:s') }}
+                        </td>
+                        <td class="px-4 py-2.5 whitespace-nowrap text-text-300 font-mono text-xs">
+                            {{ $log->client_ip }}
+                        </td>
+                        <td class="px-4 py-2.5 whitespace-nowrap">
+                            <span class="method-badge method-{{ $log->method }}">
+                                {{ $log->method }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2.5 text-text-300 max-w-[220px] truncate font-mono text-xs" title="{{ $log->path }}">
+                            {{ $log->path }}
+                        </td>
+                        <td class="px-4 py-2.5 whitespace-nowrap">
+                            @php
+                                $status = $log->status_code;
+                                $class = 'status-default';
+                                if ($status >= 200 && $status < 300) $class = 'status-2xx';
+                                elseif ($status >= 400 && $status < 500) $class = 'status-4xx';
+                                elseif ($status >= 500) $class = 'status-5xx';
+                            @endphp
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium {{ $class }}">
+                                {{ $status }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2.5 whitespace-nowrap text-text-400 font-mono text-xs tabular-nums">
+                            {{ number_format($log->duration_ms, 2) }}
+                            <span class="text-text-500 text-[10px] ml-0.5">ms</span>
+                        </td>
+                        <td class="px-4 py-2.5 whitespace-nowrap text-xs max-w-[140px] truncate
+                            {{ $log->api_key_owner === 'Blocked/IP' ? 'text-red-400 font-semibold' : ($log->api_key_owner === 'Unauthorized/None' ? 'text-orange-400 font-semibold' : 'text-text-400') }}"
+                            title="{{ $log->api_key_owner }}">
+                            {{ $log->api_key_owner }}
+                        </td>
+                        <td class="px-4 py-2.5 whitespace-nowrap text-text-400 font-mono text-xs max-w-[120px] truncate" title="{{ $log->api_key_used }}">
+                            {{ $log->api_key_used }}
+                        </td>
+                        <td class="seen-at-cell">
+                            @if($isUnseen)
+                                <span class="unseen-text">
+                                    <span class="dot"></span>
+                                    Unseen
+                                </span>
+                            @else
+                                <span class="seen-text">
+                                    {{ $log->seen_at->setTimezone('Asia/Manila')->format('h:i A') }}
+                                </span>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="9" class="px-4 py-12 text-center text-text-500">
+                            No API logs found.
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
 
         <!-- Pagination -->
         @if($logs->hasPages())
