@@ -10,32 +10,34 @@ class RecentLogsController extends Controller
 {
     public function index(Request $request)
     {
-        // Only fetch API logs that haven't been seen yet
-        $apiLogs = ApiLog::whereNull('seen_at')
-            ->latest()
-            ->limit(20)
-            ->get();
+        // Always fetch the 20 most recent API logs (regardless of seen status)
+        $apiLogs = ApiLog::latest()->limit(20)->get();
 
         $seenIds = $this->parseSeenIds($request->input('seen', ''));
         $logs = $this->buildLogEntries($apiLogs, collect());
 
         // Filter out logs that are in the seen list (client-side tracking)
-        $unseen = $logs->filter(function ($log) use ($seenIds) {
-            return !in_array($log['type'] . '-' . $log['id'], $seenIds);
-        })->sortByDesc('timestamp');
+        // but keep them in the response, just mark them as seen
+        $logs = $logs->map(function ($log) use ($seenIds) {
+            // Check if this log is in the seen list
+            $isSeen = in_array($log['type'] . '-' . $log['id'], $seenIds);
+            // Also check if seen_at is null in the database
+            $log['is_seen'] = $isSeen || $log['is_seen'];
+            return $log;
+        })->sortByDesc('timestamp')->values();
 
-        // If 'all' is present, return all unseen; otherwise limit to 20
-        if (!$request->has('all')) {
-            $unseen = $unseen->take(20);
-        }
-
-        return response()->json($unseen->values());
+        return response()->json($logs);
     }
 
     public function count(Request $request)
     {
-        // Count API logs that haven't been seen yet
-        $unseenCount = ApiLog::whereNull('seen_at')->count();
+        // Get the 20 most recent API logs
+        $apiLogs = ApiLog::latest()->limit(20)->get();
+        
+        // Count how many of these have seen_at null
+        $unseenCount = $apiLogs->filter(function ($log) {
+            return $log->seen_at === null;
+        })->count();
 
         return response()->json(['count' => $unseenCount]);
     }
