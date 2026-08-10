@@ -10,11 +10,11 @@ class RecentLogsController extends Controller
 {
     public function index(Request $request)
     {
+        // Only fetch API logs, 20 most recent
         $apiLogs = ApiLog::latest()->limit(20)->get();
-        $systemLogs = SystemLog::latest()->limit(20)->get();
 
         $seenIds = $this->parseSeenIds($request->input('seen', ''));
-        $logs = $this->buildLogEntries($apiLogs, $systemLogs);
+        $logs = $this->buildLogEntries($apiLogs, collect()); // Empty collection for system logs
 
         $unseen = $logs->filter(function ($log) use ($seenIds) {
             return !in_array($log['type'] . '-' . $log['id'], $seenIds);
@@ -30,11 +30,11 @@ class RecentLogsController extends Controller
 
     public function count(Request $request)
     {
+        // Only count API logs
         $apiLogs = ApiLog::latest()->limit(20)->get();
-        $systemLogs = SystemLog::latest()->limit(20)->get();
 
         $seenIds = $this->parseSeenIds($request->input('seen', ''));
-        $logs = $this->buildLogEntries($apiLogs, $systemLogs);
+        $logs = $this->buildLogEntries($apiLogs, collect()); // Empty collection for system logs
 
         $unseenCount = $logs->filter(function ($log) use ($seenIds) {
             return !in_array($log['type'] . '-' . $log['id'], $seenIds);
@@ -65,21 +65,8 @@ class RecentLogsController extends Controller
             ]);
         }
 
-        foreach ($systemLogs as $log) {
-            // Extract the actual level from the message if the level field is missing or default
-            $level = $this->extractLogLevel($log);
-            
-            $entries->push([
-                'type'      => 'system',
-                'id'        => $log->id,
-                'level'     => $level, // Add the actual level to the log entry
-                'summary'   => '[' . strtoupper($level) . '] ' . $log->service,
-                'detail'    => substr($log->message, 0, 60) . (strlen($log->message) > 60 ? '…' : ''),
-                'time'      => $log->created_at->diffForHumans(),
-                'timestamp' => $log->created_at->toISOString(),
-                'url'       => route('logs.index'), // clean URL (no highlight)
-            ]);
-        }
+        // Remove system logs processing entirely
+        // foreach ($systemLogs as $log) { ... }
 
         return $entries;
     }
@@ -89,30 +76,7 @@ class RecentLogsController extends Controller
      */
     private function extractLogLevel($log)
     {
-        // First, check if the level field exists and is not 'info' (which might be default)
-        if (isset($log->level) && $log->level && strtolower($log->level) !== 'info') {
-            return strtolower($log->level);
-        }
-        
-        // If level is missing or default 'info', try to extract from message
-        $message = $log->message ?? '';
-        
-        // Check for ERROR in message (case insensitive)
-        if (preg_match('/\[ERROR\]/i', $message)) {
-            return 'error';
-        }
-        
-        // Check for WARNING in message (case insensitive)
-        if (preg_match('/\[WARNING\]/i', $message) || preg_match('/\[WARN\]/i', $message)) {
-            return 'warning';
-        }
-        
-        // Check for INFO in message (case insensitive)
-        if (preg_match('/\[INFO\]/i', $message)) {
-            return 'info';
-        }
-        
-        // If no level found in message, return whatever is in the level field or default to 'info'
-        return isset($log->level) && $log->level ? strtolower($log->level) : 'info';
+        // This method is no longer needed for API-only logs
+        return 'info';
     }
 }
