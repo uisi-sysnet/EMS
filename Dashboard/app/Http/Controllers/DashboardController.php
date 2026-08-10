@@ -89,27 +89,47 @@ class DashboardController extends Controller
         // ---------- Air Quality ----------
         $stations = Station::orderBy('station_mn')->get();
 
+        // Grouping by station_mn ALONE (not station_mn + ip_address) is
+        // deliberate: if a station's ip_address ever changes in sensor_data
+        // (DHCP reassignment, reconnect, etc.), grouping by both columns
+        // splits one station's readings into two groups, and the keyBy()
+        // below would silently keep only one of them — freezing
+        // installed_at/latest_at even while the other group keeps growing.
         $aqReadings = DB::connection('aq')
             ->table('sensor_data')
             ->select(
                 'station_mn',
-                'ip_address as ip',
                 DB::raw('MIN(data_time) as installed_at'),
                 DB::raw('MAX(data_time) as latest_at'),
                 DB::raw('COUNT(*) as total')
             )
-            ->groupBy('station_mn', 'ip_address')
+            ->groupBy('station_mn')
             ->get()
             ->keyBy('station_mn');
 
+        // IP is fetched separately, tied to whichever row actually has the
+        // max data_time per station, so it doesn't affect the aggregation
+        // above and always reflects the most recent reading.
+        $latestIps = collect(DB::connection('aq')->select("
+                SELECT s1.station_mn, s1.ip_address AS ip
+                FROM sensor_data s1
+                INNER JOIN (
+                    SELECT station_mn, MAX(data_time) AS max_time
+                    FROM sensor_data
+                    GROUP BY station_mn
+                ) s2 ON s1.station_mn = s2.station_mn AND s1.data_time = s2.max_time
+            "))
+            ->keyBy('station_mn');
+
         $airQualityData = $stations
-            ->map(function ($station) use ($aqReadings) {
+            ->map(function ($station) use ($aqReadings, $latestIps) {
                 $reading = $aqReadings->get($station->station_mn);
+                $ip      = $latestIps->get($station->station_mn)->ip ?? null;
 
                 return (object) [
                     'station_mn'   => $station->station_mn,
                     'station'      => $station->station_name ?: $station->station_mn,
-                    'ip'           => $reading->ip ?? $station->lead_ip,
+                    'ip'           => $ip ?? $station->lead_ip,
                     // TODO: swap for a real location/address column on the
                     // stations table if one exists — currently falling
                     // back to the IP, same as the rest of the dashboard.
@@ -127,16 +147,19 @@ class DashboardController extends Controller
 
         $seismicStations = SeismicStation::orderBy('station_id')->get();
 
+        // Grouped by station_id alone — same reasoning as the air quality
+        // query above. station_name is never read off $reading downstream
+        // (the display uses $station->station_name from the local
+        // seismic_stations registry instead), so it's safe to drop here.
         $seismicReadings = DB::connection('seismic')
             ->table('station_metrics')
             ->select(
                 'station_id',
-                'station_name',
                 DB::raw('MIN(time) as installed_at'),
                 DB::raw('MAX(time) as latest_at'),
                 DB::raw('COUNT(*) as total')
             )
-            ->groupBy('station_id', 'station_name')
+            ->groupBy('station_id')
             ->get()
             ->keyBy('station_id');
 
