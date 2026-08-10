@@ -63,16 +63,16 @@
         50% { opacity: 0.5; }
     }
 
-    /* Seen At column */
-    .seen-at-cell {
-        min-width: 80px;
+    /* Seen column */
+    .seen-cell {
+        min-width: 70px;
         text-align: center;
         font-size: 0.75rem;
         padding: 0.5rem 1rem;
         white-space: nowrap;
     }
 
-    .seen-at-cell .unseen-text {
+    .seen-cell .unseen-text {
         color: #60a5fa;
         font-weight: 500;
         display: inline-flex;
@@ -81,7 +81,7 @@
         gap: 0.375rem;
     }
 
-    .seen-at-cell .unseen-text .dot {
+    .seen-cell .unseen-text .dot {
         display: inline-block;
         width: 6px;
         height: 6px;
@@ -95,7 +95,7 @@
         50% { opacity: 0.3; transform: scale(0.8); }
     }
 
-    .seen-at-cell .seen-text {
+    .seen-cell .seen-text {
         color: #9ca3af;
     }
 </style>
@@ -196,7 +196,7 @@
                                 <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Duration (ms)</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">API Key Owner</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">API Key</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Seen At</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Seen</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border-800">
@@ -242,16 +242,14 @@
                                     <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs max-w-28 truncate" title="{{ $log->api_key_used }}">
                                         {{ $log->api_key_used }}
                                     </td>
-                                    <td class="seen-at-cell">
+                                    <td class="seen-cell">
                                         @if($isUnseen)
                                             <span class="unseen-text">
                                                 <span class="dot"></span>
                                                 Unseen
                                             </span>
                                         @else
-                                            <span class="seen-text">
-                                                {{ $log->seen_at->setTimezone('Asia/Manila')->format('h:i A') }}
-                                            </span>
+                                            <span class="seen-text">Seen</span>
                                         @endif
                                     </td>
                                 </tr>
