@@ -53,32 +53,34 @@ class ApiLogController extends Controller
         return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo', 'unseenCount'));
     }
 
-    // Mark logs as seen
     public function markAsSeen(Request $request)
     {
         try {
             $ids = $request->input('ids', []);
             
             if (empty($ids)) {
-                // Mark all as seen
-                $count = ApiLog::unseen()->update(['seen_at' => now()]);
-                $message = "All {$count} logs marked as seen.";
-            } else {
-                $count = ApiLog::whereIn('id', $ids)->update(['seen_at' => now()]);
-                $message = "{$count} selected logs marked as seen.";
+                return response()->json(['success' => false, 'message' => 'No IDs provided']);
             }
 
-            return response()->json([
-                'success' => true,
-                'message' => $message,
-                'count' => $count ?? 0
-            ]);
+            // Extract just the IDs from the array
+            $apiIds = [];
+            foreach ($ids as $item) {
+                if ($item['type'] === 'api') {
+                    $apiIds[] = $item['id'];
+                }
+            }
+
+            // Update the logs in the database
+            if (!empty($apiIds)) {
+                ApiLog::whereIn('id', $apiIds)
+                    ->whereNull('seen_at')
+                    ->update(['seen_at' => now()]);
+            }
+
+            return response()->json(['success' => true]);
         } catch (\Exception $e) {
-            Log::error('Error marking logs as seen: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error marking logs as seen: ' . $e->getMessage()
-            ], 500);
+            \Log::error('Error marking API logs as seen: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 

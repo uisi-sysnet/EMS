@@ -610,6 +610,13 @@
             const unseenItems = document.querySelectorAll('.log-item:not([data-seen="true"])');
             
             if (unseenItems.length === 0) {
+                // Show a temporary message
+                const tempMsg = document.createElement('div');
+                tempMsg.className = 'px-4 py-2 text-sm text-text-400 text-center bg-surface-700/50';
+                tempMsg.textContent = 'No unseen logs to mark.';
+                const list = document.getElementById('notification-list');
+                list.prepend(tempMsg);
+                setTimeout(() => tempMsg.remove(), 2000);
                 return;
             }
             
@@ -621,58 +628,102 @@
                 ids.push({ type, id });
             });
             
+            // Show loading state on the button
+            const markAllBtn = document.getElementById('mark-all-seen');
+            const originalText = markAllBtn.textContent;
+            markAllBtn.textContent = 'Processing...';
+            markAllBtn.disabled = true;
+            
             // Send to server to mark as seen
             fetch('{{ route("api-logs.mark-as-seen") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
                 },
                 body: JSON.stringify({ ids: ids })
             })
             .then(response => response.json())
             .then(data => {
+                // Restore button
+                markAllBtn.textContent = originalText;
+                markAllBtn.disabled = false;
+                
                 if (data.success) {
                     // Also mark in local storage
                     ids.forEach(({ type, id }) => {
                         addSeenId(type, id);
                     });
-                    // Remove all unseen items from UI (mark them as seen)
+                    
+                    // Mark all items as seen in UI
                     unseenItems.forEach(item => {
-                        item.dataset.seen = 'true';
-                        item.classList.remove('bg-indigo-900/20', 'hover:bg-indigo-900/30', 'border-indigo-500', 'hover:scale-[1.01]');
-                        item.classList.add('bg-surface-800/50', 'hover:bg-surface-700/50', 'border-border-700', 'opacity-60');
-                        
-                        // Remove NEW badge and indicators
-                        const newBadge = item.querySelector('.animate-pulse');
-                        if (newBadge) newBadge.remove();
-                        
-                        const indicators = item.querySelectorAll('.text-green-400');
-                        indicators.forEach(el => {
-                            if (el.textContent === '●' || el.textContent === '✦') {
-                                el.className = 'text-text-600';
-                                el.textContent = '●';
-                            }
-                        });
-                        
-                        // Update text colors
-                        const summary = item.querySelector('.text-text-100');
-                        if (summary) summary.className = 'text-sm text-text-400 font-medium';
-                        
-                        const detail = item.querySelector('.text-text-400');
-                        if (detail) detail.className = 'text-xs text-text-500 truncate mt-0.5';
-                        
-                        const time = item.querySelector('.text-text-500');
-                        if (time) time.className = 'text-xs text-text-600 mt-1 flex items-center gap-1';
+                        markItemAsSeen(item);
                     });
                     
                     notificationDot.classList.add('hidden');
                     bellButton.classList.remove('animate-pulse');
+                    
+                    // Show success message
+                    const successMsg = document.createElement('div');
+                    successMsg.className = 'px-4 py-2 text-sm text-green-400 text-center bg-green-900/20';
+                    successMsg.textContent = `✅ ${unseenItems.length} log(s) marked as seen.`;
+                    const list = document.getElementById('notification-list');
+                    list.prepend(successMsg);
+                    setTimeout(() => successMsg.remove(), 3000);
+                } else {
+                    // Show error message
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'px-4 py-2 text-sm text-red-400 text-center bg-red-900/20';
+                    errorMsg.textContent = '❌ Failed to mark logs as seen. Please try again.';
+                    const list = document.getElementById('notification-list');
+                    list.prepend(errorMsg);
+                    setTimeout(() => errorMsg.remove(), 3000);
                 }
             })
             .catch(error => {
+                // Restore button
+                markAllBtn.textContent = originalText;
+                markAllBtn.disabled = false;
+                
                 console.error('Error marking all as seen:', error);
+                
+                // Show error message
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'px-4 py-2 text-sm text-red-400 text-center bg-red-900/20';
+                errorMsg.textContent = '❌ Network error. Please try again.';
+                const list = document.getElementById('notification-list');
+                list.prepend(errorMsg);
+                setTimeout(() => errorMsg.remove(), 3000);
             });
+        }
+
+        // Helper function to mark a single item as seen in UI
+        function markItemAsSeen(item) {
+            item.dataset.seen = 'true';
+            item.classList.remove('bg-indigo-900/20', 'hover:bg-indigo-900/30', 'border-indigo-500', 'hover:scale-[1.01]');
+            item.classList.add('bg-surface-800/50', 'hover:bg-surface-700/50', 'border-border-700', 'opacity-60');
+            
+            // Remove NEW badge and indicators
+            const newBadge = item.querySelector('.animate-pulse');
+            if (newBadge) newBadge.remove();
+            
+            const indicators = item.querySelectorAll('.text-green-400');
+            indicators.forEach(el => {
+                if (el.textContent === '●' || el.textContent === '✦') {
+                    el.className = 'text-text-600';
+                    el.textContent = '●';
+                }
+            });
+            
+            // Update text colors
+            const summary = item.querySelector('.text-text-100');
+            if (summary) summary.className = 'text-sm text-text-400 font-medium';
+            
+            const detail = item.querySelector('.text-text-400');
+            if (detail) detail.className = 'text-xs text-text-500 truncate mt-0.5';
+            
+            const time = item.querySelector('.text-text-500');
+            if (time) time.className = 'text-xs text-text-600 mt-1 flex items-center gap-1';
         }
 
         // Update the dot visibility on page load
