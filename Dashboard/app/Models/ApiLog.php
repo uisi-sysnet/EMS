@@ -12,6 +12,9 @@ class ApiLog extends Model
     protected $connection = 'api';
     protected $table = 'api_request_logs';
 
+    // 👇 DISABLE automatic timestamps (created_at, updated_at)
+    public $timestamps = false;
+
     protected $fillable = [
         'client_ip',
         'method',
@@ -21,6 +24,7 @@ class ApiLog extends Model
         'api_key_owner',
         'api_key_used',
         'seen_at',
+        'created_at', // If you have this column, keep it
     ];
 
     protected $casts = [
@@ -48,10 +52,9 @@ class ApiLog extends Model
             'duration_ms'    => $durationMs,
             'api_key_owner'  => $apiKeyOwner,
             'api_key_used'   => $apiKeyUsed ?? $request->header('X-API-Key'),
-            'seen_at'        => null, 
+            'seen_at'        => null,
         ]);
     }
-
 
     // Helper method to mark as seen
     public function markAsSeen(): void
