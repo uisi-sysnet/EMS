@@ -77,15 +77,33 @@ class ApiLogController extends Controller
 
     public function exportCsv(Request $request)
     {
-        // Reuse the same filtering logic as index()
         $query = ApiLog::query();
-        
-        // Apply all the same filters (copy from index method)
+
+        // Apply ALL the same filters as index()
         if ($request->filled('client_ip')) {
             $query->where('client_ip', 'like', '%' . $request->client_ip . '%');
         }
-        // ... (copy all other filter conditions)
-        
+
+        if ($request->filled('method')) {
+            $query->where('method', $request->method);
+        }
+
+        if ($request->filled('path')) {
+            $query->where('path', 'like', '%' . $request->path . '%');
+        }
+
+        if ($request->filled('status_code')) {
+            $query->where('status_code', $request->status_code);
+        }
+
+        if ($request->filled('from')) {
+            $query->whereDate('created_at', '>=', $request->from);
+        }
+
+        if ($request->filled('to')) {
+            $query->whereDate('created_at', '<=', $request->to);
+        }
+
         $logs = $query->orderBy('created_at', 'desc')->get();
         
         // Generate CSV

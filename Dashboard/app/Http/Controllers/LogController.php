@@ -48,4 +48,69 @@ class LogController extends Controller
 
         return view('logs.system', compact('logs', 'defaultFrom', 'defaultTo'));
     }
+
+    public function exportCsv(Request $request)
+    {
+        $query = SystemLog::query();
+
+        // Apply ALL the same filters as index()
+        if ($request->filled('level')) {
+            $query->where('level', $request->level);
+        }
+
+        if ($request->filled('service')) {
+            $query->where('service', 'like', '%' . $request->service . '%');
+        }
+
+        if ($request->filled('thread')) {
+            $query->where('thread_name', 'like', '%' . $request->thread . '%');
+        }
+
+        if ($request->filled('logger')) {
+            $query->where('logger_name', 'like', '%' . $request->logger . '%');
+        }
+
+        if ($request->filled('from')) {
+            $query->whereDate('created_at', '>=', $request->from);
+        }
+
+        if ($request->filled('to')) {
+            $query->whereDate('created_at', '<=', $request->to);
+        }
+
+        $logs = $query->orderBy('created_at', 'desc')->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="system-logs-' . date('Y-m-d-His') . '.csv"',
+        ];
+
+        $callback = function() use ($logs) {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for UTF-8 (Excel compatibility)
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Headers
+            fputcsv($file, [
+                'Date', 'Service', 'Level', 'Logger', 'Thread', 'Message'
+            ]);
+            
+            // Data rows
+            foreach ($logs as $log) {
+                fputcsv($file, [
+                    $log->created_at->setTimezone('Asia/Manila')->format('Y-m-d H:i:s'),
+                    $log->service,
+                    $log->level,
+                    $log->logger_name,
+                    $log->thread_name,
+                    $log->message
+                ]);
+            }
+            
+            fclose($file);
+        };
+        
+        return response()->stream($callback, 200, $headers);
+    }
 }
