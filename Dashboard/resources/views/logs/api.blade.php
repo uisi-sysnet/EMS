@@ -200,12 +200,19 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border-800">
-                            @forelse($logs as $log)
+                            @forelse($logs as $index => $log)
                                 @php
                                     $isUnseen = is_null($log->seen_at);
+                                    // Create a unique identifier from timestamp and IP (since ID might not exist)
+                                    $uniqueKey = $log->created_at . '_' . $log->client_ip . '_' . $log->path . '_' . $index;
+                                    // Or use the index as fallback
+                                    $rowId = $log->id ?? $index;
                                 @endphp
                                 <tr class="{{ $isUnseen ? 'log-row-unseen' : '' }} hover:bg-surface-700/60 transition"
-                                    data-log-id="{{ $log->id }}"
+                                    data-log-id="{{ $rowId }}"
+                                    data-log-index="{{ $index }}"
+                                    data-log-created="{{ $log->created_at }}"
+                                    data-log-ip="{{ $log->client_ip }}"
                                     data-is-unseen="{{ $isUnseen ? 'true' : 'false' }}">
                                     <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs">
                                         {{ \Carbon\Carbon::parse($log->getRawOriginal('created_at'), 'UTC')->setTimezone('Asia/Manila')->format('M j, Y H:i:s') }}
@@ -344,9 +351,11 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('tr[data-log-id]').forEach(row => {
         // Debug: Log the row data
         console.log('Row found:', {
-            id: row.dataset.logId,
-            isUnseen: row.dataset.isUnseen,
-            row: row
+            logId: row.dataset.logId,
+            logIndex: row.dataset.logIndex,
+            logCreated: row.dataset.logCreated,
+            logIp: row.dataset.logIp,
+            isUnseen: row.dataset.isUnseen
         });
 
         row.addEventListener('click', async function(e) {
@@ -357,9 +366,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const logId = this.dataset.logId;
+            const logIndex = this.dataset.logIndex;
+            const logCreated = this.dataset.logCreated;
+            const logIp = this.dataset.logIp;
             const isUnseen = this.dataset.isUnseen === 'true';
             
-            console.log('Row clicked:', { logId, isUnseen }); // Debug log
+            console.log('Row clicked:', { logId, logIndex, logCreated, logIp, isUnseen });
             
             // Only mark if it's unseen
             if (!isUnseen) {
@@ -367,13 +379,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            if (!logId) {
-                console.error('No log ID found on row');
+            // Try to get ID from various sources
+            let identifier = null;
+            
+            // 1. Try using the ID if available
+            if (logId && logId !== '') {
+                identifier = { type: 'id', value: logId };
+            } 
+            // 2. If no ID, try using created_at + client_ip combination
+            else if (logCreated && logIp) {
+                identifier = { type: 'composite', created: logCreated, ip: logIp };
+            }
+            // 3. Fallback to index
+            else if (logIndex !== undefined) {
+                identifier = { type: 'index', value: logIndex };
+            }
+
+            if (!identifier) {
+                console.error('No identifier found for this row');
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Could not identify this log entry.',
+                    background: '#1f2937',
+                    color: '#f3f4f6',
+                    confirmButtonColor: '#3b82f6'
+                });
                 return;
             }
 
             try {
-                // Try sending as JSON first
+                // Send the identifier to the server
                 const response = await fetch('{{ route("api-logs.mark-single-as-seen") }}', {
                     method: 'POST',
                     headers: {
@@ -382,7 +418,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                     },
                     body: JSON.stringify({ 
-                        id: parseInt(logId) 
+                        identifier: identifier,
+                        log_id: logId,
+                        log_index: logIndex,
+                        log_created: logCreated,
+                        log_ip: logIp
                     })
                 });
 
