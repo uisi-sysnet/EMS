@@ -92,7 +92,7 @@
                     </button>
 
                     <div id="notification-dropdown"
-                        class="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-[500px] bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-40 overflow-hidden">
+                        class="absolute right-0 mt-2 w-[calc(100vw-1rem)] sm:w-96 max-w-[400px] bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-40 overflow-hidden">
                         <div class="flex items-center justify-between px-4 py-3 border-b border-border-700">
                             <h3 class="text-sm font-semibold text-text-100">Recent Logs</h3>
                             <div class="flex items-center gap-3">
