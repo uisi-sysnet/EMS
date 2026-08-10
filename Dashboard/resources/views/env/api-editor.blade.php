@@ -8,15 +8,52 @@
     .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #6B7280; }
     .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
 
+    /* ============================================ */
+    /* FIXED: Highlight for unseen logs - BLUE background */
+    /* ============================================ */
     
-    /* Highlight for unseen logs - BLUE background */
-    .log-row-unseen {
-        background-color: rgba(59, 130, 246, 0.15) !important;
-        border-left: 3px solid #3b82f6;
+    /* Target the entire row */
+    tr.log-row-unseen {
+        background-color: rgba(59, 130, 246, 0.2) !important;
+        border-left: 4px solid #3b82f6 !important;
+        display: table-row !important;
     }
     
-    .log-row-unseen:hover {
-        background-color: rgba(59, 130, 246, 0.25) !important;
+    /* Target all cells in the row */
+    tr.log-row-unseen td {
+        background-color: rgba(59, 130, 246, 0.2) !important;
+        border-bottom-color: rgba(59, 130, 246, 0.1) !important;
+    }
+    
+    /* Hover effect */
+    tr.log-row-unseen:hover {
+        background-color: rgba(59, 130, 246, 0.35) !important;
+    }
+    
+    tr.log-row-unseen:hover td {
+        background-color: rgba(59, 130, 246, 0.35) !important;
+    }
+    
+    /* Remove border-left from first cell since we have it on the row */
+    tr.log-row-unseen td:first-child {
+        border-left: none !important;
+    }
+    
+    /* Alternative: Add a left border indicator using pseudo-element */
+    tr.log-row-unseen::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: #3b82f6;
+        border-radius: 0 2px 2px 0;
+    }
+    
+    /* Make sure the row is positioned relative for the pseudo-element */
+    tr.log-row-unseen {
+        position: relative;
     }
     
     /* Unseen badge pulse animation */
@@ -28,7 +65,6 @@
         0%, 100% { opacity: 1; }
         50% { opacity: 0.5; }
     }
-
 </style>
 
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
@@ -137,22 +173,31 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-border-800">
+                                    @php
+                                        $unseenCountDebug = 0;
+                                        $totalCountDebug = 0;
+                                    @endphp
                                     @foreach($logs as $log)
                                         @php
                                             $isUnseen = is_null($log->seen_at);
+                                            $unseenCountDebug += $isUnseen ? 1 : 0;
+                                            $totalCountDebug++;
                                         @endphp
-                                        <tr class="hover:bg-surface-700/50 transition {{ $isUnseen ? 'log-row-unseen' : '' }}">
-                                            <td class="px-4 py-2.5 whitespace-nowrap">
+                                        <tr class="{{ $isUnseen ? 'log-row-unseen' : '' }} hover:bg-surface-700/50 transition" 
+                                            data-log-id="{{ $log->id }}" 
+                                            data-is-unseen="{{ $isUnseen ? 'true' : 'false' }}"
+                                            data-seen-at="{{ $log->seen_at }}">
+                                            <td class="px-4 py-2.5 whitespace-nowrap {{ $isUnseen ? 'bg-transparent' : '' }}">
                                                 <input type="checkbox" class="log-checkbox rounded border-border-600 bg-surface-900 text-radar-600" 
                                                     data-id="{{ $log->id }}" {{ $isUnseen ? 'data-unseen="true"' : '' }}>
                                             </td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300 {{ $isUnseen ? 'bg-transparent' : '' }}">
                                                 {{ $log->created_at->setTimezone('Asia/Manila')->format('Y-m-d h:i:s A') }}
                                             </td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300 {{ $isUnseen ? 'bg-transparent' : '' }}">
                                                 {{ $log->client_ip }}
                                             </td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs">
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs {{ $isUnseen ? 'bg-transparent' : '' }}">
                                                 <span class="px-2 py-0.5 rounded-full text-xs font-medium
                                                     @if($log->method == 'GET') bg-blue-600/20 text-blue-400
                                                     @elseif($log->method == 'POST') bg-green-600/20 text-green-400
@@ -162,10 +207,10 @@
                                                     {{ $log->method }}
                                                 </span>
                                             </td>
-                                            <td class="px-4 py-2.5 text-xs text-text-400 max-w-[200px] truncate" title="{{ $log->path }}">
+                                            <td class="px-4 py-2.5 text-xs text-text-400 max-w-[200px] truncate {{ $isUnseen ? 'bg-transparent' : '' }}" title="{{ $log->path }}">
                                                 {{ $log->path }}
                                             </td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap">
+                                            <td class="px-4 py-2.5 whitespace-nowrap {{ $isUnseen ? 'bg-transparent' : '' }}">
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
                                                     @if($log->status_code >= 200 && $log->status_code < 300) bg-green-600/20 text-green-400
                                                     @elseif($log->status_code >= 400 && $log->status_code < 500) bg-yellow-600/20 text-yellow-400
@@ -174,13 +219,13 @@
                                                     {{ $log->status_code }}
                                                 </span>
                                             </td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-400">
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-400 {{ $isUnseen ? 'bg-transparent' : '' }}">
                                                 {{ number_format($log->duration_ms, 2) }}ms
                                             </td>
-                                            <td class="px-4 py-2.5 text-xs text-text-400 max-w-[150px] truncate" title="{{ $log->api_key_owner ?? 'N/A' }}">
+                                            <td class="px-4 py-2.5 text-xs text-text-400 max-w-[150px] truncate {{ $isUnseen ? 'bg-transparent' : '' }}" title="{{ $log->api_key_owner ?? 'N/A' }}">
                                                 {{ $log->api_key_owner ?? 'N/A' }}
                                             </td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs">
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs {{ $isUnseen ? 'bg-transparent' : '' }}">
                                                 @if($isUnseen)
                                                     <span class="text-blue-400 font-medium flex items-center gap-1">
                                                         <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
@@ -196,6 +241,13 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                            
+                            <!-- Debug Info -->
+                            <div class="px-4 py-2 bg-surface-900/50 border-t border-border-700 text-xs text-text-500 flex flex-wrap gap-4">
+                                <span>Total logs: <strong class="text-text-300">{{ $totalCountDebug }}</strong></span>
+                                <span>Unseen: <strong class="text-blue-400">{{ $unseenCountDebug }}</strong></span>
+                                <span>Rows with class: <strong class="{{ $unseenCountDebug > 0 ? 'text-green-400' : 'text-red-400' }}">{{ $unseenCountDebug > 0 ? 'YES' : 'NO' }}</strong></span>
+                            </div>
                         @else
                             <div class="flex items-center justify-center h-32 text-sm text-text-500">
                                 No API logs found
@@ -263,14 +315,13 @@
                         </div>
 
                         <div class="overflow-x-auto thin-scrollbar flex-1">
-                            @if($ips->isNotEmpty())
+                            @if(isset($ips) && $ips->isNotEmpty())
                                 <table class="min-w-full divide-y divide-border-700">
                                     <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500">
                                         <tr>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">IP/Network</th>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Label</th>
                                             <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
-                                            {{-- <th scope="col" class="px-4 py-3 text-left font-medium">Created</th> --}}
                                             <th scope="col" class="px-4 py-3 text-right font-medium">Action</th>
                                         </tr>
                                     </thead>
@@ -291,9 +342,6 @@
                                                         {{ $ip->enabled ? 'Enabled' : 'Disabled' }}
                                                     </span>
                                                 </td>
-                                                {{-- <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                                    {{ \Carbon\Carbon::parse($ip->created_at)->format('Y-m-d h:i A') }}
-                                                </td> --}}
                                                 <td class="px-4 py-2.5 whitespace-nowrap text-right">
                                                     <button type="button"
                                                             class="delete-ip text-munti-red-400 hover:text-munti-red-300 transition p-1.5 rounded-lg hover:bg-munti-red-700/20"
@@ -721,9 +769,7 @@
         });
     });
 
-        // ============ MARK AS SEEN FUNCTIONALITY ============
-    
-    // Mark individual or selected logs as seen
+    // ============ MARK AS SEEN FUNCTIONALITY ============
     document.addEventListener('DOMContentLoaded', function() {
         // Select all checkbox
         const selectAll = document.getElementById('selectAllLogs');
@@ -850,9 +896,6 @@
                 const checkbox = this.querySelector('.log-checkbox');
                 if (checkbox) {
                     checkbox.checked = !checkbox.checked;
-                    // Optionally auto-mark as seen when checked
-                    // You can uncomment this if you want auto-mark when clicked
-                    // checkbox.dispatchEvent(new Event('change'));
                 }
             });
         });
@@ -891,7 +934,7 @@
             });
         });
     });
-    
+
 </script>
 
 @include('layouts.footer')

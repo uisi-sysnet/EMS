@@ -41,6 +41,7 @@ class ApiLogController extends Controller
             ->withQueryString();
 
         // Get unseen count for notification badge
+        $unseenCount = ApiLog::unseen()->count();
 
         $defaultFrom = ApiLog::min('created_at');
         $defaultTo   = ApiLog::max('created_at');
