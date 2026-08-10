@@ -22,38 +22,14 @@
         scrollbar-color: #4B5563 #1A1A1A;
     }
 
-    /* ============================================ */
-    /* SUBTLE BLUE HIGHLIGHT FOR UNSEEN LOGS */
-    /* ============================================ */
+    /* Subtle blue highlight for unseen logs only */
     tr.log-row-unseen {
         background-color: rgba(59, 130, 246, 0.08) !important;
-        border-left: 3px solid rgba(59, 130, 246, 0.3) !important;
-        position: relative;
-    }
-    
-    tr.log-row-unseen td {
-        background-color: rgba(59, 130, 246, 0.08) !important;
+        border-left: 3px solid rgba(59, 130, 246, 0.45);
     }
     
     tr.log-row-unseen:hover {
-        background-color: rgba(59, 130, 246, 0.15) !important;
-    }
-    
-    tr.log-row-unseen:hover td {
-        background-color: rgba(59, 130, 246, 0.15) !important;
-    }
-    
-    /* Blue left border using pseudo-element */
-    tr.log-row-unseen::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 3px;
-        background: rgba(59, 130, 246, 0.4);
-        border-radius: 0 2px 2px 0;
-        z-index: 2;
+        background-color: rgba(59, 130, 246, 0.14) !important;
     }
 
     /* Status code badges */
@@ -87,7 +63,7 @@
         50% { opacity: 0.5; }
     }
 
-    /* Consistent "Seen At" column styling */
+    /* Seen At column */
     .seen-at-cell {
         min-width: 80px;
         text-align: center;
@@ -302,7 +278,6 @@
 </div>
 
 <script>
-    // ============ MARK AS SEEN FUNCTIONALITY ============
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('markAllSeenBtn')?.addEventListener('click', async function() {
             const confirmResult = await Swal.fire({
@@ -364,18 +339,6 @@
                     confirmButtonColor: '#3b82f6'
                 });
             }
-        });
-        
-        // Debug: Check what rows have the class
-        const unseenRows = document.querySelectorAll('.log-row-unseen');
-        console.log('Unseen rows found:', unseenRows.length);
-        unseenRows.forEach((row, i) => {
-            console.log(`Row ${i + 1}:`, {
-                id: row.dataset.logId,
-                isUnseen: row.dataset.isUnseen,
-                classList: row.className,
-                bgColor: getComputedStyle(row).backgroundColor
-            });
         });
     });
 </script>
