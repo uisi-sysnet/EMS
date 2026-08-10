@@ -56,6 +56,7 @@
                         </button>
                         <div class="maintenance-dropdown-menu absolute left-0 mt-2 w-52 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-20 overflow-hidden">
                             <a href="{{ route('maintenance.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Network Diagnostic</a>
+                            <a href="{{ route('about') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">About</a>
                         </div>
                     </div>
 
@@ -74,11 +75,8 @@
                             <a href="{{ route('mqtt.editor') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">MQTT</a>
                             <a href="{{ route('network.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">Network</a>
                             <a href="{{ route('api.editor') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">API</a>
-                            <a href="{{ route('about') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">About</a>
                         </div>
                     </div>
-
-                    <a href="{{ route('about') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">About</a>
                 @endif
             </div>
 
@@ -205,6 +203,7 @@
                     </button>
                     <div class="maintenance-mobile-submenu hidden pl-4 space-y-1 mt-1">
                         <a href="{{ route('maintenance.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Network Diagnostic</a>
+                        <a href="{{ route('about') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">About</a>
                     </div>
                 </div>
 
@@ -226,7 +225,7 @@
                     </div>
                 </div>
 
-                <a href="{{ route('about') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">About</a>
+                
             @endif
 
             {{-- Mobile user & logout --}}
