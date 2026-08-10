@@ -18,6 +18,31 @@ class DashboardController extends Controller
     }
 
     /**
+     * JSON endpoint used by the dashboard's AJAX polling (see index.blade.php).
+     * Returns everything the view needs to refresh in place: station tables,
+     * status counts, and system health tiles — without a full page reload.
+     */
+    public function data()
+    {
+        [$airQualityData, $seismicData] = $this->buildDashboardData();
+
+        $idleThresholdMinutes    = 2;
+        $offlineThresholdMinutes = 3;
+
+        $airQualityCounts = $this->annotateStatus($airQualityData, $idleThresholdMinutes, $offlineThresholdMinutes);
+        $seismicCounts    = $this->annotateStatus($seismicData, $idleThresholdMinutes, $offlineThresholdMinutes);
+
+        return response()->json([
+            'airQualityData'   => $airQualityData,
+            'seismicData'      => $seismicData,
+            'airQualityCounts' => $airQualityCounts,
+            'seismicCounts'    => $seismicCounts,
+            'systemHealth'     => $this->buildSystemHealth(),
+            'generatedAt'      => now()->timezone('Asia/Manila')->format('Y-m-d h:i A'),
+        ]);
+    }
+
+    /**
      * Generates a point-in-time PDF snapshot of system status: air quality
      * and seismic station tables (location, status, total readings), plus
      * who generated it and when. Mirrors the same online/idle/offline
@@ -135,6 +160,99 @@ class DashboardController extends Controller
             ->values();
 
         return [$airQualityData, $seismicData];
+    }
+
+    /**
+     * Reads CPU / Memory / Storage / Uptime from /proc and disk_*_space().
+     * Same logic that used to live inline in index.blade.php — pulled out
+     * here so the AJAX data() endpoint can refresh these tiles too instead
+     * of only the station tables. Falls back to zeros/"—" on platforms
+     * without /proc (e.g. shared hosting, Windows) exactly as before.
+     *
+     * @return array{cpu: array, memory: array, disk: array, uptime: array}
+     */
+    private function buildSystemHealth(): array
+    {
+        $barColor = function ($percent) {
+            if ($percent >= 85) return ['text' => 'text-red-400', 'bar' => 'bg-red-500'];
+            if ($percent >= 60) return ['text' => 'text-amber-400', 'bar' => 'bg-amber-500'];
+            return ['text' => 'text-munti-green-400', 'bar' => 'bg-munti-green-500'];
+        };
+
+        // Storage (root filesystem)
+        $diskTotal   = @disk_total_space('/') ?: 0;
+        $diskFree    = @disk_free_space('/') ?: 0;
+        $diskUsed    = $diskTotal ? $diskTotal - $diskFree : 0;
+        $diskPercent = $diskTotal ? round(($diskUsed / $diskTotal) * 100, 1) : 0;
+
+        // Memory
+        $memTotal = 0;
+        $memAvailable = 0;
+        if (@is_readable('/proc/meminfo')) {
+            foreach (file('/proc/meminfo') as $line) {
+                if (str_starts_with($line, 'MemTotal:')) {
+                    $memTotal = (int) filter_var($line, FILTER_SANITIZE_NUMBER_INT) * 1024;
+                }
+                if (str_starts_with($line, 'MemAvailable:')) {
+                    $memAvailable = (int) filter_var($line, FILTER_SANITIZE_NUMBER_INT) * 1024;
+                }
+            }
+        }
+        $memUsed    = $memTotal ? $memTotal - $memAvailable : 0;
+        $memPercent = $memTotal ? round(($memUsed / $memTotal) * 100, 1) : 0;
+
+        // CPU (approximated from 1-minute load average / core count)
+        $cpuCores = 1;
+        if (@is_readable('/proc/cpuinfo')) {
+            $cpuCores = max(1, substr_count(file_get_contents('/proc/cpuinfo'), 'processor'));
+        }
+        $load = function_exists('sys_getloadavg') ? sys_getloadavg() : false;
+        $load = $load ?: [0, 0, 0];
+        $cpuPercent = round(min(($load[0] / $cpuCores) * 100, 100), 1);
+
+        // Uptime
+        $uptimeSeconds = 0;
+        if (@is_readable('/proc/uptime')) {
+            $uptimeSeconds = (int) floatval(explode(' ', file_get_contents('/proc/uptime'))[0]);
+        }
+
+        return [
+            'cpu' => [
+                'percent' => $cpuPercent,
+                'cores'   => $cpuCores,
+                'load'    => round($load[0], 2),
+                'colors'  => $barColor($cpuPercent),
+            ],
+            'memory' => [
+                'percent' => $memPercent,
+                'used'    => $this->formatBytes($memUsed),
+                'total'   => $this->formatBytes($memTotal),
+                'colors'  => $barColor($memPercent),
+            ],
+            'disk' => [
+                'percent' => $diskPercent,
+                'used'    => $this->formatBytes($diskUsed),
+                'total'   => $this->formatBytes($diskTotal),
+                'colors'  => $barColor($diskPercent),
+            ],
+            'uptime' => [
+                'days'    => intdiv($uptimeSeconds, 86400),
+                'hours'   => intdiv($uptimeSeconds % 86400, 3600),
+                'minutes' => intdiv($uptimeSeconds % 3600, 60),
+            ],
+        ];
+    }
+
+    /**
+     * Same byte-formatting helper previously inline in the blade view.
+     */
+    private function formatBytes($bytes, int $decimals = 1): string
+    {
+        if (!$bytes) return '0 GB';
+        $units  = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $factor = (int) floor((strlen((string) (int) $bytes) - 1) / 3);
+        $factor = max(0, min($factor, count($units) - 1));
+        return sprintf("%.{$decimals}f", $bytes / (1024 ** $factor)) . ' ' . $units[$factor];
     }
 
     /**
