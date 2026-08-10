@@ -48,7 +48,7 @@ class ApiLogController extends Controller
         $defaultFrom = $defaultFrom ? \Carbon\Carbon::parse($defaultFrom)->toDateString() : null;
         $defaultTo   = $defaultTo   ? \Carbon\Carbon::parse($defaultTo)->toDateString()   : null;
 
-        return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo', 'unseenCount'));
+        return view('logs.api', compact('logs', 'defaultFrom', 'defaultTo'));
     }
 
     // Add this method to mark logs as seen
