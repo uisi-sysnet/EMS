@@ -507,7 +507,7 @@
                         <div class="text-xs text-text-500 truncate mt-0.5">
                             ${log.detail}
                         </div>
-                        ${log.time ? `<div class="text-[11px] text-text-500 mt-0.5">Level: ${log.time}</div>` : ''}
+                        ${log.time ? `<div class="text-[11px] text-text-500 mt-0.5">${log.time}</div>` : ''}
                     </a>`;
             }).join('');
 
