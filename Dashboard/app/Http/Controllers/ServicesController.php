@@ -38,6 +38,16 @@ class ServicesController extends Controller
     }
 
     /**
+     * Standalone terminal page — no service cards, just the xterm.js
+     * session. Kept separate so it can be opened in its own tab/window
+     * without re-establishing the status-polling loop.
+     */
+    public function terminal()
+    {
+        return view('server.terminal');
+    }
+
+    /**
      * AJAX polling endpoint — returns fresh status for every managed service.
      * GET /maintenance/services/status
      */

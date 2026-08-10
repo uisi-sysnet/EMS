@@ -1139,6 +1139,20 @@ server {
         try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
+    location /pty {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+ 
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+ 
+        # Interactive shells idle a lot — keep the socket open.
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
     location ~ \.php\$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:${PHP_FPM_SOCK};
@@ -1174,7 +1188,7 @@ server {
 
     location ~ /\.(?!well-known).* {
         deny all;
-    }
+    }  
 }
 NGINXEOF
 
