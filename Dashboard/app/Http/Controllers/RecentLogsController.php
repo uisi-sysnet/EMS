@@ -10,12 +10,16 @@ class RecentLogsController extends Controller
 {
     public function index(Request $request)
     {
-        // Only fetch API logs, 20 most recent
-        $apiLogs = ApiLog::latest()->limit(20)->get();
+        // Only fetch API logs that haven't been seen yet
+        $apiLogs = ApiLog::whereNull('seen_at')
+            ->latest()
+            ->limit(20)
+            ->get();
 
         $seenIds = $this->parseSeenIds($request->input('seen', ''));
-        $logs = $this->buildLogEntries($apiLogs, collect()); // Empty collection for system logs
+        $logs = $this->buildLogEntries($apiLogs, collect());
 
+        // Filter out logs that are in the seen list (client-side tracking)
         $unseen = $logs->filter(function ($log) use ($seenIds) {
             return !in_array($log['type'] . '-' . $log['id'], $seenIds);
         })->sortByDesc('timestamp');
@@ -30,15 +34,8 @@ class RecentLogsController extends Controller
 
     public function count(Request $request)
     {
-        // Only count API logs
-        $apiLogs = ApiLog::latest()->limit(20)->get();
-
-        $seenIds = $this->parseSeenIds($request->input('seen', ''));
-        $logs = $this->buildLogEntries($apiLogs, collect()); // Empty collection for system logs
-
-        $unseenCount = $logs->filter(function ($log) use ($seenIds) {
-            return !in_array($log['type'] . '-' . $log['id'], $seenIds);
-        })->count();
+        // Count API logs that haven't been seen yet
+        $unseenCount = ApiLog::whereNull('seen_at')->count();
 
         return response()->json(['count' => $unseenCount]);
     }
@@ -54,29 +51,23 @@ class RecentLogsController extends Controller
         $entries = collect();
 
         foreach ($apiLogs as $log) {
+            // Determine status color based on status code
+            $statusColor = $log->status_code >= 400 ? 'text-red-400' : 'text-green-400';
+            
             $entries->push([
-                'type'      => 'api',
-                'id'        => $log->id,
-                'summary'   => $log->method . ' ' . $log->path . ' → ' . $log->status_code,
-                'detail'    => 'IP: ' . $log->client_ip . ' | ' . round($log->duration_ms, 2) . 'ms',
-                'time'      => $log->created_at->diffForHumans(),
-                'timestamp' => $log->created_at->toISOString(),
-                'url'       => route('api-logs.index'), // clean URL (no highlight)
+                'type'         => 'api',
+                'id'           => $log->id,
+                'summary'      => $log->method . ' ' . $log->path,
+                'detail'       => 'Status: ' . $log->status_code . ' | IP: ' . $log->client_ip . ' | ' . round($log->duration_ms, 2) . 'ms',
+                'time'         => $log->created_at->diffForHumans(),
+                'timestamp'    => $log->created_at->toISOString(),
+                'url'          => route('api-logs.index'),
+                'status_code'  => $log->status_code,
+                'status_color' => $statusColor,
+                'is_seen'      => $log->seen_at !== null,
             ]);
         }
 
-        // Remove system logs processing entirely
-        // foreach ($systemLogs as $log) { ... }
-
         return $entries;
-    }
-
-    /**
-     * Extract the actual log level from the message or use the level field
-     */
-    private function extractLogLevel($log)
-    {
-        // This method is no longer needed for API-only logs
-        return 'info';
     }
 }
