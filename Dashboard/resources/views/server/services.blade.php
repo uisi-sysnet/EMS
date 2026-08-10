@@ -1,16 +1,22 @@
-{{-- resources/views/services/index.blade.php --}}
-{{-- Adjust @extends/@section to match your actual layout name --}}
-@extends('layouts.app')
+{{-- resources/views/server/services.blade.php --}}
+@include('layouts.header')
+@include('layouts.topbar')
 
-@section('title', 'Services')
+<div id="main-content"
+     class="pt-20 pb-6 px-4 sm:px-6 max-w-7xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
+    <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex flex-col min-h-0">
+        {{-- Header --}}
+        <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+            <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2">
+                <span class="leading-tight uppercase">Services</span>
+            </h2>
+            <span class="text-xs sm:text-sm text-text-400 sm:text-right">
+                Status, control &amp; server terminal
+            </span>
+        </div>
 
-@section('content')
-<div class="max-w-6xl mx-auto px-4 sm:px-6 pt-24 pb-16 space-y-8">
-
-    <div>
-        <h1 class="text-xl sm:text-2xl font-bold text-text-100">Services</h1>
-        <p class="text-sm text-text-400 mt-1">Monitor and control the EMS services running on this server.</p>
-    </div>
+        {{-- Scrollable body --}}
+        <div class="flex-1 min-h-0 overflow-y-auto thin-scrollbar px-4 sm:px-6 py-4 sm:py-6 space-y-6">
 
     {{-- ========== SERVICE STATUS CARDS ========== --}}
     <div id="service-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -60,7 +66,10 @@
         </div>
         <div id="terminal" class="p-2 bg-black" style="height: 420px;"></div>
     </div>
-</div>
+
+        </div>{{-- /scrollable body --}}
+    </div>{{-- /card --}}
+</div>{{-- /main-content --}}
 
 {{-- xterm.js --}}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/css/xterm.min.css">
@@ -238,4 +247,5 @@ document.addEventListener('DOMContentLoaded', function () {
     connectTerminal();
 });
 </script>
-@endsection
+
+@include('layouts.footer')
