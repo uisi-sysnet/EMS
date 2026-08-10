@@ -71,35 +71,56 @@
     $diskColors = $barColor($diskPercent);
 
     // --- Station status -------------------------------------------------
-    // There's no explicit "status" field coming from the query, so a
-    // station is treated as Online if it has reported data within this
-    // many minutes; otherwise Offline. Adjust to match how often your
-    // stations actually check in (or swap this out entirely for a real
-    // $item->status column if/when the controller provides one).
-    $onlineThresholdMinutes = 60;
+    // There's no explicit "status" field coming from the query, so status
+    // is derived from how long ago each station's last reading came in:
+    //   <= 2 min   -> Online
+    //   2–3 min    -> Idle
+    //   > 3 min (or no reading at all) -> Offline
+    // Adjust the two thresholds below to match your stations' real
+    // reporting interval (or swap this out for a real $item->status
+    // column if/when the controller provides one).
+    $idleThresholdMinutes    = 2;
+    $offlineThresholdMinutes = 3;
 
-    $annotateStatus = function ($collection) use ($onlineThresholdMinutes) {
-        $online = 0;
+    $annotateStatus = function ($collection) use ($idleThresholdMinutes, $offlineThresholdMinutes) {
+        $counts = ['online' => 0, 'idle' => 0, 'offline' => 0];
         foreach ($collection as $item) {
-            $isOnline = false;
+            $status = 'offline';
             if (!empty($item->latest_at)) {
-                $isOnline = \Carbon\Carbon::parse($item->latest_at)->diffInMinutes(now()) <= $onlineThresholdMinutes;
+                $minutesAgo = \Carbon\Carbon::parse($item->latest_at)->diffInMinutes(now());
+                if ($minutesAgo <= $idleThresholdMinutes) {
+                    $status = 'online';
+                } elseif ($minutesAgo <= $offlineThresholdMinutes) {
+                    $status = 'idle';
+                }
             }
-            $item->is_online = $isOnline;
-            if ($isOnline) $online++;
+            $item->status = $status;
+            $counts[$status]++;
         }
-        return $online;
+        return $counts;
     };
+
+    $statusBadgeMeta = [
+        'online'  => ['label' => 'Online',  'text' => 'text-munti-green-400', 'bg' => 'bg-munti-green-700/20', 'border' => 'border-munti-green-600/30', 'dot' => 'bg-munti-green-400'],
+        'idle'    => ['label' => 'Idle',    'text' => 'text-amber-400',       'bg' => 'bg-amber-700/20',       'border' => 'border-amber-600/30',       'dot' => 'bg-amber-400'],
+        'offline' => ['label' => 'Offline', 'text' => 'text-red-400',         'bg' => 'bg-red-700/20',         'border' => 'border-red-600/30',         'dot' => 'bg-red-400'],
+    ];
 
     $airQualityData    = $airQualityData ?? [];
     $seismicData       = $seismicData ?? [];
-    $airQualityOnline  = $annotateStatus($airQualityData);
-    $seismicOnline     = $annotateStatus($seismicData);
+    $airQualityCounts  = $annotateStatus($airQualityData);
+    $seismicCounts     = $annotateStatus($seismicData);
+    $airQualityOnline  = $airQualityCounts['online'];
+    $seismicOnline     = $seismicCounts['online'];
     $airQualityTotal   = count($airQualityData);
     $seismicTotal      = count($seismicData);
 
     $totalStations = $airQualityTotal + $seismicTotal;
     $totalOnline   = $airQualityOnline + $seismicOnline;
+    // Percentage used for the system status banner counts strictly-Online
+    // stations only — an Idle station is a stale-data warning sign too,
+    // so it doesn't count toward "fully healthy" here. If you'd rather
+    // have Idle count as "up", change this to ($totalOnline + idle) / total.
     $overallOnlinePercent = $totalStations > 0 ? round(($totalOnline / $totalStations) * 100, 1) : 100;
 
     // System status thresholds (based on % of stations online):
@@ -269,12 +290,17 @@
                             <div class="flex items-center gap-1.5">
                                 <span class="w-2 h-2 rounded-full bg-munti-green-400"></span>
                                 <span class="text-text-300">Online</span>
-                                <span class="text-text-100 font-semibold ml-auto">{{ $airQualityOnline }}</span>
+                                <span class="text-text-100 font-semibold ml-auto">{{ $airQualityCounts['online'] }}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                                <span class="text-text-300">Idle</span>
+                                <span class="text-text-100 font-semibold ml-auto">{{ $airQualityCounts['idle'] }}</span>
                             </div>
                             <div class="flex items-center gap-1.5">
                                 <span class="w-2 h-2 rounded-full bg-red-400"></span>
                                 <span class="text-text-300">Offline</span>
-                                <span class="text-text-100 font-semibold ml-auto">{{ $airQualityTotal - $airQualityOnline }}</span>
+                                <span class="text-text-100 font-semibold ml-auto">{{ $airQualityCounts['offline'] }}</span>
                             </div>
                         </div>
                     </div>
@@ -302,12 +328,17 @@
                             <div class="flex items-center gap-1.5">
                                 <span class="w-2 h-2 rounded-full bg-munti-green-400"></span>
                                 <span class="text-text-300">Online</span>
-                                <span class="text-text-100 font-semibold ml-auto">{{ $seismicOnline }}</span>
+                                <span class="text-text-100 font-semibold ml-auto">{{ $seismicCounts['online'] }}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                                <span class="text-text-300">Idle</span>
+                                <span class="text-text-100 font-semibold ml-auto">{{ $seismicCounts['idle'] }}</span>
                             </div>
                             <div class="flex items-center gap-1.5">
                                 <span class="w-2 h-2 rounded-full bg-red-400"></span>
                                 <span class="text-text-300">Offline</span>
-                                <span class="text-text-100 font-semibold ml-auto">{{ $seismicTotal - $seismicOnline }}</span>
+                                <span class="text-text-100 font-semibold ml-auto">{{ $seismicCounts['offline'] }}</span>
                             </div>
                         </div>
                     </div>
@@ -367,15 +398,10 @@
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap">
-                                            @if($item->is_online)
-                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 px-1.5 py-0.5 rounded-full">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span> Online
+                                            @php($meta = $statusBadgeMeta[$item->status])
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium {{ $meta['text'] }} {{ $meta['bg'] }} border {{ $meta['border'] }} px-1.5 py-0.5 rounded-full">
+                                                <span class="w-1.5 h-1.5 rounded-full {{ $meta['dot'] }}"></span> {{ $meta['label'] }}
                                             </span>
-                                            @else
-                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium text-red-400 bg-red-700/20 border border-red-600/30 px-1.5 py-0.5 rounded-full">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span> Offline
-                                            </span>
-                                            @endif
                                         </td>
                                     </tr>
                                     @empty
@@ -443,15 +469,10 @@
                                         </td>
                                         <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
                                         <td class="px-2 py-0 whitespace-nowrap">
-                                            @if($item->is_online)
-                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 px-1.5 py-0.5 rounded-full">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span> Online
+                                            @php($meta = $statusBadgeMeta[$item->status])
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium {{ $meta['text'] }} {{ $meta['bg'] }} border {{ $meta['border'] }} px-1.5 py-0.5 rounded-full">
+                                                <span class="w-1.5 h-1.5 rounded-full {{ $meta['dot'] }}"></span> {{ $meta['label'] }}
                                             </span>
-                                            @else
-                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium text-red-400 bg-red-700/20 border border-red-600/30 px-1.5 py-0.5 rounded-full">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span> Offline
-                                            </span>
-                                            @endif
                                         </td>
                                     </tr>
                                     @empty
@@ -556,17 +577,17 @@
             options: chartDefaults
         });
 
-        // Station status donut charts (Online vs Offline)
-        function makeStatusChart(canvasId, online, offline) {
+        // Station status donut charts (Online / Idle / Offline)
+        function makeStatusChart(canvasId, online, idle, offline) {
             const el = document.getElementById(canvasId);
             if (!el) return;
             new Chart(el.getContext('2d'), {
                 type: 'doughnut',
                 data: {
-                    labels: ['Online', 'Offline'],
+                    labels: ['Online', 'Idle', 'Offline'],
                     datasets: [{
-                        data: [online, offline],
-                        backgroundColor: ['#2DD4BF', '#F87171'],
+                        data: [online, idle, offline],
+                        backgroundColor: ['#2DD4BF', '#FBBF24', '#F87171'],
                         borderColor: '#1E293B',
                         borderWidth: 2,
                     }]
@@ -589,8 +610,8 @@
             });
         }
 
-        makeStatusChart('airQualityStatusChart', {{ $airQualityOnline }}, {{ $airQualityTotal - $airQualityOnline }});
-        makeStatusChart('seismicStatusChart', {{ $seismicOnline }}, {{ $seismicTotal - $seismicOnline }});
+        makeStatusChart('airQualityStatusChart', {{ $airQualityCounts['online'] }}, {{ $airQualityCounts['idle'] }}, {{ $airQualityCounts['offline'] }});
+        makeStatusChart('seismicStatusChart', {{ $seismicCounts['online'] }}, {{ $seismicCounts['idle'] }}, {{ $seismicCounts['offline'] }});
     });
     setTimeout(function() {
         location.reload();
