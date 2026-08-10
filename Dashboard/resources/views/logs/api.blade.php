@@ -123,7 +123,7 @@
             <div class="flex items-center gap-2">
                 <button type="button" id="markAllSeenBtn" 
                         class="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition">
-                    Mark All as Seen
+                    Mark All as Archived
                 </button>
                 @if(isset($unseenCount) && $unseenCount > 0)
                     <span class="inline-flex items-center justify-center min-w-[24px] h-6 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-600/30 text-blue-300 border border-blue-500/40">
@@ -207,7 +207,7 @@
                                 <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Duration (ms)</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">API Key Owner</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">API Key</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Seen</th>
+                                {{-- <th class="px-4 py-3 text-left text-xs font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Seen</th> --}}
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border-800">
@@ -253,7 +253,7 @@
                                     <td class="px-4 py-2 whitespace-nowrap text-text-400 font-mono text-xs max-w-28 truncate" title="{{ $log->api_key_used }}">
                                         {{ $log->api_key_used }}
                                     </td>
-                                    <td class="seen-cell">
+                                    {{-- <td class="seen-cell">
                                         @if($isUnseen)
                                             <span class="unseen-text">
                                                 <span class="dot"></span>
@@ -262,7 +262,7 @@
                                         @else
                                             <span class="seen-text">Seen</span>
                                         @endif
-                                    </td>
+                                    </td> --}}
                                 </tr>
                             @empty
                                 <tr>

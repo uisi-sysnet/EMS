@@ -67,6 +67,7 @@ Route::middleware(['role:administrator'])->group(function () {
 
     Route::get('/recent-logs', [RecentLogsController::class, 'index'])->name('recent-logs');
     Route::get('/recent-logs/count', [RecentLogsController::class, 'count'])->name('recent-logs.count');
+    Route::post('/mark-log-seen', [RecentLogsController::class, 'markLogAsSeen'])->name('recent-logs.mark-seen');
 
     Route::get('/network', [NetworkController::class, 'index'])->name('network.index');
     Route::get('/network/load', [NetworkController::class, 'load'])->name('network.load');
