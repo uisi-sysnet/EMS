@@ -280,7 +280,46 @@
 {{-- All dropdown toggles and notification logic --}}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // ----- Main mobile menu toggle -----
+        // ========== Helper: close everything ==========
+        function closeAllDropdowns(except = null) {
+            // Desktop Maintenance
+            const maintMenu = document.querySelector('#maintenance-dropdown-desktop .maintenance-dropdown-menu');
+            const maintToggle = document.querySelector('#maintenance-dropdown-desktop .maintenance-dropdown-toggle');
+            if (maintMenu && except !== 'maintenance') {
+                maintMenu.classList.add('hidden');
+                if (maintToggle) {
+                    maintToggle.setAttribute('aria-expanded', 'false');
+                    const chevron = maintToggle.querySelector('svg');
+                    if (chevron) chevron.classList.remove('rotate-180');
+                }
+            }
+
+            // Notification
+            const notifDropdown = document.getElementById('notification-dropdown');
+            const notifBell = document.getElementById('notification-bell');
+            if (notifDropdown && except !== 'notification') {
+                notifDropdown.classList.add('hidden');
+                if (notifBell) notifBell.setAttribute('aria-expanded', 'false');
+            }
+
+            // Settings Gear
+            const settingsDropdown = document.getElementById('settings-gear-dropdown');
+            const settingsBtn = document.getElementById('settings-gear-button');
+            if (settingsDropdown && except !== 'settings') {
+                settingsDropdown.classList.add('hidden');
+                if (settingsBtn) settingsBtn.setAttribute('aria-expanded', 'false');
+            }
+
+            // Avatar
+            const avatarMenu = document.getElementById('avatar-dropdown-menu');
+            const avatarBtn = document.getElementById('avatar-button');
+            if (avatarMenu && except !== 'avatar') {
+                avatarMenu.classList.add('hidden');
+                if (avatarBtn) avatarBtn.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        // ========== Mobile menu toggle ==========
         const btn = document.getElementById('mobile-menu-button');
         const menu = document.getElementById('mobile-menu');
         const openIcon = document.getElementById('menu-open-icon');
@@ -293,80 +332,29 @@
                 openIcon.classList.toggle('hidden');
                 closeIcon.classList.toggle('hidden');
                 btn.setAttribute('aria-expanded', String(!isOpen));
+                // Close all desktop dropdowns when opening mobile menu
+                if (!isOpen) closeAllDropdowns();
             });
         }
 
-        // ----- Desktop dropdowns: Logs, Maintenance, Settings (mutually exclusive) -----
-        const desktopDropdowns = [
-            { id: 'logs-dropdown-desktop', toggleClass: '.logs-dropdown-toggle', menuClass: '.logs-dropdown-menu' },
-            { id: 'maintenance-dropdown-desktop', toggleClass: '.maintenance-dropdown-toggle', menuClass: '.maintenance-dropdown-menu' },
-            { id: 'settings-dropdown-desktop', toggleClass: '.settings-dropdown-toggle', menuClass: '.settings-dropdown-menu' },
-        ];
+        // ========== Desktop Maintenance Dropdown ==========
+        const maintWrapper = document.getElementById('maintenance-dropdown-desktop');
+        const maintToggle = maintWrapper?.querySelector('.maintenance-dropdown-toggle');
+        const maintMenu = maintWrapper?.querySelector('.maintenance-dropdown-menu');
 
-        const desktopDropdownState = desktopDropdowns.map(d => {
-            const wrapper = document.getElementById(d.id);
-            return {
-                wrapper,
-                toggle: wrapper ? wrapper.querySelector(d.toggleClass) : null,
-                menu: wrapper ? wrapper.querySelector(d.menuClass) : null,
-            };
-        }).filter(d => d.wrapper && d.toggle && d.menu);
-
-        function closeAllDesktopDropdowns(except) {
-            desktopDropdownState.forEach(d => {
-                if (d === except) return;
-                d.menu.classList.add('hidden');
-                d.toggle.setAttribute('aria-expanded', 'false');
-                const chevron = d.toggle.querySelector('svg');
-                if (chevron) chevron.classList.remove('rotate-180');
-            });
-        }
-
-        desktopDropdownState.forEach(d => {
-            d.toggle.addEventListener('click', function (e) {
+        if (maintToggle && maintMenu) {
+            maintToggle.addEventListener('click', function (e) {
                 e.stopPropagation();
-                const isOpen = !d.menu.classList.contains('hidden');
-                closeAllDesktopDropdowns(d);
-                d.menu.classList.toggle('hidden');
+                const isOpen = !maintMenu.classList.contains('hidden');
+                closeAllDropdowns('maintenance');
+                maintMenu.classList.toggle('hidden');
                 this.setAttribute('aria-expanded', String(!isOpen));
                 const chevron = this.querySelector('svg');
                 if (chevron) chevron.classList.toggle('rotate-180');
             });
-        });
+        }
 
-        document.addEventListener('click', function (e) {
-            desktopDropdownState.forEach(d => {
-                if (!d.wrapper.contains(e.target)) {
-                    d.menu.classList.add('hidden');
-                    d.toggle.setAttribute('aria-expanded', 'false');
-                    const chevron = d.toggle.querySelector('svg');
-                    if (chevron) chevron.classList.remove('rotate-180');
-                }
-            });
-        });
-
-        // ----- Mobile submenu accordions: Logs, Maintenance, Settings -----
-        const mobileSubmenus = [
-            { toggleClass: '.logs-mobile-toggle', submenuClass: '.logs-mobile-submenu' },
-            { toggleClass: '.maintenance-mobile-toggle', submenuClass: '.maintenance-mobile-submenu' },
-            { toggleClass: '.settings-mobile-toggle', submenuClass: '.settings-mobile-submenu' },
-        ];
-
-        mobileSubmenus.forEach(({ toggleClass, submenuClass }) => {
-            const toggle = document.querySelector(toggleClass);
-            const submenu = document.querySelector(submenuClass);
-            if (toggle && submenu) {
-                toggle.addEventListener('click', function () {
-                    const isOpen = !submenu.classList.contains('hidden');
-                    submenu.classList.toggle('hidden');
-                    this.setAttribute('aria-expanded', String(!isOpen));
-                    const chevron = this.querySelector('svg');
-                    if (chevron) chevron.classList.toggle('rotate-180');
-                });
-            }
-        });
-
-        // ----- Settings Gear Dropdown -----
+        // ========== Settings Gear ==========
         const settingsGearButton = document.getElementById('settings-gear-button');
         const settingsGearDropdown = document.getElementById('settings-gear-dropdown');
 
@@ -374,26 +362,13 @@
             settingsGearButton.addEventListener('click', function (e) {
                 e.stopPropagation();
                 const isOpen = !settingsGearDropdown.classList.contains('hidden');
+                closeAllDropdowns('settings');
                 settingsGearDropdown.classList.toggle('hidden');
                 this.setAttribute('aria-expanded', String(!isOpen));
-                
-                // Close avatar dropdown if open
-                if (avatarMenu && !avatarMenu.classList.contains('hidden')) {
-                    avatarMenu.classList.add('hidden');
-                    avatarButton.setAttribute('aria-expanded', 'false');
-                }
-            });
-
-            document.addEventListener('click', function (e) {
-                const container = document.getElementById('settings-gear-container');
-                if (container && !container.contains(e.target)) {
-                    settingsGearDropdown.classList.add('hidden');
-                    settingsGearButton.setAttribute('aria-expanded', 'false');
-                }
             });
         }
 
-        // ----- Avatar dropdown toggle -----
+        // ========== Avatar ==========
         const avatarButton = document.getElementById('avatar-button');
         const avatarMenu = document.getElementById('avatar-dropdown-menu');
 
@@ -401,20 +376,13 @@
             avatarButton.addEventListener('click', function (e) {
                 e.stopPropagation();
                 const isOpen = !avatarMenu.classList.contains('hidden');
+                closeAllDropdowns('avatar');
                 avatarMenu.classList.toggle('hidden');
                 this.setAttribute('aria-expanded', String(!isOpen));
             });
-
-            document.addEventListener('click', function (e) {
-                const wrapper = document.getElementById('avatar-dropdown');
-                if (wrapper && !wrapper.contains(e.target)) {
-                    avatarMenu.classList.add('hidden');
-                    avatarButton.setAttribute('aria-expanded', 'false');
-                }
-            });
         }
 
-        // ----- Notification Bell -----
+        // ========== Notification Bell ==========
         const bellButton = document.getElementById('notification-bell');
         const bellDropdown = document.getElementById('notification-dropdown');
         const notificationList = document.getElementById('notification-list');
@@ -461,7 +429,6 @@
                 const badgeText = log.badge_text || (type === 'api' ? 'API' : 'SYS');
                 const badgeColor = log.badge_color || (type === 'api' ? 'text-blue-400' : 'text-purple-400');
                 
-                // Determine background color based on type and level
                 let bgClass = 'hover:bg-surface-700/60';
                 let borderClass = 'border-transparent';
                 let textClass = 'text-text-400';
@@ -472,7 +439,6 @@
                         borderClass = 'border-blue-500/60';
                         textClass = 'text-text-100';
                     } else {
-                        // System logs - color based on level
                         const level = (log.level || '').toLowerCase();
                         if (['emergency', 'alert', 'critical', 'error'].includes(level)) {
                             bgClass = 'bg-red-500/10 hover:bg-red-500/20';
@@ -494,7 +460,7 @@
                     <a href="${log.url}"
                         data-type="${log.type}"
                         data-seen="${log.is_seen}"
-                        data-log-data='${JSON.stringify(log._log_data)}'
+                        data-log-data='${JSON.stringify(log._log_data || {})}'
                         class="log-item block px-4 py-3 transition-colors border-l-[3px] ${bgClass} ${borderClass}">
                         <div class="flex items-center justify-between gap-2 mb-1">
                             <div class="flex items-center gap-2">
@@ -525,10 +491,7 @@
                 item.addEventListener('click', function(e) {
                     if (this.dataset.seen === 'true' || this.dataset.seen === '1') return;
 
-                    // Get the log data from the dataset or a data attribute
                     const type = this.dataset.type;
-                    // You'll need to store the log data in a data attribute on the element
-                    // or fetch it from the server using the unique identifier
                     const logData = JSON.parse(this.dataset.logData || '{}');
 
                     fetch('/mark-log-seen', {
@@ -545,10 +508,8 @@
                     .then(r => r.json())
                     .then(data => {
                         if (data.success) {
-                            addSeenId(type, id);
                             this.dataset.seen = 'true';
                             
-                            // Update UI
                             this.classList.remove(
                                 'bg-blue-500/10', 'bg-red-500/10', 'bg-yellow-500/10', 'bg-purple-500/10',
                                 'hover:bg-blue-500/20', 'hover:bg-red-500/20', 'hover:bg-yellow-500/20', 'hover:bg-purple-500/20',
@@ -565,7 +526,6 @@
                                 summary.classList.add('text-text-400');
                             }
                             
-                            // Check if any unseen items remain
                             if (!document.querySelector('.log-item:not([data-seen="true"])')) {
                                 notificationDot.classList.add('hidden');
                                 bellButton.classList.remove('animate-pulse');
@@ -581,16 +541,12 @@
             const unseenItems = document.querySelectorAll('.log-item:not([data-seen="true"])');
             if (!unseenItems.length) return;
 
-            // Check which types need to be marked
             const typesNeeded = new Set();
-            unseenItems.forEach(item => {
-                typesNeeded.add(item.dataset.type);
-            });
+            unseenItems.forEach(item => typesNeeded.add(item.dataset.type));
 
             markAllBtn.textContent = 'Processing…';
             markAllBtn.disabled = true;
 
-            // Mark each type separately using a single endpoint for each type
             const promises = Array.from(typesNeeded).map(type => {
                 return fetch('/mark-all-logs-seen', {
                     method: 'POST',
@@ -601,26 +557,16 @@
                     body: JSON.stringify({ type: type })
                 })
                 .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        return { type, success: true };
-                    }
-                    return { type, success: false };
-                })
-                .catch(() => {
-                    return { type, success: false };
-                });
+                .then(data => ({ type, success: !!data.success }))
+                .catch(() => ({ type, success: false }));
             });
 
             Promise.all(promises)
                 .then(results => {
-                    markAllBtn.textContent = 'Mark all as seen';
+                    markAllBtn.textContent = 'Mark All as Seen';
                     markAllBtn.disabled = false;
 
-                    const allSuccessful = results.every(r => r.success);
-                    
-                    if (allSuccessful) {
-                        // Update UI for all unseen items
+                    if (results.every(r => r.success)) {
                         unseenItems.forEach(item => {
                             item.dataset.seen = 'true';
                             item.classList.remove(
@@ -640,14 +586,10 @@
                         });
                         notificationDot.classList.add('hidden');
                         bellButton.classList.remove('animate-pulse');
-                    } else {
-                        // Some failed, show error
-                        console.error('Some logs failed to mark as seen');
-                        // You could show a toast notification here
                     }
                 })
                 .catch(() => {
-                    markAllBtn.textContent = 'Mark all as seen';
+                    markAllBtn.textContent = 'Mark All as Seen';
                     markAllBtn.disabled = false;
                 });
         }
@@ -675,6 +617,7 @@
             bellButton.addEventListener('click', function (e) {
                 e.stopPropagation();
                 const isOpen = !bellDropdown.classList.contains('hidden');
+                closeAllDropdowns('notification');
                 bellDropdown.classList.toggle('hidden');
                 this.setAttribute('aria-expanded', String(!isOpen));
 
@@ -704,6 +647,41 @@
             });
         }
 
+        // ========== Global click outside ==========
+        document.addEventListener('click', function (e) {
+            // Close all if click is outside every dropdown container
+            const isInside =
+                e.target.closest('#maintenance-dropdown-desktop') ||
+                e.target.closest('#notification-container') ||
+                e.target.closest('#settings-gear-container') ||
+                e.target.closest('#avatar-dropdown');
+
+            if (!isInside) {
+                closeAllDropdowns();
+            }
+        });
+
+        // ========== Mobile submenus (independent) ==========
+        const mobileSubmenus = [
+            { toggleClass: '.maintenance-mobile-toggle', submenuClass: '.maintenance-mobile-submenu' },
+            { toggleClass: '.settings-mobile-toggle', submenuClass: '.settings-mobile-submenu' },
+        ];
+
+        mobileSubmenus.forEach(({ toggleClass, submenuClass }) => {
+            const toggle = document.querySelector(toggleClass);
+            const submenu = document.querySelector(submenuClass);
+            if (toggle && submenu) {
+                toggle.addEventListener('click', function () {
+                    const isOpen = !submenu.classList.contains('hidden');
+                    submenu.classList.toggle('hidden');
+                    this.setAttribute('aria-expanded', String(!isOpen));
+                    const chevron = this.querySelector('svg');
+                    if (chevron) chevron.classList.toggle('rotate-180');
+                });
+            }
+        });
+
+        // Initial notification dot check
         updateDot();
     });
 </script>
