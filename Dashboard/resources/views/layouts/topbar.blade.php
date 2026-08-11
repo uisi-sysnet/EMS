@@ -17,10 +17,10 @@
                 {{-- System Name + Version --}}
                 <div class="min-w-0 leading-none">
                     <div class="text-sm sm:text-base font-bold text-text-100 tracking-tight uppercase truncate">
-                        {{ $companyName }}
+                        {{ $systemName }}
                     </div>
                     <div class="flex items-center gap-x-1.5 mt-1">
-                        <span class="text-[10px] text-text-400 uppercase tracking-wide truncate max-w-[15rem] sm:max-w-none">{{ $systemName }}</span>
+                        <span class="text-[10px] text-text-400 uppercase tracking-wide truncate max-w-[15rem] sm:max-w-none">{{ $companyName }}</span>
                         <span class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">Version 7.0</span>
                     </div>
                 </div>
