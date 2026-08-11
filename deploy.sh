@@ -1110,6 +1110,43 @@ else
     warn "nmcli not found — skipping the www-data sudo rule for it. The Network Configuration page needs NetworkManager installed on this host; install it (apt-get install network-manager) and re-run this script, or add the sudoers rule manually later."
 fi
 
+# ---- sudo rule for the Dashboard's service-control page ----
+# The Dashboard lets an admin start/stop/restart the EMS services (and the
+# Mosquitto/Postgres services they depend on) from the browser, which it
+# does as www-data via `sudo -n systemctl ...`. Without a NOPASSWD rule
+# scoped to exactly these unit/verb combinations, those calls fail with
+# "sudo: a password is required". As with the nmcli rule above: written to
+# a dedicated file in /etc/sudoers.d/ rather than editing /etc/sudoers
+# directly, and validated with `visudo -cf` before being trusted — a
+# malformed sudoers file can break sudo system-wide. Idempotent: safe to
+# re-run, always ends up with the same rule.
+log "Configuring passwordless sudo for www-data to start/stop/restart the EMS services"
+SUDOERS_FILE=/etc/sudoers.d/ems-services
+cat > "$SUDOERS_FILE" <<'SUDOEOF'
+www-data ALL=(ALL) NOPASSWD: \
+    /usr/bin/systemctl start ems-air-quality.service, \
+    /usr/bin/systemctl stop ems-air-quality.service, \
+    /usr/bin/systemctl restart ems-air-quality.service, \
+    /usr/bin/systemctl start ems-seismic.service, \
+    /usr/bin/systemctl stop ems-seismic.service, \
+    /usr/bin/systemctl restart ems-seismic.service, \
+    /usr/bin/systemctl start ems-api.service, \
+    /usr/bin/systemctl stop ems-api.service, \
+    /usr/bin/systemctl restart ems-api.service, \
+    /usr/bin/systemctl start mosquitto.service, \
+    /usr/bin/systemctl stop mosquitto.service, \
+    /usr/bin/systemctl restart mosquitto.service, \
+    /usr/bin/systemctl start postgresql.service, \
+    /usr/bin/systemctl stop postgresql.service, \
+    /usr/bin/systemctl restart postgresql.service
+SUDOEOF
+chown root:root "$SUDOERS_FILE"
+chmod 440 "$SUDOERS_FILE"
+if ! visudo -cf "$SUDOERS_FILE" >/dev/null 2>&1; then
+    rm -f "$SUDOERS_FILE"
+    warn "Generated sudoers rule for ems-services failed validation and was removed — the Dashboard's service-control page will show a sudo password error until this is fixed manually."
+fi
+
 # ---- Nginx site ----
 log "Writing nginx site config"
 cat > /etc/nginx/sites-available/ems-dashboard <<NGINXEOF
