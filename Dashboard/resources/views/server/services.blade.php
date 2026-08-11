@@ -104,16 +104,40 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (e) { /* silent — next poll will retry */ }
     }
 
+    const ACTION_META = {
+        start:   { verb: 'Start',   icon: 'question', confirmColor: '#16a34a', desc: 'This will start the service.' },
+        stop:    { verb: 'Stop',    icon: 'warning',  confirmColor: '#dc2626', desc: 'This will stop the service. Anything depending on it will be affected.' },
+        restart: { verb: 'Restart', icon: 'warning',  confirmColor: '#dc2626', desc: 'This will briefly stop and start the service again.' },
+    };
+
+    async function confirmAction(unit, label, action) {
+        const meta = ACTION_META[action];
+        const result = await Swal.fire({
+            title: `${meta.verb} "${label}"?`,
+            html: `<span style="color:#9ca3af;">${meta.desc}</span>`,
+            icon: meta.icon,
+            showCancelButton: true,
+            confirmButtonColor: meta.confirmColor,
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: `Yes, ${meta.verb.toLowerCase()} it`,
+            cancelButtonText: 'Cancel',
+            background: '#1f2937',
+            color: '#f3f4f6',
+            iconColor: meta.icon === 'warning' ? '#f59e0b' : '#38bdf8',
+        });
+        return result.isConfirmed;
+    }
+
     cardsRoot.addEventListener('click', async function (e) {
         const btn = e.target.closest('.btn-action');
         if (!btn) return;
         const card = btn.closest('.service-card');
         const unit = card.dataset.unit;
+        const label = card.querySelector('.text-text-100')?.textContent?.trim() || unit;
         const action = btn.dataset.action;
 
-        if (action === 'stop' || action === 'restart') {
-            if (!confirm(`${action[0].toUpperCase() + action.slice(1)} ${unit}?`)) return;
-        }
+        const confirmed = await confirmAction(unit, label, action);
+        if (!confirmed) return;
 
         const buttons = card.querySelectorAll('.btn-action');
         buttons.forEach(b => b.disabled = true);
@@ -129,13 +153,43 @@ document.addEventListener('DOMContentLoaded', function () {
                 body: JSON.stringify({ action }),
             });
             const data = await res.json();
+
             if (!res.ok) {
-                alert(data.message || 'Action failed.');
-            } else if (data.service) {
-                applyStatus(card, data.service);
+                await Swal.fire({
+                    title: 'Action Failed',
+                    html: `<span style="color:#9ca3af;">${data.message || 'The action could not be completed.'}</span>`
+                        + (data.detail ? `<pre style="text-align:left; white-space:pre-wrap; background:#111827; border:1px solid #374151; border-radius:8px; padding:10px; margin-top:12px; font-size:12px; color:#f87171; max-height:180px; overflow-y:auto;">${data.detail}</pre>` : ''),
+                    icon: 'error',
+                    confirmButtonColor: '#dc2626',
+                    confirmButtonText: 'OK',
+                    background: '#1f2937',
+                    color: '#f3f4f6',
+                    iconColor: '#ef4444',
+                });
+            } else {
+                if (data.service) applyStatus(card, data.service);
+                Swal.fire({
+                    title: data.message || `${ACTION_META[action].verb} sent to ${unit}.`,
+                    icon: 'success',
+                    background: '#1f2937',
+                    color: '#f3f4f6',
+                    iconColor: '#22c55e',
+                    timer: 2200,
+                    timerProgressBar: true,
+                    showConfirmButton: false,
+                });
             }
         } catch (e) {
-            alert('Network error while sending action.');
+            Swal.fire({
+                title: 'Network Error',
+                text: 'Could not reach the server while sending the action.',
+                icon: 'error',
+                confirmButtonColor: '#dc2626',
+                confirmButtonText: 'OK',
+                background: '#1f2937',
+                color: '#f3f4f6',
+                iconColor: '#ef4444',
+            });
         } finally {
             buttons.forEach(b => b.disabled = false);
         }
