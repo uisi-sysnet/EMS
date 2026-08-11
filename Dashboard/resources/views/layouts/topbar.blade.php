@@ -1,4 +1,8 @@
 <nav class="bg-background-900/95 backdrop-blur-sm border-b border-border-800 shadow-lg fixed top-0 left-0 right-0 z-50">
+    @php
+        $companyName = config('app.company_name', 'Uplink Integrated Solutions Inc.');
+        $systemName = config('app.system_name', 'Environmental Monitoring System Gateway');
+    @endphp
     <div class="max-w-8xl mx-auto px-3 sm:px-6">
         <div class="h-16 flex items-center justify-between">
 
@@ -13,9 +17,10 @@
                 {{-- System Name + Version --}}
                 <div class="min-w-0 leading-none">
                     <div class="text-sm sm:text-base font-bold text-text-100 tracking-tight uppercase truncate">
-                        Environmental Monitoring System Gateway
+                        {{ $companyName }}
                     </div>
                     <div class="flex items-center gap-x-1.5 mt-1">
+                        <span class="text-[10px] text-text-400 uppercase tracking-wide truncate max-w-[15rem] sm:max-w-none">{{ $systemName }}</span>
                         <span class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">Version 7.0</span>
                     </div>
                 </div>
