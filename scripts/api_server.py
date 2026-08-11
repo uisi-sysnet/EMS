@@ -613,6 +613,7 @@ def initialize_pools():
             cur.execute("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;")
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS api_request_logs (
+                    id BIGSERIAL NOT NULL,
                     client_ip INET,
                     method VARCHAR(10),
                     path TEXT,
@@ -620,8 +621,26 @@ def initialize_pools():
                     duration_ms DOUBLE PRECISION,
                     api_key_owner VARCHAR(100),
                     api_key_used VARCHAR(100),
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id, created_at)
                 );
+            """)
+            # Self-heal for a table that already existed before the id
+            # column did (same fix as service_logs in db_logging.py).
+            # Idempotent — safe to run on every startup.
+            cur.execute("ALTER TABLE api_request_logs ADD COLUMN IF NOT EXISTS id BIGSERIAL;")
+            cur.execute("ALTER TABLE api_request_logs ALTER COLUMN id SET NOT NULL;")
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conrelid = 'api_request_logs'::regclass
+                          AND contype = 'p'
+                    ) THEN
+                        ALTER TABLE api_request_logs ADD PRIMARY KEY (id, created_at);
+                    END IF;
+                END $$;
             """)
             # Migration for tables created before api_key_used existed.
             cur.execute("""
