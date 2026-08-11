@@ -93,20 +93,17 @@ class StationController extends Controller
             ->where('deleted', false)
             ->firstOrFail();
 
-        // Check if station has sensor data
-        $dataCount = $station->sensorData()->count();
-
-        if ($dataCount > 0) {
-            // Station has data - mark as deleted but keep the data
-            $station->update(['deleted' => true]);
+        if ($station->hasData()) {
+            // Soft delete - marks as deleted
+            $station->delete(); // Uses your model's delete() method
             $message = 'Station has been deactivated (hidden) but its data has been preserved.';
         } else {
-            // No data - permanently delete
-            $station->delete();
+            // Permanently delete
+            $station->forceDelete(); // Actually removes the row
             $message = 'Station deleted successfully.';
         }
 
         return redirect()->route('stations.index')
-                         ->with('success', $message);
+            ->with('success', $message);
     }
 }
