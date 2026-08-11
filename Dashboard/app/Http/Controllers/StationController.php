@@ -103,6 +103,10 @@ class StationController extends Controller
         $validated['enabled'] = $request->has('enabled') ? filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN) : true;
         $validated['deleted'] = false;
 
+        // Set auto-filled values
+        $validated['lead_port'] = 8899;  // Default port
+        $validated['lead_slave'] = 1;    // Default slave
+
         Station::create($validated);
 
         return redirect()->route('stations.index')
@@ -158,6 +162,10 @@ class StationController extends Controller
         ]);
 
         $validated['enabled'] = $request->has('enabled') ? filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN) : false;
+
+        // Keep the auto-filled values
+        $validated['lead_port'] = 8899;  // Default port
+        $validated['lead_slave'] = 1;    // Default slave
 
         $station->update($validated);
 
