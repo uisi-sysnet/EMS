@@ -105,25 +105,29 @@
                                 @enderror
                             </div>
 
-                            <!-- Lead Port -->
+                            <!-- Lead Port - Auto-filled with 8899 -->
                             <div class="flex flex-col">
                                 <label for="lead_port" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Lead Port
+                                    Lead Port <span class="text-text-500">(Auto: 8899)</span>
                                 </label>
-                                <input type="number" id="lead_port" name="lead_port" value="{{ old('lead_port') }}"
-                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('lead_port') border-munti-red-500 @enderror">
+                                <input type="number" id="lead_port" name="lead_port" value="{{ old('lead_port', 8899) }}" 
+                                    readonly
+                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                                <p class="mt-1 text-xs text-text-500">Default port: 8899</p>
                                 @error('lead_port')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
 
-                            <!-- Lead Slave -->
+                            <!-- Lead Slave - Auto-filled with 1 -->
                             <div class="flex flex-col">
                                 <label for="lead_slave" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Lead Slave
+                                    Lead Slave <span class="text-text-500">(Auto: 1)</span>
                                 </label>
-                                <input type="number" id="lead_slave" name="lead_slave" value="{{ old('lead_slave') }}"
-                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('lead_slave') border-munti-red-500 @enderror">
+                                <input type="number" id="lead_slave" name="lead_slave" value="{{ old('lead_slave', 1) }}"
+                                    readonly
+                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                                <p class="mt-1 text-xs text-text-500">Default slave: 1</p>
                                 @error('lead_slave')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
