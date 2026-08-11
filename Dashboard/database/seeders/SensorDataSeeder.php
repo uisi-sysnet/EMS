@@ -1,74 +1,40 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Factories;
 
-use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
-use Faker\Factory as Faker;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\SensorData;
+use App\Models\Station;
 
-class SensorDataSeeder extends Seeder
+class SensorDataFactory extends Factory
 {
-    public function run(): void
+    protected $model = SensorData::class;
+
+    public function definition(): array
     {
-        $faker = Faker::create();
-
-        $connection = DB::connection('aq');
-
-        $connection->table('sensor_data')->truncate();
-
-        $stations = $connection->table('stations')->get();
-
-        $rows = [];
-
-        for ($i = 1; $i <= 1000; $i++) {
-
-            $station = $stations->random();
-
-            $rows[] = [
-
-                'station_mn' => $station->station_mn,
-                'ip_address' => $station->lead_ip,
-
-                'data_time' => $faker->dateTimeBetween('-30 days', 'now'),
-
-                'pm25' => $faker->randomFloat(2, 0, 150),
-                'pm10' => $faker->randomFloat(2, 0, 250),
-                'tsp' => $faker->randomFloat(2, 0, 350),
-
-                'ozone' => $faker->randomFloat(3, 0, 0.25),
-                'carbon_monoxide' => $faker->randomFloat(3, 0, 20),
-                'sulfur_dioxide' => $faker->randomFloat(3, 0, 5),
-                'nitrogen_dioxide' => $faker->randomFloat(3, 0, 10),
-
-                'temperature' => $faker->randomFloat(1, 22, 38),
-                'humidity' => $faker->randomFloat(1, 40, 95),
-                'rain' => $faker->randomFloat(2, 0, 50),
-
-                'wind_speed' => $faker->randomFloat(2, 0, 40),
-                'wind_direction' => $faker->numberBetween(0, 360),
-                'air_pressure' => $faker->randomFloat(2, 980, 1035),
-
-                'noise' => $faker->randomFloat(2, 30, 120),
-
-                'lead' => $faker->randomFloat(4, 0, 0.5),
-                'lead_temperature' => $faker->randomFloat(1, 20, 40),
-
-                'created_at' => now(),
-            ];
-
-            // Insert every 200 rows
-            if (count($rows) == 200) {
-                $connection->table('sensor_data')->insert($rows);
-                $rows = [];
-            }
-        }
-
-        // Insert remaining rows
-        if (!empty($rows)) {
-            $connection->table('sensor_data')->insert($rows);
-        }
-
-        $this->command->info('15 stations created.');
-        $this->command->info('1000 sensor_data records created.');
+        $station = Station::inRandomOrder()->first();
+        $time = $this->faker->dateTimeBetween('-30 days', 'now');
+        
+        return [
+            'station_mn' => $station->station_mn,
+            'ip_address' => $station->lead_ip ?? $this->faker->ipv4,
+            'data_time' => $time,
+            'pm25' => $this->faker->randomFloat(2, 5, 50),
+            'pm10' => $this->faker->randomFloat(2, 10, 100),
+            'tsp' => $this->faker->randomFloat(2, 20, 200),
+            'ozone' => $this->faker->randomFloat(3, 0.01, 0.15),
+            'carbon_monoxide' => $this->faker->randomFloat(2, 0.1, 5),
+            'sulfur_dioxide' => $this->faker->randomFloat(3, 0.001, 0.05),
+            'nitrogen_dioxide' => $this->faker->randomFloat(3, 0.005, 0.1),
+            'temperature' => $this->faker->randomFloat(1, 15, 35),
+            'humidity' => $this->faker->randomFloat(1, 30, 80),
+            'rain' => $this->faker->randomFloat(1, 0, 10),
+            'wind_speed' => $this->faker->randomFloat(1, 0, 15),
+            'wind_direction' => $this->faker->numberBetween(0, 360),
+            'air_pressure' => $this->faker->randomFloat(2, 980, 1030),
+            'noise' => $this->faker->randomFloat(1, 30, 90),
+            'lead' => $this->faker->randomFloat(3, 0.01, 0.5),
+            'lead_temperature' => $this->faker->randomFloat(1, 20, 30),
+        ];
     }
 }
