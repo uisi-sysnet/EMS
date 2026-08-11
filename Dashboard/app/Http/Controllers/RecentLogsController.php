@@ -11,10 +11,10 @@ class RecentLogsController extends Controller
     public function index(Request $request)
     {
         // Fetch 50 most recent API logs
-        $apiLogs = ApiLog::latest()->limit(50)->get();
+        $apiLogs = ApiLog::latest('created_at')->limit(50)->get();
         
         // Fetch 50 most recent System logs
-        $systemLogs = SystemLog::latest()->limit(50)->get();
+        $systemLogs = SystemLog::latest('created_at')->limit(50)->get();
 
         $seenIds = $this->parseSeenIds($request->input('seen', ''));
         
@@ -43,8 +43,8 @@ class RecentLogsController extends Controller
     public function count(Request $request)
     {
         // Get the 50 most recent API logs
-        $apiLogs = ApiLog::latest()->limit(50)->get();
-        $systemLogs = SystemLog::latest()->limit(50)->get();
+        $apiLogs = ApiLog::latest('created_at')->limit(50)->get();
+        $systemLogs = SystemLog::latest('created_at')->limit(50)->get();
         
         // Count how many of these have seen_at null
         $unseenCount = 0;
@@ -79,9 +79,12 @@ class RecentLogsController extends Controller
             // Determine status color based on status code
             $statusColor = $log->status_code >= 400 ? 'text-red-400' : 'text-green-400';
             
+            // Create a unique identifier using available fields
+            $uniqueId = 'api_' . md5($log->created_at . $log->client_ip . $log->method . $log->path);
+            
             $entries->push([
                 'type'         => 'api',
-                'id'           => $log->id,
+                'id'           => $uniqueId, // Use hashed identifier instead of DB id
                 'summary'      => $log->method . ' ' . $log->path,
                 'detail'       => 'Status: ' . $log->status_code . ' | IP: ' . $log->client_ip . ' | ' . round($log->duration_ms, 2) . 'ms',
                 'time'         => $log->created_at->diffForHumans(),
@@ -92,6 +95,13 @@ class RecentLogsController extends Controller
                 'is_seen'      => $log->seen_at !== null,
                 'badge_color'  => 'text-blue-400',
                 'badge_text'   => 'API',
+                // Store the actual log data for marking
+                '_log_data'    => [
+                    'client_ip' => $log->client_ip,
+                    'created_at' => $log->created_at,
+                    'method' => $log->method,
+                    'path' => $log->path
+                ]
             ]);
         }
 
@@ -100,9 +110,12 @@ class RecentLogsController extends Controller
             // Determine level color
             $levelColor = $this->getLevelColor($log->level);
             
+            // Create a unique identifier using available fields
+            $uniqueId = 'system_' . md5($log->created_at . $log->service . $log->message . $log->level);
+            
             $entries->push([
                 'type'         => 'system',
-                'id'           => $log->id,
+                'id'           => $uniqueId, // Use hashed identifier instead of DB id
                 'summary'      => $log->message,
                 'detail'       => 'Service: ' . ($log->service ?? 'N/A') . ' | Logger: ' . ($log->logger_name ?? 'N/A'),
                 'time'         => $log->created_at->diffForHumans(),
@@ -117,6 +130,13 @@ class RecentLogsController extends Controller
                 'service'      => $log->service,
                 'logger_name'  => $log->logger_name,
                 'thread_name'  => $log->thread_name,
+                // Store the actual log data for marking
+                '_log_data'    => [
+                    'created_at' => $log->created_at,
+                    'service' => $log->service,
+                    'level' => $log->level,
+                    'message' => $log->message
+                ]
             ]);
         }
 
@@ -149,28 +169,65 @@ class RecentLogsController extends Controller
     {
         try {
             $type = $request->input('type');
-            $id = $request->input('id');
+            $logData = $request->input('log_data');
             
             if ($type === 'api') {
-                $log = ApiLog::find($id);
+                // Find the log by its unique combination of fields
+                $log = ApiLog::where([
+                    'client_ip' => $logData['client_ip'],
+                    'created_at' => $logData['created_at'],
+                    'method' => $logData['method'],
+                    'path' => $logData['path']
+                ])->first();
+                
+                if ($log && $log->seen_at === null) {
+                    $log->update(['seen_at' => now()]);
+                }
             } elseif ($type === 'system') {
-                $log = SystemLog::find($id);
+                // Find the log by its unique combination of fields
+                $log = SystemLog::where([
+                    'created_at' => $logData['created_at'],
+                    'service' => $logData['service'],
+                    'level' => $logData['level'],
+                    'message' => $logData['message']
+                ])->first();
+                
+                if ($log && $log->seen_at === null) {
+                    $log->update(['seen_at' => now()]);
+                }
             } else {
                 return response()->json(['success' => false, 'message' => 'Invalid log type'], 400);
-            }
-            
-            if (!$log) {
-                return response()->json(['success' => false, 'message' => 'Log not found'], 404);
-            }
-            
-            // Only update if not already seen
-            if ($log->seen_at === null) {
-                $log->update(['seen_at' => now()]);
             }
             
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
             \Log::error('Error marking log as seen: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function markAllAsSeen(Request $request)
+    {
+        try {
+            $type = $request->input('type');
+            
+            if ($type === 'api') {
+                // Mark all unseen API logs as seen
+                ApiLog::unseen()->update(['seen_at' => now()]);
+            } elseif ($type === 'system') {
+                // Mark all unseen system logs as seen
+                SystemLog::unseen()->update(['seen_at' => now()]);
+            } elseif ($type === 'all') {
+                // Mark all unseen logs from both tables as seen
+                ApiLog::unseen()->update(['seen_at' => now()]);
+                SystemLog::unseen()->update(['seen_at' => now()]);
+            } else {
+                return response()->json(['success' => false, 'message' => 'Invalid type'], 400);
+            }
+            
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            \Log::error('Error marking all logs as seen: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }

@@ -492,10 +492,10 @@
 
                 return `
                     <a href="${log.url}"
-                    data-type="${log.type}"
-                    data-id="${log.id}"
-                    data-seen="${log.is_seen}"
-                    class="log-item block px-4 py-3 transition-colors border-l-[3px] ${bgClass} ${borderClass}">
+                        data-type="${log.type}"
+                        data-seen="${log.is_seen}"
+                        data-log-data='${JSON.stringify(log._log_data)}'
+                        class="log-item block px-4 py-3 transition-colors border-l-[3px] ${bgClass} ${borderClass}">
                         <div class="flex items-center justify-between gap-2 mb-1">
                             <div class="flex items-center gap-2">
                                 <span class="text-[10px] font-semibold uppercase tracking-wide ${badgeColor}">${log.time}</span>
@@ -523,20 +523,24 @@
             // Click handler for individual log items
             document.querySelectorAll('.log-item').forEach(item => {
                 item.addEventListener('click', function(e) {
-                    // Don't prevent navigation, but mark as seen
                     if (this.dataset.seen === 'true' || this.dataset.seen === '1') return;
 
-                    // Mark as seen via API
+                    // Get the log data from the dataset or a data attribute
                     const type = this.dataset.type;
-                    const id = this.dataset.id;
-                    
+                    // You'll need to store the log data in a data attribute on the element
+                    // or fetch it from the server using the unique identifier
+                    const logData = JSON.parse(this.dataset.logData || '{}');
+
                     fetch('/mark-log-seen', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
                         },
-                        body: JSON.stringify({ type: type, id: id })
+                        body: JSON.stringify({ 
+                            type: type, 
+                            log_data: logData 
+                        })
                     })
                     .then(r => r.json())
                     .then(data => {
@@ -577,46 +581,28 @@
             const unseenItems = document.querySelectorAll('.log-item:not([data-seen="true"])');
             if (!unseenItems.length) return;
 
-            // Group IDs by type
-            const groupedIds = {};
+            // Check which types need to be marked
+            const typesNeeded = new Set();
             unseenItems.forEach(item => {
-                const type = item.dataset.type;
-                const id = parseInt(item.dataset.id);
-                if (!groupedIds[type]) {
-                    groupedIds[type] = [];
-                }
-                groupedIds[type].push(id);
+                typesNeeded.add(item.dataset.type);
             });
 
             markAllBtn.textContent = 'Processing…';
             markAllBtn.disabled = true;
 
-            // Mark each type separately
-            const promises = Object.keys(groupedIds).map(type => {
-                const ids = groupedIds[type];
-                let endpoint = '';
-                
-                if (type === 'api') {
-                    endpoint = '{{ route("api-logs.mark-as-seen") }}';
-                } else if (type === 'system') {
-                    endpoint = '{{ route("logs.mark-as-seen") }}';
-                } else {
-                    return Promise.resolve();
-                }
-                
-                return fetch(endpoint, {
+            // Mark each type separately using a single endpoint for each type
+            const promises = Array.from(typesNeeded).map(type => {
+                return fetch('/mark-all-logs-seen', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
                     },
-                    body: JSON.stringify({ ids: ids })
+                    body: JSON.stringify({ type: type })
                 })
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        // Add to seen list in localStorage
-                        ids.forEach(id => addSeenId(type, id));
                         return { type, success: true };
                     }
                     return { type, success: false };
@@ -657,6 +643,7 @@
                     } else {
                         // Some failed, show error
                         console.error('Some logs failed to mark as seen');
+                        // You could show a toast notification here
                     }
                 })
                 .catch(() => {
