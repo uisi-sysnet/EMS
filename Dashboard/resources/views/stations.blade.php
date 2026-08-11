@@ -29,12 +29,6 @@
                 </div>
             @endif
 
-            @if(session('warning'))
-                <div class="mb-6 px-4 py-3 rounded-lg border border-yellow-600/30 bg-yellow-700/15 text-yellow-400 text-sm font-medium">
-                    {{ session('warning') }}
-                </div>
-            @endif
-
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
 
                 <!-- Form Section -->
@@ -284,7 +278,7 @@
                             <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span>
                             Existing Stations
                         </h4>
-                        <span class="text-xs text-text-500">{{ $stations->count() }} active station(s)</span>
+                        <span class="text-xs text-text-500">{{ $stations->count() }} station(s)</span>
                     </div>
 
                     <div class="overflow-x-auto thin-scrollbar flex-1">
@@ -294,7 +288,7 @@
                                     <tr>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">MN</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Name</th>
-                                        <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Enabled</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Latitude</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Longitude</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Lead IP</th>
@@ -306,7 +300,7 @@
                                 </thead>
                                 <tbody class="divide-y divide-border-800">
                                     @foreach($stations as $station)
-                                        <tr class="hover:bg-surface-700/50 transition" data-station-id="{{ $station->station_mn }}">
+                                        <tr class="hover:bg-surface-700/50 transition" data-station-id="{{ $station->id }}">
                                             <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-munti-green-400">
                                                 {{ $station->station_mn }}
                                             </td>
@@ -318,7 +312,7 @@
                                                     {{ $station->enabled
                                                         ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30'
                                                         : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
-                                                    {{ $station->enabled ? 'Active' : 'Inactive' }}
+                                                    {{ $station->enabled ? 'Yes' : 'No' }}
                                                 </span>
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
@@ -351,7 +345,7 @@
                                                         </svg>
                                                     </button>
 
-                                                    <!-- Delete Button (Soft Delete) -->
+                                                    <!-- Delete Button -->
                                                     <button type="button" 
                                                             onclick="deleteStation('{{ $station->station_mn }}', '{{ $station->station_mn }}')"
                                                             class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group"
@@ -368,7 +362,7 @@
                             </table>
                         @else
                             <div class="flex items-center justify-center h-32 text-sm text-text-500">
-                                No active stations found.
+                                No stations found.
                             </div>
                         @endif
                     </div>
@@ -377,7 +371,6 @@
         </div>
     </div>
 </div>
-
 <script>
 // Edit Station
 function editStation(stationMn) {
@@ -415,100 +408,42 @@ function closeEditModal() {
     document.getElementById('editModal').style.display = 'none';
 }
 
-// Delete Station (Conditional: Soft or Hard Delete)
+// Delete Station
 function deleteStation(stationMn, stationName) {
-    // First check if station has sensor data
-    fetch(`/stations/${stationMn}/check-data`)
-        .then(response => response.json())
-        .then(data => {
-            let message = '';
-            let confirmButtonText = 'Yes, delete it!';
-            let confirmButtonColor = '#dc2626';
+    Swal.fire({
+        title: 'Delete Station?',
+        html: `Are you sure you want to delete station <strong>"${stationName}"</strong>?<br><span style="color: #ef4444;">This action cannot be undone!</span>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel',
+        background: '#1f2937',
+        color: '#f3f4f6',
+        iconColor: '#f59e0b'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/stations/${stationMn}`;
             
-            if (data.hasSensorData) {
-                message = `Are you sure you want to delete station <strong>"${stationName}"</strong>?<br>
-                          <span style="color: #f59e0b;">This station has sensor data, so it will be soft-deleted.</span><br>
-                          <span style="color: #94a3b8; font-size: 0.9em;">The station can be restored later. Sensor data will be preserved.</span>`;
-                confirmButtonColor = '#f59e0b';
-            } else {
-                message = `Are you sure you want to permanently delete station <strong>"${stationName}"</strong>?<br>
-                          <span style="color: #ef4444;">This action cannot be undone!</span><br>
-                          <span style="color: #94a3b8; font-size: 0.9em;">No sensor data exists for this station.</span>`;
-                confirmButtonText = 'Yes, permanently delete it!';
-            }
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            csrfToken.value = '{{ csrf_token() }}';
+            form.appendChild(csrfToken);
             
-            Swal.fire({
-                title: 'Delete Station?',
-                html: message,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: confirmButtonColor,
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: confirmButtonText,
-                cancelButtonText: 'Cancel',
-                background: '#1f2937',
-                color: '#f3f4f6',
-                iconColor: '#f59e0b'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = `/stations/${stationMn}`;
-                    
-                    const csrfToken = document.createElement('input');
-                    csrfToken.type = 'hidden';
-                    csrfToken.name = '_token';
-                    csrfToken.value = '{{ csrf_token() }}';
-                    form.appendChild(csrfToken);
-                    
-                    const methodField = document.createElement('input');
-                    methodField.type = 'hidden';
-                    methodField.name = '_method';
-                    methodField.value = 'DELETE';
-                    form.appendChild(methodField);
-                    
-                    document.body.appendChild(form);
-                    form.submit();
-                }
-            });
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            // Fallback: proceed with delete
-            Swal.fire({
-                title: 'Delete Station?',
-                html: `Are you sure you want to delete station <strong>"${stationName}"</strong>?`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc2626',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Yes, delete it!',
-                cancelButtonText: 'Cancel',
-                background: '#1f2937',
-                color: '#f3f4f6'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = `/stations/${stationMn}`;
-                    
-                    const csrfToken = document.createElement('input');
-                    csrfToken.type = 'hidden';
-                    csrfToken.name = '_token';
-                    csrfToken.value = '{{ csrf_token() }}';
-                    form.appendChild(csrfToken);
-                    
-                    const methodField = document.createElement('input');
-                    methodField.type = 'hidden';
-                    methodField.name = '_method';
-                    methodField.value = 'DELETE';
-                    form.appendChild(methodField);
-                    
-                    document.body.appendChild(form);
-                    form.submit();
-                }
-            });
-        });
+            const methodField = document.createElement('input');
+            methodField.type = 'hidden';
+            methodField.name = '_method';
+            methodField.value = 'DELETE';
+            form.appendChild(methodField);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
 }
 
 // Close modal on ESC key
@@ -525,5 +460,4 @@ document.getElementById('editModal').addEventListener('click', function(event) {
     }
 });
 </script>
-
 @include('layouts.footer')
