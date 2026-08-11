@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\RegisteredUserController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StationController;
@@ -19,14 +19,19 @@ use App\Http\Controllers\SeismicStationController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\TerminalAuthController;
 
-Route::get('/', function () {
-    return view('auth.login');
-})->name('login');
+// Guest routes (not logged in)
+Route::middleware('guest')->group(function () {
+    Route::get('/login', function () {
+        return view('auth.login');
+    })->name('login');
     
-Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
-Route::post('/register', [RegisteredUserController::class, 'store']);
+    Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
+    Route::post('/register', [RegisteredUserController::class, 'store']);
     
-Route::post('/login', [LoginController::class, 'login']);
+    Route::post('/login', [LoginController::class, 'login']);
+});
+
+// Authenticated routes
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::middleware(['role:administrator,user'])->group(function () {
