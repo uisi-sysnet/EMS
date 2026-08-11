@@ -289,6 +289,7 @@
                                         <th scope="col" class="px-4 py-3 text-left font-medium">MN</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Name</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Enabled</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Data Status</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Latitude</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Longitude</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Lead IP</th>
@@ -314,6 +315,23 @@
                                                         : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
                                                     {{ $station->enabled ? 'Yes' : 'No' }}
                                                 </span>
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap">
+                                                @if($station->sensor_data_count > 0)
+                                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-munti-green-600/30 bg-munti-green-700/15 text-munti-green-400">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                        </svg>
+                                                        HAS DATA ({{ $station->sensor_data_count }})
+                                                    </span>
+                                                @else
+                                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-munti-red-600/30 bg-munti-red-700/15 text-munti-red-400">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                        </svg>
+                                                        NO DATA
+                                                    </span>
+                                                @endif
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
                                                 {{ $station->latitude ?? '-' }}

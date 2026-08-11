@@ -13,10 +13,14 @@ class StationController extends Controller
      */
     public function index()
     {
-        $stations = Station::orderBy('station_mn')->get();
+        // Eager load sensor data count for each station
+        $stations = Station::withCount('sensorData')
+            ->orderBy('station_mn')
+            ->get();
+            
         return view('stations', compact('stations'));
     }
-
+    
     /**
      * Show the form for editing a station.
      */
