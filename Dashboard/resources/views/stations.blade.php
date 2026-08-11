@@ -108,7 +108,7 @@
                             <!-- Lead Port - Auto-filled with 8899 -->
                             <div class="flex flex-col">
                                 <label for="lead_port" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Lead Port
+                                    Port
                                 </label>
                                 <input type="number" id="lead_port" name="lead_port" value="{{ old('lead_port', 8899) }}" 
                                     readonly
@@ -365,7 +365,7 @@
                                 <!-- Lead Port -->
                                 <div class="flex flex-col">
                                     <label for="edit_lead_port" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                        Lead Port
+                                        Port
                                     </label>
                                     <input type="number" id="edit_lead_port" name="lead_port"
                                         class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
@@ -435,7 +435,7 @@
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Latitude</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Longitude</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">IP Address</th>
-                                        <th scope="col" class="px-4 py-3 text-left font-medium">Lead Port</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Port</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Lead Slave</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Updated At</th>
                                         <th scope="col" class="px-4 py-3 text-center font-medium">Actions</th>
