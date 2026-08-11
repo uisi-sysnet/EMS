@@ -25,10 +25,22 @@ class ServicesController extends Controller
         'ems-api.service'         => 'EMS API',
         'mosquitto.service'       => 'Mosquitto (MQTT Broker)',
         'postgresql.service'      => 'PostgreSQL',
+        'nginx.service'           => 'Nginx',
+        'ntpsec.service'          => 'NTP Daemon (ntpsec)',
     ];
 
     /** Actions allowed via the control buttons. */
     private const ALLOWED_ACTIONS = ['start', 'stop', 'restart'];
+
+    /**
+     * Whitelist of config files that can be viewed/edited from the UI,
+     * keyed by the managed service they belong to. Same rule as
+     * MANAGED_SERVICES: the path NEVER comes from the request — only
+     * from this map, so a user can never read/write an arbitrary file.
+     */
+    public const CONFIG_FILES = [
+        'nginx.service' => '/etc/nginx/sites-enabled/ems-dashboard',
+    ];
 
     public function index()
     {
@@ -106,7 +118,134 @@ class ServicesController extends Controller
     }
 
     /**
-     * @return array<int, array{unit:string,label:string,active:string,enabled:string,running:bool}>
+     * GET /maintenance/services/{service}/config
+     * Returns the raw contents of the whitelisted config file for $service.
+     */
+    public function configShow(string $service): JsonResponse
+    {
+        if (!array_key_exists($service, self::CONFIG_FILES)) {
+            return response()->json(['message' => 'No editable config for this service.'], 422);
+        }
+
+        $path = self::CONFIG_FILES[$service];
+
+        if (!is_readable($path)) {
+            return response()->json(['message' => "Config file is not readable: {$path}"], 500);
+        }
+
+        return response()->json([
+            'service' => $service,
+            'path'    => $path,
+            'content' => file_get_contents($path),
+        ]);
+    }
+
+    /**
+     * POST /maintenance/services/{service}/config  { content: string }
+     *
+     * Flow: backup current file -> write new content -> `nginx -t`.
+     *   - Test fails  -> restore the backup, return 422 with the nginx
+     *                    error output. Nothing is left changed on disk,
+     *                    and the modal stays open on the client so the
+     *                    user can fix the text and retry.
+     *   - Test passes -> drop the backup, restart the service, return
+     *                    the fresh status.
+     */
+    public function configUpdate(Request $request, string $service): JsonResponse
+    {
+        $validated = $request->validate([
+            'content' => 'required|string',
+        ]);
+
+        if (!array_key_exists($service, self::CONFIG_FILES)) {
+            return response()->json(['message' => 'No editable config for this service.'], 422);
+        }
+
+        $path = self::CONFIG_FILES[$service];
+        $user = Auth::user()->username ?? session('username');
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'cfg_');
+        file_put_contents($tmpPath, $validated['content']);
+
+        // IMPORTANT: the backup must NOT live inside /etc/nginx/sites-enabled/
+        // (or any other nginx-included directory). Debian/Ubuntu's nginx.conf
+        // does `include /etc/nginx/sites-enabled/*;` with no extension filter,
+        // so a backup dropped next to the real file gets parsed as its own
+        // server block too — that's what caused the earlier "duplicate
+        // default server" failure. Keeping it in the system temp dir means
+        // nginx never sees it.
+        $backupPath = tempnam(sys_get_temp_dir(), 'nginxcfg_backup_');
+        $backup = new Process(['sudo', '/bin/cp', '--preserve=mode,ownership', $path, $backupPath]);
+        $backup->run();
+
+        if (!$backup->isSuccessful()) {
+            @unlink($tmpPath);
+            @unlink($backupPath);
+            return response()->json([
+                'message' => 'Could not back up the existing config; aborted before making changes.',
+                'detail'  => trim($backup->getErrorOutput()),
+            ], 500);
+        }
+
+        $deploy = new Process(['sudo', '/bin/cp', $tmpPath, $path]);
+        $deploy->run();
+        @unlink($tmpPath);
+
+        if (!$deploy->isSuccessful()) {
+            return response()->json([
+                'message' => 'Failed to write the config file.',
+                'detail'  => trim($deploy->getErrorOutput()),
+            ], 500);
+        }
+
+        $test = new Process(['sudo', '/usr/sbin/nginx', '-t']);
+        $test->setTimeout(15);
+        $test->run();
+
+        if (!$test->isSuccessful()) {
+            $restore = new Process(['sudo', '/bin/cp', $backupPath, $path]);
+            $restore->run();
+
+            Log::channel('services')->warning('Nginx config test failed — rolled back', [
+                'user'    => $user,
+                'service' => $service,
+                'detail'  => trim($test->getErrorOutput() . $test->getOutput()),
+            ]);
+
+            return response()->json([
+                'message' => 'nginx -t failed. Your changes were NOT applied and the previous config is still active.',
+                'detail'  => trim($test->getErrorOutput() . $test->getOutput()),
+            ], 422);
+        }
+
+        $restart = new Process(['sudo', '/usr/bin/systemctl', 'restart', $service]);
+        $restart->setTimeout(20);
+        $restart->run();
+
+        $cleanup = new Process(['sudo', '/bin/rm', '-f', $backupPath]);
+        $cleanup->run();
+
+        Log::channel('services')->info('Nginx config updated', [
+            'user'            => $user,
+            'service'         => $service,
+            'restart_success' => $restart->isSuccessful(),
+        ]);
+
+        if (!$restart->isSuccessful()) {
+            return response()->json([
+                'message' => 'Config passed nginx -t and was saved, but the restart failed.',
+                'detail'  => trim($restart->getErrorOutput()),
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'Config saved, passed nginx -t, and nginx was restarted.',
+            'service' => $this->statusFor($service),
+        ]);
+    }
+
+    /**
+     * @return array<int, array{unit:string,label:string,active:string,enabled:string,running:bool,hasConfig:bool}>
      */
     private function collectStatuses(): array
     {
@@ -125,11 +264,12 @@ class ServicesController extends Controller
         $enabled = $this->runQuiet(['systemctl', 'is-enabled', $unit]); // enabled | disabled | static...
 
         return [
-            'unit'    => $unit,
-            'label'   => $label,
-            'active'  => $active ?: 'unknown',
-            'enabled' => $enabled ?: 'unknown',
-            'running' => $active === 'active',
+            'unit'      => $unit,
+            'label'     => $label,
+            'active'    => $active ?: 'unknown',
+            'enabled'   => $enabled ?: 'unknown',
+            'running'   => $active === 'active',
+            'hasConfig' => array_key_exists($unit, self::CONFIG_FILES),
         ];
     }
 

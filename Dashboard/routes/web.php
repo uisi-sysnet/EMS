@@ -90,6 +90,9 @@ Route::middleware(['role:administrator'])->group(function () {
     Route::get('/maintenance/services', [ServicesController::class, 'index'])->name('services.index');
     Route::get('/maintenance/services/status', [ServicesController::class, 'status'])->name('services.status');
     Route::post('/maintenance/services/{service}/action', [ServicesController::class, 'action'])->name('services.action');
+    Route::get('/maintenance/services/{service}/config', [ServicesController::class, 'configShow'])->name('services.config.show');
+    Route::post('/maintenance/services/{service}/config', [ServicesController::class, 'configUpdate'])->name('services.config.update');
+
     Route::post('/maintenance/terminal/token', [TerminalAuthController::class, 'issue'])->name('terminal.token');
     Route::get('/maintenance/terminal', [ServicesController::class, 'terminal'])->name('services.terminal');
 
