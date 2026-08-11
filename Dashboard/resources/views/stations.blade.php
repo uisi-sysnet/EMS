@@ -393,7 +393,7 @@
                             Existing Stations
                         </h4>
                         <div class="flex items-center gap-3">
-                            <span class="text-xs text-text-500">{{ $stations->count() }} station(s)</span>
+                            <span class="text-xs text-text-500">{{ $stations->count() }} Station(s)</span>
                             
                             @if($deletedStations->count() > 0)
                                 <button type="button" onclick="openDeletedModal()"
