@@ -83,14 +83,44 @@ class PostgresLogHandler(logging.Handler):
         cur = conn.cursor()
         cur.execute(f"""
             CREATE TABLE IF NOT EXISTS {self._table} (
+                id BIGSERIAL NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL,
                 service VARCHAR(50) NOT NULL,
                 level VARCHAR(10) NOT NULL,
                 logger_name VARCHAR(100),
                 thread_name VARCHAR(100),
-                message TEXT
+                message TEXT,
+                PRIMARY KEY (id, created_at)
             );
         """)
+        # Self-heal for a table that already existed before the id column
+        # was introduced: CREATE TABLE IF NOT EXISTS above is a no-op
+        # against it, so patch it in place. Every statement here is
+        # idempotent, so this is cheap and harmless to re-run on every
+        # (re)connect, including from multiple services hitting the same
+        # shared table concurrently at startup.
+        try:
+            cur.execute(f"ALTER TABLE {self._table} ADD COLUMN IF NOT EXISTS id BIGSERIAL;")
+            cur.execute(f"ALTER TABLE {self._table} ALTER COLUMN id SET NOT NULL;")
+            cur.execute(f"""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conrelid = '{self._table}'::regclass
+                          AND contype = 'p'
+                    ) THEN
+                        ALTER TABLE {self._table} ADD PRIMARY KEY (id, created_at);
+                    END IF;
+                END $$;
+            """)
+        except Exception:
+            # Best-effort schema upgrade. If this fails (permissions, a
+            # rare concurrent-DDL race between services sharing this
+            # table, etc.) logging still works without it — the id
+            # column just won't be there yet, and the next reconnect
+            # will try again.
+            pass
         try:
             cur.execute(
                 f"SELECT create_hypertable('{self._table}', 'created_at', "
