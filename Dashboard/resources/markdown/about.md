@@ -1,227 +1,129 @@
-# EMS IoT Gateway — Raspberry Pi Deployment Beta V1.0
-
-*Always-on services on Raspberry Pi OS (64-bit recommended)*
-
-Three always-on services on one Raspberry Pi (Raspberry Pi OS / Raspbian, 64-bit strongly recommended):
-
-| Service | File | Ingests via | Database |
-|---|---|---|---|
-| Air Quality Ingestion | `air_quality_ingest.py` | TCP/HJ212 from AQ sensors | `air_quality` (Timescale) |
-| Seismic Ingestion | `seismic_mqtt.py` | MQTT **and** SMS (SIM800L) | `seismic_sensor_data` (Timescale) |
-| Monitoring API | `api_server.py` | HTTP (FastAPI) | reads both databases |
-
-All three log into a shared `service_logs` table in `air_quality` instead of local files (better for SD card longevity), and are supervised by systemd via `ems.target` so they start on boot and restart on failure.
-
-## Files in this package
-
-```
-air_quality_ingest.py     Air quality TCP/HJ212 ingestion service
-seismic_mqtt.py           Seismic ingestion — MQTT + SMS (SIM800L)
-sim800l.py                AT-command driver for the SIM800L modem
-api_server.py             FastAPI monitoring/read API
-db_logging.py             Shared Postgres logging handler (all 3 services)
-import_stations.py        CLI: (re-)apply stations.json to the database
-deploy.sh                 One-time OS/DB/broker setup (run with sudo)
-install_services.sh       Installs + starts the systemd units (run with sudo)
-ems.target                systemd target grouping all 3 services
-ems-air-quality_service.template
-ems-seismic_service.template
-ems-api_service.template  systemd unit templates (rendered by install_services.sh)
-requirements.txt          Python dependencies
-_env                      Environment template — rename to .env and fill in
-stations.json             Air-quality station registry (one-time DB import)
+```http
+X-API-Key: your-token
 ```
 
-## Deploy from scratch
+Health check, no API key required:
 
-1. Copy this whole folder onto the Pi (e.g. `/home/pi/ems/`).
-2. `mv _env .env` and fill in real passwords/API keys.
-3. `sudo ./deploy.sh`
-   - Installs Python, PostgreSQL 16, TimescaleDB, Mosquitto, ntpsec
-   - Creates DB roles, configures Mosquitto auth, installs Python deps
-   - Detects Raspberry Pi OS vs Ubuntu and adjusts (see below)
-   - Enables the Pi's UART for the SIM800L and disables the serial console
-4. **Reboot** (`sudo reboot`) — required for the UART change to take effect.
-5. `sudo ./install_services.sh`
-   - Renders the systemd units, enables + starts `ems.target`
-6. Check it's alive:
-   ```
-   sudo systemctl status ems.target
-   sudo journalctl -u ems-seismic.service -f
-   ```
-
-## Raspberry Pi–specific behavior in deploy.sh
-
-- Detects CPU architecture; **warns clearly if you're on 32-bit Raspberry Pi OS (armhf)** — TimescaleDB has no official armhf packages, so 64-bit Raspberry Pi OS is required for the seismic/AQ hypertables to work.
-- Uses `--no-install-recommends` everywhere to keep the SD card footprint down.
-- Installs `build-essential` / `libpq-dev` / `python3-dev` as a fallback in case a Python package has no prebuilt ARM wheel on piwheels.org.
-- Warns if RAM + swap look too small for package builds, with the `dphys-swapfile` fix.
-- Configures the Pi's UART (`raspi-config nonint do_serial_cons/do_serial_hw`) so the SIM800L can use it for AT commands instead of a login console.
-- Systemd unit templates set `PYTHONUNBUFFERED=1` and include a commented-out `MemoryMax=` you can enable to cap RAM per service on a constrained Pi.
-
-## Station registry (air quality)
-
-`air_quality_ingest.py` reads its station list from the database, not from `stations.json` directly. On first run, if the `stations` table is empty and `stations.json` exists, it's imported automatically (one time only). After that, the database is the source of truth — the service refreshes its in-memory copy from the DB every `AQ_STATIONS_REFRESH_INTERVAL_SEC` (default 300s). To (re-)apply a JSON file later:
-
-```
-python3 import_stations.py [path/to/stations.json]  # add --dry-run to preview
+```text
+GET /api/system/status
 ```
 
-## Seismic: two ingestion channels
+Main API endpoints:
 
-`seismic_mqtt.py` runs both, independently, at the same time:
+| Endpoint | Description |
+| --- | --- |
+| `GET /api/air-quality/stations/latest` | Latest reading for every air quality station |
+| `GET /api/air-quality/stations/{station_mn}/latest` | Latest reading for one air quality station |
+| `GET /api/air-quality/analytics/1d` | 24-hour average readings |
+| `GET /api/air-quality/analytics/7d` | 7-day daily averages |
+| `GET /api/air-quality/analytics/30d` | 30-day daily averages |
+| `GET /api/air-quality/stations` | Registered air quality station list |
+| `GET /api/seismic/stations/latest` | Latest seismic reading for every station |
+| `GET /api/seismic/stations/{station_id}/latest` | Latest seismic reading for one station |
+| `GET /api/seismic/graph/latest` | Latest graph payload for every seismic station |
+| `GET /api/seismic/stations/{station_id}/graph/latest` | Latest graph payload for one seismic station |
+| `GET /api/seismic/stations/{station_id}/history?hours=1` | Raw seismic history, 1 to 24 hours |
+| `GET /api/seismic/events?min_peis=1&hours=24` | PEIS-filtered seismic events |
+| `GET /api/system/logs` | Centralized service logs |
 
-- **MQTT** (existing) — subscribes to `MQTT_TOPIC`, expects JSON payloads.
-- **SMS** (new) — a background thread drives a SIM800L over UART (`SIM800_SERIAL_PORT`, default `/dev/serial0`) and parses incoming SMS in the `SEISMSG1` format (documented below).
+Interactive API docs are available from FastAPI at:
 
-Every SMS received — parsed or not — is stored in the `sms_messages` table (sender, raw body, parse status/error), and successfully parsed readings land in the same `station_metrics` table MQTT uses, tagged `source = 'sms'` (vs `'mqtt'`) so you can tell which channel each row came from:
-
-```sql
-SELECT time, station_id, source, pga, peis FROM station_metrics ORDER BY time DESC LIMIT 20;
+```text
+/docs
+/redoc
 ```
 
-**Wiring**: the driver talks to a serial device path, not GPIO pins directly. Default assumes the Pi's hardware UART — GPIO14/GPIO15 (physical header pins 8/10) — wired to the SIM800L's RXD/TXD, with the module powered from its own ~4V supply (not the Pi's 3V3/5V rail). If your wiring differs, just change `SIM800_SERIAL_PORT` in `.env`.
+Example:
 
-**Disabling SMS ingestion**: set `SMS_INGESTION_ENABLED=false` in `.env`, or just don't install `pyserial` — either way MQTT ingestion is unaffected.
-
-## Centralized logging
-
-All three services mirror their logs into `service_logs` in the `air_quality` database (`service` column identifies which one), in addition to console output (captured by systemd's journal). Query it directly:
-
-```sql
-SELECT created_at, service, level, message
-FROM service_logs
-WHERE created_at > NOW() - INTERVAL '1 hour'
-ORDER BY created_at DESC;
+```bash
+curl -H "X-API-Key: your-token" \
+  http://127.0.0.1:8000/api/air-quality/stations/latest
 ```
 
-Also queryable via `GET /api/system/logs` on the monitoring API (filter by `service`, `level`, `hours`). Disable with `DB_LOG_ENABLED=false` in `.env`.
+## Station Registry
 
-## Known caveats / things to verify with real hardware
+Air quality stations are stored in the `stations` table. `air_quality_ingest.py` can auto-import `scripts/stations.json` on first run if the table is empty.
 
-- **SIM800L AT response parsing** (`sim800l.py`) was written against the documented SIMCom AT command set. Some clone modules/firmware format `+CMGL`/`+CMGR` responses slightly differently — if messages aren't being read correctly, first confirm the module responds to plain `AT` over a terminal (`screen /dev/serial0 9600`), then adjust `_CMGL_HEADER_RE` in `sim800l.py` if needed.
-- **SEISMSG1 format** is a new design (you didn't have an existing SMS format) — if your sensor firmware sends something different, update `parse_seismic_sms()` in `seismic_mqtt.py` to match, or have the firmware emit this format.
-- `config.py` from the original upload isn't imported by any of the three services (each reads its own env vars directly) — it's not part of this deployable set; leave it out or delete it.
+To import or update stations manually:
 
-## Seismic SMS protocol (SEISMSG1)
-
-The SMS ingestion service accepts seismic telemetry using the **SEISMSG1** message format.
-
-```
-SEISMSG1,<station_id>,<epoch_ts>,<lat>,<lon>,<elev_m>,<acc_x>,<acc_y>,<acc_z>,<vel_x>,<vel_y>,<vel_z>,<disp_x>,<disp_y>,<disp_z>,<pga>,<peis>,<checksum>
+```bash
+cd scripts
+python3 import_stations.py --dry-run
+python3 import_stations.py
+python3 import_stations.py /path/to/stations.json
 ```
 
-### Field definition
+The ingestion service refreshes station metadata periodically using `AQ_STATIONS_REFRESH_INTERVAL_SEC`, or immediately after a service restart.
 
-| # | Field | Description |
-|---|---|---|
-| 1 | `SEISMSG1` | Literal protocol identifier. Any SMS that does **not** begin with this tag is stored in the `sms_messages` table but ignored as seismic telemetry. |
-| 2 | `station_id` | Station identifier. Must match the station ID used by MQTT. |
-| 3 | `epoch_ts` | Unix timestamp (UTC, seconds) generated by the station. |
-| 4 | `lat` | Latitude (decimal degrees). Optional. |
-| 5 | `lon` | Longitude (decimal degrees). Optional. |
-| 6 | `elev_m` | Elevation above sea level (meters). Optional. |
-| 7 | `acc_x` | X-axis acceleration. |
-| 8 | `acc_y` | Y-axis acceleration. |
-| 9 | `acc_z` | Z-axis acceleration. |
-| 10 | `vel_x` | X-axis velocity. |
-| 11 | `vel_y` | Y-axis velocity. |
-| 12 | `vel_z` | Z-axis velocity. |
-| 13 | `disp_x` | X-axis displacement. |
-| 14 | `disp_y` | Y-axis displacement. |
-| 15 | `disp_z` | Z-axis displacement. |
-| 16 | `pga` | Peak Ground Acceleration (PGA). |
-| 17 | `peis` | Earthquake intensity code (integer). |
-| 18 | `checksum` | Optional but recommended. Two-digit uppercase hex checksum (sum of ASCII values before the checksum field, mod 256). |
+## Updating
 
-### Example (with location and checksum)
+After an initial deployment:
 
-```
-SEISMSG1,STN-004,1721818530,14.5995,120.9842,15.2,0.012,-0.008,0.021,0.5,0.3,0.6,1.2,0.9,1.5,0.045,2,3F
+```bash
+sudo ./update.sh
 ```
 
-### Example (without location or checksum)
+By default, the update script pulls branch `version5`. Override it when needed:
 
-```
-SEISMSG1,STN-004,1721818530,,,,0.012,-0.008,0.021,0.5,0.3,0.6,1.2,0.9,1.5,0.045,2
-```
-
-### Processing behavior
-
-- SMS messages beginning with `SEISMSG1` are parsed as seismic telemetry.
-- Successfully parsed readings are stored in `station_metrics` with `source = 'sms'`.
-- SMS messages that fail parsing are still archived in `sms_messages` with the error for troubleshooting.
-- SMS messages that do **not** begin with `SEISMSG1` are archived but ignored by the telemetry parser.
-
-This allows the SIM800L to receive both seismic telemetry and ordinary SMS messages without affecting system operation.
-
-## SMS transmission (SIM800L)
-
-In addition to receiving seismic telemetry via SMS, the SIM800L driver supports sending SMS messages for acknowledgements, diagnostics, or remote command responses.
-
-### Implementation
-
-The SIM800L driver (`sim800l.py`) includes a `send_sms()` method that follows the standard SIMCom AT command sequence for SMS transmission.
-
-```
-AT+CMGS="<phone_number>"
-    ↓
- wait for '>' prompt
-    ↓
-write message body
-    ↓
-send Ctrl+Z (0x1A)
-    ↓
-wait for +CMGS:<reference> and OK
+```bash
+GIT_BRANCH=main sudo -E ./update.sh
 ```
 
-Unlike most AT commands, `AT+CMGS` returns a standalone `>` prompt rather than a CR/LF-terminated response. Because of this, the driver implements a dedicated `_wait_for_prompt()` helper instead of using the normal `_read_until()` parser.
+The update flow stops services, pulls code, reinstalls Python dependencies, reprovisions Laravel, rebuilds assets, fixes permissions, then restarts nginx and `ems.target`.
 
-### Added methods
+## Troubleshooting
 
-- `send_sms(number, text, timeout=None)` – Sends an SMS. Uses a longer timeout (max of `self.timeout * 3, 15`) because GSM delivery takes longer than ordinary AT commands.
-- `_wait_for_prompt(timeout)` – Waits for the `>` prompt from `AT+CMGS`.
+Run the built-in checks first:
 
-### Integration
-
-`seismic_ingest.py` uses the driver through:
-
-```
-_send_sms_reply(...)
-    └── modem.send_sms(number, text)
+```bash
+./check_requirements.sh
 ```
 
-This enables the gateway to send SMS acknowledgements or responses directly through the SIM800L modem.
+Check service status and logs:
 
-### Validation
-
-The SMS transmission sequence has been verified using a mocked serial interface. Validated sequence:
-
-```
-AT+CMGS="<number>"
-    ↓
- modem returns >
-    ↓
-write SMS message
-    ↓
-Ctrl+Z (0x1A)
-    ↓
-+CMGS:<reference>
-    ↓
-    OK
+```bash
+sudo systemctl status ems.target
+sudo journalctl -u ems-api.service -n 100 --no-pager
+sudo journalctl -u ems-air-quality.service -n 100 --no-pager
+sudo journalctl -u ems-seismic.service -n 100 --no-pager
 ```
 
-This confirms the driver's state machine correctly handles the SIM800L SMS transmission workflow.
+Common issues:
 
-### Hardware verification
+- `scripts/.env` missing: copy `scripts/.env.EMS.scripts` to `scripts/.env` and edit it.
+- API returns `401`: send a valid `X-API-Key` header or add a key through the dashboard.
+- API returns `403`: check the allowed client networks in the dashboard API editor.
+- PostgreSQL connection fails: verify `SYSTEM_DB_*` values and run `pg_isready`.
+- MQTT messages are not arriving: verify broker host, port, topic, username, password, and station publish topic.
+- SMS ingestion is not working: confirm `SMS_INGESTION_ENABLED`, serial port, baud rate, modem wiring, and SIM800L power.
+- Dashboard cannot edit Python settings: make sure the web server user can read/write `scripts/.env`; `deploy.sh` and `update.sh` normally repair this.
 
-Although the transmission logic has been validated with a mocked serial port, final verification should be performed on a physical SIM800L module. A recommended test is:
+## Development Notes
 
-1. Send a `PING` command to the gateway.
-2. Verify the gateway replies with `OK`.
-3. Confirm the application log contains a message similar to:
-   ```
-   Sent reply 'OK' to <phone_number>
-   ```
+Python dependencies:
 
-This verifies the complete GSM transmission path, including UART communication, modem operation, and carrier network delivery.
+```bash
+pip3 install -r requirements.txt
+```
+
+Run services manually during development:
+
+```bash
+python3 scripts/air_quality_ingest.py
+python3 scripts/seismic_mqtt.py
+python3 scripts/api_server.py
+```
+
+Dashboard tests:
+
+```bash
+cd Dashboard
+php artisan test
+```
+
+Build dashboard assets:
+
+```bash
+cd Dashboard
+npm run build
+```
