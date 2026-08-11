@@ -9,11 +9,21 @@ use Illuminate\Validation\Rule;
 class StationController extends Controller
 {
     /**
-     * Display a listing of stations.
+     * Display a listing of stations (only active/non-deleted).
      */
     public function index()
     {
+        // This automatically excludes soft-deleted records
         $stations = Station::orderBy('station_mn')->get();
+        return view('stations', compact('stations'));
+    }
+
+    /**
+     * Display all stations including soft-deleted ones (optional admin view).
+     */
+    public function indexWithDeleted()
+    {
+        $stations = Station::withTrashed()->orderBy('station_mn')->get();
         return view('stations', compact('stations'));
     }
 
@@ -41,9 +51,22 @@ class StationController extends Controller
             'lead_slave'   => 'nullable|integer',
         ]);
 
-        // Add station_mn from request (no validation)
+        // Add station_mn from request
         $validated['station_mn'] = $request->input('station_mn');
         $validated['enabled'] = $request->has('enabled') ? filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN) : true;
+
+        // Check if a soft-deleted station exists with this station_mn
+        $deletedStation = Station::withTrashed()
+                                 ->where('station_mn', $validated['station_mn'])
+                                 ->first();
+
+        if ($deletedStation) {
+            // Restore the soft-deleted station instead of creating a new one
+            $deletedStation->restore();
+            $deletedStation->update($validated);
+            return redirect()->route('stations.index')
+                             ->with('success', 'Station restored and updated successfully.');
+        }
 
         Station::create($validated);
 
@@ -68,8 +91,6 @@ class StationController extends Controller
             'lead_slave'   => 'nullable|integer',
         ]);
 
-        // Add station_mn from request (no validation)
-        $validated['station_mn'] = $request->input('station_mn');
         $validated['enabled'] = $request->has('enabled') ? filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN) : false;
 
         $station->update($validated);
@@ -79,14 +100,38 @@ class StationController extends Controller
     }
 
     /**
-     * Remove the specified station.
+     * Soft delete the specified station.
      */
     public function destroy(string $station_mn)
     {
         $station = Station::findOrFail($station_mn);
-        $station->delete();
+        $station->delete(); // This performs soft delete
 
         return redirect()->route('stations.index')
-                         ->with('success', 'Station deleted successfully.');
+                         ->with('success', 'Station deleted successfully (can be restored).');
+    }
+
+    /**
+     * Restore a soft-deleted station.
+     */
+    public function restore(string $station_mn)
+    {
+        $station = Station::withTrashed()->findOrFail($station_mn);
+        $station->restore();
+
+        return redirect()->route('stations.index')
+                         ->with('success', 'Station restored successfully.');
+    }
+
+    /**
+     * Permanently delete a station (force delete).
+     */
+    public function forceDelete(string $station_mn)
+    {
+        $station = Station::withTrashed()->findOrFail($station_mn);
+        $station->forceDelete();
+
+        return redirect()->route('stations.index')
+                         ->with('success', 'Station permanently deleted.');
     }
 }

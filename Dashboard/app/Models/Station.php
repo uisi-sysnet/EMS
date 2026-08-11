@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Station extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $connection = 'aq';
     
@@ -29,5 +30,9 @@ class Station extends Model
         'lead_port' => 'integer',
         'lead_slave' => 'integer',
         'updated_at' => 'datetime',
+        'deleted_at' => 'datetime', // Add this
     ];
+
+    // Optional: Add a scope to exclude soft-deleted by default (Laravel does this automatically)
+    // But if you want to include them in specific queries, use withTrashed()
 }
