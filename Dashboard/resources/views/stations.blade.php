@@ -212,7 +212,7 @@
                                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                                         @if($station->sensor_data_count > 0)
                                                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-munti-green-600/30 bg-munti-green-700/15 text-munti-green-400">
-                                                                HAS DATA ({{ $station->sensor_data_count }})
+                                                                DATA ({{ $station->sensor_data_count }})
                                                             </span>
                                                         @else
                                                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-munti-red-600/30 bg-munti-red-700/15 text-munti-red-400">
@@ -451,7 +451,7 @@
                                                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                                         </svg>
-                                                        HAS DATA ({{ $station->sensor_data_count }})
+                                                        DATA ({{ $station->sensor_data_count }})
                                                     </span>
                                                 @else
                                                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-munti-red-600/30 bg-munti-red-700/15 text-munti-red-400">
@@ -557,7 +557,7 @@ function closeEditModal() {
 
 // Delete Station
 function deleteStation(stationMn, stationName) {
-    // First check if station has data via AJAX
+    // First check if station data via AJAX
     fetch(`/stations/${stationMn}/check-data`)
         .then(response => response.json())
         .then(data => {
@@ -565,7 +565,7 @@ function deleteStation(stationMn, stationName) {
             let htmlText = `Are you sure you want to delete station <strong>"${stationName}"</strong>?`;
             
             if (data.hasData) {
-                htmlText += `<br><span style="color: #f59e0b;">⚠️ This station has ${data.dataCount} sensor data records. It will be deactivated (hidden) but the data will be preserved.</span>`;
+                htmlText += `<br><span style="color: #f59e0b;">⚠️ This station ${data.dataCount} sensor data records. It will be deactivated (hidden) but the data will be preserved.</span>`;
                 htmlText += `<br><span style="color: #94a3b8; font-size: 13px;">You can reactivate it later if needed.</span>`;
             } else {
                 htmlText += `<br><span style="color: #ef4444;">This action cannot be undone!</span>`;
