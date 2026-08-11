@@ -44,12 +44,11 @@ class StationController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'station_mn' => 'required|string|max:100|unique:stations,station_mn',  
-            'station_name' => 'nullable|string|max:100|unique:stations,station_name', 
+            'station_name' => 'nullable|string|max:100',
             'enabled'      => 'sometimes|boolean',
             'latitude'     => 'nullable|numeric|between:-90,90',
             'longitude'    => 'nullable|numeric|between:-180,180',
-            'lead_ip'      => 'nullable|string|max:64|unique:stations,lead_ip',
+            'lead_ip'      => 'nullable|string|max:64',
             'lead_port'    => 'nullable|integer|min:0|max:65535',
             'lead_slave'   => 'nullable|integer',
         ]);
@@ -74,11 +73,11 @@ class StationController extends Controller
             ->firstOrFail();
         
         $validated = $request->validate([
-            'station_name' => 'nullable|string|max:100|unique:stations,station_name,' . $station_mn . ',station_mn',
+            'station_name' => 'nullable|string|max:100',
             'enabled'      => 'sometimes|boolean',
             'latitude'     => 'nullable|numeric|between:-90,90',
             'longitude'    => 'nullable|numeric|between:-180,180',
-            'lead_ip'      => 'nullable|string|max:64|unique:stations,lead_ip,' . $station_mn . ',station_mn',
+            'lead_ip'      => 'nullable|string|max:64',
             'lead_port'    => 'nullable|integer|min:0|max:65535',
             'lead_slave'   => 'nullable|integer',
         ]);
@@ -88,7 +87,7 @@ class StationController extends Controller
         $station->update($validated);
 
         return redirect()->route('stations.index')
-                        ->with('success', 'Station updated successfully.');
+                         ->with('success', 'Station updated successfully.');
     }
 
     /**
