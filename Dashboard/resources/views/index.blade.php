@@ -297,9 +297,6 @@
                         <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
                             <span class="truncate">Air Quality Station Status</span>
                         </h3>
-                        <span id="aq-online-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
-                            {{ $airQualityOnline }}/{{ $airQualityTotal }} online
-                        </span>
                     </div>
                     <div class="p-3 sm:p-4 flex items-center gap-4">
                         <div class="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0">
@@ -314,7 +311,7 @@
                                 @endif
                             </div>
                         </div>
-                        <div class="flex flex-col gap-1.5 text-xs w-full">
+                        <div class="flex flex-col gap-1.5 text-xs flex-1 min-w-0">
                             <div class="flex items-center gap-1.5">
                                 <span class="w-2 h-2 rounded-full bg-munti-green-400"></span>
                                 <span class="text-text-300">Online</span>
@@ -331,6 +328,9 @@
                                 <span id="aq-offline-count" class="text-text-100 font-semibold ml-auto">{{ $airQualityCounts['offline'] }}</span>
                             </div>
                         </div>
+                        <span id="aq-online-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-2 py-1 rounded-full shrink-0 border border-munti-green-600/30 whitespace-nowrap self-center">
+                            {{ $airQualityOnline }}/{{ $airQualityTotal }} online
+                        </span>
                     </div>
                 </div>
 
@@ -340,9 +340,6 @@
                         <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
                             <span class="truncate">Seismic Station Status</span>
                         </h3>
-                        <span id="seismic-online-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
-                            {{ $seismicOnline }}/{{ $seismicTotal }} online
-                        </span>
                     </div>
                     <div class="p-3 sm:p-4 flex items-center gap-4">
                         <div class="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0">
@@ -357,7 +354,7 @@
                                 @endif
                             </div>
                         </div>
-                        <div class="flex flex-col gap-1.5 text-xs w-full">
+                        <div class="flex flex-col gap-1.5 text-xs flex-1 min-w-0">
                             <div class="flex items-center gap-1.5">
                                 <span class="w-2 h-2 rounded-full bg-munti-green-400"></span>
                                 <span class="text-text-300">Online</span>
@@ -374,6 +371,9 @@
                                 <span id="seismic-offline-count" class="text-text-100 font-semibold ml-auto">{{ $seismicCounts['offline'] }}</span>
                             </div>
                         </div>
+                        <span id="seismic-online-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-2 py-1 rounded-full shrink-0 border border-munti-green-600/30 whitespace-nowrap self-center">
+                            {{ $seismicOnline }}/{{ $seismicTotal }} online
+                        </span>
                     </div>
                 </div>
 
