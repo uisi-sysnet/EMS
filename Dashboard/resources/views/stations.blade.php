@@ -121,7 +121,7 @@
                             <!-- Lead Slave - Auto-filled with 1 -->
                             <div class="flex flex-col">
                                 <label for="lead_slave" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Lead Slave
+                                    Slave
                                 </label>
                                 <input type="number" id="lead_slave" name="lead_slave" value="{{ old('lead_slave', 1) }}"
                                     readonly
@@ -374,7 +374,7 @@
                                 <!-- Lead Slave -->
                                 <div class="flex flex-col">
                                     <label for="edit_lead_slave" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                        Lead Slave
+                                        Slave
                                     </label>
                                     <input type="number" id="edit_lead_slave" name="lead_slave"
                                         class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
@@ -436,7 +436,7 @@
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Longitude</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">IP Address</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Port</th>
-                                        <th scope="col" class="px-4 py-3 text-left font-medium">Lead Slave</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Slave</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Updated At</th>
                                         <th scope="col" class="px-4 py-3 text-center font-medium">Actions</th>
                                     </tr>
