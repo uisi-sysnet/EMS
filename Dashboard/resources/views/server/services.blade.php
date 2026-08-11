@@ -58,8 +58,61 @@
                             class="btn-action flex-1 text-xs font-semibold py-2 rounded-lg border border-border-600 text-text-300 hover:bg-surface-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
                             data-action="restart">Restart</button>
                 </div>
+
+                @if($svc['hasConfig'] ?? false)
+                    <button type="button"
+                            class="btn-edit-config w-full mt-2 text-xs font-semibold py-2 rounded-lg border border-border-600 text-text-300 hover:bg-surface-700 transition inline-flex items-center justify-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        Edit Config
+                    </button>
+                @endif
             </div>
         @endforeach
+    </div>
+
+    {{-- ========== CONFIG EDIT MODAL ========== --}}
+    <div id="configModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-surface-800 rounded-2xl border border-border-700 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div class="px-6 py-4 border-b border-border-700 flex items-center justify-between gap-3">
+                <h3 class="text-lg font-semibold text-text-100 flex items-center gap-2 min-w-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-radar-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    <span>Edit Config</span>
+                    <span id="configPathLabel" class="text-xs font-normal text-text-500 font-mono truncate"></span>
+                </h3>
+                <button type="button" onclick="closeConfigModal()" class="p-2 rounded-lg hover:bg-surface-700 text-text-400 hover:text-text-100 transition shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="px-6 py-4 flex-1 min-h-0 overflow-y-auto thin-scrollbar flex flex-col gap-3">
+                <div id="configError" class="hidden px-4 py-3 rounded-lg border border-munti-red-600/30 bg-munti-red-700/15 text-munti-red-400 text-xs font-mono whitespace-pre-wrap max-h-56 overflow-y-auto"></div>
+                <textarea id="configTextarea" spellcheck="false" autocomplete="off"
+                    class="w-full flex-1 min-h-[420px] px-4 py-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs font-mono leading-relaxed resize-none"></textarea>
+            </div>
+
+            <div class="px-6 py-4 border-t border-border-700 flex items-center justify-between gap-3">
+                <span id="configHint" class="text-xs text-text-500"></span>
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeConfigModal()"
+                            class="px-4 py-2.5 text-sm font-medium text-text-300 hover:text-text-100 bg-surface-700 hover:bg-surface-600 rounded-lg transition border border-border-600">
+                        Cancel
+                    </button>
+                    <button type="button" id="configSaveBtn" onclick="saveConfig()"
+                            class="px-6 py-2.5 bg-radar-500 hover:bg-radar-400 text-text-100 font-semibold rounded-lg transition border border-radar-400/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Save, Test &amp; Restart
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
         </div>{{-- /scrollable body --}}
@@ -103,6 +156,13 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         } catch (e) { /* silent — next poll will retry */ }
     }
+
+    cardsRoot.addEventListener('click', function (e) {
+        const editBtn = e.target.closest('.btn-edit-config');
+        if (!editBtn) return;
+        const card = editBtn.closest('.service-card');
+        openConfigModal(card.dataset.unit);
+    });
 
     const ACTION_META = {
         start:   { verb: 'Start',   icon: 'question', confirmColor: '#16a34a', desc: 'This will start the service.' },
@@ -193,6 +253,124 @@ document.addEventListener('DOMContentLoaded', function () {
         } finally {
             buttons.forEach(b => b.disabled = false);
         }
+    });
+
+    // ---------- Config edit modal ----------
+    let currentConfigService = null;
+    const configModal = document.getElementById('configModal');
+    const configTextarea = document.getElementById('configTextarea');
+    const configError = document.getElementById('configError');
+    const configPathLabel = document.getElementById('configPathLabel');
+    const configHint = document.getElementById('configHint');
+    const configSaveBtn = document.getElementById('configSaveBtn');
+
+    function showConfigError(message) {
+        configError.textContent = message;
+        configError.classList.remove('hidden');
+    }
+
+    function clearConfigError() {
+        configError.textContent = '';
+        configError.classList.add('hidden');
+    }
+
+    function openConfigModal(unit) {
+        currentConfigService = unit;
+        clearConfigError();
+        configPathLabel.textContent = '';
+        configHint.textContent = 'Loading current config…';
+        configTextarea.value = '';
+        configTextarea.disabled = true;
+
+        configModal.classList.remove('hidden');
+        configModal.classList.add('flex');
+
+        fetch(`/maintenance/services/${encodeURIComponent(unit)}/config`, {
+            headers: { 'Accept': 'application/json' },
+        })
+            .then(async res => ({ ok: res.ok, data: await res.json() }))
+            .then(({ ok, data }) => {
+                if (!ok) {
+                    showConfigError(data.message || 'Failed to load config.');
+                    configHint.textContent = '';
+                    return;
+                }
+                configTextarea.value = data.content;
+                configPathLabel.textContent = data.path;
+                configHint.textContent = '';
+            })
+            .catch(() => {
+                showConfigError('Network error while loading the config file.');
+                configHint.textContent = '';
+            })
+            .finally(() => { configTextarea.disabled = false; });
+    }
+
+    function closeConfigModal() {
+        configModal.classList.add('hidden');
+        configModal.classList.remove('flex');
+        currentConfigService = null;
+    }
+    window.closeConfigModal = closeConfigModal;
+
+    async function saveConfig() {
+        if (!currentConfigService) return;
+
+        clearConfigError();
+        configSaveBtn.disabled = true;
+        const originalLabel = configSaveBtn.innerHTML;
+        configSaveBtn.textContent = 'Testing & saving…';
+        configHint.textContent = 'Writing file, running nginx -t, restarting…';
+
+        try {
+            const res = await fetch(`/maintenance/services/${encodeURIComponent(currentConfigService)}/config`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({ content: configTextarea.value }),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                // Test (or write/backup) failed — keep the modal open so
+                // the user can fix the text and retry, per the error shown.
+                showConfigError((data.message || 'Save failed.') + (data.detail ? '\n\n' + data.detail : ''));
+                configHint.textContent = '';
+                return;
+            }
+
+            const card = cardsRoot.querySelector(`.service-card[data-unit="${currentConfigService}"]`);
+            if (card && data.service) applyStatus(card, data.service);
+
+            closeConfigModal();
+            Swal.fire({
+                title: data.message || 'Config saved and nginx restarted.',
+                icon: 'success',
+                background: '#1f2937',
+                color: '#f3f4f6',
+                iconColor: '#22c55e',
+                timer: 2800,
+                timerProgressBar: true,
+                showConfirmButton: false,
+            });
+        } catch (e) {
+            showConfigError('Network error while saving the config file.');
+            configHint.textContent = '';
+        } finally {
+            configSaveBtn.disabled = false;
+            configSaveBtn.innerHTML = originalLabel;
+        }
+    }
+    window.saveConfig = saveConfig;
+
+    configModal.addEventListener('click', function (e) {
+        if (e.target === this) closeConfigModal();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !configModal.classList.contains('hidden')) closeConfigModal();
     });
 
     refreshStatuses();
