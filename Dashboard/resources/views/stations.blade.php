@@ -92,14 +92,14 @@
                                 @enderror
                             </div>
 
-                            <!-- Lead IP -->
+                            <!-- IP Port -->
                             <div class="flex flex-col">
                                 <label for="lead_ip" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Lead IP <span class="text-munti-red-400">*</span>
+                                    IP Port <span class="text-munti-red-400">*</span>
                                 </label>
                                 <input type="text" id="lead_ip" name="lead_ip" value="{{ old('lead_ip') }}" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('lead_ip') border-munti-red-500 @enderror"
-                                    placeholder="Enter unique lead IP">
+                                    placeholder="Enter unique IP Port">
                                 @error('lead_ip')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -117,10 +117,10 @@
                                 @enderror
                             </div>
 
-                            <!-- Lead Slave -->
+                            <!-- Slave -->
                             <div class="flex flex-col">
                                 <label for="lead_slave" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Lead Slave
+                                    Slave
                                 </label>
                                 <input type="number" id="lead_slave" name="lead_slave" value="{{ old('lead_slave') }}"
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('lead_slave') border-munti-red-500 @enderror">
@@ -160,7 +160,7 @@
                         <div class="mt-4 p-3 bg-surface-700/30 rounded-lg border border-border-600">
                             <p class="text-xs text-text-400">
                                 <span class="text-munti-red-400">*</span> Note: 
-                                <span class="text-text-300">Station MN, Station Name, and Lead IP must be unique across all records (including deleted stations).</span>
+                                <span class="text-text-300">Station MN, Station Name, and IP Port must be unique across all records (including deleted stations).</span>
                             </p>
                         </div>
                     </form>
@@ -198,7 +198,7 @@
                                                 <th class="px-4 py-3 text-left font-medium">Data Status</th>
                                                 <th class="px-4 py-3 text-left font-medium">Latitude</th>
                                                 <th class="px-4 py-3 text-left font-medium">Longitude</th>
-                                                <th class="px-4 py-3 text-left font-medium">Lead IP</th>
+                                                <th class="px-4 py-3 text-left font-medium">IP Port</th>
                                                 <th class="px-4 py-3 text-left font-medium">Updated At</th>
                                                 <th class="px-4 py-3 text-center font-medium">Actions</th>
                                             </tr>
@@ -351,10 +351,10 @@
                                         class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                                 </div>
 
-                                <!-- Lead IP -->
+                                <!-- IP Port -->
                                 <div class="flex flex-col">
                                     <label for="edit_lead_ip" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                        Lead IP
+                                        IP Port
                                     </label>
                                     <input type="text" id="edit_lead_ip" name="lead_ip"
                                         class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
@@ -369,10 +369,10 @@
                                         class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                                 </div>
 
-                                <!-- Lead Slave -->
+                                <!-- Slave -->
                                 <div class="flex flex-col">
                                     <label for="edit_lead_slave" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                        Lead Slave
+                                        Slave
                                     </label>
                                     <input type="number" id="edit_lead_slave" name="lead_slave"
                                         class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
@@ -432,9 +432,9 @@
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Data Status</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Latitude</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Longitude</th>
-                                        <th scope="col" class="px-4 py-3 text-left font-medium">Lead IP</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">IP Port</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Lead Port</th>
-                                        <th scope="col" class="px-4 py-3 text-left font-medium">Lead Slave</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Slave</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Updated At</th>
                                         <th scope="col" class="px-4 py-3 text-center font-medium">Actions</th>
                                     </tr>
