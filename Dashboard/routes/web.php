@@ -34,13 +34,22 @@ Route::middleware(['role:administrator'])->group(function () {
 
     Route::get('/sms', [SmsController::class, 'index'])->name('sms.index');
 
+    // Station routes
     Route::get('/stations', [StationController::class, 'index'])->name('stations.index');
+    Route::get('/stations/{station_mn}/edit', [StationController::class, 'edit'])->name('stations.edit');
     Route::post('/stations', [StationController::class, 'store'])->name('stations.store');
-    Route::delete('/allowed-networks', [ApiKeyController::class, 'destroyIp'])->name('allowed-networks.destroy');
-    Route::put('/stations/{station}', [StationController::class, 'update'])->name('stations.update');
-    Route::get('/stations/{station}/edit', [StationController::class, 'edit'])->name('stations.edit');
-    Route::delete('/stations/{station}', [StationController::class, 'destroy'])->name('stations.destroy');
+    Route::put('/stations/{station_mn}', [StationController::class, 'update'])->name('stations.update');
+
+    // DELETE route - add this line (use DELETE method)
+    Route::delete('/stations/{station_mn}', [StationController::class, 'destroy'])->name('stations.destroy');
+
+    // Check if station has sensor data
+    Route::get('/stations/{station_mn}/check-data', [StationController::class, 'checkData'])->name('stations.check-data');
+
+    // Restore soft-deleted station
     Route::patch('/stations/{station_mn}/restore', [StationController::class, 'restore'])->name('stations.restore');
+
+    // Permanently delete station (force delete)
     Route::delete('/stations/{station_mn}/force-delete', [StationController::class, 'forceDelete'])->name('stations.force-delete');
 
     Route::get('/env-editor', [EnvEditorController::class, 'index'])->name('env.editor');

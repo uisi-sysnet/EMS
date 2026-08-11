@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Station;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class StationController extends Controller
@@ -13,7 +14,6 @@ class StationController extends Controller
      */
     public function index()
     {
-        // This automatically excludes soft-deleted records
         $stations = Station::orderBy('station_mn')->get();
         return view('stations', compact('stations'));
     }
@@ -100,15 +100,29 @@ class StationController extends Controller
     }
 
     /**
-     * Soft delete the specified station.
+     * Remove the specified station - Conditional delete based on sensor data.
      */
     public function destroy(string $station_mn)
     {
         $station = Station::findOrFail($station_mn);
-        $station->delete(); // This performs soft delete
+        
+        // Check if station has sensor data using DB facade
+        $hasSensorData = DB::table('sensor_data')
+                            ->where('station_mn', $station_mn)
+                            ->exists();
+        
+        if ($hasSensorData) {
+            // If has data, soft delete (preserve data)
+            $station->delete();
+            $message = 'Station soft-deleted successfully. Sensor data preserved.';
+        } else {
+            // If no data, force delete (permanently remove)
+            $station->forceDelete();
+            $message = 'Station permanently deleted successfully.';
+        }
 
         return redirect()->route('stations.index')
-                         ->with('success', 'Station deleted successfully (can be restored).');
+                         ->with('success', $message);
     }
 
     /**
@@ -124,7 +138,7 @@ class StationController extends Controller
     }
 
     /**
-     * Permanently delete a station (force delete).
+     * Permanently delete a station (force delete) - Admin only.
      */
     public function forceDelete(string $station_mn)
     {
@@ -133,5 +147,19 @@ class StationController extends Controller
 
         return redirect()->route('stations.index')
                          ->with('success', 'Station permanently deleted.');
+    }
+
+    /**
+     * Check if station has sensor data.
+     */
+    public function checkData(string $station_mn)
+    {
+        $hasSensorData = DB::table('sensor_data')
+                            ->where('station_mn', $station_mn)
+                            ->exists();
+        
+        return response()->json([
+            'hasSensorData' => $hasSensorData
+        ]);
     }
 }

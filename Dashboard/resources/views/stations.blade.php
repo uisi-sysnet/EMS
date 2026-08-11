@@ -415,42 +415,100 @@ function closeEditModal() {
     document.getElementById('editModal').style.display = 'none';
 }
 
-// Delete Station (Soft Delete)
+// Delete Station (Conditional: Soft or Hard Delete)
 function deleteStation(stationMn, stationName) {
-    Swal.fire({
-        title: 'Delete Station?',
-        html: `Are you sure you want to delete station <strong>"${stationName}"</strong>?<br><span style="color: #f59e0b;">This station will be soft-deleted and can be restored later.</span><br><span style="color: #94a3b8; font-size: 0.9em;">Sensor data will be preserved.</span>`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel',
-        background: '#1f2937',
-        color: '#f3f4f6',
-        iconColor: '#f59e0b'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/stations/${stationMn}`;
+    // First check if station has sensor data
+    fetch(`/stations/${stationMn}/check-data`)
+        .then(response => response.json())
+        .then(data => {
+            let message = '';
+            let confirmButtonText = 'Yes, delete it!';
+            let confirmButtonColor = '#dc2626';
             
-            const csrfToken = document.createElement('input');
-            csrfToken.type = 'hidden';
-            csrfToken.name = '_token';
-            csrfToken.value = '{{ csrf_token() }}';
-            form.appendChild(csrfToken);
+            if (data.hasSensorData) {
+                message = `Are you sure you want to delete station <strong>"${stationName}"</strong>?<br>
+                          <span style="color: #f59e0b;">This station has sensor data, so it will be soft-deleted.</span><br>
+                          <span style="color: #94a3b8; font-size: 0.9em;">The station can be restored later. Sensor data will be preserved.</span>`;
+                confirmButtonColor = '#f59e0b';
+            } else {
+                message = `Are you sure you want to permanently delete station <strong>"${stationName}"</strong>?<br>
+                          <span style="color: #ef4444;">This action cannot be undone!</span><br>
+                          <span style="color: #94a3b8; font-size: 0.9em;">No sensor data exists for this station.</span>`;
+                confirmButtonText = 'Yes, permanently delete it!';
+            }
             
-            const methodField = document.createElement('input');
-            methodField.type = 'hidden';
-            methodField.name = '_method';
-            methodField.value = 'DELETE';
-            form.appendChild(methodField);
-            
-            document.body.appendChild(form);
-            form.submit();
-        }
-    });
+            Swal.fire({
+                title: 'Delete Station?',
+                html: message,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: confirmButtonColor,
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: confirmButtonText,
+                cancelButtonText: 'Cancel',
+                background: '#1f2937',
+                color: '#f3f4f6',
+                iconColor: '#f59e0b'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = `/stations/${stationMn}`;
+                    
+                    const csrfToken = document.createElement('input');
+                    csrfToken.type = 'hidden';
+                    csrfToken.name = '_token';
+                    csrfToken.value = '{{ csrf_token() }}';
+                    form.appendChild(csrfToken);
+                    
+                    const methodField = document.createElement('input');
+                    methodField.type = 'hidden';
+                    methodField.name = '_method';
+                    methodField.value = 'DELETE';
+                    form.appendChild(methodField);
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            // Fallback: proceed with delete
+            Swal.fire({
+                title: 'Delete Station?',
+                html: `Are you sure you want to delete station <strong>"${stationName}"</strong>?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel',
+                background: '#1f2937',
+                color: '#f3f4f6'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = `/stations/${stationMn}`;
+                    
+                    const csrfToken = document.createElement('input');
+                    csrfToken.type = 'hidden';
+                    csrfToken.name = '_token';
+                    csrfToken.value = '{{ csrf_token() }}';
+                    form.appendChild(csrfToken);
+                    
+                    const methodField = document.createElement('input');
+                    methodField.type = 'hidden';
+                    methodField.name = '_method';
+                    methodField.value = 'DELETE';
+                    form.appendChild(methodField);
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
+        });
 }
 
 // Close modal on ESC key
