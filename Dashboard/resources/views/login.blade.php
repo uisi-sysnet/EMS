@@ -29,11 +29,11 @@
             </div>
 
             <h1 class="text-3xl font-bold text-munti-yellow-500 text-center leading-tight drop-shadow-sm uppercase tracking-wide">
-                Environmental Monitoring System Gateway
+                {{ config('app.system_name', 'Environmental Monitoring System Gateway') }}
             </h1>
 
             <p class="mt-6 text-text-300 text-lg text-center font-light tracking-wide">
-                Uplink Integrated Solutions Inc.
+                {{ config('app.company_name', 'Uplink Integrated Solutions Inc.') }}
             </p>
 
             <div class="mt-16 text-text-400 text-sm bg-white/5 px-4 py-1 rounded-full border border-white/10">

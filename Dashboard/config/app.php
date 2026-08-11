@@ -13,7 +13,11 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'EMS Gateway'),
+
+    'company_name' => env('COMPANY_NAME', 'Uplink Integrated Solutions Inc.'),
+
+    'system_name' => env('SYSTEM_NAME', 'Environmental Monitoring System Gateway'),
 
     /*
     |--------------------------------------------------------------------------
