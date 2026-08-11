@@ -167,12 +167,20 @@ class ServicesController extends Controller
         $tmpPath = tempnam(sys_get_temp_dir(), 'cfg_');
         file_put_contents($tmpPath, $validated['content']);
 
-        $backupPath = $path . '.bak-' . time();
+        // IMPORTANT: the backup must NOT live inside /etc/nginx/sites-enabled/
+        // (or any other nginx-included directory). Debian/Ubuntu's nginx.conf
+        // does `include /etc/nginx/sites-enabled/*;` with no extension filter,
+        // so a backup dropped next to the real file gets parsed as its own
+        // server block too — that's what caused the earlier "duplicate
+        // default server" failure. Keeping it in the system temp dir means
+        // nginx never sees it.
+        $backupPath = tempnam(sys_get_temp_dir(), 'nginxcfg_backup_');
         $backup = new Process(['sudo', '/bin/cp', '--preserve=mode,ownership', $path, $backupPath]);
         $backup->run();
 
         if (!$backup->isSuccessful()) {
             @unlink($tmpPath);
+            @unlink($backupPath);
             return response()->json([
                 'message' => 'Could not back up the existing config; aborted before making changes.',
                 'detail'  => trim($backup->getErrorOutput()),
