@@ -14,11 +14,17 @@ class StationController extends Controller
     public function index()
     {
         $stations = Station::withCount('sensorData')
-            ->where('deleted', false) // Only show non-deleted stations
+            ->where('deleted', false)
+            ->orderBy('station_mn')
+            ->get();
+
+        // Also load deleted stations for the modal
+        $deletedStations = Station::withCount('sensorData')
+            ->where('deleted', true)
             ->orderBy('station_mn')
             ->get();
             
-        return view('stations', compact('stations'));
+        return view('stations', compact('stations', 'deletedStations'));
     }
 
     /**
@@ -49,7 +55,7 @@ class StationController extends Controller
 
         $validated['station_mn'] = $request->input('station_mn');
         $validated['enabled'] = $request->has('enabled') ? filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN) : true;
-        $validated['deleted'] = false; // New stations are not deleted
+        $validated['deleted'] = false;
 
         Station::create($validated);
 
@@ -94,16 +100,29 @@ class StationController extends Controller
             ->firstOrFail();
 
         if ($station->hasData()) {
-            // Soft delete - marks as deleted
             $station->update(['deleted' => true]);
             $message = 'Station has been deactivated (hidden) but its data has been preserved.';
         } else {
-            // Permanently delete - use the query builder to force delete
             Station::where('station_mn', $station_mn)->delete();
             $message = 'Station deleted successfully.';
         }
 
         return redirect()->route('stations.index')
             ->with('success', $message);
+    }
+
+    /**
+     * Restore a soft-deleted station.
+     */
+    public function restore(string $station_mn)
+    {
+        $station = Station::where('station_mn', $station_mn)
+            ->where('deleted', true)
+            ->firstOrFail();
+
+        $station->update(['deleted' => false]);
+
+        return redirect()->route('stations.index')
+            ->with('success', 'Station restored successfully.');
     }
 }
