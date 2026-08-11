@@ -25,6 +25,8 @@ class ServicesController extends Controller
         'ems-api.service'         => 'EMS API',
         'mosquitto.service'       => 'Mosquitto (MQTT Broker)',
         'postgresql.service'      => 'PostgreSQL',
+        'nginx.service'           => 'Nginx',
+        'ntpsec.service'          => 'NTP Daemon (ntpsec)',
     ];
 
     /** Actions allowed via the control buttons. */
