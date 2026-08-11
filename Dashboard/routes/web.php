@@ -43,6 +43,7 @@ Route::middleware(['role:administrator'])->group(function () {
     Route::get('/stations/{station}/edit', [StationController::class, 'edit'])->name('stations.edit');
     Route::delete('/stations/{station}', [StationController::class, 'destroy'])->name('stations.destroy');
     Route::post('/stations/{station_mn}/restore', [StationController::class, 'restore'])->name('stations.restore');
+    Route::get('/stations/{station_mn}/check-data', [StationController::class, 'checkData'])->name('stations.check-data');
 
     Route::get('/env-editor', [EnvEditorController::class, 'index'])->name('env.editor');
     Route::get('/load-env', [EnvEditorController::class, 'load'])->name('env.load');

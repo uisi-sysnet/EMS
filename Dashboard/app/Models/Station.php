@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Station extends Model
 {
@@ -76,5 +77,29 @@ class Station extends Model
     {
         $this->deleted = false;
         return $this->save();
+    }
+
+    /**
+     * Check if a station_mn already exists (including deleted)
+     */
+    public static function existsWithTrashed($station_mn)
+    {
+        return self::where('station_mn', $station_mn)->exists();
+    }
+
+    /**
+     * Check if a station_name already exists (including deleted)
+     */
+    public static function existsByNameWithTrashed($station_name)
+    {
+        return self::where('station_name', $station_name)->exists();
+    }
+
+    /**
+     * Check if a lead_ip already exists (including deleted)
+     */
+    public static function existsByLeadIpWithTrashed($lead_ip)
+    {
+        return self::where('lead_ip', $lead_ip)->exists();
     }
 }

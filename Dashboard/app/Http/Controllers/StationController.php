@@ -39,21 +39,67 @@ class StationController extends Controller
     }
 
     /**
+     * Check if station has data (for delete confirmation)
+     */
+    public function checkData(string $station_mn)
+    {
+        $station = Station::where('station_mn', $station_mn)
+            ->where('deleted', false)
+            ->firstOrFail();
+            
+        $hasData = $station->hasData();
+        $dataCount = $station->sensorData()->count();
+        
+        return response()->json([
+            'hasData' => $hasData,
+            'dataCount' => $dataCount
+        ]);
+    }
+
+    /**
      * Store a newly created station.
      */
     public function store(Request $request)
     {
+        // Custom validation with existence checks across all records
         $validated = $request->validate([
-            'station_name' => 'nullable|string|max:100',
+            'station_mn' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    if (Station::existsWithTrashed($value)) {
+                        $fail('The station MN "' . $value . '" is already taken. Please use a unique station MN.');
+                    }
+                }
+            ],
+            'station_name' => [
+                'nullable',
+                'string',
+                'max:100',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($value && Station::existsByNameWithTrashed($value)) {
+                        $fail('The station name "' . $value . '" is already taken. Please use a unique station name.');
+                    }
+                }
+            ],
             'enabled'      => 'sometimes|boolean',
             'latitude'     => 'nullable|numeric|between:-90,90',
             'longitude'    => 'nullable|numeric|between:-180,180',
-            'lead_ip'      => 'nullable|string|max:64',
+            'lead_ip'      => [
+                'nullable',
+                'string',
+                'max:64',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($value && Station::existsByLeadIpWithTrashed($value)) {
+                        $fail('The lead IP "' . $value . '" is already in use. Please use a unique lead IP.');
+                    }
+                }
+            ],
             'lead_port'    => 'nullable|integer|min:0|max:65535',
             'lead_slave'   => 'nullable|integer',
         ]);
 
-        $validated['station_mn'] = $request->input('station_mn');
         $validated['enabled'] = $request->has('enabled') ? filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN) : true;
         $validated['deleted'] = false;
 
@@ -72,12 +118,41 @@ class StationController extends Controller
             ->where('deleted', false)
             ->firstOrFail();
         
+        // Custom validation with existence checks excluding current station
         $validated = $request->validate([
-            'station_name' => 'nullable|string|max:100',
+            'station_name' => [
+                'nullable',
+                'string',
+                'max:100',
+                function ($attribute, $value, $fail) use ($station_mn) {
+                    if ($value) {
+                        $exists = Station::where('station_name', $value)
+                            ->where('station_mn', '!=', $station_mn)
+                            ->exists();
+                        if ($exists) {
+                            $fail('The station name "' . $value . '" is already taken. Please use a unique station name.');
+                        }
+                    }
+                }
+            ],
             'enabled'      => 'sometimes|boolean',
             'latitude'     => 'nullable|numeric|between:-90,90',
             'longitude'    => 'nullable|numeric|between:-180,180',
-            'lead_ip'      => 'nullable|string|max:64',
+            'lead_ip'      => [
+                'nullable',
+                'string',
+                'max:64',
+                function ($attribute, $value, $fail) use ($station_mn) {
+                    if ($value) {
+                        $exists = Station::where('lead_ip', $value)
+                            ->where('station_mn', '!=', $station_mn)
+                            ->exists();
+                        if ($exists) {
+                            $fail('The lead IP "' . $value . '" is already in use. Please use a unique lead IP.');
+                        }
+                    }
+                }
+            ],
             'lead_port'    => 'nullable|integer|min:0|max:65535',
             'lead_slave'   => 'nullable|integer',
         ]);
