@@ -163,7 +163,10 @@ class RecentLogsController extends Controller
                 return response()->json(['success' => false, 'message' => 'Log not found'], 404);
             }
             
-            $log->update(['seen_at' => now()]);
+            // Only update if not already seen
+            if ($log->seen_at === null) {
+                $log->update(['seen_at' => now()]);
+            }
             
             return response()->json(['success' => true]);
         } catch (\Exception $e) {

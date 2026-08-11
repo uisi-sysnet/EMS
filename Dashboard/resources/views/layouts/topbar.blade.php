@@ -96,7 +96,7 @@
                         <div class="flex items-center justify-between px-4 py-3 border-b border-border-700">
                             <h3 class="text-sm font-semibold text-text-100">Recent Logs</h3>
                             <div class="flex items-center gap-3">
-                                <button id="mark-all-seen" class="text-xs text-text-400 hover:text-text-100 transition px-2 py-1 rounded hover:bg-surface-700">Archive All</button>
+                                <button id="mark-all-seen" class="text-xs text-text-400 hover:text-text-100 transition px-2 py-1 rounded hover:bg-surface-700">Mark All as Seen</button>
                             </div>
                         </div>
                         <div id="notification-list" class="max-h-72 overflow-y-auto divide-y divide-border-700 thin-scrollbar">
@@ -577,54 +577,92 @@
             const unseenItems = document.querySelectorAll('.log-item:not([data-seen="true"])');
             if (!unseenItems.length) return;
 
-            const ids = Array.from(unseenItems).map(item => ({
-                type: item.dataset.type,
-                id: parseInt(item.dataset.id)
-            }));
+            // Group IDs by type
+            const groupedIds = {};
+            unseenItems.forEach(item => {
+                const type = item.dataset.type;
+                const id = parseInt(item.dataset.id);
+                if (!groupedIds[type]) {
+                    groupedIds[type] = [];
+                }
+                groupedIds[type].push(id);
+            });
 
             markAllBtn.textContent = 'Processing…';
             markAllBtn.disabled = true;
 
-            fetch('{{ route("api-logs.mark-as-seen") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({ ids })
-            })
-            .then(r => r.json())
-            .then(data => {
-                markAllBtn.textContent = 'Mark all as seen';
-                markAllBtn.disabled = false;
-
-                if (data.success) {
-                    ids.forEach(({ type, id }) => addSeenId(type, id));
-                    unseenItems.forEach(item => {
-                        item.dataset.seen = 'true';
-                        item.classList.remove(
-                            'bg-blue-500/10', 'bg-red-500/10', 'bg-yellow-500/10', 'bg-purple-500/10',
-                            'hover:bg-blue-500/20', 'hover:bg-red-500/20', 'hover:bg-yellow-500/20', 'hover:bg-purple-500/20',
-                            'border-blue-500/60', 'border-red-500/60', 'border-yellow-500/60', 'border-purple-500/60'
-                        );
-                        item.classList.add('hover:bg-surface-700/60', 'border-transparent', 'opacity-70');
-
-                        const badge = item.querySelector('.text-blue-400');
-                        if (badge && badge.textContent === 'NEW') badge.remove();
-                        const summary = item.querySelector('.text-text-100');
-                        if (summary) {
-                            summary.classList.remove('text-text-100');
-                            summary.classList.add('text-text-400');
-                        }
-                    });
-                    notificationDot.classList.add('hidden');
-                    bellButton.classList.remove('animate-pulse');
+            // Mark each type separately
+            const promises = Object.keys(groupedIds).map(type => {
+                const ids = groupedIds[type];
+                let endpoint = '';
+                
+                if (type === 'api') {
+                    endpoint = '{{ route("api-logs.mark-as-seen") }}';
+                } else if (type === 'system') {
+                    endpoint = '{{ route("logs.mark-as-seen") }}';
+                } else {
+                    return Promise.resolve();
                 }
-            })
-            .catch(() => {
-                markAllBtn.textContent = 'Mark all as seen';
-                markAllBtn.disabled = false;
+                
+                return fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ ids: ids })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        // Add to seen list in localStorage
+                        ids.forEach(id => addSeenId(type, id));
+                        return { type, success: true };
+                    }
+                    return { type, success: false };
+                })
+                .catch(() => {
+                    return { type, success: false };
+                });
             });
+
+            Promise.all(promises)
+                .then(results => {
+                    markAllBtn.textContent = 'Mark all as seen';
+                    markAllBtn.disabled = false;
+
+                    const allSuccessful = results.every(r => r.success);
+                    
+                    if (allSuccessful) {
+                        // Update UI for all unseen items
+                        unseenItems.forEach(item => {
+                            item.dataset.seen = 'true';
+                            item.classList.remove(
+                                'bg-blue-500/10', 'bg-red-500/10', 'bg-yellow-500/10', 'bg-purple-500/10',
+                                'hover:bg-blue-500/20', 'hover:bg-red-500/20', 'hover:bg-yellow-500/20', 'hover:bg-purple-500/20',
+                                'border-blue-500/60', 'border-red-500/60', 'border-yellow-500/60', 'border-purple-500/60'
+                            );
+                            item.classList.add('hover:bg-surface-700/60', 'border-transparent', 'opacity-70');
+
+                            const badge = item.querySelector('.text-blue-400');
+                            if (badge && badge.textContent === 'NEW') badge.remove();
+                            const summary = item.querySelector('.text-text-100');
+                            if (summary) {
+                                summary.classList.remove('text-text-100');
+                                summary.classList.add('text-text-400');
+                            }
+                        });
+                        notificationDot.classList.add('hidden');
+                        bellButton.classList.remove('animate-pulse');
+                    } else {
+                        // Some failed, show error
+                        console.error('Some logs failed to mark as seen');
+                    }
+                })
+                .catch(() => {
+                    markAllBtn.textContent = 'Mark all as seen';
+                    markAllBtn.disabled = false;
+                });
         }
 
         function updateDot() {
