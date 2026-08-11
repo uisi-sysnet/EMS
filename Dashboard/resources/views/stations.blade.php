@@ -159,7 +159,7 @@
                         <!-- Note about uniqueness -->
                         <div class="mt-4 p-3 bg-surface-700/30 rounded-lg border border-border-600">
                             <p class="text-xs text-text-400">
-                                <span class="text-munti-red-400">*</span> Required fields. 
+                                <span class="text-munti-red-400">*</span> Note: 
                                 <span class="text-text-300">Station MN, Station Name, and Lead IP must be unique across all records (including deleted stations).</span>
                             </p>
                         </div>
