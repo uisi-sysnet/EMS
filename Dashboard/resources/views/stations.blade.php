@@ -48,7 +48,8 @@
                                     Station MN <span class="text-munti-red-400">*</span>
                                 </label>
                                 <input type="text" id="station_mn" name="station_mn" value="{{ old('station_mn') }}" required
-                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_mn') border-munti-red-500 @enderror">
+                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_mn') border-munti-red-500 @enderror"
+                                    placeholder="Enter unique station MN">
                                 @error('station_mn')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -57,10 +58,11 @@
                             <!-- Station Name -->
                             <div class="flex flex-col">
                                 <label for="station_name" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Station Name
+                                    Station Name <span class="text-munti-red-400">*</span>
                                 </label>
-                                <input type="text" id="station_name" name="station_name" value="{{ old('station_name') }}"
-                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_name') border-munti-red-500 @enderror">
+                                <input type="text" id="station_name" name="station_name" value="{{ old('station_name') }}" required
+                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_name') border-munti-red-500 @enderror"
+                                    placeholder="Enter unique station name">
                                 @error('station_name')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -93,10 +95,11 @@
                             <!-- Lead IP -->
                             <div class="flex flex-col">
                                 <label for="lead_ip" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Lead IP
+                                    Lead IP <span class="text-munti-red-400">*</span>
                                 </label>
-                                <input type="text" id="lead_ip" name="lead_ip" value="{{ old('lead_ip') }}"
-                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('lead_ip') border-munti-red-500 @enderror">
+                                <input type="text" id="lead_ip" name="lead_ip" value="{{ old('lead_ip') }}" required
+                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('lead_ip') border-munti-red-500 @enderror"
+                                    placeholder="Enter unique lead IP">
                                 @error('lead_ip')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -151,6 +154,14 @@
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
+                        </div>
+                        
+                        <!-- Note about uniqueness -->
+                        <div class="mt-4 p-3 bg-surface-700/30 rounded-lg border border-border-600">
+                            <p class="text-xs text-text-400">
+                                <span class="text-munti-red-400">*</span> Required fields. 
+                                <span class="text-text-300">Station MN, Station Name, and Lead IP must be unique across all records (including deleted stations).</span>
+                            </p>
                         </div>
                     </form>
                 </div>
