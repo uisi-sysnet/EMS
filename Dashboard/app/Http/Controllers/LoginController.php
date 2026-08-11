@@ -4,13 +4,12 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 
 class LoginController extends Controller
 {
     public function showLoginForm()
     {
-        return view('auth.login');
+        return view('login');
     }
 
     public function login(Request $request)
@@ -20,14 +19,27 @@ class LoginController extends Controller
             'password' => 'required|string',
         ]);
 
-        // Try to authenticate using database
-        if (Auth::attempt($credentials)) {
-            $request->session()->regenerate();
-            
+        // Define allowed users and their roles
+        $users = [
+            'admin' => [
+                'password' => 'admin',
+                'role'     => 'administrator',
+            ],
+            'user' => [
+                'password' => 'user',
+                'role'     => 'user',
+            ],
+        ];
+
+        $username = $credentials['username'];
+        $password = $credentials['password'];
+
+        if (isset($users[$username]) && $users[$username]['password'] === $password) {
+            // Store authentication state and role in session
             session([
                 'authenticated' => true,
-                'username' => Auth::user()->username,
-                'role' => Auth::user()->role ?? 'user',
+                'username'      => $username,
+                'role'          => $users[$username]['role'],
             ]);
 
             return redirect()->intended('/');
@@ -40,10 +52,6 @@ class LoginController extends Controller
 
     public function logout(Request $request)
     {
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-        
         session()->forget(['authenticated', 'username', 'role']);
         return redirect('/login');
     }
