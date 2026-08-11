@@ -95,11 +95,11 @@ class StationController extends Controller
 
         if ($station->hasData()) {
             // Soft delete - marks as deleted
-            $station->delete(); // Uses your model's delete() method
+            $station->update(['deleted' => true]);
             $message = 'Station has been deactivated (hidden) but its data has been preserved.';
         } else {
-            // Permanently delete
-            $station->forceDelete(); // Actually removes the row
+            // Permanently delete - use the query builder to force delete
+            Station::where('station_mn', $station_mn)->delete();
             $message = 'Station deleted successfully.';
         }
 
