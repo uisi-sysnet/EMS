@@ -293,70 +293,56 @@
 
                 <!-- Air Quality Station Status -->
                 <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
-                    <div class="px-3 py-2.5 sm:px-4 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
-                        <h3 class="text-xs sm:text-sm font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                    <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                        <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
                             <span class="truncate">Air Quality Station Status</span>
                         </h3>
                     </div>
-
-                    <div class="p-3 sm:p-4 lg:p-5">
-                        <!-- Stretches full width; stacks cleanly on very small screens, side-by-side from sm up -->
-                        <div class="flex flex-col sm:flex-row items-center sm:items-stretch gap-4 sm:gap-5 lg:gap-6 w-full">
-
-                            <!-- Donut -->
-                            <div class="relative w-28 h-28 sm:w-32 sm:h-32 lg:w-36 lg:h-36 shrink-0 mx-auto sm:mx-0">
-                                <canvas id="airQualityStatusChart"></canvas>
-                                <div id="aq-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    @if($airQualityTotal > 0)
-                                        <span class="text-base sm:text-lg font-bold text-text-100 leading-none">
-                                            {{ round(($airQualityOnline / $airQualityTotal) * 100) }}%
-                                        </span>
-                                        <span class="text-[9px] sm:text-[10px] text-text-400 uppercase tracking-wide mt-0.5">Online</span>
-                                    @else
-                                        <span class="text-base sm:text-lg font-bold text-amber-400 leading-none">—</span>
-                                        <span class="text-[9px] sm:text-[10px] text-amber-400 uppercase tracking-wide mt-0.5">No Stations</span>
-                                    @endif
+                    <div class="p-3 sm:p-4 flex items-center gap-4 lg:gap-6">
+                        <div class="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 shrink-0">
+                            <canvas id="airQualityStatusChart"></canvas>
+                            <div id="aq-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                @if($airQualityTotal > 0)
+                                <span class="text-sm sm:text-base font-bold text-text-100">{{ round(($airQualityOnline / $airQualityTotal) * 100) }}%</span>
+                                <span class="text-[9px] text-text-400 uppercase">Online</span>
+                                @else
+                                <span class="text-sm sm:text-base font-bold text-amber-400">—</span>
+                                <span class="text-[9px] text-amber-400 uppercase">No Stations</span>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="flex-1 flex items-center justify-between gap-3 sm:gap-4 min-w-0">
+                            <div class="flex flex-col gap-1.5 text-xs shrink-0">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-munti-green-400 shrink-0"></span>
+                                        <span class="text-text-300">Online</span>
+                                    </span>
+                                    <span id="aq-online-count" class="text-text-100 font-semibold">{{ $airQualityCounts['online'] }}</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                                        <span class="text-text-300">Idle</span>
+                                    </span>
+                                    <span id="aq-idle-count" class="text-text-100 font-semibold">{{ $airQualityCounts['idle'] }}</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-red-400 shrink-0"></span>
+                                        <span class="text-text-300">Offline</span>
+                                    </span>
+                                    <span id="aq-offline-count" class="text-text-100 font-semibold">{{ $airQualityCounts['offline'] }}</span>
                                 </div>
                             </div>
-
-                            <!-- Legend + large badge – takes remaining width -->
-                            <div class="flex-1 flex flex-col sm:flex-row items-center sm:items-center justify-between gap-4 sm:gap-5 min-w-0 w-full">
-
-                                <!-- Status list -->
-                                <div class="flex flex-col gap-2 text-xs sm:text-sm w-full sm:w-auto sm:min-w-[140px]">
-                                    <div class="flex items-center justify-between gap-6 sm:gap-8">
-                                        <span class="flex items-center gap-2">
-                                            <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shrink-0"></span>
-                                            <span class="text-text-300">Online</span>
-                                        </span>
-                                        <span id="aq-online-count" class="text-text-100 font-semibold tabular-nums">{{ $airQualityCounts['online'] }}</span>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-6 sm:gap-8">
-                                        <span class="flex items-center gap-2">
-                                            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0"></span>
-                                            <span class="text-text-300">Idle</span>
-                                        </span>
-                                        <span id="aq-idle-count" class="text-text-100 font-semibold tabular-nums">{{ $airQualityCounts['idle'] }}</span>
-                                    </div>
-                                    <div class="flex items-center justify-between gap-6 sm:gap-8">
-                                        <span class="flex items-center gap-2">
-                                            <span class="w-2.5 h-2.5 rounded-full bg-red-400 shrink-0"></span>
-                                            <span class="text-text-300">Offline</span>
-                                        </span>
-                                        <span id="aq-offline-count" class="text-text-100 font-semibold tabular-nums">{{ $airQualityCounts['offline'] }}</span>
-                                    </div>
-                                </div>
-
-                                <!-- Larger online badge -->
-                                <span id="aq-online-badge"
-                                    class="inline-flex items-center justify-center text-xs sm:text-sm font-semibold
-                                            text-munti-green-300 bg-munti-green-700/25
-                                            px-3.5 py-2 sm:px-4 sm:py-2.5
-                                            rounded-full border border-munti-green-600/40
-                                            whitespace-nowrap shadow-sm">
-                                    {{ $airQualityOnline }}/{{ $airQualityTotal }} online
-                                </span>
-                            </div>
+                            <span id="aq-online-badge"
+                                class="inline-flex items-center justify-center text-xs sm:text-sm font-semibold
+                                        text-munti-green-300 bg-munti-green-700/25
+                                        px-3.5 py-2 sm:px-4 sm:py-2.5
+                                        rounded-full border border-munti-green-600/40
+                                        whitespace-nowrap shadow-sm">
+                                {{ $airQualityOnline }}/{{ $airQualityTotal }} online
+                            </span>
                         </div>
                     </div>
                 </div>
