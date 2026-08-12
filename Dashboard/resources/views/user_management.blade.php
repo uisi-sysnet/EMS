@@ -157,7 +157,7 @@
                             <!-- Confirm Password with show/hide -->
                             <div class="flex flex-col">
                                 <label for="password_confirmation" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Confirm Pass <span class="text-munti-red-400">*</span>
+                                    Confirm Password <span class="text-munti-red-400">*</span>
                                 </label>
                                 <div class="relative">
                                     <input type="password" id="password_confirmation" name="password_confirmation" required
