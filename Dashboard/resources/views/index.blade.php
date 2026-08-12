@@ -320,7 +320,7 @@
 
                         <!-- Column 2: Status Counts -->
                         <div class="flex flex-col gap-2.5">
-                            <div class="flex items-center justify-between gap-4 px-3 py-1 rounded-lg bg-surface-900/50">
+                            <div class="flex items-center justify-between gap-4 px-3 py-1">
                                 <span class="flex items-center gap-2">
                                     <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)]"></span>
                                     <span class="text-xs text-text-300">Online</span>
@@ -330,7 +330,7 @@
                                 </span>
                             </div>
 
-                            <div class="flex items-center justify-between gap-4 px-3 py-2 rounded-lg bg-surface-900/50">
+                            <div class="flex items-center justify-between gap-4 px-3 py-2">
                                 <span class="flex items-center gap-2">
                                     <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)]"></span>
                                     <span class="text-xs text-text-300">Idle</span>
@@ -340,7 +340,7 @@
                                 </span>
                             </div>
 
-                            <div class="flex items-center justify-between gap-4 px-3 py-2 rounded-lg bg-surface-900/50">
+                            <div class="flex items-center justify-between gap-4 px-3 py-2">
                                 <span class="flex items-center gap-2">
                                     <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)]"></span>
                                     <span class="text-xs text-text-300">Offline</span>
