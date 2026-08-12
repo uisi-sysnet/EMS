@@ -23,7 +23,7 @@
             <div class="mb-8 flex justify-center">
                 <img
                     src="https://pmms.uplinkph.net/uisi_pmms/assets/images/UPLINK%20LOGO.png"
-                    alt="Uplink Integrated Solutions Inc."
+                    alt="{{ config('app.company_name', 'Uplink Integrated Solutions Inc.') }}"
                     class="w-48 h-auto object-contain">
             </div>
 
@@ -36,7 +36,7 @@
             </p>
 
             <div class="mt-16 text-text-400 text-sm bg-white/5 px-4 py-1 rounded-full border border-white/10">
-                Version 7.1.0
+                Beta Version 1.0
             </div>
 
         </div>
@@ -120,7 +120,7 @@
                 </form>
 
                 {{-- Version info --}}
-                <div class="mt-8 text-center text-xs text-text-500">
+                <div class="mt-4 text-center text-xs text-text-500">
                     &copy; {{ date('Y') }} Uplink Integrated Solutions Inc.
                 </div>
 
