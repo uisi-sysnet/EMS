@@ -301,7 +301,7 @@
 
                     <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6 items-center">
                         <!-- Column 1: Donut Chart -->
-                        <div class="flex justify-center">
+                        <div class="flex">
                             <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
                                 <canvas id="airQualityStatusChart"></canvas>
                                 <div id="aq-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
