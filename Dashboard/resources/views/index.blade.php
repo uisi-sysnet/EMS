@@ -297,12 +297,9 @@
                         <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
                             <span class="truncate">Air Quality Station Status</span>
                         </h3>
-                        <span id="aq-online-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
-                            {{ $airQualityOnline }}/{{ $airQualityTotal }} online
-                        </span>
                     </div>
-                    <div class="p-3 sm:p-4 flex items-center gap-4">
-                        <div class="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0">
+                    <div class="p-3 sm:p-4 flex items-center gap-4 lg:gap-6">
+                        <div class="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 shrink-0">
                             <canvas id="airQualityStatusChart"></canvas>
                             <div id="aq-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                 @if($airQualityTotal > 0)
@@ -314,22 +311,33 @@
                                 @endif
                             </div>
                         </div>
-                        <div class="flex flex-col gap-1.5 text-xs w-full">
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-munti-green-400"></span>
-                                <span class="text-text-300">Online</span>
-                                <span id="aq-online-count" class="text-text-100 font-semibold ml-auto">{{ $airQualityCounts['online'] }}</span>
+                        <div class="flex-1 flex items-center justify-between gap-3 sm:gap-4 min-w-0">
+                            <div class="flex flex-col gap-1.5 text-xs shrink-0">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-munti-green-400 shrink-0"></span>
+                                        <span class="text-text-300">Online</span>
+                                    </span>
+                                    <span id="aq-online-count" class="text-text-100 font-semibold">{{ $airQualityCounts['online'] }}</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                                        <span class="text-text-300">Idle</span>
+                                    </span>
+                                    <span id="aq-idle-count" class="text-text-100 font-semibold">{{ $airQualityCounts['idle'] }}</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-red-400 shrink-0"></span>
+                                        <span class="text-text-300">Offline</span>
+                                    </span>
+                                    <span id="aq-offline-count" class="text-text-100 font-semibold">{{ $airQualityCounts['offline'] }}</span>
+                                </div>
                             </div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-                                <span class="text-text-300">Idle</span>
-                                <span id="aq-idle-count" class="text-text-100 font-semibold ml-auto">{{ $airQualityCounts['idle'] }}</span>
-                            </div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-red-400"></span>
-                                <span class="text-text-300">Offline</span>
-                                <span id="aq-offline-count" class="text-text-100 font-semibold ml-auto">{{ $airQualityCounts['offline'] }}</span>
-                            </div>
+                            <span id="aq-online-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-2 py-1 rounded-full shrink-0 border border-munti-green-600/30 whitespace-nowrap">
+                                {{ $airQualityOnline }}/{{ $airQualityTotal }} online
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -340,12 +348,9 @@
                         <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
                             <span class="truncate">Seismic Station Status</span>
                         </h3>
-                        <span id="seismic-online-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
-                            {{ $seismicOnline }}/{{ $seismicTotal }} online
-                        </span>
                     </div>
-                    <div class="p-3 sm:p-4 flex items-center gap-4">
-                        <div class="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0">
+                    <div class="p-3 sm:p-4 flex items-center gap-4 lg:gap-6">
+                        <div class="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 shrink-0">
                             <canvas id="seismicStatusChart"></canvas>
                             <div id="seismic-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                 @if($seismicTotal > 0)
@@ -357,22 +362,33 @@
                                 @endif
                             </div>
                         </div>
-                        <div class="flex flex-col gap-1.5 text-xs w-full">
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-munti-green-400"></span>
-                                <span class="text-text-300">Online</span>
-                                <span id="seismic-online-count" class="text-text-100 font-semibold ml-auto">{{ $seismicCounts['online'] }}</span>
+                        <div class="flex-1 flex items-center justify-between gap-3 sm:gap-4 min-w-0">
+                            <div class="flex flex-col gap-1.5 text-xs shrink-0">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-munti-green-400 shrink-0"></span>
+                                        <span class="text-text-300">Online</span>
+                                    </span>
+                                    <span id="seismic-online-count" class="text-text-100 font-semibold">{{ $seismicCounts['online'] }}</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                                        <span class="text-text-300">Idle</span>
+                                    </span>
+                                    <span id="seismic-idle-count" class="text-text-100 font-semibold">{{ $seismicCounts['idle'] }}</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-red-400 shrink-0"></span>
+                                        <span class="text-text-300">Offline</span>
+                                    </span>
+                                    <span id="seismic-offline-count" class="text-text-100 font-semibold">{{ $seismicCounts['offline'] }}</span>
+                                </div>
                             </div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-                                <span class="text-text-300">Idle</span>
-                                <span id="seismic-idle-count" class="text-text-100 font-semibold ml-auto">{{ $seismicCounts['idle'] }}</span>
-                            </div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-red-400"></span>
-                                <span class="text-text-300">Offline</span>
-                                <span id="seismic-offline-count" class="text-text-100 font-semibold ml-auto">{{ $seismicCounts['offline'] }}</span>
-                            </div>
+                            <span id="seismic-online-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-2 py-1 rounded-full shrink-0 border border-munti-green-600/30 whitespace-nowrap">
+                                {{ $seismicOnline }}/{{ $seismicTotal }} online
+                            </span>
                         </div>
                     </div>
                 </div>
