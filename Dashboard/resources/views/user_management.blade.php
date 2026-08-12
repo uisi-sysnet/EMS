@@ -48,7 +48,7 @@
                         Add New User
                     </h3>
 
-                    <form action="#" method="POST">
+                    <form action="{{ route('user.store') }}" method="POST">
                         @csrf
 
                         {{-- Top row: Firstname | Lastname | Contact no | email --}}
@@ -241,7 +241,7 @@
                             <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span>
                             Existing Users
                         </h4>
-                        <span class="text-xs text-text-500">06 User(s)</span>
+                        <span class="text-xs text-text-500">{{ $users->count() }} User(s)</span>
                     </div>
                     
                     <div class="overflow-x-auto thin-scrollbar flex-1">
@@ -259,32 +259,41 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-border-800">
-                                <!-- User 1 -->
-                                <tr class="hover:bg-surface-700/50 transition" data-user-id="1">
+                                @forelse($users as $user)
+                                <tr class="hover:bg-surface-700/50 transition" data-user-id="{{ $user->id }}">
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">
-                                        John Smith
+                                        {{ $user->first_name }} {{ $user->last_name }}
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        +1 (555) 123-4567
+                                        {{ $user->contact_number }}
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        john.smith@company.com
+                                        {{ $user->email }}
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">
-                                        jsmith
+                                        {{ $user->username }}
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30">
-                                            Admin
+                                        @php
+                                            $roleColors = [
+                                                'superAdmin' => 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30',
+                                                'admin' => 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30',
+                                                'manager' => 'bg-radar-700/15 text-radar-400 border-radar-600/30',
+                                                'user' => 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30',
+                                            ];
+                                            $color = $roleColors[$user->role] ?? 'bg-surface-700/15 text-text-400 border-border-600/30';
+                                        @endphp
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{ $color }}">
+                                            {{ ucfirst($user->role) }}
                                         </span>
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                        2024-12-01 14:30
+                                        {{ $user->created_at->format('Y-m-d H:i') }}
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap text-center">
                                         <div class="flex items-center justify-center gap-1.5">
                                             <button type="button" 
-                                                    onclick="editUser('1')"
+                                                    onclick="editUser('{{ $user->id }}')"
                                                     class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group"
                                                     title="Edit User">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -292,7 +301,7 @@
                                                 </svg>
                                             </button>
                                             <button type="button" 
-                                                    onclick="deleteUser('1', 'John Smith')"
+                                                    onclick="deleteUser('{{ $user->id }}', '{{ $user->first_name }} {{ $user->last_name }}')"
                                                     class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group"
                                                     title="Delete User">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
@@ -302,226 +311,13 @@
                                         </div>
                                     </td>
                                 </tr>
-
-                                <!-- User 2 -->
-                                <tr class="hover:bg-surface-700/50 transition" data-user-id="2">
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">
-                                        Sarah Johnson
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        +1 (555) 234-5678
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        sarah.johnson@company.com
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">
-                                        sjohnson
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-radar-700/15 text-radar-400 border-radar-600/30">
-                                            Manager
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                        2024-12-03 09:15
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-center">
-                                        <div class="flex items-center justify-center gap-1.5">
-                                            <button type="button" 
-                                                    onclick="editUser('2')"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Edit User">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                </svg>
-                                            </button>
-                                            <button type="button" 
-                                                    onclick="deleteUser('2', 'Sarah Johnson')"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Delete User">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
-                                                    <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                                </svg>
-                                            </button>
-                                        </div>
+                                @empty
+                                <tr>
+                                    <td colspan="7" class="px-4 py-8 text-center text-text-400">
+                                        No users found. Create your first user above.
                                     </td>
                                 </tr>
-
-                                <!-- User 3 -->
-                                <tr class="hover:bg-surface-700/50 transition" data-user-id="3">
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">
-                                        Michael Chen
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        +1 (555) 345-6789
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        michael.chen@company.com
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">
-                                        mchen
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30">
-                                            User
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                        2024-12-05 11:20
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-center">
-                                        <div class="flex items-center justify-center gap-1.5">
-                                            <button type="button" 
-                                                    onclick="editUser('3')"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Edit User">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                </svg>
-                                            </button>
-                                            <button type="button" 
-                                                    onclick="deleteUser('3', 'Michael Chen')"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Delete User">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
-                                                    <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-
-                                <!-- User 4 -->
-                                <tr class="hover:bg-surface-700/50 transition" data-user-id="4">
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">
-                                        Emily Rodriguez
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        +1 (555) 456-7890
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        emily.r@company.com
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">
-                                        erodriguez
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-radar-700/15 text-radar-400 border-radar-600/30">
-                                            Manager
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                        2024-12-07 16:45
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-center">
-                                        <div class="flex items-center justify-center gap-1.5">
-                                            <button type="button" 
-                                                    onclick="editUser('4')"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Edit User">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                </svg>
-                                            </button>
-                                            <button type="button" 
-                                                    onclick="deleteUser('4', 'Emily Rodriguez')"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Delete User">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
-                                                    <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-
-                                <!-- User 5 -->
-                                <tr class="hover:bg-surface-700/50 transition" data-user-id="5">
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">
-                                        David Kim
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        +1 (555) 567-8901
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        david.kim@company.com
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">
-                                        dkim
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30">
-                                            User
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                        2024-12-08 13:10
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-center">
-                                        <div class="flex items-center justify-center gap-1.5">
-                                            <button type="button" 
-                                                    onclick="editUser('5')"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Edit User">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                </svg>
-                                            </button>
-                                            <button type="button" 
-                                                    onclick="deleteUser('5', 'David Kim')"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Delete User">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
-                                                    <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-
-                                <!-- User 6 -->
-                                <tr class="hover:bg-surface-700/50 transition" data-user-id="6">
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">
-                                        Lisa Thompson
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        +1 (555) 678-9012
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        lisa.t@company.com
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">
-                                        lthompson
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30">
-                                            Admin
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                        2024-12-10 08:30
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-center">
-                                        <div class="flex items-center justify-center gap-1.5">
-                                            <button type="button" 
-                                                    onclick="editUser('6')"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Edit User">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                </svg>
-                                            </button>
-                                            <button type="button" 
-                                                    onclick="deleteUser('6', 'Lisa Thompson')"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Delete User">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
-                                                    <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
@@ -548,7 +344,7 @@
             </button>
         </div>
         
-        <form id="editForm" method="POST" class="p-6">
+        <form id="editForm" method="POST" action="" data-base-url="{{ route('user.update', '') }}">
             @csrf
             @method('PUT')
             
@@ -652,64 +448,15 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 // Edit User
-function editUser(userId) {
+// Edit User with AJAX
+async function editUser(userId) {
     const modal = document.getElementById('editModal');
     modal.style.display = 'flex';
     
-    // Hardcoded user data
-    const users = {
-        '1': {
-            first_name: 'John',
-            last_name: 'Smith',
-            contact_number: '+1 (555) 123-4567',
-            email: 'john.smith@company.com',
-            username: 'jsmith',
-            role: 'admin'
-        },
-        '2': {
-            first_name: 'Sarah',
-            last_name: 'Johnson',
-            contact_number: '+1 (555) 234-5678',
-            email: 'sarah.johnson@company.com',
-            username: 'sjohnson',
-            role: 'manager'
-        },
-        '3': {
-            first_name: 'Michael',
-            last_name: 'Chen',
-            contact_number: '+1 (555) 345-6789',
-            email: 'michael.chen@company.com',
-            username: 'mchen',
-            role: 'user'
-        },
-        '4': {
-            first_name: 'Emily',
-            last_name: 'Rodriguez',
-            contact_number: '+1 (555) 456-7890',
-            email: 'emily.r@company.com',
-            username: 'erodriguez',
-            role: 'manager'
-        },
-        '5': {
-            first_name: 'David',
-            last_name: 'Kim',
-            contact_number: '+1 (555) 567-8901',
-            email: 'david.kim@company.com',
-            username: 'dkim',
-            role: 'user'
-        },
-        '6': {
-            first_name: 'Lisa',
-            last_name: 'Thompson',
-            contact_number: '+1 (555) 678-9012',
-            email: 'lisa.t@company.com',
-            username: 'lthompson',
-            role: 'admin'
-        }
-    };
-    
-    const user = users[userId];
-    if (user) {
+    try {
+        const response = await fetch(`/user/${userId}/edit`);
+        const user = await response.json();
+        
         document.getElementById('edit_first_name').value = user.first_name || '';
         document.getElementById('edit_last_name').value = user.last_name || '';
         document.getElementById('edit_contact_number').value = user.contact_number || '';
@@ -721,18 +468,97 @@ function editUser(userId) {
         document.getElementById('edit_password').value = '';
         document.getElementById('edit_password_confirmation').value = '';
         
-        // Set form action (will not actually submit in hardcoded version)
-        document.getElementById('editForm').action = '#';
-    } else {
+        // Set form action
+        const baseUrl = document.getElementById('editForm').dataset.baseUrl;
+        document.getElementById('editForm').action = `${baseUrl}/${userId}`;
+        
+    } catch (error) {
+        console.error('Error fetching user data:', error);
         Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: 'User not found.',
+            text: 'Failed to load user data.',
             background: '#1f2937',
             color: '#f3f4f6'
         });
     }
 }
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+// Delete User
+function deleteUser(userId, userName) {
+    Swal.fire({
+        title: 'Delete User?',
+        html: `Are you sure you want to delete user <strong>"${userName}"</strong>?<br><span style="color: #ef4444;">This action cannot be undone!</span>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel',
+        background: '#1f2937',
+        color: '#f3f4f6',
+        iconColor: '#f59e0b'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Create a form to submit delete request
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/user/${userId}`;
+            
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            csrfToken.value = document.querySelector('meta[name="csrf-token"]').content;
+            form.appendChild(csrfToken);
+            
+            const methodField = document.createElement('input');
+            methodField.type = 'hidden';
+            methodField.name = '_method';
+            methodField.value = 'DELETE';
+            form.appendChild(methodField);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+
+// Handle edit form submission with validation
+document.getElementById('editForm').addEventListener('submit', function(e) {
+    const password = document.getElementById('edit_password').value;
+    const passwordConfirmation = document.getElementById('edit_password_confirmation').value;
+    
+    if (password && password !== passwordConfirmation) {
+        e.preventDefault();
+        Swal.fire({
+            icon: 'error',
+            title: 'Validation Error',
+            text: 'Password and confirmation do not match.',
+            background: '#1f2937',
+            color: '#f3f4f6'
+        });
+        return false;
+    }
+    
+    if (password && password.length < 8) {
+        e.preventDefault();
+        Swal.fire({
+            icon: 'error',
+            title: 'Validation Error',
+            text: 'Password must be at least 8 characters.',
+            background: '#1f2937',
+            color: '#f3f4f6'
+        });
+        return false;
+    }
+    
+    // Allow form submission if validation passes
+    return true;
+});
 
 function closeEditModal() {
     document.getElementById('editModal').style.display = 'none';

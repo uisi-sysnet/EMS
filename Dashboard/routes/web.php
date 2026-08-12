@@ -34,7 +34,13 @@ Route::middleware(['role:superAdmin,admin,user'])->group(function () {
 Route::middleware(['role:superAdmin,admin'])->group(function () {
 
     Route::get('/about', [AboutController::class, 'about'])->name('about');
-    Route::get('/user', [UserController::class, 'user'])->name('user.index');
+    
+    // User Management Routes
+    Route::get('/user', [UserController::class, 'index'])->name('user.index');
+    Route::post('/user', [UserController::class, 'store'])->name('user.store');
+    Route::get('/user/{id}/edit', [UserController::class, 'edit'])->name('user.edit');
+    Route::put('/user/{id}', [UserController::class, 'update'])->name('user.update');
+    Route::delete('/user/{id}', [UserController::class, 'destroy'])->name('user.destroy');
 
     Route::get('/sms', [SmsController::class, 'index'])->name('sms.index');
 

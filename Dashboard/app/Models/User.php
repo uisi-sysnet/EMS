@@ -20,8 +20,14 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'first_name',
+        'last_name',
         'email',
+        'username',
+        'contact_number',
         'password',
+        'role',
+        'email_verified_at',
     ];
 
     /**
@@ -45,5 +51,45 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Get the user's full name.
+     *
+     * @return string
+     */
+    public function getFullNameAttribute(): string
+    {
+        return $this->first_name . ' ' . $this->last_name;
+    }
+
+    /**
+     * Get the user's role display name.
+     *
+     * @return string
+     */
+    public function getRoleDisplayAttribute(): string
+    {
+        $roles = [
+            'superAdmin' => 'Super Administrator',
+            'admin' => 'Admin',
+            'user' => 'User',
+        ];
+
+        return $roles[$this->role] ?? ucfirst($this->role);
+    }
+
+    /**
+     * Check if user has a specific role.
+     *
+     * @param string|array $roles
+     * @return bool
+     */
+    public function hasRole($roles): bool
+    {
+        if (is_array($roles)) {
+            return in_array($this->role, $roles);
+        }
+        return $this->role === $roles;
     }
 }
