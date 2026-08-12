@@ -354,15 +354,14 @@
                         <!-- Column 3: Summary Badge -->
                         <div class="flex justify-center sm:justify-end">
                             <div class="inline-flex flex-col items-center sm:items-end gap-1">
-                                <span id="aq-online-badge"
-                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
+                                <span class="text-3xl font-bold text-munti-green-400">
+                                    {{ $airQualityOnline }}/{{ $airQualityTotal }}
+                                </span>
+                                <span class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
                                             bg-munti-green-700/20 px-4 py-2.5 rounded-full
                                             border border-munti-green-600/30 shadow-sm">
                                     <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400 animate-pulse"></span>
-                                    {{ $airQualityOnline }}/{{ $airQualityTotal }} Online
-                                </span>
-                                <span class="text-[10px] text-text-500 uppercase tracking-wider">
-                                    Station Status
+                                    Online
                                 </span>
                             </div>
                         </div>
