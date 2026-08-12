@@ -335,13 +335,8 @@
                                     <span id="aq-offline-count" class="text-text-100 font-semibold">{{ $airQualityCounts['offline'] }}</span>
                                 </div>
                             </div>
-                            <span id="aq-online-badge"
-                                class="inline-flex items-center justify-center text-xs sm:text-sm font-semibold
-                                        text-munti-green-300 bg-munti-green-700/25
-                                        px-3.5 py-2 sm:px-4 sm:py-2.5
-                                        rounded-full border border-munti-green-600/40
-                                        whitespace-nowrap shadow-sm">
-                                {{ $airQualityOnline }}/{{ $airQualityTotal }} online
+                            <span id="aq-online-badge" class="text-sm text-munti-green-400 bg-munti-green-700/20 px-4 py-2 rounded-full shrink-0 border border-munti-green-600/30 whitespace-nowrap">
+                                {{ $airQualityOnline }}/{{ $airQualityTotal }} Online
                             </span>
                         </div>
                     </div>
