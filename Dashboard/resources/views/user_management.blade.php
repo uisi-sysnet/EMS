@@ -401,8 +401,8 @@
                     </label>
                     <select id="edit_role" name="role" required
                         class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        <option value="superAdmin">Super Administrator</option>
                         <option value="admin">Admin</option>
-                        <option value="manager">Manager</option>
                         <option value="user">User</option>
                     </select>
                 </div>
@@ -446,9 +446,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-// Edit User
-// Edit User with AJAX
 // Edit User with AJAX
 async function editUser(userId) {
     const modal = document.getElementById('editModal');
@@ -469,12 +468,12 @@ async function editUser(userId) {
         document.getElementById('edit_password').value = '';
         document.getElementById('edit_password_confirmation').value = '';
         
-        // Set form action - use the route with the ID
+        // Set form action with the user ID
         const form = document.getElementById('editForm');
         form.action = `/user/${userId}`;
         form.method = 'POST';
         
-        // Make sure we have the PUT method override
+        // Ensure _method field exists and is set to PUT
         let methodField = form.querySelector('input[name="_method"]');
         if (!methodField) {
             methodField = document.createElement('input');
@@ -526,7 +525,7 @@ function deleteUser(userId, userName) {
             const csrfToken = document.createElement('input');
             csrfToken.type = 'hidden';
             csrfToken.name = '_token';
-            csrfToken.value = document.querySelector('meta[name="csrf-token"]').content;
+            csrfToken.value = document.querySelector('meta[name="csrf-token"]')?.content || '';
             form.appendChild(csrfToken);
             
             const methodField = document.createElement('input');
@@ -540,6 +539,20 @@ function deleteUser(userId, userName) {
         }
     });
 }
+
+// Close modal on ESC key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeEditModal();
+    }
+});
+
+// Close modal on backdrop click
+document.getElementById('editModal').addEventListener('click', function(event) {
+    if (event.target === this) {
+        closeEditModal();
+    }
+});
 
 // Handle edit form submission with validation
 document.getElementById('editForm').addEventListener('submit', function(e) {
@@ -572,67 +585,6 @@ document.getElementById('editForm').addEventListener('submit', function(e) {
     
     // Allow form submission if validation passes
     return true;
-});
-
-function closeEditModal() {
-    document.getElementById('editModal').style.display = 'none';
-}
-
-// Delete User
-function deleteUser(userId, userName) {
-    Swal.fire({
-        title: 'Delete User?',
-        html: `Are you sure you want to delete user <strong>"${userName}"</strong>?<br><span style="color: #ef4444;">This action cannot be undone!</span>`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel',
-        background: '#1f2937',
-        color: '#f3f4f6',
-        iconColor: '#f59e0b'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // In hardcoded version, just show a success message
-            Swal.fire({
-                icon: 'success',
-                title: 'Deleted!',
-                text: `${userName} has been deleted. (Demo)`,
-                background: '#1f2937',
-                color: '#f3f4f6',
-                iconColor: '#22c55e'
-            });
-        }
-    });
-}
-
-// Close modal on ESC key
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        closeEditModal();
-    }
-});
-
-// Close modal on backdrop click
-document.getElementById('editModal').addEventListener('click', function(event) {
-    if (event.target === this) {
-        closeEditModal();
-    }
-});
-
-// Prevent actual form submission for demo
-document.getElementById('editForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    Swal.fire({
-        icon: 'success',
-        title: 'Updated!',
-        text: 'User information has been updated. (Demo)',
-        background: '#1f2937',
-        color: '#f3f4f6',
-        iconColor: '#22c55e'
-    });
-    closeEditModal();
 });
 </script>
 

@@ -43,6 +43,7 @@ class UserController extends Controller
         }
 
         $user = User::create([
+            'name' => $request->first_name . ' ' . $request->last_name, // <-- ADD THIS
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'contact_number' => $request->contact_number,
@@ -81,6 +82,7 @@ class UserController extends Controller
         }
 
         $user->update([
+            'name' => $request->first_name . ' ' . $request->last_name, // <-- ADD THIS
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'contact_number' => $request->contact_number,
