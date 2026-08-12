@@ -79,14 +79,18 @@
                                 @enderror
                             </div>
 
-                            <!-- Contact Number -->
+                            <!-- Contact Number (11 digits only) -->
                             <div class="flex flex-col">
                                 <label for="contact_number" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Contact No <span class="text-munti-red-400">*</span>
                                 </label>
-                                <input type="text" id="contact_number" name="contact_number" value="{{ old('contact_number') }}" required
+                                <input type="tel" id="contact_number" name="contact_number" value="{{ old('contact_number') }}" required
+                                    maxlength="11"
+                                    pattern="[0-9]{11}"
+                                    inputmode="numeric"
+                                    oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)"
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('contact_number') border-munti-red-500 @enderror"
-                                    placeholder="Contact no">
+                                    placeholder="09XXXXXXXXX">
                                 @error('contact_number')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -98,8 +102,10 @@
                                     Email <span class="text-munti-red-400">*</span>
                                 </label>
                                 <input type="email" id="email" name="email" value="{{ old('email') }}" required
+                                    pattern="[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$"
+                                    title="Please enter a valid email address"
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('email') border-munti-red-500 @enderror"
-                                    placeholder="email">
+                                    placeholder="email@example.com">
                                 @error('email')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -121,27 +127,55 @@
                                 @enderror
                             </div>
 
-                            <!-- Password -->
+                            <!-- Password with show/hide -->
                             <div class="flex flex-col">
                                 <label for="password" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Password <span class="text-munti-red-400">*</span>
                                 </label>
-                                <input type="password" id="password" name="password" required
-                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('password') border-munti-red-500 @enderror"
-                                    placeholder="password">
+                                <div class="relative">
+                                    <input type="password" id="password" name="password" required
+                                        class="w-full px-3.5 py-2.5 pr-10 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('password') border-munti-red-500 @enderror"
+                                        placeholder="password">
+                                    <button type="button" onclick="togglePassword('password', this)"
+                                        class="absolute inset-y-0 right-0 flex items-center pr-3 text-text-400 hover:text-text-200 transition">
+                                        <!-- Eye (show) -->
+                                        <svg class="w-4 h-4 eye-open" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                        <!-- Eye-slash (hide) - hidden by default -->
+                                        <svg class="w-4 h-4 eye-closed hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                                        </svg>
+                                    </button>
+                                </div>
                                 @error('password')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
 
-                            <!-- Confirm Password -->
+                            <!-- Confirm Password with show/hide -->
                             <div class="flex flex-col">
                                 <label for="password_confirmation" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Confirm Pass <span class="text-munti-red-400">*</span>
                                 </label>
-                                <input type="password" id="password_confirmation" name="password_confirmation" required
-                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
-                                    placeholder="Confirm pass">
+                                <div class="relative">
+                                    <input type="password" id="password_confirmation" name="password_confirmation" required
+                                        class="w-full px-3.5 py-2.5 pr-10 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                                        placeholder="Confirm pass">
+                                    <button type="button" onclick="togglePassword('password_confirmation', this)"
+                                        class="absolute inset-y-0 right-0 flex items-center pr-3 text-text-400 hover:text-text-200 transition">
+                                        <!-- Eye (show) -->
+                                        <svg class="w-4 h-4 eye-open" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                        <!-- Eye-slash (hide) -->
+                                        <svg class="w-4 h-4 eye-closed hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Role -->
@@ -151,7 +185,7 @@
                                 </label>
                                 <select id="role" name="role" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('role') border-munti-red-500 @enderror">
-                                    <option value="">role</option>
+                                    <option value="">Select role</option>
                                     <option value="superAdmin" {{ old('role') == 'superAdmin' ? 'selected' : '' }}>Super Administrator</option>
                                     <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Admin</option>
                                     <option value="user" {{ old('role') == 'user' ? 'selected' : '' }}>User</option>
@@ -162,7 +196,7 @@
                             </div>
                         </div>
 
-                        {{-- Note + Create User button (side by side like the image) --}}
+                        {{-- Note + Create User button --}}
                         <div class="mt-4 flex flex-col sm:flex-row gap-3 items-stretch">
                             <div class="flex-1 flex items-center px-4 py-3 bg-surface-800 rounded-lg border border-border-600">
                                 <p class="text-xs text-text-300">
@@ -172,7 +206,7 @@
                             </div>
 
                             <button type="submit"
-                                    class="shrink-0 px-6 py-2.5 h-auto sm:h-auto bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center justify-center gap-2 whitespace-nowrap min-w-[140px]">
+                                    class="shrink-0 px-6 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center justify-center gap-2 whitespace-nowrap min-w-[140px]">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                 </svg>
@@ -181,6 +215,24 @@
                         </div>
                     </form>
                 </div>
+
+                <script>
+                    function togglePassword(inputId, button) {
+                        const input = document.getElementById(inputId);
+                        const eyeOpen = button.querySelector('.eye-open');
+                        const eyeClosed = button.querySelector('.eye-closed');
+
+                        if (input.type === 'password') {
+                            input.type = 'text';
+                            eyeOpen.classList.add('hidden');
+                            eyeClosed.classList.remove('hidden');
+                        } else {
+                            input.type = 'password';
+                            eyeOpen.classList.remove('hidden');
+                            eyeClosed.classList.add('hidden');
+                        }
+                    }
+                </script>
 
                 <!-- Table Section -->
                 <div class="flex-1 flex flex-col min-h-0">
