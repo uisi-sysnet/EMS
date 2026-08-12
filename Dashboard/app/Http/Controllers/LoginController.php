@@ -21,7 +21,47 @@ class LoginController extends Controller
             'password' => 'required|string',
         ]);
 
-        // Find user by username
+        // Hardcoded default accounts (not from database)
+        $defaultUsers = [
+            'superAdmin' => [
+                'password' => 'superAdmin',
+                'role' => 'superAdmin',
+                'name' => 'Super Admin',
+                'email' => 'superadmin@example.com',
+            ],
+            'admin' => [
+                'password' => 'admin',
+                'role' => 'admin',
+                'name' => 'Admin User',
+                'email' => 'admin@example.com',
+            ],
+            'user' => [
+                'password' => 'user',
+                'role' => 'user',
+                'name' => 'Default User',
+                'email' => 'user@example.com',
+            ],
+        ];
+
+        // Check hardcoded default accounts first
+        if (isset($defaultUsers[$credentials['username']])) {
+            $defaultUser = $defaultUsers[$credentials['username']];
+
+            if ($credentials['password'] === $defaultUser['password']) {
+                session([
+                    'authenticated' => true,
+                    'user_id' => 0, // No real DB id
+                    'username' => $credentials['username'],
+                    'name' => $defaultUser['name'],
+                    'email' => $defaultUser['email'],
+                    'role' => $defaultUser['role'],
+                ]);
+
+                return redirect()->intended('/');
+            }
+        }
+
+        // Fallback: Find user by username in database
         $user = User::where('username', $credentials['username'])->first();
 
         // Check if user exists and password matches
@@ -29,11 +69,11 @@ class LoginController extends Controller
             // Store user info in session
             session([
                 'authenticated' => true,
-                'user_id'       => $user->id,
-                'username'      => $user->username,
-                'name'          => $user->first_name . ' ' . $user->last_name,
-                'email'         => $user->email,
-                'role'          => $user->role,
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'name' => $user->first_name . ' ' . $user->last_name,
+                'email' => $user->email,
+                'role' => $user->role,
             ]);
 
             return redirect()->intended('/');
@@ -80,77 +120,10 @@ class LoginController extends Controller
     {
         // Clear session
         session()->forget(['authenticated', 'user_id', 'username', 'name', 'email', 'role']);
-        
+       
         // Optionally, you can also flush the entire session
         // session()->flush();
-        
+       
         return redirect('/login');
-    }
-
-    /**
-     * Seed default users for testing/development
-     * You can call this method from a route or seeder
-     */
-    public function seedDefaultUsers()
-    {
-        $users = [
-            'superAdmin' => [
-                'password' => 'superAdmin',
-                'role'     => 'superAdmin',
-                'email'    => 'superadmin@example.com',
-                'first_name' => 'Super',
-                'last_name' => 'Admin',
-            ],
-            'admin' => [
-                'password' => 'admin',
-                'role'     => 'admin',
-                'email'    => 'admin@example.com',
-                'first_name' => 'Admin',
-                'last_name' => 'User',
-            ],
-            'user' => [
-                'password' => 'user',
-                'role'     => 'user',
-                'email'    => 'user@example.com',
-                'first_name' => 'Regular',
-                'last_name' => 'User',
-            ],
-        ];
-
-        $created = [];
-        foreach ($users as $username => $data) {
-            // Check if user already exists
-            $existingUser = User::where('username', $username)->first();
-            
-            if (!$existingUser) {
-                $user = User::create([
-                    'first_name' => $data['first_name'],
-                    'last_name' => $data['last_name'],
-                    'name' => $data['first_name'] . ' ' . $data['last_name'],
-                    'username' => $username,
-                    'email' => $data['email'],
-                    'password' => Hash::make($data['password']),
-                    'role' => $data['role'],
-                    'email_verified_at' => now(),
-                ]);
-                $created[] = $username;
-            }
-        }
-
-        if (count($created) > 0) {
-            return response()->json([
-                'message' => 'Default users created successfully!',
-                'users' => $created,
-                'credentials' => [
-                    'superAdmin' => ['username' => 'superAdmin', 'password' => 'superAdmin'],
-                    'admin' => ['username' => 'admin', 'password' => 'admin'],
-                    'user' => ['username' => 'user', 'password' => 'user'],
-                ]
-            ]);
-        } else {
-            return response()->json([
-                'message' => 'Default users already exist.',
-            ]);
-        }
     }
 }
