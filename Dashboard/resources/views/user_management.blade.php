@@ -51,7 +51,8 @@
                     <form action="#" method="POST">
                         @csrf
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {{-- Top row: Firstname | Lastname | Contact no | email --}}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <!-- First Name -->
                             <div class="flex flex-col">
                                 <label for="first_name" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
@@ -59,7 +60,7 @@
                                 </label>
                                 <input type="text" id="first_name" name="first_name" value="{{ old('first_name') }}" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('first_name') border-munti-red-500 @enderror"
-                                    placeholder="Enter first name">
+                                    placeholder="Firstname">
                                 @error('first_name')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -72,7 +73,7 @@
                                 </label>
                                 <input type="text" id="last_name" name="last_name" value="{{ old('last_name') }}" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('last_name') border-munti-red-500 @enderror"
-                                    placeholder="Enter last name">
+                                    placeholder="Lastname">
                                 @error('last_name')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -81,11 +82,11 @@
                             <!-- Contact Number -->
                             <div class="flex flex-col">
                                 <label for="contact_number" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Contact Number <span class="text-munti-red-400">*</span>
+                                    Contact No <span class="text-munti-red-400">*</span>
                                 </label>
                                 <input type="text" id="contact_number" name="contact_number" value="{{ old('contact_number') }}" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('contact_number') border-munti-red-500 @enderror"
-                                    placeholder="Enter contact number">
+                                    placeholder="Contact no">
                                 @error('contact_number')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -98,12 +99,15 @@
                                 </label>
                                 <input type="email" id="email" name="email" value="{{ old('email') }}" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('email') border-munti-red-500 @enderror"
-                                    placeholder="Enter email address">
+                                    placeholder="email">
                                 @error('email')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
+                        </div>
 
+                        {{-- Bottom row: username | password | Confirm pass | role --}}
+                        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <!-- Username -->
                             <div class="flex flex-col">
                                 <label for="username" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
@@ -111,7 +115,7 @@
                                 </label>
                                 <input type="text" id="username" name="username" value="{{ old('username') }}" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('username') border-munti-red-500 @enderror"
-                                    placeholder="Enter unique username">
+                                    placeholder="username">
                                 @error('username')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -124,32 +128,30 @@
                                 </label>
                                 <input type="password" id="password" name="password" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('password') border-munti-red-500 @enderror"
-                                    placeholder="Enter password (min 8 characters)">
+                                    placeholder="password">
                                 @error('password')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
-                        </div>
 
-                        <!-- Password confirmation -->
-                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Confirm Password -->
                             <div class="flex flex-col">
                                 <label for="password_confirmation" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Confirm Password <span class="text-munti-red-400">*</span>
+                                    Confirm Pass <span class="text-munti-red-400">*</span>
                                 </label>
                                 <input type="password" id="password_confirmation" name="password_confirmation" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
-                                    placeholder="Confirm password">
+                                    placeholder="Confirm pass">
                             </div>
 
-                            <!-- Role Selection -->
+                            <!-- Role -->
                             <div class="flex flex-col">
                                 <label for="role" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Role <span class="text-munti-red-400">*</span>
                                 </label>
                                 <select id="role" name="role" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('role') border-munti-red-500 @enderror">
-                                    <option value="">Select a role</option>
+                                    <option value="">role</option>
                                     <option value="superAdmin" {{ old('role') == 'superAdmin' ? 'selected' : '' }}>Super Administrator</option>
                                     <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Admin</option>
                                     <option value="user" {{ old('role') == 'user' ? 'selected' : '' }}>User</option>
@@ -158,25 +160,24 @@
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
-
-                            <!-- Submit Button -->
-                            <div class="flex flex-col justify-end">
-                                <button type="submit"
-                                        class="w-full px-6 py-2.5 h-11 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center justify-center gap-2 whitespace-nowrap">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                    </svg>
-                                    Create User
-                                </button>
-                            </div>
                         </div>
-                        
-                        <!-- Note about uniqueness -->
-                        <div class="mt-4 p-3 bg-surface-700/30 rounded-lg border border-border-600">
-                            <p class="text-xs text-text-400">
-                                <span class="text-munti-red-400">*</span> Note: 
-                                <span class="text-text-300">Username and Email must be unique across all records.</span>
-                            </p>
+
+                        {{-- Note + Create User button (side by side like the image) --}}
+                        <div class="mt-4 flex flex-col sm:flex-row gap-3 items-stretch">
+                            <div class="flex-1 flex items-center px-4 py-3 bg-surface-800 rounded-lg border border-border-600">
+                                <p class="text-xs text-text-300">
+                                    <span class="text-munti-red-400 font-semibold">*</span>
+                                    Note: Username and Email must be unique across all records.
+                                </p>
+                            </div>
+
+                            <button type="submit"
+                                    class="shrink-0 px-6 py-2.5 h-auto sm:h-auto bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center justify-center gap-2 whitespace-nowrap min-w-[140px]">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                Create User
+                            </button>
                         </div>
                     </form>
                 </div>
