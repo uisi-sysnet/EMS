@@ -36,7 +36,7 @@
             </p>
 
             <div class="mt-16 text-text-400 text-sm bg-white/5 px-4 py-1 rounded-full border border-white/10">
-                Beta Version 1.0.0
+                Version 7.1.0
             </div>
 
         </div>
