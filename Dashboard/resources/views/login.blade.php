@@ -1,7 +1,6 @@
 @include('layouts.header')
 
-<div class="fixed inset-0 bg-background-950 flex items-center justify-center px-6 overflow-hidden"
-     x-data="{ mode: '{{ old('mode', request()->get('mode', 'login')) }}' }">
+<div class="fixed inset-0 bg-background-950 flex items-center justify-center px-6 overflow-hidden">
 
     {{-- Decorative background elements --}}
     <div class="absolute inset-0 pointer-events-none">
@@ -37,7 +36,7 @@
             </p>
 
             <div class="mt-16 text-text-400 text-sm bg-white/5 px-4 py-1 rounded-full border border-white/10">
-                Beta Version {{ config('app.version', '1.0') }}
+                Beta Version 1.0
             </div>
 
         </div>
@@ -48,11 +47,11 @@
             <div class="w-full max-w-md">
 
                 {{-- Title --}}
-                <h2 class="text-3xl font-bold text-text-100 text-center mb-1"
-                    x-text="mode === 'login' ? 'Welcome Back' : 'Create Account'">
+                <h2 class="text-3xl font-bold text-text-100 text-center mb-1">
+                    Welcome Back
                 </h2>
-                <p class="text-text-400 text-center mb-6 text-sm"
-                   x-text="mode === 'login' ? 'Sign in to your account' : 'Register a new account'">
+                <p class="text-text-400 text-center mb-6 text-sm">
+                    Sign in to your account
                 </p>
 
                 {{-- Error --}}
@@ -66,10 +65,7 @@
                 @endif
 
                 {{-- ==================== LOGIN FORM ==================== --}}
-                <form method="POST" action="{{ route('login') }}"
-                      class="space-y-5"
-                      x-show="mode === 'login'"
-                      x-cloak>
+                <form method="POST" action="{{ route('login') }}" class="space-y-5">
                     @csrf
 
                     <div>
@@ -123,137 +119,9 @@
                     </button>
                 </form>
 
-                {{-- ==================== REGISTER FORM (COMPRESSED) ==================== --}}
-                <form method="POST" action="{{ route('register') }}"
-                      class="space-y-3.5"
-                      x-show="mode === 'register'"
-                      x-cloak>
-                    @csrf
-
-                    {{-- Username --}}
-                    <div>
-                        <label class="block text-sm font-medium text-text-300 mb-1">Username</label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-text-500" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                            <input
-                                type="text"
-                                name="username"
-                                value="{{ old('username') }}"
-                                required
-                                class="w-full rounded-xl bg-background-900 border border-border-700
-                                       pl-9 pr-4 py-2 text-text-100 placeholder-text-500 text-sm
-                                       focus:border-radar-400 focus:ring-2 focus:ring-radar-400/50 outline-none transition"
-                                placeholder="Choose a username">
-                        </div>
-                    </div>
-
-                    {{-- Email --}}
-                    <div>
-                        <label class="block text-sm font-medium text-text-300 mb-1">Email</label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-text-500" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                                </svg>
-                            </div>
-                            <input
-                                type="email"
-                                name="email"
-                                value="{{ old('email') }}"
-                                required
-                                class="w-full rounded-xl bg-background-900 border border-border-700
-                                       pl-9 pr-4 py-2 text-text-100 placeholder-text-500 text-sm
-                                       focus:border-radar-400 focus:ring-2 focus:ring-radar-400/50 outline-none transition"
-                                placeholder="Enter your email">
-                        </div>
-                    </div>
-
-                    {{-- Password + Confirm Password (side by side) --}}
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-text-300 mb-1">Password</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-text-500" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-                                    </svg>
-                                </div>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    required
-                                    class="w-full rounded-xl bg-background-900 border border-border-700
-                                           pl-8 pr-3 py-2 text-text-100 placeholder-text-500 text-sm
-                                           focus:border-radar-400 focus:ring-2 focus:ring-radar-400/50 outline-none transition"
-                                    placeholder="••••••••">
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-text-300 mb-1">Confirm</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-text-500" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-                                    </svg>
-                                </div>
-                                <input
-                                    type="password"
-                                    name="password_confirmation"
-                                    required
-                                    class="w-full rounded-xl bg-background-900 border border-border-700
-                                           pl-8 pr-3 py-2 text-text-100 placeholder-text-500 text-sm
-                                           focus:border-radar-400 focus:ring-2 focus:ring-radar-400/50 outline-none transition"
-                                    placeholder="••••••••">
-                            </div>
-                        </div>
-                    </div>
-
-                    <button
-                        type="submit"
-                        class="w-full rounded-xl bg-munti-yellow-500 hover:bg-munti-yellow-600
-                               text-black font-bold py-2.5 transition duration-200 transform hover:scale-[1.02] active:scale-[0.98]
-                               flex items-center justify-center gap-2 shadow-lg shadow-munti-yellow-500/20 text-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-                        </svg>
-                        REGISTER
-                    </button>
-                </form>
-
-                {{-- Toggle link --}}
-                <div class="mt-6 text-center text-sm text-text-400 border-t border-border-700 pt-5">
-                    <template x-if="mode === 'login'">
-                        <span>
-                            Don't have an account?
-                            <button type="button"
-                                    @click="mode = 'register'"
-                                    class="text-munti-yellow-500 hover:text-munti-yellow-400 transition font-medium">
-                                Register
-                            </button>
-                        </span>
-                    </template>
-
-                    <template x-if="mode === 'register'">
-                        <span>
-                            Already have an account?
-                            <button type="button"
-                                    @click="mode = 'login'"
-                                    class="text-munti-yellow-500 hover:text-munti-yellow-400 transition font-medium">
-                                Sign in
-                            </button>
-                        </span>
-                    </template>
-                </div>
-
                 {{-- Version info --}}
                 <div class="mt-4 text-center text-xs text-text-500">
-                    &copy; {{ date('Y') }} {{ config('app.company_name', 'Uplink Integrated Solutions Inc.') }}
+                    &copy; {{ date('Y') }} Uplink Integrated Solutions Inc.
                 </div>
 
             </div>

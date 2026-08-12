@@ -26,7 +26,7 @@
             </div>
 
             {{-- Desktop Navigation (xl+) --}}
-            <div class="hidden xl:flex items-center gap-x-5 lg:gap-x-8 text-sm font-medium">
+            <div class="hidden xl:flex items-center gap-x-5 lg:gap-x-20 text-sm font-medium">
                 @if(session('role') === 'administrator')
                     <a href="{{ route('home') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Dashboards</a>
                     <a href="{{ route('stations.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Stations</a>
