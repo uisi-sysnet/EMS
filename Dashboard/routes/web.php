@@ -34,7 +34,7 @@ Route::middleware(['role:superAdmin,admin,user'])->group(function () {
 Route::middleware(['role:superAdmin,admin'])->group(function () {
 
     Route::get('/about', [AboutController::class, 'about'])->name('about');
-    Route::get('/user', [UserController::class, 'user'])->name('user');
+    Route::get('/user', [UserController::class, 'user'])->name('user.index');
 
     Route::get('/sms', [SmsController::class, 'index'])->name('sms.index');
 
