@@ -312,27 +312,34 @@
                             </div>
                         </div>
                         <div class="flex-1 flex items-center justify-between gap-3 sm:gap-4 min-w-0">
-                            <div class="flex flex-col gap-1.5 text-xs shrink-0">
-                                <div class="flex items-center justify-between gap-3">
-                                    <span class="flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full bg-munti-green-400 shrink-0"></span>
+                            <div class="flex-1 min-w-0">
+                                <div class="grid grid-cols-[1fr_auto] gap-x-6 gap-y-2 text-xs sm:text-sm w-full">
+                                    <!-- Online -->
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shrink-0"></span>
                                         <span class="text-text-300">Online</span>
+                                    </div>
+                                    <span id="aq-online-count" class="text-text-100 font-semibold tabular-nums text-right">
+                                        {{ $airQualityCounts['online'] }}
                                     </span>
-                                    <span id="aq-online-count" class="text-text-100 font-semibold">{{ $airQualityCounts['online'] }}</span>
-                                </div>
-                                <div class="flex items-center justify-between gap-3">
-                                    <span class="flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+
+                                    <!-- Idle -->
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0"></span>
                                         <span class="text-text-300">Idle</span>
+                                    </div>
+                                    <span id="aq-idle-count" class="text-text-100 font-semibold tabular-nums text-right">
+                                        {{ $airQualityCounts['idle'] }}
                                     </span>
-                                    <span id="aq-idle-count" class="text-text-100 font-semibold">{{ $airQualityCounts['idle'] }}</span>
-                                </div>
-                                <div class="flex items-center justify-between gap-3">
-                                    <span class="flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full bg-red-400 shrink-0"></span>
+
+                                    <!-- Offline -->
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-red-400 shrink-0"></span>
                                         <span class="text-text-300">Offline</span>
+                                    </div>
+                                    <span id="aq-offline-count" class="text-text-100 font-semibold tabular-nums text-right">
+                                        {{ $airQualityCounts['offline'] }}
                                     </span>
-                                    <span id="aq-offline-count" class="text-text-100 font-semibold">{{ $airQualityCounts['offline'] }}</span>
                                 </div>
                             </div>
                             <span id="aq-online-badge" class="text-sm text-munti-green-400 bg-munti-green-700/20 px-4 py-2 rounded-full shrink-0 border border-munti-green-600/30 whitespace-nowrap">
