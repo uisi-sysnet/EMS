@@ -21,7 +21,6 @@ class LoginController extends Controller
             'password' => 'required|string',
         ]);
 
-        // Your existing login logic...
         $users = [
             'superAdmin' => [
                 'password' => 'superAdmin',
