@@ -60,7 +60,7 @@
                                 </label>
                                 <input type="text" id="first_name" name="first_name" value="{{ old('first_name') }}" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('first_name') border-munti-red-500 @enderror"
-                                    placeholder="Firstname">
+                                    placeholder="Enter first name">
                                 @error('first_name')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -73,7 +73,7 @@
                                 </label>
                                 <input type="text" id="last_name" name="last_name" value="{{ old('last_name') }}" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('last_name') border-munti-red-500 @enderror"
-                                    placeholder="Lastname">
+                                    placeholder="Enter last name">
                                 @error('last_name')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -121,7 +121,7 @@
                                 </label>
                                 <input type="text" id="username" name="username" value="{{ old('username') }}" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('username') border-munti-red-500 @enderror"
-                                    placeholder="username">
+                                    placeholder="Enter username">
                                 @error('username')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -135,7 +135,7 @@
                                 <div class="relative">
                                     <input type="password" id="password" name="password" required
                                         class="w-full px-3.5 py-2.5 pr-10 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('password') border-munti-red-500 @enderror"
-                                        placeholder="password">
+                                        placeholder="Enter password">
                                     <button type="button" onclick="togglePassword('password', this)"
                                         class="absolute inset-y-0 right-0 flex items-center pr-3 text-text-400 hover:text-text-200 transition">
                                         <!-- Eye (show) -->
@@ -162,7 +162,7 @@
                                 <div class="relative">
                                     <input type="password" id="password_confirmation" name="password_confirmation" required
                                         class="w-full px-3.5 py-2.5 pr-10 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
-                                        placeholder="Confirm pass">
+                                        placeholder="Enter password again">
                                     <button type="button" onclick="togglePassword('password_confirmation', this)"
                                         class="absolute inset-y-0 right-0 flex items-center pr-3 text-text-400 hover:text-text-200 transition">
                                         <!-- Eye (show) -->
