@@ -26,7 +26,7 @@
 
             {{-- Desktop Navigation (xl+) --}}
             <div class="hidden xl:flex items-center gap-x-5 lg:gap-x-20 text-sm font-medium">
-                @if(session('role') === 'administrator')
+                @if(session('role') === 'admin' || session('role') === 'superAdmin')
                     <a href="{{ route('home') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Dashboards</a>
                     <a href="{{ route('stations.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Stations</a>
                     <a href="{{ route('sms.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">SMS</a>
@@ -81,7 +81,7 @@
             <div class="flex items-center gap-x-1 sm:gap-x-3">
 
                 {{-- Notification Bell (Admin only) --}}
-                @if(session('role') === 'administrator')
+                @if(session('role') === 'admin' || session('role') === 'superAdmin')
                 <div class="relative" id="notification-container">
                     <button type="button"
                             id="notification-bell"
@@ -116,7 +116,7 @@
                 @endif
 
                 {{-- Settings Gear Icon --}}
-                @if(session('role') === 'administrator')
+                @if(session('role') === 'admin' || session('role') === 'superAdmin')
                 <div class="relative" id="settings-gear-container">
                     <button type="button"
                             id="settings-gear-button"
@@ -165,7 +165,7 @@
                          class="absolute right-0 mt-2 w-56 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-30 overflow-hidden">
                         <div class="px-4 py-3 border-b border-border-700">
                             <p class="text-sm font-semibold text-text-100 uppercase">
-                                {{ session('role') === 'administrator' ? 'Administrator' : 'User' }}
+                                {{ session('role') === 'admin' || session('role') === 'user' || session('role') === 'superAdmin' ? 'admin' || session('role') === 'user' || session('role') === 'superAdmin' : 'User' }}
                             </p>
                             <p class="text-xs text-text-400 truncate">{{ session('username') ?? 'Guest' }}</p>
                         </div>
@@ -205,7 +205,7 @@
     <div id="mobile-menu" class="xl:hidden hidden border-t border-border-800 bg-surface-900/95 backdrop-blur-sm">
         <div class="px-4 pt-2 pb-4 space-y-1">
 
-            @if(session('role') === 'administrator')
+            @if(session('role') === 'admin' || session('role') === 'superAdmin')
                 <a href="{{ route('home') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">Dashboards</a>
                 <a href="{{ route('stations.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">Stations</a>
                 <a href="{{ route('sms.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">SMS</a>
@@ -258,7 +258,7 @@
                     </div>
                     <div>
                         <p class="text-text-100 text-sm font-semibold uppercase">
-                            {{ session('role') === 'administrator' ? 'Administrator' : 'User' }}
+                            {{ session('role') === 'admin' || session('role') === 'user' || session('role') === 'superAdmin' ? 'admin' || session('role') === 'user' || session('role') === 'superAdmin' : 'User' }}
                         </p>
                         <p class="text-text-400 text-xs">{{ session('username') ?? 'Guest' }}</p>
                     </div>

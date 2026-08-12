@@ -23,9 +23,13 @@ class LoginController extends Controller
 
         // Your existing login logic...
         $users = [
+            'superAdmin' => [
+                'password' => 'superAdmin',
+                'role'     => 'superAdmin',
+            ],
             'admin' => [
                 'password' => 'admin',
-                'role'     => 'administrator',
+                'role'     => 'admin',
             ],
             'user' => [
                 'password' => 'user',
