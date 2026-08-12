@@ -298,46 +298,73 @@
                             <span class="truncate">Air Quality Station Status</span>
                         </h3>
                     </div>
-                    <div class="p-3 sm:p-4 flex items-center gap-4 lg:gap-6">
-                        <div class="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 shrink-0">
-                            <canvas id="airQualityStatusChart"></canvas>
-                            <div id="aq-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                @if($airQualityTotal > 0)
-                                <span class="text-sm sm:text-base font-bold text-text-100">{{ round(($airQualityOnline / $airQualityTotal) * 100) }}%</span>
-                                <span class="text-[9px] text-text-400 uppercase">Online</span>
-                                @else
-                                <span class="text-sm sm:text-base font-bold text-amber-400">—</span>
-                                <span class="text-[9px] text-amber-400 uppercase">No Stations</span>
-                                @endif
+
+                    <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6 items-center">
+                        <!-- Column 1: Donut Chart -->
+                        <div class="flex justify-center">
+                            <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
+                                <canvas id="airQualityStatusChart"></canvas>
+                                <div id="aq-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    @if($airQualityTotal > 0)
+                                        <span class="text-lg font-bold text-text-100 leading-none">
+                                            {{ round(($airQualityOnline / $airQualityTotal) * 100) }}%
+                                        </span>
+                                        <span class="text-[10px] text-text-400 uppercase tracking-wide mt-0.5">Online</span>
+                                    @else
+                                        <span class="text-lg font-bold text-amber-400 leading-none">—</span>
+                                        <span class="text-[10px] text-amber-400 uppercase tracking-wide mt-0.5">No Stations</span>
+                                    @endif
+                                </div>
                             </div>
                         </div>
-                        <div class="flex-1 flex items-center justify-between gap-3 sm:gap-4 min-w-0">
-                            <div class="flex flex-col gap-1.5 text-xs shrink-0">
-                                <div class="flex items-center justify-between gap-3">
-                                    <span class="flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full bg-munti-green-400 shrink-0"></span>
-                                        <span class="text-text-300">Online</span>
-                                    </span>
-                                    <span id="aq-online-count" class="text-text-100 font-semibold">{{ $airQualityCounts['online'] }}</span>
-                                </div>
-                                <div class="flex items-center justify-between gap-3">
-                                    <span class="flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
-                                        <span class="text-text-300">Idle</span>
-                                    </span>
-                                    <span id="aq-idle-count" class="text-text-100 font-semibold">{{ $airQualityCounts['idle'] }}</span>
-                                </div>
-                                <div class="flex items-center justify-between gap-3">
-                                    <span class="flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full bg-red-400 shrink-0"></span>
-                                        <span class="text-text-300">Offline</span>
-                                    </span>
-                                    <span id="aq-offline-count" class="text-text-100 font-semibold">{{ $airQualityCounts['offline'] }}</span>
-                                </div>
+
+                        <!-- Column 2: Status Counts -->
+                        <div class="flex flex-col gap-2.5">
+                            <div class="flex items-center justify-between gap-4 px-3 py-2 rounded-lg bg-surface-900/50 border border-border-700/60">
+                                <span class="flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)]"></span>
+                                    <span class="text-xs text-text-300">Online</span>
+                                </span>
+                                <span id="aq-online-count" class="text-sm font-semibold text-text-100 tabular-nums">
+                                    {{ $airQualityCounts['online'] }}
+                                </span>
                             </div>
-                            <span id="aq-online-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-2 py-1 rounded-full shrink-0 border border-munti-green-600/30 whitespace-nowrap">
-                                {{ $airQualityOnline }}/{{ $airQualityTotal }} online
-                            </span>
+
+                            <div class="flex items-center justify-between gap-4 px-3 py-2 rounded-lg bg-surface-900/50 border border-border-700/60">
+                                <span class="flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)]"></span>
+                                    <span class="text-xs text-text-300">Idle</span>
+                                </span>
+                                <span id="aq-idle-count" class="text-sm font-semibold text-text-100 tabular-nums">
+                                    {{ $airQualityCounts['idle'] }}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-4 px-3 py-2 rounded-lg bg-surface-900/50 border border-border-700/60">
+                                <span class="flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)]"></span>
+                                    <span class="text-xs text-text-300">Offline</span>
+                                </span>
+                                <span id="aq-offline-count" class="text-sm font-semibold text-text-100 tabular-nums">
+                                    {{ $airQualityCounts['offline'] }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Column 3: Summary Badge -->
+                        <div class="flex justify-center sm:justify-end">
+                            <div class="inline-flex flex-col items-center sm:items-end gap-1">
+                                <span id="aq-online-badge"
+                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
+                                            bg-munti-green-700/20 px-4 py-2.5 rounded-full
+                                            border border-munti-green-600/30 shadow-sm">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400 animate-pulse"></span>
+                                    {{ $airQualityOnline }}/{{ $airQualityTotal }} Online
+                                </span>
+                                <span class="text-[10px] text-text-500 uppercase tracking-wider">
+                                    Station Status
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
