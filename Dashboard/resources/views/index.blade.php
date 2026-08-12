@@ -313,7 +313,7 @@
                         </div>
                         <div class="flex-1 flex items-center justify-between gap-3 sm:gap-4 min-w-0">
                             <div class="flex-1 min-w-0">
-                                <div class="grid grid-cols-[1fr_auto] gap-x-6 gap-y-2 text-xs sm:text-sm w-full">
+                                <div class="grid grid-cols-[auto_auto] gap-x-6 gap-y-2 text-xs sm:text-sm w-full">
                                     <!-- Online -->
                                     <div class="flex items-center gap-2">
                                         <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shrink-0"></span>
