@@ -166,7 +166,7 @@
                          class="absolute right-0 mt-2 w-56 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-30 overflow-hidden">
                         <div class="px-4 py-3 border-b border-border-700">
                             <p class="text-sm font-semibold text-text-100 uppercase">
-                                {{ session('role') === 'super_admin' || session('role') === 'superadmin' ? 'Super Administrator' : (session('role') === 'admin' || session('role') === 'administrator' ? 'Administrator' : 'User') }}
+                                {{ session('role') === 'superAdmin' || session('role') === 'superAdmin' ? 'Super Administrator' : (session('role') === 'admin' || session('role') === 'administrator' ? 'Administrator' : 'User') }}
                             </p>
                             <p class="text-xs text-text-400 truncate">{{ session('username') ?? 'Guest' }}</p>
                         </div>
