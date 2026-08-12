@@ -348,7 +348,7 @@
             @csrf
             @method('PUT')
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
                 <!-- First Name -->
                 <div class="flex flex-col">
                     <label for="edit_first_name" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
