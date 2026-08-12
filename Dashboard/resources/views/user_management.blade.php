@@ -188,7 +188,7 @@
                             <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span>
                             Existing Users
                         </h4>
-                        <span class="text-xs text-text-500">{{ $users->count() }} User(s)</span>
+                        <span class="text-xs text-text-500">03 User(s)</span>
                     </div>
                     
                     <div class="overflow-x-auto thin-scrollbar flex-1">
