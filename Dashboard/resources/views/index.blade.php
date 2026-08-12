@@ -299,9 +299,9 @@
                         </h3>
                     </div>
 
-                    <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6 items-center">
+                    <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-[minmax(0,30%)_minmax(0,40%)_minmax(0,30%)] gap-5 sm:gap-6 items-center w-full min-w-0">
                         <!-- Column 1: Donut Chart -->
-                        <div class="flex">
+                        <div class="flex justify-center min-w-0">
                             <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
                                 <canvas id="airQualityStatusChart"></canvas>
                                 <div id="aq-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -319,48 +319,48 @@
                         </div>
 
                         <!-- Column 2: Status Counts -->
-                        <div class="flex flex-col gap-2.5">
+                        <div class="flex flex-col gap-2.5 min-w-0">
                             <div class="flex items-center justify-between gap-4 px-3 py-1">
-                                <span class="flex items-center gap-4">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)]"></span>
-                                    <span class="text-sm text-text-300">Online</span>
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Online</span>
                                 </span>
-                                <span id="aq-online-count" class="text-sm font-semibold text-text-100 tabular-nums">
+                                <span id="aq-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
                                     {{ $airQualityCounts['online'] }}
                                 </span>
                             </div>
 
                             <div class="flex items-center justify-between gap-4 px-3 py-1">
-                                <span class="flex items-center gap-4">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)]"></span>
-                                    <span class="text-sm text-text-300">Idle</span>
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Idle</span>
                                 </span>
-                                <span id="aq-idle-count" class="text-sm font-semibold text-text-100 tabular-nums">
+                                <span id="aq-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
                                     {{ $airQualityCounts['idle'] }}
                                 </span>
                             </div>
 
                             <div class="flex items-center justify-between gap-4 px-3 py-1">
-                                <span class="flex items-center gap-4">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)]"></span>
-                                    <span class="text-sm text-text-300">Offline</span>
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Offline</span>
                                 </span>
-                                <span id="aq-offline-count" class="text-sm font-semibold text-text-100 tabular-nums">
+                                <span id="aq-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
                                     {{ $airQualityCounts['offline'] }}
                                 </span>
                             </div>
                         </div>
 
                         <!-- Column 3: Summary Badge -->
-                        <div class="flex justify-center">
+                        <div class="flex justify-center min-w-0">
                             <div class="inline-flex flex-col items-center gap-1">
                                 <span id="aq-online-badge"
                                     class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
                                             bg-munti-green-700/20 px-4 py-2.5 rounded-full
-                                            border border-munti-green-600/30 shadow-sm">
+                                            border border-munti-green-600/30 shadow-sm whitespace-nowrap">
                                     {{ $airQualityOnline }}/{{ $airQualityTotal }} Online
                                 </span>
-                                <span class="text-[10px] text-text-500 uppercase tracking-wider">
+                                <span class="text-[10px] text-text-500 uppercase tracking-wider whitespace-nowrap">
                                     Station Status
                                 </span>
                             </div>
