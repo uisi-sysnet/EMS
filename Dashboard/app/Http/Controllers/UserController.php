@@ -8,6 +8,6 @@ class UserController extends Controller
 {
     public function user(): View
     {
-        return view('user');
+        return view('user_management');
     }
 }
