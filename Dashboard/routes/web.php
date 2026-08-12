@@ -5,6 +5,7 @@ use App\Http\Controllers\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StationController;
 use App\Http\Controllers\AboutController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\ApiFileController;
 use App\Http\Controllers\EnvEditorController;
 use App\Http\Controllers\ApiKeyController;
@@ -33,6 +34,7 @@ Route::middleware(['role:superAdmin,admin,user'])->group(function () {
 Route::middleware(['role:superAdmin,admin'])->group(function () {
 
     Route::get('/about', [AboutController::class, 'about'])->name('about');
+    Route::get('/user', [UserController::class, 'user'])->name('user');
 
     Route::get('/sms', [SmsController::class, 'index'])->name('sms.index');
 
