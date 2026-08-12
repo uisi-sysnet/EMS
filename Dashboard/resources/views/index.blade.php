@@ -380,8 +380,8 @@
                         <!-- Column 1: Donut Chart -->
                         <div class="flex justify-center min-w-0">
                             <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
-                                <canvas id="airQualityStatusChart"></canvas>
-                                <div id="aq-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <canvas id="seismicStatusChart"></canvas>
+                                <div id="seismic-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                     @if($seismicTotal > 0)
                                         <span class="text-lg font-bold text-text-100 leading-none">
                                             {{ round(($seismicOnline / $seismicTotal) * 100) }}%
@@ -402,7 +402,7 @@
                                     <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)] shrink-0"></span>
                                     <span class="text-sm text-text-300 truncate">Online</span>
                                 </span>
-                                <span id="aq-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                <span id="seismic-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
                                     {{ $seismicCounts['online'] }}
                                 </span>
                             </div>
@@ -412,7 +412,7 @@
                                     <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)] shrink-0"></span>
                                     <span class="text-sm text-text-300 truncate">Idle</span>
                                 </span>
-                                <span id="aq-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                <span id="seismic-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
                                     {{ $seismicCounts['idle'] }}
                                 </span>
                             </div>
@@ -422,7 +422,7 @@
                                     <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)] shrink-0"></span>
                                     <span class="text-sm text-text-300 truncate">Offline</span>
                                 </span>
-                                <span id="aq-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                <span id="seismic-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
                                     {{ $seismicCounts['offline'] }}
                                 </span>
                             </div>
@@ -431,7 +431,7 @@
                         <!-- Column 3: Summary Badge -->
                         <div class="flex justify-center min-w-0">
                             <div class="inline-flex flex-col items-center gap-1">
-                                <span id="aq-online-badge"
+                                <span id="seismic-online-badge"
                                     class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
                                             bg-munti-green-700/20 px-4 py-2.5 rounded-full
                                             border border-munti-green-600/30 shadow-sm whitespace-nowrap">
