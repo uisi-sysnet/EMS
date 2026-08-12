@@ -344,7 +344,7 @@
             </button>
         </div>
         
-        <form id="editForm" method="POST" action="" data-base-url="{{ route('user.update', '') }}">
+        <form id="editForm" method="POST" action="#">
             @csrf
             @method('PUT')
             
@@ -449,6 +449,7 @@
 <script>
 // Edit User
 // Edit User with AJAX
+// Edit User with AJAX
 async function editUser(userId) {
     const modal = document.getElementById('editModal');
     modal.style.display = 'flex';
@@ -468,9 +469,22 @@ async function editUser(userId) {
         document.getElementById('edit_password').value = '';
         document.getElementById('edit_password_confirmation').value = '';
         
-        // Set form action
-        const baseUrl = document.getElementById('editForm').dataset.baseUrl;
-        document.getElementById('editForm').action = `${baseUrl}/${userId}`;
+        // Set form action - use the route with the ID
+        const form = document.getElementById('editForm');
+        form.action = `/user/${userId}`;
+        form.method = 'POST';
+        
+        // Make sure we have the PUT method override
+        let methodField = form.querySelector('input[name="_method"]');
+        if (!methodField) {
+            methodField = document.createElement('input');
+            methodField.type = 'hidden';
+            methodField.name = '_method';
+            methodField.value = 'PUT';
+            form.appendChild(methodField);
+        } else {
+            methodField.value = 'PUT';
+        }
         
     } catch (error) {
         console.error('Error fetching user data:', error);
