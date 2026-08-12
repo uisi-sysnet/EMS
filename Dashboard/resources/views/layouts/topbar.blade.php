@@ -170,6 +170,9 @@
                             </p>
                             <p class="text-xs text-text-400 truncate">{{ session('username') ?? 'Guest' }}</p>
                         </div>
+                        <a href="#" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">
+                            Users
+                        </a>
                         <form method="POST" action="{{ route('logout') }}" class="p-2">
                             @csrf
                             <button type="submit"
