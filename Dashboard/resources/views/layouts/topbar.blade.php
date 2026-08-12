@@ -44,7 +44,11 @@
                         </button>
                         <div class="maintenance-dropdown-menu absolute left-0 mt-2 w-52 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-20 overflow-hidden">
                             <a href="{{ route('maintenance.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Network Diagnostic</a>
-                            <a href="{{ route('services.terminal') }}" target="_blank" rel="noopener" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Terminal</a>
+                            
+                            @if(session('role') === 'superAdmin')
+                                <a href="{{ route('services.terminal') }}" target="_blank" rel="noopener" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Terminal</a>
+                            @endif
+
                             <a href="{{ route('services.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Services</a>
                             <!-- API Logs with badge -->
                             <a href="{{ route('api-logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700 flex items-center justify-between">
@@ -117,7 +121,7 @@
                 @endif
 
                 {{-- Settings Gear Icon --}}
-                @if(session('role') === 'admin' || session('role') === 'superAdmin')
+                @if(session('role') === 'superAdmin')
                 <div class="relative" id="settings-gear-container">
                     <button type="button"
                             id="settings-gear-button"
