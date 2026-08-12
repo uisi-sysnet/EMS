@@ -323,7 +323,7 @@
                             <div class="flex items-center justify-between gap-4 px-3 py-1">
                                 <span class="flex items-center gap-4">
                                     <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)]"></span>
-                                    <span class="text-xs text-text-300">Online</span>
+                                    <span class="text-sm text-text-300">Online</span>
                                 </span>
                                 <span id="aq-online-count" class="text-sm font-semibold text-text-100 tabular-nums">
                                     {{ $airQualityCounts['online'] }}
@@ -333,7 +333,7 @@
                             <div class="flex items-center justify-between gap-4 px-3 py-1">
                                 <span class="flex items-center gap-4">
                                     <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)]"></span>
-                                    <span class="text-xs text-text-300">Idle</span>
+                                    <span class="text-sm text-text-300">Idle</span>
                                 </span>
                                 <span id="aq-idle-count" class="text-sm font-semibold text-text-100 tabular-nums">
                                     {{ $airQualityCounts['idle'] }}
@@ -343,7 +343,7 @@
                             <div class="flex items-center justify-between gap-4 px-3 py-1">
                                 <span class="flex items-center gap-4">
                                     <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)]"></span>
-                                    <span class="text-xs text-text-300">Offline</span>
+                                    <span class="text-sm text-text-300">Offline</span>
                                 </span>
                                 <span id="aq-offline-count" class="text-sm font-semibold text-text-100 tabular-nums">
                                     {{ $airQualityCounts['offline'] }}
