@@ -86,4 +86,71 @@ class LoginController extends Controller
         
         return redirect('/login');
     }
+
+    /**
+     * Seed default users for testing/development
+     * You can call this method from a route or seeder
+     */
+    public function seedDefaultUsers()
+    {
+        $users = [
+            'superAdmin' => [
+                'password' => 'superAdmin',
+                'role'     => 'superAdmin',
+                'email'    => 'superadmin@example.com',
+                'first_name' => 'Super',
+                'last_name' => 'Admin',
+            ],
+            'admin' => [
+                'password' => 'admin',
+                'role'     => 'admin',
+                'email'    => 'admin@example.com',
+                'first_name' => 'Admin',
+                'last_name' => 'User',
+            ],
+            'user' => [
+                'password' => 'user',
+                'role'     => 'user',
+                'email'    => 'user@example.com',
+                'first_name' => 'Regular',
+                'last_name' => 'User',
+            ],
+        ];
+
+        $created = [];
+        foreach ($users as $username => $data) {
+            // Check if user already exists
+            $existingUser = User::where('username', $username)->first();
+            
+            if (!$existingUser) {
+                $user = User::create([
+                    'first_name' => $data['first_name'],
+                    'last_name' => $data['last_name'],
+                    'name' => $data['first_name'] . ' ' . $data['last_name'],
+                    'username' => $username,
+                    'email' => $data['email'],
+                    'password' => Hash::make($data['password']),
+                    'role' => $data['role'],
+                    'email_verified_at' => now(),
+                ]);
+                $created[] = $username;
+            }
+        }
+
+        if (count($created) > 0) {
+            return response()->json([
+                'message' => 'Default users created successfully!',
+                'users' => $created,
+                'credentials' => [
+                    'superAdmin' => ['username' => 'superAdmin', 'password' => 'superAdmin'],
+                    'admin' => ['username' => 'admin', 'password' => 'admin'],
+                    'user' => ['username' => 'user', 'password' => 'user'],
+                ]
+            ]);
+        } else {
+            return response()->json([
+                'message' => 'Default users already exist.',
+            ]);
+        }
+    }
 }
