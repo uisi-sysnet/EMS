@@ -149,50 +149,61 @@
                         <a href="{{ route('api.editor') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">
                             API
                         </a>
-                        {{-- <a href="{{ route('about') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700">
-                            About
-                        </a> --}}
                     </div>
                 </div>
                 @endif
 
-                {{-- Avatar --}}
-                <div class="relative" id="avatar-dropdown">
+                {{-- Avatar and Change Password Button Container --}}
+                <div class="flex items-center gap-x-2">
+                    {{-- Change Password Button (Super Admin only) --}}
+                    @if(session('role') === 'superAdmin')
                     <button type="button"
-                            id="avatar-button"
-                            class="w-8 h-8 bg-munti-yellow-500 text-background-950 rounded-full flex items-center justify-center font-bold ring-2 ring-text-100/40 hover:ring-4 hover:ring-text-100/60 transition-all focus:outline-none"
-                            aria-expanded="false"
-                            aria-haspopup="true">
-                        {{ strtoupper(substr(session('username') ?? 'U', 0, 1)) }}
+                            id="change-password-btn"
+                            class="text-text-300 hover:text-text-100 transition-colors focus:outline-none p-1.5 rounded-lg hover:bg-surface-700"
+                            title="Change Password">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2m-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2m3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1z"/>
+                        </svg>
                     </button>
+                    @endif
 
-                    <div id="avatar-dropdown-menu"
-                         class="absolute right-0 mt-2 w-56 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-30 overflow-hidden">
-                        <div class="px-4 py-3 border-b border-border-700">
-                            <p class="text-sm font-semibold text-text-100 uppercase">
-                                {{ session('role') === 'superAdmin' || session('role') === 'superAdmin' ? 'Super Administrator' : (session('role') === 'admin' || session('role') === 'administrator' ? 'Administrator' : 'User') }}
-                            </p>
-                            <p class="text-xs text-text-400 truncate">{{ session('username') ?? 'Guest' }}</p>
+                    {{-- Avatar Dropdown --}}
+                    <div class="relative" id="avatar-dropdown">
+                        <button type="button"
+                                id="avatar-button"
+                                class="w-8 h-8 bg-munti-yellow-500 text-background-950 rounded-full flex items-center justify-center font-bold ring-2 ring-text-100/40 hover:ring-4 hover:ring-text-100/60 transition-all focus:outline-none"
+                                aria-expanded="false"
+                                aria-haspopup="true">
+                            {{ strtoupper(substr(session('username') ?? 'U', 0, 1)) }}
+                        </button>
+
+                        <div id="avatar-dropdown-menu"
+                             class="absolute right-0 mt-2 w-56 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-30 overflow-hidden">
+                            <div class="px-4 py-3 border-b border-border-700">
+                                <p class="text-sm font-semibold text-text-100 uppercase">
+                                    {{ session('role') === 'superAdmin' ? 'Super Administrator' : (session('role') === 'admin' ? 'Administrator' : 'User') }}
+                                </p>
+                                <p class="text-xs text-text-400 truncate">{{ session('username') ?? 'Guest' }}</p>
+                            </div>
+                            @if(session('role') === 'admin' || session('role') === 'superAdmin')
+                            <a href="{{ route('user.index') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">
+                                User Management
+                            </a>
+                            @endif
+                            <form method="POST" action="{{ route('logout') }}" class="p-2">
+                                @csrf
+                                <button type="submit"
+                                        class="w-full flex items-center justify-center gap-x-2 bg-munti-red-700/20 hover:bg-munti-red-600/30 text-munti-red-400 text-sm font-bold py-2.5 rounded-lg transition-all border border-munti-red-600/40 hover:border-munti-red-500/60">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                                        <path fill="currentColor" d="M16 13v-2H7V8l-5 4l5 4v-3z"/>
+                                        <path fill="currentColor" d="M20 3h-9c-1.103 0-2 .897-2 2v4h2V5h9v14h-9v-4H9v4c0 1.103.897 2 2 2h9c1.103 0 2-.897 2-2V5c0-1.103-.897-2-2-2"/>
+                                    </svg>
+                                    Logout
+                                </button>
+                            </form>
                         </div>
-                        @if(session('role') === 'admin' || session('role') === 'superAdmin')
-                        <a href="{{ route('user.index') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">
-                            User Management
-                        </a>
-                        @endif
-                        <form method="POST" action="{{ route('logout') }}" class="p-2">
-                            @csrf
-                            <button type="submit"
-                                    class="w-full flex items-center justify-center gap-x-2 bg-munti-red-700/20 hover:bg-munti-red-600/30 text-munti-red-400 text-sm font-bold py-2.5 rounded-lg transition-all border border-munti-red-600/40 hover:border-munti-red-500/60">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
-                                    <path fill="currentColor" d="M16 13v-2H7V8l-5 4l5 4v-3z"/>
-                                    <path fill="currentColor" d="M20 3h-9c-1.103 0-2 .897-2 2v4h2V5h9v14h-9v-4H9v4c0 1.103.897 2 2 2h9c1.103 0 2-.897 2-2V5c0-1.103-.897-2-2-2"/>
-                                </svg>
-                                Logout
-                            </button>
-                        </form>
                     </div>
                 </div>
-                
 
                 {{-- Mobile menu button --}}
                 <button type="button"
@@ -269,11 +280,23 @@
                     </div>
                     <div>
                         <p class="text-text-100 text-sm font-semibold uppercase">
-                            {{ session('role') === 'admin' || session('role') === 'user' || session('role') === 'superAdmin' ? 'admin' || session('role') === 'user' || session('role') === 'superAdmin' : 'User' }}
+                            {{ session('role') === 'superAdmin' ? 'Super Administrator' : (session('role') === 'admin' ? 'Administrator' : 'User') }}
                         </p>
                         <p class="text-text-400 text-xs">{{ session('username') ?? 'Guest' }}</p>
                     </div>
                 </div>
+
+                {{-- Mobile Change Password Button --}}
+                @if(session('role') === 'superAdmin')
+                <button type="button"
+                        id="mobile-change-password-btn"
+                        class="w-full flex items-center justify-center gap-x-2 bg-surface-700 hover:bg-surface-600 text-text-100 text-sm font-bold py-3 rounded-xl transition-all border border-border-600 mt-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2m-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2m3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1z"/>
+                    </svg>
+                    Change Password
+                </button>
+                @endif
 
                 <form method="POST" action="{{ route('logout') }}" class="mt-2">
                     @csrf
@@ -291,10 +314,183 @@
     </div>
 </nav>
 
-{{-- All dropdown toggles and notification logic --}}
+{{-- ========== CHANGE PASSWORD MODAL ========== --}}
+<div id="change-password-modal" class="fixed inset-0 z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen px-4">
+        {{-- Backdrop --}}
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" id="modal-backdrop"></div>
+        
+        {{-- Modal Content --}}
+        <div class="relative bg-surface-800 rounded-2xl shadow-2xl border border-border-700 w-full max-w-md p-6 animate-fadeIn">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-text-100">Change Password</h3>
+                <button type="button" id="close-modal" class="text-text-400 hover:text-text-100 transition p-1 rounded-lg hover:bg-surface-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <form id="change-password-form" method="POST" action="{{ route('password.change') }}" class="space-y-4">
+                @csrf
+                
+                {{-- Current Password --}}
+                <div>
+                    <label for="current_password" class="block text-sm font-medium text-text-300 mb-1">Current Password</label>
+                    <div class="relative">
+                        <input type="password" 
+                               id="current_password" 
+                               name="current_password" 
+                               required
+                               class="w-full bg-surface-700 border border-border-600 rounded-xl px-4 py-2.5 text-text-100 placeholder-text-400 focus:outline-none focus:ring-2 focus:ring-radar-500/50 focus:border-transparent transition">
+                        <button type="button" class="password-toggle absolute right-3 top-1/2 -translate-y-1/2 text-text-400 hover:text-text-100">
+                            <svg class="w-5 h-5 eye-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                    </div>
+                    @error('current_password')
+                        <p class="text-xs text-munti-red-400 mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- New Password --}}
+                <div>
+                    <label for="new_password" class="block text-sm font-medium text-text-300 mb-1">New Password</label>
+                    <div class="relative">
+                        <input type="password" 
+                               id="new_password" 
+                               name="new_password" 
+                               required
+                               minlength="8"
+                               class="w-full bg-surface-700 border border-border-600 rounded-xl px-4 py-2.5 text-text-100 placeholder-text-400 focus:outline-none focus:ring-2 focus:ring-radar-500/50 focus:border-transparent transition">
+                        <button type="button" class="password-toggle absolute right-3 top-1/2 -translate-y-1/2 text-text-400 hover:text-text-100">
+                            <svg class="w-5 h-5 eye-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="text-xs text-text-400 mt-1">Minimum 8 characters</p>
+                    @error('new_password')
+                        <p class="text-xs text-munti-red-400 mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Confirm New Password --}}
+                <div>
+                    <label for="new_password_confirmation" class="block text-sm font-medium text-text-300 mb-1">Confirm New Password</label>
+                    <div class="relative">
+                        <input type="password" 
+                               id="new_password_confirmation" 
+                               name="new_password_confirmation" 
+                               required
+                               class="w-full bg-surface-700 border border-border-600 rounded-xl px-4 py-2.5 text-text-100 placeholder-text-400 focus:outline-none focus:ring-2 focus:ring-radar-500/50 focus:border-transparent transition">
+                        <button type="button" class="password-toggle absolute right-3 top-1/2 -translate-y-1/2 text-text-400 hover:text-text-100">
+                            <svg class="w-5 h-5 eye-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                    </div>
+                    @error('new_password_confirmation')
+                        <p class="text-xs text-munti-red-400 mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Action Buttons --}}
+                <div class="flex gap-3 pt-2">
+                    <button type="button" id="cancel-modal" 
+                            class="flex-1 px-4 py-2.5 border border-border-600 rounded-xl text-text-300 hover:text-text-100 hover:bg-surface-700 transition font-medium">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="flex-1 px-4 py-2.5 bg-radar-500 hover:bg-radar-600 text-white rounded-xl transition font-medium shadow-lg shadow-radar-500/25">
+                        Update Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- ========== SCRIPTS ========== --}}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // ========== Helper: close everything ==========
+        // ========== Change Password Modal Logic ==========
+        const modal = document.getElementById('change-password-modal');
+        const openModalBtns = document.querySelectorAll('#change-password-btn, #mobile-change-password-btn');
+        const closeModalBtns = document.querySelectorAll('#close-modal, #cancel-modal');
+        const backdrop = document.getElementById('modal-backdrop');
+
+        // Open modal
+        openModalBtns.forEach(btn => {
+            if (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    modal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                    // Close other dropdowns
+                    closeAllDropdowns();
+                });
+            }
+        });
+
+        // Close modal functions
+        function closeModal() {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+            // Reset form if needed
+            const form = document.getElementById('change-password-form');
+            if (form) form.reset();
+            // Clear any error messages
+            document.querySelectorAll('.text-munti-red-400').forEach(el => el.remove());
+        }
+
+        closeModalBtns.forEach(btn => {
+            if (btn) {
+                btn.addEventListener('click', closeModal);
+            }
+        });
+
+        // Close on backdrop click
+        if (backdrop) {
+            backdrop.addEventListener('click', closeModal);
+        }
+
+        // Close on Escape key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                closeModal();
+            }
+        });
+
+        // ========== Password Toggle Visibility ==========
+        document.querySelectorAll('.password-toggle').forEach(button => {
+            button.addEventListener('click', function () {
+                const input = this.closest('.relative').querySelector('input');
+                const icon = this.querySelector('.eye-icon');
+                if (input && icon) {
+                    const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+                    input.setAttribute('type', type);
+                    // Toggle icon appearance (show/hide eye)
+                    if (type === 'text') {
+                        icon.innerHTML = `
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        `;
+                    } else {
+                        icon.innerHTML = `
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        `;
+                    }
+                }
+            });
+        });
+
+        // ========== Reuse existing dropdown logic ==========
+        // Helper: close all dropdowns
         function closeAllDropdowns(except = null) {
             // Desktop Maintenance
             const maintMenu = document.querySelector('#maintenance-dropdown-desktop .maintenance-dropdown-menu');
@@ -346,7 +542,6 @@
                 openIcon.classList.toggle('hidden');
                 closeIcon.classList.toggle('hidden');
                 btn.setAttribute('aria-expanded', String(!isOpen));
-                // Close all desktop dropdowns when opening mobile menu
                 if (!isOpen) closeAllDropdowns();
             });
         }
@@ -663,12 +858,12 @@
 
         // ========== Global click outside ==========
         document.addEventListener('click', function (e) {
-            // Close all if click is outside every dropdown container
             const isInside =
                 e.target.closest('#maintenance-dropdown-desktop') ||
                 e.target.closest('#notification-container') ||
                 e.target.closest('#settings-gear-container') ||
-                e.target.closest('#avatar-dropdown');
+                e.target.closest('#avatar-dropdown') ||
+                e.target.closest('#change-password-modal');
 
             if (!isInside) {
                 closeAllDropdowns();
@@ -697,11 +892,74 @@
 
         // Initial notification dot check
         updateDot();
+
+        // Show success/error messages from session
+        @if(session('success'))
+            const successMsg = '{{ session('success') }}';
+            if (successMsg && !document.querySelector('.toast-message')) {
+                showToast(successMsg, 'success');
+            }
+        @endif
+
+        @if(session('error'))
+            const errorMsg = '{{ session('error') }}';
+            if (errorMsg && !document.querySelector('.toast-message')) {
+                showToast(errorMsg, 'error');
+            }
+        @endif
     });
+
+    // Toast notification helper
+    function showToast(message, type = 'success') {
+        const colors = {
+            success: 'bg-green-500/20 border-green-500/40 text-green-400',
+            error: 'bg-red-500/20 border-red-500/40 text-red-400',
+            warning: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400',
+            info: 'bg-blue-500/20 border-blue-500/40 text-blue-400'
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `toast-message fixed top-24 right-4 z-50 px-4 py-3 rounded-xl border ${colors[type] || colors.info} shadow-xl backdrop-blur-sm max-w-md animate-slideIn`;
+        toast.innerHTML = `
+            <div class="flex items-center gap-2">
+                <span>${message}</span>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-auto text-text-400 hover:text-text-100">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'transition-opacity', 'duration-500');
+            setTimeout(() => toast.remove(), 500);
+        }, 5000);
+    }
 </script>
 
-{{-- Extra style for smooth rotation and scrollbar --}}
+{{-- Additional CSS for animations --}}
 <style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .animate-fadeIn {
+        animation: fadeIn 0.2s ease-out;
+    }
+    
+    .animate-slideIn {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    /* Existing styles */
     .logs-dropdown-toggle svg,
     .logs-mobile-toggle svg,
     .maintenance-dropdown-toggle svg,
@@ -710,24 +968,30 @@
     .settings-mobile-toggle svg {
         transition: transform 0.2s ease;
     }
+    
     .rotate-180 {
         transform: rotate(180deg);
     }
+    
     .thin-scrollbar::-webkit-scrollbar {
         width: 5px;
         height: 5px;
     }
+    
     .thin-scrollbar::-webkit-scrollbar-track {
         background: #1A1A1A;
         border-radius: 10px;
     }
+    
     .thin-scrollbar::-webkit-scrollbar-thumb {
         background: #4B5563;
         border-radius: 10px;
     }
+    
     .thin-scrollbar::-webkit-scrollbar-thumb:hover {
         background: #6B7280;
     }
+    
     .thin-scrollbar {
         scrollbar-width: thin;
         scrollbar-color: #4B5563 #1A1A1A;

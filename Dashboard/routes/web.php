@@ -31,6 +31,11 @@ Route::middleware(['role:superAdmin,admin,user'])->group(function () {
     Route::get('/dashboard/data', [DashboardController::class, 'data'])->name('dashboard.data');
 });
 
+// Add this to your routes file (web.php) inside the superAdmin middleware group
+Route::middleware(['role:superAdmin'])->group(function () {
+    Route::post('/change-password', [UserController::class, 'changePassword'])->name('password.change');
+});
+
 Route::middleware(['role:superAdmin,admin'])->group(function () {
 
     Route::get('/about', [AboutController::class, 'about'])->name('about');

@@ -181,4 +181,41 @@ class UserController extends Controller
             'role' => $user->role,
         ]);
     }
+
+    /**
+     * Change the password for the current authenticated user
+     */
+    public function changePassword(Request $request): RedirectResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'current_password' => ['required', 'string'],
+            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
+            'new_password_confirmation' => ['required', 'string', 'min:8'],
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        // Get user from session
+        $userId = session('user_id');
+        $user = User::findOrFail($userId);
+
+        // Verify current password
+        if (!Hash::check($request->current_password, $user->password)) {
+            return redirect()->back()
+                ->withErrors(['current_password' => 'Current password is incorrect.'])
+                ->withInput();
+        }
+
+        // Update password
+        $user->update([
+            'password' => Hash::make($request->new_password),
+        ]);
+
+        return redirect()->back()
+            ->with('success', 'Password changed successfully!');
+    }
 }
