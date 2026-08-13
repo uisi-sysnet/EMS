@@ -287,7 +287,7 @@
                                 <p class="text-sm font-semibold text-text-100 uppercase">
                                     {{ session('role') === 'superAdmin' ? 'Super Administrator' : (session('role') === 'admin' ? 'Administrator' : 'User') }}
                                 </p>
-                                <p class="text-xs text-text-400 truncate">{{ session('username') ?? 'Guest' }}</p>
+                                <p class="text-xs text-text-400 truncate">{{ session('name') ?? session('username') ?? 'Guest' }}</p>
                             </div>
                             
                             @if(session('role') === 'admin' || session('role') === 'superAdmin')
@@ -387,13 +387,13 @@
             <div class="pt-3 mt-3 border-t border-border-700">
                 <div class="px-3 py-2 flex items-center gap-3">
                     <div class="w-10 h-10 bg-munti-yellow-500 text-background-950 rounded-full flex items-center justify-center font-bold ring-2 ring-text-100/30">
-                        {{ strtoupper(substr(session('username') ?? 'U', 0, 1)) }}
+                        {{ strtoupper(substr(session('name') ?? session('username') ?? 'U', 0, 1)) }}
                     </div>
                     <div>
                         <p class="text-text-100 text-sm font-semibold uppercase">
-                            {{ session('role') === 'admin' || session('role') === 'user' || session('role') === 'superAdmin' ? 'admin' || session('role') === 'user' || session('role') === 'superAdmin' : 'User' }}
+                            {{ session('role') === 'superAdmin' ? 'Super Administrator' : (session('role') === 'admin' ? 'Administrator' : 'User') }}
                         </p>
-                        <p class="text-text-400 text-xs">{{ session('username') ?? 'Guest' }}</p>
+                        <p class="text-text-400 text-xs">{{ session('name') ?? session('username') ?? 'Guest' }}</p>
                     </div>
                 </div>
                 {{-- Mobile Change Password Button --}}
