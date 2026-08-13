@@ -178,7 +178,7 @@
                                 </div>
                             </div>
 
-                            <!-- Role dropdown section - replace the existing role select with this -->
+                            <!-- Role -->
                             <div class="flex flex-col">
                                 <label for="role" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Role <span class="text-munti-red-400">*</span>
