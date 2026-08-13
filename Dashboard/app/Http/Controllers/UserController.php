@@ -42,13 +42,16 @@ class UserController extends Controller
                 ->withInput();
         }
 
+        // FIXED: Get user role from session instead of auth()
+        $currentUserRole = session('role');
+        
         // Prevent non-superAdmin from creating superAdmin accounts
-        if (auth()->user()->role !== 'superAdmin' && $request->role === 'superAdmin') {
+        if ($currentUserRole !== 'superAdmin' && $request->role === 'superAdmin') {
             return back()->withErrors(['role' => 'You do not have permission to create Super Administrator accounts.']);
         }
 
         $user = User::create([
-            'name' => $request->first_name . ' ' . $request->last_name, // <-- ADD THIS
+            'name' => $request->first_name . ' ' . $request->last_name,
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'contact_number' => $request->contact_number,
@@ -86,18 +89,21 @@ class UserController extends Controller
                 ->withInput();
         }
 
+        // FIXED: Get user role from session instead of auth()
+        $currentUserRole = session('role');
+        
         // Prevent non-superAdmin from updating to superAdmin
-        if (auth()->user()->role !== 'superAdmin' && $request->role === 'superAdmin') {
+        if ($currentUserRole !== 'superAdmin' && $request->role === 'superAdmin') {
             return back()->withErrors(['role' => 'You do not have permission to assign Super Administrator role.']);
         }
         
         // Prevent non-superAdmin from editing superAdmin accounts
-        if (auth()->user()->role !== 'superAdmin' && $user->role === 'superAdmin') {
+        if ($currentUserRole !== 'superAdmin' && $user->role === 'superAdmin') {
             return back()->withErrors(['role' => 'You do not have permission to edit Super Administrator accounts.']);
         }
 
         $user->update([
-            'name' => $request->first_name . ' ' . $request->last_name, // <-- ADD THIS
+            'name' => $request->first_name . ' ' . $request->last_name,
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'contact_number' => $request->contact_number,
@@ -122,15 +128,19 @@ class UserController extends Controller
      */
     public function destroy(string $id): RedirectResponse
     {
-
-        if (auth()->user()->role !== 'superAdmin' && $user->role === 'superAdmin') {
-            return back()->withErrors(['error' => 'You do not have permission to delete Super Administrator accounts.']);
-        }
-
         $user = User::findOrFail($id);
         
+        // FIXED: Get user role and ID from session instead of auth()
+        $currentUserRole = session('role');
+        $currentUserId = session('user_id');
+        
+        // Prevent non-superAdmin from deleting superAdmin accounts
+        if ($currentUserRole !== 'superAdmin' && $user->role === 'superAdmin') {
+            return back()->withErrors(['error' => 'You do not have permission to delete Super Administrator accounts.']);
+        }
+        
         // Prevent deleting yourself
-        if (auth()->id() === $user->id) {
+        if ($currentUserId === $user->id) {
             return redirect()->route('user.index')
                 ->with('error', 'You cannot delete your own account.');
         }
