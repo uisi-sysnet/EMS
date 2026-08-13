@@ -186,7 +186,7 @@
                                 <select id="role" name="role" required
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('role') border-munti-red-500 @enderror">
                                     <option value="">Select role</option>
-                                    @if(session('authenticated') && session('role') === 'superAdmin')
+                                    @if(auth()->user()->role === 'superAdmin')
                                         <option value="superAdmin" {{ old('role') == 'superAdmin' ? 'selected' : '' }}>Super Administrator</option>
                                     @endif
                                     <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Admin</option>
@@ -403,7 +403,7 @@
                     </label>
                     <select id="edit_role" name="role" required
                         class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
-                        @if(session('authenticated') && session('role') === 'superAdmin')
+                        @if(auth()->user()->role === 'superAdmin')
                             <option value="superAdmin">Super Administrator</option>
                         @endif
                         <option value="admin">Admin</option>
@@ -453,6 +453,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 // Edit User with AJAX
+// Update the editUser function to handle role restrictions
 async function editUser(userId) {
     const modal = document.getElementById('editModal');
     modal.style.display = 'flex';
@@ -469,7 +470,7 @@ async function editUser(userId) {
         
         // Handle role selection based on current user's permissions
         const roleSelect = document.getElementById('edit_role');
-        const currentUserRole = document.querySelector('meta[name="user-role"]')?.content || '';
+        const currentUserRole = '{{ auth()->user()->role }}';
         
         // Clear existing options
         roleSelect.innerHTML = '';
