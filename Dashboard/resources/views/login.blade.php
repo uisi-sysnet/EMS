@@ -1,5 +1,9 @@
 @include('layouts.header')
 
+@php
+    $appVersion = config('app.version', '7.0');
+@endphp
+
 <div class="fixed inset-0 bg-background-950 flex items-center justify-center px-6 overflow-hidden">
 
     {{-- Decorative background elements --}}
@@ -36,7 +40,7 @@
             </p>
 
             <div class="mt-16 text-text-400 text-sm bg-white/5 px-4 py-1 rounded-full border border-white/10">
-                Beta Version 1.0
+                Version {{ $appVersion }}
             </div>
 
         </div>
