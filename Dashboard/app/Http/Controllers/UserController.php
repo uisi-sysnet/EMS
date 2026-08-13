@@ -42,13 +42,19 @@ class UserController extends Controller
                 ->withInput();
         }
 
-        // Prevent non-superAdmin from creating superAdmin accounts
-        if (auth()->user()->role !== 'superAdmin' && $request->role === 'superAdmin') {
-            return back()->withErrors(['role' => 'You do not have permission to create Super Administrator accounts.']);
+        // Check if user is authenticated before checking role
+        if (auth()->check()) {
+            // Prevent non-superAdmin from creating superAdmin accounts
+            if (auth()->user()->role !== 'superAdmin' && $request->role === 'superAdmin') {
+                return back()->withErrors(['role' => 'You do not have permission to create Super Administrator accounts.']);
+            }
+        } else {
+            // If not authenticated, redirect to login
+            return redirect()->route('login')->with('error', 'Please log in to continue.');
         }
 
         $user = User::create([
-            'name' => $request->first_name . ' ' . $request->last_name, // <-- ADD THIS
+            'name' => $request->first_name . ' ' . $request->last_name,
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'contact_number' => $request->contact_number,
@@ -68,6 +74,11 @@ class UserController extends Controller
      */
     public function update(Request $request, string $id): RedirectResponse
     {
+        // Check if user is authenticated
+        if (!auth()->check()) {
+            return redirect()->route('login')->with('error', 'Please log in to continue.');
+        }
+
         $user = User::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
@@ -97,7 +108,7 @@ class UserController extends Controller
         }
 
         $user->update([
-            'name' => $request->first_name . ' ' . $request->last_name, // <-- ADD THIS
+            'name' => $request->first_name . ' ' . $request->last_name,
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'contact_number' => $request->contact_number,
@@ -122,6 +133,11 @@ class UserController extends Controller
      */
     public function destroy(string $id): RedirectResponse
     {
+        // Check if user is authenticated
+        if (!auth()->check()) {
+            return redirect()->route('login')->with('error', 'Please log in to continue.');
+        }
+
         $user = User::findOrFail($id);
         
         // Check if user has permission to delete
@@ -148,6 +164,11 @@ class UserController extends Controller
      */
     public function edit(string $id)
     {
+        // Check if user is authenticated
+        if (!auth()->check()) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         $user = User::findOrFail($id);
         
         return response()->json([
