@@ -122,12 +122,13 @@ class UserController extends Controller
      */
     public function destroy(string $id): RedirectResponse
     {
-
-        if (auth()->user()->role !== 'superAdmin' && $user->role === 'superAdmin') {
-            return back()->withErrors(['error' => 'You do not have permission to delete Super Administrator accounts.']);
-        }
-
         $user = User::findOrFail($id);
+        
+        // Check if user has permission to delete
+        if (auth()->user()->role !== 'superAdmin' && $user->role === 'superAdmin') {
+            return redirect()->route('user.index')
+                ->with('error', 'You do not have permission to delete Super Administrator accounts.');
+        }
         
         // Prevent deleting yourself
         if (auth()->id() === $user->id) {
