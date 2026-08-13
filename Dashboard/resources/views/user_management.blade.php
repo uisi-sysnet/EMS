@@ -470,7 +470,7 @@ async function editUser(userId) {
         
         // Handle role selection based on current user's permissions
         const roleSelect = document.getElementById('edit_role');
-        const currentUserRole = '{{ auth()->user()->role }}';
+        const currentUserRole = '{{ auth()->user() ? auth()->user()->role : '' }}';
         
         // Clear existing options
         roleSelect.innerHTML = '';
