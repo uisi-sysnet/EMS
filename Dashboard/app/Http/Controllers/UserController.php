@@ -42,6 +42,11 @@ class UserController extends Controller
                 ->withInput();
         }
 
+        // Prevent non-superAdmin from creating superAdmin accounts
+        if (auth()->user()->role !== 'superAdmin' && $request->role === 'superAdmin') {
+            return back()->withErrors(['role' => 'You do not have permission to create Super Administrator accounts.']);
+        }
+
         $user = User::create([
             'name' => $request->first_name . ' ' . $request->last_name, // <-- ADD THIS
             'first_name' => $request->first_name,
@@ -81,6 +86,16 @@ class UserController extends Controller
                 ->withInput();
         }
 
+        // Prevent non-superAdmin from updating to superAdmin
+        if (auth()->user()->role !== 'superAdmin' && $request->role === 'superAdmin') {
+            return back()->withErrors(['role' => 'You do not have permission to assign Super Administrator role.']);
+        }
+        
+        // Prevent non-superAdmin from editing superAdmin accounts
+        if (auth()->user()->role !== 'superAdmin' && $user->role === 'superAdmin') {
+            return back()->withErrors(['role' => 'You do not have permission to edit Super Administrator accounts.']);
+        }
+
         $user->update([
             'name' => $request->first_name . ' ' . $request->last_name, // <-- ADD THIS
             'first_name' => $request->first_name,
@@ -107,6 +122,11 @@ class UserController extends Controller
      */
     public function destroy(string $id): RedirectResponse
     {
+
+        if (auth()->user()->role !== 'superAdmin' && $user->role === 'superAdmin') {
+            return back()->withErrors(['error' => 'You do not have permission to delete Super Administrator accounts.']);
+        }
+
         $user = User::findOrFail($id);
         
         // Prevent deleting yourself

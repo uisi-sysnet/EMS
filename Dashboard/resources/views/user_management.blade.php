@@ -453,6 +453,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 // Edit User with AJAX
+// Update the editUser function to handle role restrictions
 async function editUser(userId) {
     const modal = document.getElementById('editModal');
     modal.style.display = 'flex';
@@ -466,7 +467,35 @@ async function editUser(userId) {
         document.getElementById('edit_contact_number').value = user.contact_number || '';
         document.getElementById('edit_email').value = user.email || '';
         document.getElementById('edit_username').value = user.username || '';
-        document.getElementById('edit_role').value = user.role || 'user';
+        
+        // Handle role selection based on current user's permissions
+        const roleSelect = document.getElementById('edit_role');
+        const currentUserRole = '{{ auth()->user()->role }}';
+        
+        // Clear existing options
+        roleSelect.innerHTML = '';
+        
+        // Add options based on user permissions
+        if (currentUserRole === 'superAdmin') {
+            // SuperAdmin can assign any role
+            const superAdminOption = document.createElement('option');
+            superAdminOption.value = 'superAdmin';
+            superAdminOption.textContent = 'Super Administrator';
+            roleSelect.appendChild(superAdminOption);
+        }
+        
+        const adminOption = document.createElement('option');
+        adminOption.value = 'admin';
+        adminOption.textContent = 'Admin';
+        roleSelect.appendChild(adminOption);
+        
+        const userOption = document.createElement('option');
+        userOption.value = 'user';
+        userOption.textContent = 'User';
+        roleSelect.appendChild(userOption);
+        
+        // Set the selected value
+        roleSelect.value = user.role || 'user';
         
         // Clear password fields
         document.getElementById('edit_password').value = '';
