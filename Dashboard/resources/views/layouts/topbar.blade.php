@@ -259,6 +259,17 @@
 
                 {{-- Avatar and Change Password Button Container --}}
                 <div class="flex items-center gap-x-2">
+                    {{-- Change Password Button (Super Admin only) --}}
+                    @if(session('role') === 'superAdmin')
+                    <button type="button"
+                            id="change-password-btn"
+                            class="text-text-300 hover:text-text-100 transition-colors focus:outline-none p-1.5 rounded-lg hover:bg-surface-700"
+                            title="Change Password">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2m-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2m3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1z"/>
+                        </svg>
+                    </button>
+                    @endif
 
                     {{-- Avatar Dropdown --}}
                     <div class="relative" id="avatar-dropdown">
@@ -270,62 +281,36 @@
                             {{ strtoupper(substr(session('username') ?? 'U', 0, 1)) }}
                         </button>
 
-                        {{-- Avatar and Change Password Button Container --}}
-                        <div class="flex items-center gap-x-2">
-                            {{-- Change Password Button (Super Admin only) --}}
-                            @if(session('role') === 'superAdmin')
-                            <button type="button"
-                                    id="change-password-btn"
-                                    class="text-text-300 hover:text-text-100 transition-colors focus:outline-none p-1.5 rounded-lg hover:bg-surface-700"
-                                    title="Change Password">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2m-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2m3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1z"/>
-                                </svg>
-                            </button>
-                            @endif
-
-                            {{-- Avatar Dropdown --}}
-                            <div class="relative" id="avatar-dropdown">
-                                <button type="button"
-                                        id="avatar-button"
-                                        class="w-8 h-8 bg-munti-yellow-500 text-background-950 rounded-full flex items-center justify-center font-bold ring-2 ring-text-100/40 hover:ring-4 hover:ring-text-100/60 transition-all focus:outline-none"
-                                        aria-expanded="false"
-                                        aria-haspopup="true">
-                                    {{ strtoupper(substr(session('username') ?? 'U', 0, 1)) }}
-                                </button>
-
-                                <div id="avatar-dropdown-menu"
-                                    class="absolute right-0 mt-2 w-56 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-30 overflow-hidden">
-                                    <div class="px-4 py-3 border-b border-border-700">
-                                        <p class="text-sm font-semibold text-text-100 uppercase">
-                                            {{ session('role') === 'superAdmin' ? 'Super Administrator' : (session('role') === 'admin' ? 'Administrator' : 'User') }}
-                                        </p>
-                                        <p class="text-xs text-text-400 truncate">{{ session('username') ?? 'Guest' }}</p>
-                                    </div>
-                                    
-                                    @if(session('role') === 'admin' || session('role') === 'superAdmin')
-                                    <a href="{{ route('user.index') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-b border-border-700">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                                        </svg>
-                                        User Management
-                                    </a>
-                                    @endif
-                                    
-                                    {{-- LOGOUT BUTTON --}}
-                                    <form method="POST" action="{{ route('logout') }}" class="p-2">
-                                        @csrf
-                                        <button type="submit"
-                                                class="w-full flex items-center justify-center gap-x-2 bg-munti-red-700/20 hover:bg-munti-red-600/30 text-munti-red-400 text-sm font-bold py-2.5 rounded-lg transition-all border border-munti-red-600/40 hover:border-munti-red-500/60">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
-                                                <path fill="currentColor" d="M16 13v-2H7V8l-5 4l5 4v-3z"/>
-                                                <path fill="currentColor" d="M20 3h-9c-1.103 0-2 .897-2 2v4h2V5h9v14h-9v-4H9v4c0 1.103.897 2 2 2h9c1.103 0 2-.897 2-2V5c0-1.103-.897-2-2-2"/>
-                                            </svg>
-                                            Logout
-                                        </button>
-                                    </form>
-                                </div>
+                        <div id="avatar-dropdown-menu"
+                            class="absolute right-0 mt-2 w-56 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-30 overflow-hidden">
+                            <div class="px-4 py-3 border-b border-border-700">
+                                <p class="text-sm font-semibold text-text-100 uppercase">
+                                    {{ session('role') === 'superAdmin' ? 'Super Administrator' : (session('role') === 'admin' ? 'Administrator' : 'User') }}
+                                </p>
+                                <p class="text-xs text-text-400 truncate">{{ session('username') ?? 'Guest' }}</p>
                             </div>
+                            
+                            @if(session('role') === 'admin' || session('role') === 'superAdmin')
+                            <a href="{{ route('user.index') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-b border-border-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                </svg>
+                                User Management
+                            </a>
+                            @endif
+                            
+                            {{-- LOGOUT BUTTON --}}
+                            <form method="POST" action="{{ route('logout') }}" class="p-2">
+                                @csrf
+                                <button type="submit"
+                                        class="w-full flex items-center justify-center gap-x-2 bg-munti-red-700/20 hover:bg-munti-red-600/30 text-munti-red-400 text-sm font-bold py-2.5 rounded-lg transition-all border border-munti-red-600/40 hover:border-munti-red-500/60">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                                        <path fill="currentColor" d="M16 13v-2H7V8l-5 4l5 4v-3z"/>
+                                        <path fill="currentColor" d="M20 3h-9c-1.103 0-2 .897-2 2v4h2V5h9v14h-9v-4H9v4c0 1.103.897 2 2 2h9c1.103 0 2-.897 2-2V5c0-1.103-.897-2-2-2"/>
+                                    </svg>
+                                    Logout
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
