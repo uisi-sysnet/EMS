@@ -42,13 +42,19 @@ class UserController extends Controller
                 ->withInput();
         }
 
+        // Check if user is authenticated before checking role
+        if (!auth()->check()) {
+            return redirect()->route('login')
+                ->with('error', 'You must be logged in to perform this action.');
+        }
+
         // Prevent non-superAdmin from creating superAdmin accounts
         if (auth()->user()->role !== 'superAdmin' && $request->role === 'superAdmin') {
             return back()->withErrors(['role' => 'You do not have permission to create Super Administrator accounts.']);
         }
 
         $user = User::create([
-            'name' => $request->first_name . ' ' . $request->last_name, // <-- ADD THIS
+            'name' => $request->first_name . ' ' . $request->last_name,
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'contact_number' => $request->contact_number,
@@ -86,6 +92,12 @@ class UserController extends Controller
                 ->withInput();
         }
 
+        // Check if user is authenticated before checking role
+        if (!auth()->check()) {
+            return redirect()->route('login')
+                ->with('error', 'You must be logged in to perform this action.');
+        }
+
         // Prevent non-superAdmin from updating to superAdmin
         if (auth()->user()->role !== 'superAdmin' && $request->role === 'superAdmin') {
             return back()->withErrors(['role' => 'You do not have permission to assign Super Administrator role.']);
@@ -97,7 +109,7 @@ class UserController extends Controller
         }
 
         $user->update([
-            'name' => $request->first_name . ' ' . $request->last_name, // <-- ADD THIS
+            'name' => $request->first_name . ' ' . $request->last_name,
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'contact_number' => $request->contact_number,
@@ -124,6 +136,12 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         
+        // Check if user is authenticated before checking role
+        if (!auth()->check()) {
+            return redirect()->route('login')
+                ->with('error', 'You must be logged in to perform this action.');
+        }
+
         // Check if user has permission to delete
         if (auth()->user()->role !== 'superAdmin' && $user->role === 'superAdmin') {
             return redirect()->route('user.index')
