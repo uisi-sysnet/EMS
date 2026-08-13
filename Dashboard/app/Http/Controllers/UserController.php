@@ -42,8 +42,7 @@ class UserController extends Controller
                 ->withInput();
         }
 
-        // Prevent non-superAdmin from creating superAdmin accounts
-        if (auth()->user()->role !== 'superAdmin' && $request->role === 'superAdmin') {
+        if (auth()->user()?->role !== 'superAdmin' && $request->role === 'superAdmin') {
             return back()->withErrors(['role' => 'You do not have permission to create Super Administrator accounts.']);
         }
 
@@ -86,13 +85,12 @@ class UserController extends Controller
                 ->withInput();
         }
 
-        // Prevent non-superAdmin from updating to superAdmin
-        if (auth()->user()->role !== 'superAdmin' && $request->role === 'superAdmin') {
+        // update()
+        if (auth()->user()?->role !== 'superAdmin' && $request->role === 'superAdmin') {
             return back()->withErrors(['role' => 'You do not have permission to assign Super Administrator role.']);
         }
-        
-        // Prevent non-superAdmin from editing superAdmin accounts
-        if (auth()->user()->role !== 'superAdmin' && $user->role === 'superAdmin') {
+
+        if (auth()->user()?->role !== 'superAdmin' && $user->role === 'superAdmin') {
             return back()->withErrors(['role' => 'You do not have permission to edit Super Administrator accounts.']);
         }
 
@@ -124,8 +122,8 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         
-        // Check if user has permission to delete
-        if (auth()->user()->role !== 'superAdmin' && $user->role === 'superAdmin') {
+        // destroy()
+        if (auth()->user()?->role !== 'superAdmin' && $user->role === 'superAdmin') {
             return redirect()->route('user.index')
                 ->with('error', 'You do not have permission to delete Super Administrator accounts.');
         }
