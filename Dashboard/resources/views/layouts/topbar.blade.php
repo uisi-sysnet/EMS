@@ -174,9 +174,11 @@
                             </p>
                             <p class="text-xs text-text-400 truncate">{{ session('username') ?? 'Guest' }}</p>
                         </div>
+                        @if(session('role') === 'admin' || session('role') === 'superAdmin')
                         <a href="{{ route('user.index') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">
                             User Management
                         </a>
+                        @endif
                         <form method="POST" action="{{ route('logout') }}" class="p-2">
                             @csrf
                             <button type="submit"
