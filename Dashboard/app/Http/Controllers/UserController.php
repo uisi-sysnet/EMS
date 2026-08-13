@@ -12,12 +12,24 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
+
     /**
      * Display the user management page
      */
     public function index(): View
     {
-        $users = User::orderBy('created_at', 'desc')->get();
+        $currentUserRole = session('role');
+        
+        // If user is Admin, hide Super Admin users
+        if ($currentUserRole === 'admin') {
+            $users = User::where('role', '!=', 'superAdmin')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        } else {
+            // SuperAdmin can see all users
+            $users = User::orderBy('created_at', 'desc')->get();
+        }
+        
         return view('user_management', compact('users'));
     }
 
