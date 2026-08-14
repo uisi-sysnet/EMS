@@ -18,12 +18,18 @@ use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\SeismicStationController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\TerminalAuthController;
+use App\Http\Controllers\Logs\DatabaseLogController;
 
 Route::get('/register', [LoginController::class, 'showRegisterForm'])->name('register');
 Route::post('/register', [LoginController::class, 'register']);
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+Route::middleware(['auth', 'permission:view database logs'])->group(function () {
+    Route::get('/logs/database', [DatabaseLogController::class, 'index'])->name('logs.database.index');
+    Route::get('/logs/database/export', [DatabaseLogController::class, 'export'])->name('logs.database.export');
+});
 
 Route::middleware(['role:superAdmin,admin,user'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('home');
@@ -34,6 +40,7 @@ Route::middleware(['role:superAdmin,admin,user'])->group(function () {
 // Add this to your routes file (web.php) inside the superAdmin middleware group
 Route::middleware(['role:superAdmin'])->group(function () {
     Route::post('/change-password', [UserController::class, 'changePassword'])->name('password.change');
+    
 });
 
 Route::middleware(['role:superAdmin,admin'])->group(function () {
