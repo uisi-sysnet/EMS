@@ -40,15 +40,9 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
 
     Route::get('/about', [AboutController::class, 'about'])->name('about');
 
-    Route::get('/database-logs', [DatabaseLogController::class, 'index'])
-        ->name('database-logs.index')
-        ->middleware('permission:view database logs');
-    
-    Route::get('/database-logs/{log}', [DatabaseLogController::class, 'show'])
-        ->name('database-logs.show');
-    
-    Route::get('/database-logs/export/csv', [DatabaseLogController::class, 'exportCsv'])
-        ->name('database-logs.export');
+    Route::get('/database-logs', [DatabaseLogController::class, 'index'])->name('database-logs.index');
+    Route::get('/database-logs/{log}', [DatabaseLogController::class, 'show'])->name('database-logs.show');
+    Route::get('/database-logs/export/csv', [DatabaseLogController::class, 'exportCsv'])->name('database-logs.export');
     
     // User Management Routes
     Route::get('/user', [UserController::class, 'index'])->name('user.index');
