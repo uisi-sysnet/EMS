@@ -18,7 +18,6 @@ use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\SeismicStationController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\TerminalAuthController;
-use App\Http\Controllers\DatabaseLogController;
 
 Route::get('/register', [LoginController::class, 'showRegisterForm'])->name('register');
 Route::post('/register', [LoginController::class, 'register']);
@@ -40,10 +39,6 @@ Route::middleware(['role:superAdmin'])->group(function () {
 Route::middleware(['role:superAdmin,admin'])->group(function () {
 
     Route::get('/about', [AboutController::class, 'about'])->name('about');
-
-    Route::get('/database-logs', [DatabaseLogController::class, 'index'])->name('database-logs.index');
-    Route::get('/database-logs/{log}', [DatabaseLogController::class, 'show'])->name('database-logs.show');
-    Route::get('/database-logs/export/csv', [DatabaseLogController::class, 'exportCsv'])->name('database-logs.export');
     
     // User Management Routes
     Route::get('/user', [UserController::class, 'index'])->name('user.index');
