@@ -18,7 +18,7 @@ use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\SeismicStationController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\TerminalAuthController;
-use App\Http\Controllers\Logs\DatabaseLogController;
+use App\Http\Controllers\DatabaseLogController;
 
 Route::get('/register', [LoginController::class, 'showRegisterForm'])->name('register');
 Route::post('/register', [LoginController::class, 'register']);
