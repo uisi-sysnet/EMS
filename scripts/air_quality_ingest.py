@@ -518,11 +518,33 @@ def insert_sensor_data(data, ip_address, station_conn=None):
             logger.warning(f"Station {mn}: unparseable DataTime '{cp.get('DataTime')}' — using server time.")
 
     row = {"station_mn": mn, "ip_address": ip_address, "data_time": data_time}
+    got_any_value = False
     for code, sensor in SENSORS.items():
-        if code not in cp:
-            continue
-        sensor_data = cp[code]
-        row[sensor["column"]] = sensor_data.get("Rtd") or sensor_data.get("Avg") or sensor_data.get("Value")
+        value = None
+        if code in cp:
+            sensor_data = cp[code]
+            # Check `is not None` rather than using `sensor_data.get("Rtd") or
+            # ...` — a genuine 0.0 reading (e.g. Rtd=0.00 for rain) is falsy
+            # in Python, so the old `or` chain would silently skip a real
+            # Rtd=0.0 and fall through to Avg/Value instead of using it.
+            for key in ("Rtd", "Avg", "Value"):
+                if sensor_data.get(key) is not None:
+                    value = sensor_data[key]
+                    break
+        if value is None:
+            # Sensor code wasn't in this frame at all (or was present with
+            # no usable Rtd/Avg/Value) — store 0 instead of NULL.
+            value = 0.0
+        else:
+            got_any_value = True
+        row[sensor["column"]] = value
+
+    if not got_any_value:
+        # Every column above is a defaulted 0 — this frame didn't actually
+        # report a single real sensor value. Discard rather than writing a
+        # row that's all zero-fill and no real data.
+        _log_station_reading_rejected(mn, ip_address, "sent a frame with no usable sensor values")
+        return
 
     _sensor_data_queue.put(row)
 

@@ -1,534 +1,398 @@
 #!/usr/bin/env python3
 """
-Monitoring API Server
-Serves REST endpoints for both the Air Quality and Seismic monitoring systems.
-This process does NOT ingest data itself — it only reads what
-air_quality_ingest.py and seismic_mqtt.py have already written.
+Air Quality Ingestion Service
+Protocol: HJ212 (TCP) & Modbus TCP (lead sensor)
+Responsibility: receive station telemetry, parse it, write it to the
+`air_quality` TimescaleDB database. No API code lives here — see api_server.py.
 """
 
+import json
 import logging
 import os
-import hashlib
-import ipaddress
+import queue
+import re
+import socket
 import threading
 import time
-from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from typing import Optional
 
 import psycopg2
-from psycopg2 import pool
-from psycopg2.extras import RealDictCursor
-
-import uvicorn
-from fastapi import FastAPI, Depends, HTTPException, Security, Request, Query, Path as ApiPath
-from fastapi.responses import JSONResponse
-from fastapi.security import APIKeyHeader
+from psycopg2 import pool, sql
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from psycopg2.extras import execute_values
+from pymodbus.client import ModbusTcpClient
+from pymodbus.framer import FramerType
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
-from typing import Any, List, Optional, Dict
 
 # ==========================================================
-# STANDARD VALIDATION ERROR SCHEMA (shown on every endpoint's docs)
-# ==========================================================
-class ValidationErrorDetail(BaseModel):
-    loc: List[Any]
-    msg: str
-    type: str
-    input: Optional[Any] = None
-    ctx: Optional[Dict[str, Any]] = None
-
-class HTTPValidationError(BaseModel):
-    detail: List[ValidationErrorDetail]
-
-VALIDATION_RESPONSES: Dict[int, Any] = {
-    422: {"model": HTTPValidationError, "description": "Validation Error"},
-}
-
-
-# ==========================================================
-# STANDARD ERROR SCHEMAS FOR AUTH / NOT FOUND / SERVER ERRORS
-# These match what FastAPI's HTTPException actually returns:
-# a plain {"detail": "<message>"} string, not the validation list shape above.
-# ==========================================================
-class HTTPError(BaseModel):
-    detail: str
-    
-SERVER_ERROR_RESPONSES: Dict[int, Any] = {
-    400: {
-        "model": HTTPError,
-        "description": "Bad Request (e.g. invalid query parameters)",
-        "content": {
-            "application/json": {
-                "example": {"detail": "Bad Request"}
-            }
-        },
-    },
-}
-
-AUTH_RESPONSES: Dict[int, Any] = {
-    403: {
-        "model": HTTPError,
-        "description": "Missing or invalid API key",
-        "content": {
-            "application/json": {
-                "example": {"detail": "Unauthorized request: Invalid API Token"}
-            }
-        },
-    },
-}
-
-NOT_FOUND_RESPONSES: Dict[int, Any] = {
-    404: {
-        "model": HTTPError,
-        "description": "Station not found",
-        "content": {
-            "application/json": {
-                "example": {"detail": "Station Identifier not found in database records."}
-            }
-        },
-    },
-}
-
-SERVER_ERROR_RESPONSES: Dict[int, Any] = {
-    500: {
-        "model": HTTPError,
-        "description": "Internal server error (e.g. database unreachable)",
-        "content": {
-            "application/json": {
-                "example": {"detail": "Internal Server Error"}
-            }
-        },
-    },
-}
-
-
-
-# Combined response sets, ready to drop into any @app.get(..., responses=...)
-AUTHED_RESPONSES: Dict[int, Any] = {**VALIDATION_RESPONSES, **AUTH_RESPONSES, **SERVER_ERROR_RESPONSES}
-AUTHED_LOOKUP_RESPONSES: Dict[int, Any] = {**AUTHED_RESPONSES, **NOT_FOUND_RESPONSES}
-
-
-# ==========================================================
-# SUCCESS RESPONSE SCHEMAS (200) — shown as "Example Value" / "Schema"
-# in the docs for every endpoint, instead of a generic "string".
-# ==========================================================
-
-# ---- Air Quality ----
-class AQLocation(BaseModel):
-    latitude: Optional[float] = Field(None, examples=[14.5995])
-    longitude: Optional[float] = Field(None, examples=[120.9842])
-
-class AQWeather(BaseModel):
-    temperature: Optional[float] = Field(None, examples=[29.4])
-    humidity: Optional[float] = Field(None, examples=[68.2])
-    pressure: Optional[float] = Field(None, examples=[101.3])
-    rain: Optional[float] = Field(None, examples=[0.0])
-    wind_speed: Optional[float] = Field(None, examples=[2.1])
-    wind_direction: Optional[float] = Field(None, examples=[180.0])
-    noise: Optional[float] = Field(None, examples=[62.5])
-
-class AQPollutants(BaseModel):
-    pm2_5: Optional[float] = Field(None, examples=[18.3])
-    pm10: Optional[float] = Field(None, examples=[32.7])
-    tsp: Optional[float] = Field(None, examples=[45.1])
-    co: Optional[float] = Field(None, examples=[0.6])
-    so2: Optional[float] = Field(None, examples=[5.2])
-    no2: Optional[float] = Field(None, examples=[21.4])
-    o3: Optional[float] = Field(None, examples=[38.9])
-    pb: Optional[float] = Field(None, examples=[0.02])
-    pb_temp: Optional[float] = Field(None, examples=[27.8])
-
-class AQStation(BaseModel):
-    station_mn: str = Field(..., examples=["4101025U122041"])
-    friendly_name: Optional[str] = Field(None, examples=["AQM001"])
-    location: AQLocation
-    status: str = Field(..., examples=["online"], description="'online' if last reading was under 15 minutes ago, else 'offline'.")
-    last_update: Optional[str] = Field(None, examples=["2026-07-10T09:15:32.123Z"])
-    weather: AQWeather
-    pollutants: AQPollutants
-
-class AQStationsLatestResponse(BaseModel):
-    timestamp: str = Field(..., examples=["2026-07-10T09:16:00.000Z"])
-    total_stations: int = Field(..., examples=[2])
-    stations: List[AQStation]
-
-class AQStationLatestResponse(BaseModel):
-    timestamp: str = Field(..., examples=["2026-07-10T09:16:00.000Z"])
-    station: AQStation
-
-class AQAnalyticsRow(BaseModel):
-    station_mn: str = Field(..., examples=["4101025U122041"])
-    station_name: Optional[str] = Field(None, examples=["AQM001"])
-    temperature: Optional[float] = Field(None, examples=[28.9])
-    humidity: Optional[float] = Field(None, examples=[70.1])
-    air_pressure: Optional[float] = Field(None, examples=[101.2])
-    rain: Optional[float] = Field(None, examples=[0.4])
-    wind_speed: Optional[float] = Field(None, examples=[2.3])
-    wind_direction: Optional[float] = Field(None, examples=[175.0])
-    noise: Optional[float] = Field(None, examples=[60.8])
-    pm25: Optional[float] = Field(None, examples=[19.1])
-    pm10: Optional[float] = Field(None, examples=[33.4])
-    tsp: Optional[float] = Field(None, examples=[46.0])
-    carbon_monoxide: Optional[float] = Field(None, examples=[0.58])
-    sulfur_dioxide: Optional[float] = Field(None, examples=[5.0])
-    nitrogen_dioxide: Optional[float] = Field(None, examples=[20.7])
-    ozone: Optional[float] = Field(None, examples=[37.2])
-    lead: Optional[float] = Field(None, examples=[0.019])
-    lead_temperature: Optional[float] = Field(None, examples=[27.5])
-
-class AQAnalytics1dResponse(BaseModel):
-    range: str = Field(..., examples=["24_hours_aggregated_average"])
-    timestamp: str = Field(..., examples=["2026-07-10T09:16:00.000Z"])
-    results: List[AQAnalyticsRow]
-
-class AQDailyAnalyticsRow(AQAnalyticsRow):
-    summary_date: Optional[str] = Field(None, examples=["2026-07-09"])
-
-class AQAnalyticsDailyResponse(BaseModel):
-    range: str = Field(..., examples=["7_days_daily_averages"])
-    results: List[AQDailyAnalyticsRow]
-
-class AQStationInfo(BaseModel):
-    station_mn: str = Field(..., examples=["4101025U122041"])
-    station_name: Optional[str] = Field(None, examples=["AQM001"])
-    latitude: Optional[float] = Field(None, examples=[14.5995])
-    longitude: Optional[float] = Field(None, examples=[120.9842])
-    updated_at: Optional[str] = Field(None, examples=["2026-07-10T08:00:00.000Z"])
-
-class AQStationsListResponse(BaseModel):
-    total_registered: int = Field(..., examples=[2])
-    stations: List[AQStationInfo]
-
-
-# ---- Seismic ----
-class SeismicLocation(BaseModel):
-    latitude: Optional[float] = Field(None, examples=[14.5995])
-    longitude: Optional[float] = Field(None, examples=[120.9842])
-    elevation_m: Optional[float] = Field(None, examples=[12.5])
-
-class SeismicVector(BaseModel):
-    x: Optional[float] = Field(None, examples=[0.0021])
-    y: Optional[float] = Field(None, examples=[-0.0013])
-    z: Optional[float] = Field(None, examples=[0.0042])
-
-class SeismicGraph(BaseModel):
-    x: Optional[float] = Field(None, examples=[0.0021])
-    y: Optional[float] = Field(None, examples=[-0.0013])
-    z: Optional[float] = Field(None, examples=[0.0042])
-    scale: Optional[str] = Field(None, examples=["1:100"])
-    center: Optional[float] = Field(None, examples=[0.0])
-
-class SeismicStation(BaseModel):
-    station_id: str = Field(..., examples=["STN-001"])
-    friendly_name: Optional[str] = Field(None, examples=["Pacific Ridge Station"])
-    location: SeismicLocation
-    status: str = Field(..., examples=["online"], description="'online' if last reading was under 5 minutes ago, else 'offline'.")
-    last_update: Optional[str] = Field(None, examples=["2026-07-10T09:15:32.123Z"])
-    acceleration: SeismicVector
-    velocity: SeismicVector
-    displacement: SeismicVector
-    graph: SeismicGraph
-    pga: Optional[float] = Field(None, examples=[0.031])
-    peis: Optional[int] = Field(None, examples=[2])
-
-class SeismicStationsLatestResponse(BaseModel):
-    timestamp: str = Field(..., examples=["2026-07-10T09:16:00.000Z"])
-    total_stations: int = Field(..., examples=[1])
-    stations: List[SeismicStation]
-
-class SeismicStationLatestResponse(BaseModel):
-    timestamp: str = Field(..., examples=["2026-07-10T09:16:00.000Z"])
-    station: SeismicStation
-
-class SeismicReading(BaseModel):
-    time: str = Field(..., examples=["2026-07-10T09:00:00.000Z"])
-    acc_x: Optional[float] = Field(None, examples=[0.0021])
-    acc_y: Optional[float] = Field(None, examples=[-0.0013])
-    acc_z: Optional[float] = Field(None, examples=[0.0042])
-    vel_x: Optional[float] = Field(None, examples=[0.0008])
-    vel_y: Optional[float] = Field(None, examples=[-0.0004])
-    vel_z: Optional[float] = Field(None, examples=[0.0011])
-    disp_x: Optional[float] = Field(None, examples=[0.0002])
-    disp_y: Optional[float] = Field(None, examples=[-0.0001])
-    disp_z: Optional[float] = Field(None, examples=[0.0003])
-    pga: Optional[float] = Field(None, examples=[0.031])
-    peis: Optional[int] = Field(None, examples=[2])
-
-class SeismicHistoryResponse(BaseModel):
-    station_id: str = Field(..., examples=["STN-001"])
-    hours: int = Field(..., examples=[1])
-    readings: List[SeismicReading]
-
-class SeismicEvent(BaseModel):
-    time: str = Field(..., examples=["2026-07-10T09:00:00.000Z"])
-    station_id: str = Field(..., examples=["STN-001"])
-    station_name: Optional[str] = Field(None, examples=["Pacific Ridge Station"])
-    latitude: Optional[float] = Field(None, examples=[14.5995])
-    longitude: Optional[float] = Field(None, examples=[120.9842])
-    pga: Optional[float] = Field(None, examples=[0.058])
-    peis: Optional[int] = Field(None, examples=[3])
-
-class SeismicEventsResponse(BaseModel):
-    min_peis: int = Field(..., examples=[1])
-    hours: int = Field(..., examples=[24])
-    total_events: int = Field(..., examples=[1])
-    events: List[SeismicEvent]
-
-class SeismicStationGraph(BaseModel):
-    station_id: str = Field(..., examples=["STN-001"])
-    friendly_name: Optional[str] = Field(None, examples=["Pacific Ridge Station"])
-    status: str = Field(..., examples=["online"], description="'online' if last reading was under 5 minutes ago, else 'offline'.")
-    last_update: Optional[str] = Field(None, examples=["2026-07-10T09:15:32.123Z"])
-    graph: SeismicGraph
-
-class SeismicGraphAllResponse(BaseModel):
-    timestamp: str = Field(..., examples=["2026-07-10T09:16:00.000Z"])
-    total_stations: int = Field(..., examples=[1])
-    stations: List[SeismicStationGraph]
-
-class SeismicStationGraphResponse(BaseModel):
-    timestamp: str = Field(..., examples=["2026-07-10T09:16:00.000Z"])
-    station: SeismicStationGraph
-
-
-# ---- System ----
-class SubsystemStatus(BaseModel):
-    air_quality_db_pool: str = Field(..., examples=["initialized"])
-    seismic_db_pool: str = Field(..., examples=["initialized"])
-    api_db_pool: str = Field(..., examples=["initialized"])
-
-class SystemStatusResponse(BaseModel):
-    status: str = Field(..., examples=["operational"])
-    timestamp: str = Field(..., examples=["2026-07-10T09:16:00.000Z"])
-    subsystems: SubsystemStatus
-
-class ServiceLogEntry(BaseModel):
-    created_at: str = Field(..., examples=["2026-07-10T09:16:00.000Z"])
-    service: str = Field(..., examples=["air_quality_ingest"])
-    level: str = Field(..., examples=["INFO"])
-    logger_name: Optional[str] = Field(None, examples=["air_quality_ingest"])
-    thread_name: Optional[str] = Field(None, examples=["MainThread"])
-    message: str = Field(..., examples=["Ingested air quality reading for station 4101025U122041"])
-
-class ServiceLogsResponse(BaseModel):
-    total: int = Field(..., examples=[42])
-    logs: List[ServiceLogEntry]
-
-
-# ==========================================================
-# CONFIG
+# CONFIG (from shared .env)
 # ==========================================================
 SCRIPT_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=SCRIPT_DIR / ".env")
 
-API_PORT = int(os.getenv("API_PORT", 8443))
-# nginx is the intended public entry point (see deploy.sh) — default to
-# loopback-only so the API is unreachable unless something explicitly
-# proxies to it. Override only if you really need direct external access
-# without nginx in front (not recommended: the IP allowlist and API-key
-# checks below both rely on requests arriving via nginx).
-API_BIND_HOST = os.getenv("API_BIND_HOST", "127.0.0.1")
+SERVER_HOST = os.getenv("AQ_SERVER_HOST", "0.0.0.0")
+SERVER_PORT = int(os.getenv("AQ_SERVER_PORT", 1935))
+BUFFER_SIZE = 4096
+MAX_CONNECTIONS = 20
+VERIFY_CHECKSUM = False
+SUPPORTED_CN = ["2011", "9014"]
+LEAD_POLL_INTERVAL = int(os.getenv("AQ_LEAD_POLL_INTERVAL", 30))
 
-# Parse "token:label,token:label" into a dict — used only for the one-time
-# migration into the api_keys table below; not read again after that.
-def _parse_api_keys(raw: str):
-    keys = {}
-    for pair in raw.split(","):
-        if ":" in pair:
-            token, label = pair.split(":", 1)
-            keys[token.strip()] = label.strip()
-    return keys
+# How old the latest sensor_data row for a station is allowed to be before a
+# Modbus lead reading is attached to it. Without this, a station whose
+# HJ212 telemetry has gone quiet (but whose lead analyzer is still
+# reachable over Modbus) would keep having fresh lead values silently
+# stitched onto an increasingly stale row — data for the wrong point in
+# time, tagged with the right station_mn but the wrong data_time.
+AQ_LEAD_MAX_ROW_AGE_SEC = int(os.getenv("AQ_LEAD_MAX_ROW_AGE_SEC", 600))
 
-# ---- API database (IOT_api) ----
-# Houses everything that belongs to this API server itself rather than to
-# the sensor data it reads: the `api_keys` registry table AND the
-# `api_request_logs` table (moved here from the air quality database — see
-# insert_api_log()/initialize_pools() below). One database, two tables,
-# both API-server-owned housekeeping data.
-AUTHORIZED_KEYS: Dict[str, str] = {}
-_api_keys_lock = threading.Lock()
-API_KEYS_REFRESH_INTERVAL_SEC = int(os.getenv("API_KEYS_REFRESH_INTERVAL_SEC", 300))
+# How far a sensor's self-reported DataTime is allowed to drift from this
+# server's (NTP-synced) clock before we treat it as bogus and fall back to
+# server time. Override via .env if your sensors are expected to run ahead/
+# behind by more than an hour under normal operation.
+MAX_SENSOR_CLOCK_DRIFT = timedelta(hours=int(os.getenv("AQ_MAX_SENSOR_CLOCK_DRIFT_HOURS", 1)))
 
-# ---- IP allowlist (also lives in IOT_api, table `allowed_ips`) ----
-# Same registry-in-DB / periodic-refresh pattern as AUTHORIZED_KEYS above,
-# so entries can be added/removed with plain SQL and picked up without a
-# restart. Checked in the middleware below, before the API key itself.
-AUTHORIZED_NETWORKS: List["ipaddress._BaseNetwork"] = []
-_ip_allowlist_lock = threading.Lock()
-IP_ALLOWLIST_REFRESH_INTERVAL_SEC = int(os.getenv("IP_ALLOWLIST_REFRESH_INTERVAL_SEC", 300))
+# ---- Active clock correction (HJ212 §6.6.5, CN=1012 设置现场机时间) ----
+# Off by default: this actively pushes a "set your clock" command to the
+# physical station over its live TCP connection, so it should be turned on
+# deliberately after confirming your station firmware implements CN=1012 as
+# the standard specifies (implementations vary by vendor).
+AQ_TIME_SYNC_ENABLED = os.getenv("AQ_TIME_SYNC_ENABLED", "false").strip().lower() == "true"
+# System code (ST) to use in outbound command frames — HJ212 Table 5.
+# 22 = 空气质量监测 (ambient air quality monitoring). If your stations are
+# regulatory emission-source monitors rather than ambient monitors, your
+# vendor may expect 31 (大气环境污染源) instead — check your station's manual.
+AQ_HJ212_ST = os.getenv("AQ_HJ212_ST", "22")
+# Access password (PW field) the station expects on commands sent to it.
+# This is a per-device credential configured on the station itself — it is
+# NOT necessarily the same as anything in this .env already. Ask your
+# station vendor/installer for it if you don't have it on hand.
+AQ_HJ212_PW = os.getenv("AQ_HJ212_PW", "123456")
+# Minimum time between time-sync attempts for the same station, so a
+# persistently drifting sensor doesn't get flooded with correction commands.
+AQ_TIME_SYNC_COOLDOWN_MIN = int(os.getenv("AQ_TIME_SYNC_COOLDOWN_MIN", 60))
 
-# This deployment sits behind nginx (confirmed), so the real client IP
-# arrives in a header rather than as the TCP peer address — uvicorn only
-# ever sees nginx's own IP as request.client.host. TRUST_PROXY_HEADERS
-# defaults on for that reason.
-#
-# Specifically this trusts X-Real-IP, not X-Forwarded-For — deploy.sh's
-# nginx config sets:
-#   proxy_set_header X-Real-IP        $remote_addr;              (overwritten every time — safe)
-#   proxy_set_header X-Forwarded-For  $proxy_add_x_forwarded_for; (appended to client input — spoofable)
-# $proxy_add_x_forwarded_for appends nginx's view of the client onto
-# whatever X-Forwarded-For the client already sent, so a client can prepend
-# a fake IP and it ends up first in that header. X-Real-IP has no such
-# hole: nginx replaces it outright regardless of what the client sends.
-#
-# This is only safe if BOTH of the following hold on the host:
-#   1. nginx is what deploy.sh installs (sets X-Real-IP as above).
-#   2. uvicorn is not reachable directly from outside — it must bind to
-#      127.0.0.1 (API_BIND_HOST, see below) so requests can only arrive via
-#      nginx. If it's reachable directly, anyone can hit it and set
-#      X-Real-IP themselves, bypassing the allowlist entirely.
-TRUST_PROXY_HEADERS = os.getenv("TRUST_PROXY_HEADERS", "true").strip().lower() == "true"
+DB_HOST = os.getenv("SYSTEM_DB_HOST", "127.0.0.1")
+DB_PORT = int(os.getenv("SYSTEM_DB_PORT", 5432))
+DB_NAME = os.getenv("AQ_DB_NAME", "IOT_aq_sensor_data")
+DB_USER = os.getenv("SYSTEM_DB_USER", "aq_user")
+DB_PASSWORD = os.getenv("SYSTEM_DB_PASSWORD")
 
-API_DB = dict(
-    host=os.getenv("SYSTEM_DB_HOST", "127.0.0.1"),
-    port=int(os.getenv("SYSTEM_DB_PORT", 5432)),
-    dbname=os.getenv("API_DB_NAME", "IOT_api"),
-    user=os.getenv("SYSTEM_DB_USER", "aq_user"),
-    password=os.getenv("SYSTEM_DB_PASSWORD"),
-)
+# Connection pool sizing — kept modest by default since this, seismic_mqtt.py,
+# and api_server.py may all be running on the same low-memory Raspberry Pi.
+DB_POOL_MIN = int(os.getenv("SYSTEM_DB_POOL_MIN", 2))
+DB_POOL_MAX = int(os.getenv("SYSTEM_DB_POOL_MAX", 10))
 
-AQ_DB = dict(
-    host=os.getenv("SYSTEM_DB_HOST", "127.0.0.1"),
-    port=int(os.getenv("SYSTEM_DB_PORT", 5432)),
-    dbname=os.getenv("AQ_DB_NAME", "IOT_aq_sensor_data"),
-    user=os.getenv("SYSTEM_DB_USER", "aq_user"),
-    password=os.getenv("SYSTEM_DB_PASSWORD"),
-)
+# ---- Batched sensor-data writes ----
+# A station reading used to be a single INSERT + a single commit, executed
+# synchronously on whichever thread received that station's TCP frame. Fine
+# at low volume, but every extra station/poll rate adds a full round-trip +
+# WAL fsync per reading. Instead, parsed readings are dropped on an in-memory
+# queue (cheap, non-blocking for the TCP handler threads) and a single
+# background thread (see batch_insert_worker) flushes them to Postgres as one
+# multi-row INSERT + one commit, whenever AQ_BATCH_MAX_SIZE readings have
+# queued up OR AQ_BATCH_MAX_INTERVAL_SEC seconds have passed since the first
+# unflushed reading — whichever comes first, so worst-case latency is bounded
+# even when traffic is light.
+AQ_BATCH_MAX_SIZE = int(os.getenv("AQ_BATCH_MAX_SIZE", 100))
+AQ_BATCH_MAX_INTERVAL_SEC = float(os.getenv("AQ_BATCH_MAX_INTERVAL_SEC", 2))
 
-SEISMIC_DB = dict(
-    host=os.getenv("SYSTEM_DB_HOST", "127.0.0.1"),
-    port=int(os.getenv("SYSTEM_DB_PORT", 5432)),
-    dbname=os.getenv("SEISMIC_DB_NAME", "IOT_seismic_sensor_data"),
-    user=os.getenv("SYSTEM_DB_USER", "aq_user"),
-    password=os.getenv("SYSTEM_DB_PASSWORD"),
-)
+# Minimum time between "reading discarded" log entries for the *same*
+# station, so a chatty unregistered/disabled station doesn't flood the
+# system log (service_logs table) with a repeat warning on every frame.
+AQ_STATION_REJECT_LOG_COOLDOWN_MIN = int(os.getenv("AQ_STATION_REJECT_LOG_COOLDOWN_MIN", 15))
 
-# Separate log database (IOT_service_logs) — same server/credentials as the
-# other two, only the database name differs. This is what /api/system/logs
-# below actually queries, and where air_quality_ingest.py and seismic_mqtt.py
-# mirror their own logs.
-LOG_DB = dict(
-    host=os.getenv("SYSTEM_DB_HOST", "127.0.0.1"),
-    port=int(os.getenv("SYSTEM_DB_PORT", 5432)),
-    dbname=os.getenv("LOG_DB_NAME", "IOT_service_logs"),
-    user=os.getenv("SYSTEM_DB_USER", "aq_user"),
-    password=os.getenv("SYSTEM_DB_PASSWORD"),
-)
-
-# Connection pool sizing — kept modest by default since air_quality_ingest.py
-# and seismic_mqtt.py may all be running on the same low-memory Raspberry Pi.
-AQ_DB_POOL_MIN = int(os.getenv("AQ_DB_POOL_MIN", 2))
-AQ_DB_POOL_MAX = int(os.getenv("AQ_DB_POOL_MAX", 10))
-SEISMIC_DB_POOL_MIN = int(os.getenv("SEISMIC_DB_POOL_MIN", 2))
-SEISMIC_DB_POOL_MAX = int(os.getenv("SEISMIC_DB_POOL_MAX", 10))
-LOG_DB_POOL_MIN = int(os.getenv("LOG_DB_POOL_MIN", 1))
-LOG_DB_POOL_MAX = int(os.getenv("LOG_DB_POOL_MAX", 5))
-# api_request_logs gets a write on every single request (via the middleware
-# below), same traffic pattern as the sensor DBs, so it gets its own
-# similarly-sized pool rather than sharing the smaller LOG_DB pool.
-API_DB_POOL_MIN = int(os.getenv("API_DB_POOL_MIN", 2))
-API_DB_POOL_MAX = int(os.getenv("API_DB_POOL_MAX", 10))
-
-logger = logging.getLogger("monitoring_api")
-logger.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(threadName)s: %(message)s")
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
+# How often the in-memory station registry is reloaded from the database, so
+# stations added/edited/disabled in the DB (e.g. via import_stations.py or
+# direct SQL) are picked up without restarting this service.
+AQ_STATIONS_REFRESH_INTERVAL_SEC = int(os.getenv("AQ_STATIONS_REFRESH_INTERVAL_SEC", 300))
 
 # ---- Database-backed logging ----
-# Logs are mirrored into the `service_logs` table in the separate
-# IOT_service_logs database (shared with air_quality_ingest.py and
-# seismic_mqtt.py, tagged service='api_server') instead of a local log file
-# — queryable via SQL or GET /api/system/logs below. Console output remains,
-# captured by systemd's journal when this runs as a service.
+# All log records are mirrored into the `service_logs` table in the
+# separate IOT_service_logs database (shared with seismic_mqtt.py and
+# api_server.py, each tagging its own rows via the `service` column) so
+# logs are centrally queryable via SQL or the /api/system/logs endpoint,
+# instead of living only in per-host log files or mixed into sensor data.
+# Console output is kept and captured by systemd's journal.
 DB_LOG_ENABLED = os.getenv("DB_LOG_ENABLED", "true").strip().lower() == "true"
 DB_LOG_TABLE = os.getenv("DB_LOG_TABLE", "service_logs")
-if DB_LOG_ENABLED and LOG_DB.get("password"):
+LOG_DB_NAME = os.getenv("LOG_DB_NAME", "IOT_service_logs")
+
+# Registered station records used to live only in stations.json. The database
+# `stations` table is now the source of truth: this service loads/refreshes
+# its working station list from the DB. stations.json is only ever consulted
+# once, automatically, to seed an empty `stations` table on a brand-new
+# deployment (see migrate_stations_from_json_if_needed()) — after that it's
+# not read again by this script. Use import_stations.py to (re-)apply a JSON
+# file to the database at any time.
+STATIONS_FILE = SCRIPT_DIR / "stations.json"
+REQUIRED_STATION_KEYS = {"station_name", "enabled", "latitude", "longitude", "lead_ip", "lead_port", "lead_slave"}
+
+STATIONS = {}
+_stations_lock = threading.RLock()
+
+logger = logging.getLogger("air_quality_ingest")
+logger.setLevel(logging.INFO)
+log_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(threadName)s: %(message)s")
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+logger.addHandler(console_handler)
+
+if DB_LOG_ENABLED and DB_PASSWORD:
     from db_logging import attach_db_logging
-    _log_dsn = (
-        f"host={LOG_DB['host']} port={LOG_DB['port']} dbname={LOG_DB['dbname']} "
-        f"user={LOG_DB['user']} password={LOG_DB['password']}"
-    )
-    attach_db_logging(logger, _log_dsn, service_name="api_server", table=DB_LOG_TABLE)
+    try:
+        _bootstrap_conn = psycopg2.connect(host=DB_HOST, port=DB_PORT, database="postgres", user=DB_USER, password=DB_PASSWORD)
+        _bootstrap_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        _bootstrap_cur = _bootstrap_conn.cursor()
+        _bootstrap_cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (LOG_DB_NAME,))
+        if not _bootstrap_cur.fetchone():
+            _bootstrap_cur.execute(f'CREATE DATABASE "{LOG_DB_NAME}"')
+            logger.info(f"Database '{LOG_DB_NAME}' created successfully.")
+        _bootstrap_cur.close()
+        _bootstrap_conn.close()
+    except Exception as e:
+        logger.error(f"Could not ensure '{LOG_DB_NAME}' exists ahead of DB logging: {e}")
 
-
-def format_api_datetime(dt: datetime) -> str:
-    if not dt:
-        return None
-    
-    manila_tz = ZoneInfo("Asia/Manila")
-
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=manila_tz)
-    else:
-        dt = dt.astimezone(manila_tz)
-    return dt.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "+08:00"
+    _log_dsn = f"host={DB_HOST} port={DB_PORT} dbname={LOG_DB_NAME} user={DB_USER} password={DB_PASSWORD}"
+    attach_db_logging(logger, _log_dsn, service_name="air_quality_ingest", table=DB_LOG_TABLE)
 
 
 # ==========================================================
-# CONNECTION POOLS (one per database)
+# SENSOR DEFINITIONS
 # ==========================================================
-_aq_pool = None
-_seismic_pool = None
-_log_pool = None
-_api_pool = None
+SENSORS = {
+    "a34004": {"name": "PM2.5", "column": "pm25", "unit": "µg/m³"},
+    "a34002": {"name": "PM10", "column": "pm10", "unit": "µg/m³"},
+    "a34001": {"name": "TSP", "column": "tsp", "unit": "µg/m³"},
+    "a05024": {"name": "Ozone", "column": "ozone", "unit": "µg/m³"},
+    "a21005": {"name": "Carbon Monoxide", "column": "carbon_monoxide", "unit": "mg/m³"},
+    "a21026": {"name": "Sulfur Dioxide", "column": "sulfur_dioxide", "unit": "µg/m³"},
+    "a21004": {"name": "Nitrogen Dioxide", "column": "nitrogen_dioxide", "unit": "µg/m³"},
+    "a01001": {"name": "Temperature", "column": "temperature", "unit": "°C"},
+    "a01002": {"name": "Humidity", "column": "humidity", "unit": "%"},
+    "a06001": {"name": "Rain", "column": "rain", "unit": "mm"},
+    "LA":     {"name": "Noise", "column": "noise", "unit": "dB"},
+    "a01007": {"name": "Wind Speed", "column": "wind_speed", "unit": "m/s"},
+    "a01008": {"name": "Wind Direction", "column": "wind_direction", "unit": "°"},
+    "a01006": {"name": "Air Pressure", "column": "air_pressure", "unit": "kPa"},
+}
+
+
+# ==========================================================
+# DATABASE LAYER
+# ==========================================================
+_connection_pool = None
 _pool_lock = threading.Lock()
 
+# Parsed readings waiting to be flushed to sensor_data by batch_insert_worker.
+_sensor_data_queue = queue.Queue()
 
-def _validate_config():
-    env_path = SCRIPT_DIR / ".env"
-    missing = []
-    if not AQ_DB.get("password"):
-        missing.append("SYSTEM_DB_PASSWORD")
+# Fixed column order for the batched INSERT. Every queued row uses exactly
+# these keys (missing sensors are simply None) so a whole batch can be
+# written with one execute_values() call regardless of which sensors each
+# individual station reported.
+_ROW_COLUMNS = ["station_mn", "ip_address", "data_time"] + [s["column"] for s in SENSORS.values()]
 
-    if missing:
-        print("=" * 70)
-        print("CONFIG ERROR: could not load required values from .env")
-        print(f"Expected .env at: {env_path}")
-        print(f"Found file there: {env_path.exists()}")
-        print(f"Missing/empty vars: {', '.join(missing)}")
-        print("Common causes on Windows:")
-        print("  - file got saved as '.env.txt' instead of '.env'")
-        print("  - .env is not in the same folder as this script")
-        print("  - .env was saved as UTF-16 instead of UTF-8")
-        print("=" * 70)
-        raise SystemExit(1)
+# Per-station cooldown so repeated readings from an unregistered/disabled
+# station log a warning periodically instead of on every single frame.
+_last_station_reject_warn = {}
+_station_reject_warn_lock = threading.Lock()
 
 
-def _ensure_database_exists(db_config, label):
-    """Creates db_config['dbname'] if it doesn't exist yet, connecting via
-    the 'postgres' maintenance database first."""
+def _log_station_reading_rejected(mn, ip_address, reason):
+    now_mono = time.monotonic()
+    with _station_reject_warn_lock:
+        last = _last_station_reject_warn.get(mn, 0)
+        if now_mono - last < AQ_STATION_REJECT_LOG_COOLDOWN_MIN * 60:
+            return
+        _last_station_reject_warn[mn] = now_mono
+    logger.warning(f"Station {mn} (IP {ip_address}) {reason} — reading discarded, not saved.")
+
+
+def create_database_if_not_exists():
+    conn = None
     try:
-        conn = psycopg2.connect(
-            host=db_config["host"], port=db_config["port"], database="postgres",
-            user=db_config["user"], password=db_config["password"],
-        )
-        conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        conn = psycopg2.connect(host=DB_HOST, port=DB_PORT, database="postgres", user=DB_USER, password=DB_PASSWORD)
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cur = conn.cursor()
-        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_config["dbname"],))
+        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (DB_NAME,))
         if not cur.fetchone():
-            cur.execute(f'CREATE DATABASE "{db_config["dbname"]}"')
-            logger.info(f"Database '{db_config['dbname']}' created successfully.")
+            cur.execute(f'CREATE DATABASE "{DB_NAME}"')
+            logger.info(f"Database '{DB_NAME}' created successfully.")
         cur.close()
-        conn.close()
+        return True
     except Exception as e:
-        logger.error(f"Could not ensure '{db_config['dbname']}' exists ({label}): {e}")
+        logger.exception(f"Unable to create database: {e}")
+        return False
+    finally:
+        if conn:
+            conn.close()
 
 
-def _ensure_aq_tables_exist():
-    """Safety net so /api/aq/* endpoints don't 500 with 'relation does not
-    exist' if this API happens to start before air_quality_ingest.py ever
-    has (fresh deployment, different start order, etc.). Only creates the
-    two tables this API actually reads (stations, sensor_data) with
-    IF NOT EXISTS — it does not touch indexes, migrations, or anything
-    else. air_quality_ingest.py's create_tables() remains the source of
-    truth for that schema; if it changes, mirror the change here too."""
-    conn = _aq_pool.getconn()
+def initialize_database():
+    global _connection_pool
+    with _pool_lock:
+        if _connection_pool is not None:
+            return True
+        if not create_database_if_not_exists():
+            return False
+        try:
+            _connection_pool = pool.ThreadedConnectionPool(
+                minconn=DB_POOL_MIN, maxconn=DB_POOL_MAX,
+                host=DB_HOST, port=DB_PORT, database=DB_NAME, user=DB_USER, password=DB_PASSWORD
+            )
+            create_tables()
+            return True
+        except Exception as e:
+            logger.exception(f"Database initialization failed: {e}")
+            return False
+
+
+def get_connection():
+    if _connection_pool is None:
+        raise RuntimeError("Database pool is not initialized.")
+    return _connection_pool.getconn()
+
+
+def release_connection(conn):
+    if conn:
+        try:
+            _connection_pool.putconn(conn)
+        except Exception:
+            conn.close()
+
+
+def _load_stations_json_for_migration() -> dict:
+    """Best-effort read of stations.json for the one-time DB migration.
+    Unlike the old load_stations(), this never raises SystemExit — an empty
+    or invalid file is fine, the DB is the real config now."""
+    if not STATIONS_FILE.exists():
+        return {}
     try:
+        with open(STATIONS_FILE, "r", encoding="utf-8") as f:
+            stations = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        logger.error(f"Could not read {STATIONS_FILE.name} for migration: {e}")
+        return {}
+
+    valid = {}
+    for mn, info in stations.items():
+        missing = REQUIRED_STATION_KEYS - info.keys()
+        if missing:
+            logger.warning(
+                f"Skipping station '{mn}' in {STATIONS_FILE.name} during migration — "
+                f"missing: {', '.join(sorted(missing))}"
+            )
+            continue
+        valid[mn] = info
+    return valid
+
+
+def migrate_stations_from_json_if_needed(cur, conn):
+    """One-time bootstrap: if the `stations` table is empty and stations.json
+    is present, import it. Only fires on an empty table, so it never
+    overwrites stations that were added/edited through the database
+    afterwards. Re-run/re-apply a JSON file at any time with
+    import_stations.py instead."""
+    cur.execute("SELECT COUNT(*) FROM stations;")
+    existing_count = cur.fetchone()[0]
+    if existing_count > 0:
+        return
+    if not STATIONS_FILE.exists():
+        return
+
+    json_stations = _load_stations_json_for_migration()
+    if not json_stations:
+        return
+
+    logger.info(f"'stations' table is empty — importing {len(json_stations)} station(s) from {STATIONS_FILE.name} (one-time).")
+    for mn, info in json_stations.items():
+        cur.execute("""
+            INSERT INTO stations (station_mn, station_name, enabled, latitude, longitude, lead_ip, lead_port, lead_slave)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (station_mn) DO NOTHING;
+        """, (mn, info.get("station_name", mn), info.get("enabled", True), info.get("latitude"),
+              info.get("longitude"), info.get("lead_ip"), info.get("lead_port"), info.get("lead_slave")))
+    conn.commit()
+    logger.info(
+        f"Migrated {len(json_stations)} station(s) into the database. The database is now the "
+        f"source of truth — {STATIONS_FILE.name} won't be read again automatically. It's safe to "
+        f"archive it; use import_stations.py if you want to (re-)apply a JSON file later."
+    )
+
+
+def load_stations_from_db() -> dict:
+    conn = None
+    try:
+        conn = get_connection()
         cur = conn.cursor()
+        cur.execute("""
+            SELECT station_mn, station_name, enabled, latitude, longitude, lead_ip, lead_port, lead_slave
+            FROM stations;
+        """)
+        rows = cur.fetchall()
+        stations = {}
+        for mn, name, enabled, lat, lon, lead_ip, lead_port, lead_slave in rows:
+            stations[mn] = {
+                "station_name": name,
+                "enabled": enabled,
+                "latitude": lat,
+                "longitude": lon,
+                "lead_ip": lead_ip,
+                "lead_port": lead_port,
+                "lead_slave": lead_slave,
+            }
+        return stations
+    finally:
+        if conn:
+            release_connection(conn)
+
+
+def refresh_stations(initial=False):
+    global STATIONS
+    try:
+        stations = load_stations_from_db()
+        with _stations_lock:
+            STATIONS = stations
+        if initial:
+            logger.info(f"Loaded {len(stations)} station(s) from the database.")
+        else:
+            logger.info(f"Station registry refreshed from database ({len(stations)} station(s)).")
+    except Exception as e:
+        logger.error(f"Failed to refresh station registry from database: {e}")
+
+
+def get_stations() -> dict:
+    """Thread-safe snapshot of the current station registry."""
+    with _stations_lock:
+        return dict(STATIONS)
+
+
+def get_station(mn) -> Optional[dict]:
+    """Thread-safe lookup of a single station's config. Cheaper than
+    get_stations() when only one station is needed (e.g. once per incoming
+    HJ212 reading) since it doesn't copy the whole registry."""
+    with _stations_lock:
+        return STATIONS.get(mn)
+
+
+def stations_refresh_loop():
+    while True:
+        time.sleep(AQ_STATIONS_REFRESH_INTERVAL_SEC)
+        refresh_stations()
+
+
+def create_tables():
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
         cur.execute("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;")
+
         cur.execute("""
         CREATE TABLE IF NOT EXISTS stations (
             station_mn VARCHAR(32) PRIMARY KEY,
@@ -542,6 +406,28 @@ def _ensure_aq_tables_exist():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
+
+        # Migration path for deployments that already have a `stations` table
+        # from before enabled/lead_ip/lead_port/lead_slave lived in the DB.
+        required_station_columns = {
+            "enabled": "BOOLEAN NOT NULL DEFAULT TRUE",
+            "lead_ip": "VARCHAR(64)",
+            "lead_port": "INTEGER",
+            "lead_slave": "INTEGER",
+        }
+        for col_name, col_type in required_station_columns.items():
+            cur.execute("""
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name='stations' AND column_name=%s;
+            """, (col_name,))
+            if not cur.fetchone():
+                logger.info(f"Migrating 'stations' table: adding column '{col_name}'")
+                cur.execute(sql.SQL("ALTER TABLE stations ADD COLUMN {} {}").format(
+                    sql.Identifier(col_name), sql.SQL(col_type)
+                ))
+
+        migrate_stations_from_json_if_needed(cur, conn)
+
         cur.execute("""
         CREATE TABLE IF NOT EXISTS sensor_data (
             station_mn VARCHAR(32) NOT NULL REFERENCES stations(station_mn),
@@ -558,1135 +444,472 @@ def _ensure_aq_tables_exist():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
-        cur.execute("SELECT create_hypertable('sensor_data', 'data_time', if_not_exists => TRUE, migrate_data => TRUE);")
+
+        cur.execute("""
+        SELECT create_hypertable('sensor_data', 'data_time', if_not_exists => TRUE, migrate_data => TRUE);
+        """)
+
         cur.execute("CREATE INDEX IF NOT EXISTS idx_station_time ON sensor_data(station_mn, data_time DESC);")
+
         conn.commit()
-    except Exception as e:
-        conn.rollback()
-        logger.error(f"AQ table safety-net setup failed: {e}")
-    finally:
-        _aq_pool.putconn(conn)
-
-
-def initialize_pools():
-    global _aq_pool, _seismic_pool, _log_pool, _api_pool
-    _validate_config()
-    with _pool_lock:
-        if _aq_pool is None:
-            # Ensure IOT_aq_sensor_data exists in case this API starts before
-            # air_quality_ingest.py ever has (fresh deployment, different
-            # start order, etc.) — without this, ThreadedConnectionPool()
-            # below raises immediately and, uncaught, takes the whole
-            # process down before uvicorn even starts.
-            _ensure_database_exists(AQ_DB, label="ahead of AQ DB pool init")
-            _aq_pool = pool.ThreadedConnectionPool(minconn=AQ_DB_POOL_MIN, maxconn=AQ_DB_POOL_MAX, **AQ_DB)
-            _ensure_aq_tables_exist()
-            logger.info("Air quality DB pool ready.")
-        if _seismic_pool is None:
-            # Same reasoning as AQ_DB above, for IOT_seismic_sensor_data.
-            _ensure_database_exists(SEISMIC_DB, label="ahead of seismic DB pool init")
-            _seismic_pool = pool.ThreadedConnectionPool(minconn=SEISMIC_DB_POOL_MIN, maxconn=SEISMIC_DB_POOL_MAX, **SEISMIC_DB)
-            logger.info("Seismic DB pool ready.")
-        if _log_pool is None:
-            # Ensure IOT_service_logs exists in case this process starts
-            # before air_quality_ingest.py / seismic_mqtt.py ever have.
-            _ensure_database_exists(LOG_DB, label="ahead of log pool init")
-            _log_pool = pool.ThreadedConnectionPool(minconn=LOG_DB_POOL_MIN, maxconn=LOG_DB_POOL_MAX, **LOG_DB)
-            logger.info("Log DB pool ready.")
-        if _api_pool is None:
-            # Ensure IOT_api exists ahead of the pool — initialize_api_keys_table()
-            # also ensures it (for the api_keys table) but that runs after this,
-            # and this pool is what api_request_logs needs immediately below.
-            _ensure_database_exists(API_DB, label="ahead of API DB pool init")
-            _api_pool = pool.ThreadedConnectionPool(minconn=API_DB_POOL_MIN, maxconn=API_DB_POOL_MAX, **API_DB)
-            logger.info("API DB pool ready.")
-
-        # api_request_logs lives in the API DB (IOT_api) — this server's own
-        # housekeeping data, not sensor data, so it doesn't belong in AQ_DB.
-        conn = _api_pool.getconn()
-        try:
-            cur = conn.cursor()
-            # IOT_api is a brand-new database the first time this runs, so
-            # unlike AQ_DB/SEISMIC_DB (which air_quality_ingest.py and
-            # seismic_mqtt.py already ran this against) it needs its own
-            # timescaledb extension before create_hypertable() below exists.
-            cur.execute("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;")
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS api_request_logs (
-                    id BIGSERIAL NOT NULL,
-                    client_ip INET,
-                    method VARCHAR(10),
-                    path TEXT,
-                    status_code INT,
-                    duration_ms DOUBLE PRECISION,
-                    api_key_owner VARCHAR(100),
-                    api_key_used VARCHAR(100),
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (id, created_at)
-                );
-            """)
-            # Self-heal for a table that already existed before the id
-            # column did (same fix as service_logs in db_logging.py).
-            # Idempotent — safe to run on every startup.
-            cur.execute("ALTER TABLE api_request_logs ADD COLUMN IF NOT EXISTS id BIGSERIAL;")
-            cur.execute("ALTER TABLE api_request_logs ALTER COLUMN id SET NOT NULL;")
-            cur.execute("""
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM pg_constraint
-                        WHERE conrelid = 'api_request_logs'::regclass
-                          AND contype = 'p'
-                    ) THEN
-                        ALTER TABLE api_request_logs ADD PRIMARY KEY (id, created_at);
-                    END IF;
-                END $$;
-            """)
-            # Migration for tables created before api_key_used existed.
-            cur.execute("""
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name='api_request_logs' AND column_name='api_key_used';
-            """)
-            if not cur.fetchone():
-                cur.execute("ALTER TABLE api_request_logs ADD COLUMN api_key_used VARCHAR(100);")
-            cur.execute("SELECT create_hypertable('api_request_logs', 'created_at', if_not_exists => TRUE, migrate_data => TRUE);")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_api_logs_composite ON api_request_logs(path, created_at DESC);")
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            logger.exception(f"API log table setup failed: {e}")
-        finally:
-            _api_pool.putconn(conn)
-
-
-def get_aq_conn():
-    return _aq_pool.getconn()
-
-
-def release_aq_conn(conn):
-    if conn:
-        try:
-            _aq_pool.putconn(conn)
-        except Exception:
-            conn.close()
-
-
-def get_api_conn():
-    return _api_pool.getconn()
-
-
-def release_api_conn(conn):
-    if conn:
-        try:
-            _api_pool.putconn(conn)
-        except Exception:
-            conn.close()
-
-
-# ==========================================================
-# API KEY REGISTRY (IOT_api)
-# ==========================================================
-def _migrate_plaintext_api_keys_if_needed(cur, conn):
-    """One-time upgrade path: older deployments of this script stored API
-    keys in plaintext (a `token` column). If that column is still present,
-    hash every existing token in place and drop the plaintext column, so a
-    raw key is never stored anywhere. No-ops if the table's already on the
-    hashed schema.
-
-    IMPORTANT: this makes plaintext keys unrecoverable from the DB
-    afterward — hashing can't be undone. If a key's raw value isn't
-    recorded somewhere else already (the original API_KEYS in .env, a
-    password manager, etc.), issuing a fresh key is the only recovery
-    option for whoever holds it, once this migration runs."""
-    cur.execute("""
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'api_keys' AND column_name = 'token';
-    """)
-    if not cur.fetchone():
-        return  # already hashed-only, nothing to migrate
-
-    logger.info("'api_keys' table still has plaintext tokens — migrating to hashed storage now.")
-    cur.execute("ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS token_hash VARCHAR(64);")
-    cur.execute("SELECT token, owner_label FROM api_keys;")
-    rows = cur.fetchall()
-    for token, owner_label in rows:
-        cur.execute("UPDATE api_keys SET token_hash = %s WHERE token = %s;", (_hash_token(token), token))
-
-    # Drop whatever the primary key constraint on the old `token` column is
-    # actually named, rather than assuming "api_keys_pkey".
-    cur.execute("""
-        SELECT tc.constraint_name FROM information_schema.table_constraints tc
-        JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
-        WHERE tc.table_name = 'api_keys' AND tc.constraint_type = 'PRIMARY KEY' AND kcu.column_name = 'token';
-    """)
-    pk = cur.fetchone()
-    if pk:
-        cur.execute(f'ALTER TABLE api_keys DROP CONSTRAINT "{pk[0]}";')
-
-    cur.execute("ALTER TABLE api_keys ALTER COLUMN token_hash SET NOT NULL;")
-    cur.execute("ALTER TABLE api_keys ADD PRIMARY KEY (token_hash);")
-    cur.execute("ALTER TABLE api_keys DROP COLUMN token;")
-    conn.commit()
-    logger.info(f"Migrated {len(rows)} API key(s) to hashed storage. Plaintext tokens are no longer stored anywhere.")
-
-
-def _migrate_api_keys_from_env_if_needed(cur, conn):
-    """One-time bootstrap: if the api_keys table is empty and API_KEYS is
-    still set in .env, import it (hashed). Only fires on an empty table, so
-    it never overwrites keys that were added/edited/revoked through the
-    database afterwards."""
-    cur.execute("SELECT COUNT(*) FROM api_keys;")
-    if cur.fetchone()[0] > 0:
-        return
-    env_keys = _parse_api_keys(os.getenv("API_KEYS", ""))
-    if not env_keys:
-        return
-    logger.info(f"'api_keys' table is empty — importing {len(env_keys)} key(s) from .env's API_KEYS (one-time).")
-    for token, label in env_keys.items():
-        cur.execute("""
-            INSERT INTO api_keys (token_hash, owner_label, enabled)
-            VALUES (%s, %s, TRUE)
-            ON CONFLICT (token_hash) DO NOTHING;
-        """, (_hash_token(token), label))
-    conn.commit()
-    logger.info(
-        f"Migrated {len(env_keys)} API key(s) into the database as hashed tokens. The database is "
-        f"now the source of truth for API keys — API_KEYS in .env won't be read again automatically. "
-        f"Manage keys by inserting/updating/deleting rows in the 'api_keys' table (store the SHA-256 "
-        f"hex digest of the raw token as token_hash) from here on."
-    )
-
-
-def initialize_api_keys_table():
-    """Ensures IOT_api and its api_keys table exist (hashed-token schema),
-    migrates any pre-existing plaintext tokens or .env-based keys if
-    needed, then loads the initial key set into memory."""
-    _ensure_database_exists(API_DB, label="ahead of API key table init")
-    try:
-        conn = psycopg2.connect(**API_DB)
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS api_keys (
-                token_hash VARCHAR(64) PRIMARY KEY,
-                owner_label VARCHAR(100) NOT NULL,
-                enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
-        """)
-        conn.commit()
-        _migrate_plaintext_api_keys_if_needed(cur, conn)
-        _migrate_api_keys_from_env_if_needed(cur, conn)
-        cur.close()
-        conn.close()
-    except Exception as e:
-        logger.error(f"'api_keys' table setup failed: {e}")
-
-    refresh_api_keys(initial=True)
-    threading.Thread(target=api_keys_refresh_loop, daemon=True, name="ApiKeysRefresh").start()
-
-
-def load_api_keys_from_db() -> Dict[str, str]:
-    conn = psycopg2.connect(**API_DB)
-    try:
-        cur = conn.cursor()
-        cur.execute("SELECT token_hash, owner_label FROM api_keys WHERE enabled = TRUE;")
-        return {token_hash: label for token_hash, label in cur.fetchall()}
-    finally:
-        conn.close()
-
-
-def refresh_api_keys(initial=False):
-    global AUTHORIZED_KEYS
-    try:
-        keys = load_api_keys_from_db()
-        with _api_keys_lock:
-            AUTHORIZED_KEYS = keys
-        if initial:
-            if keys:
-                logger.info(f"Loaded {len(keys)} API key(s) from the database.")
-            else:
-                logger.warning(
-                    "No enabled API keys found in 'api_keys' — every request will be rejected "
-                    "until at least one row is added/enabled in that table."
-                )
-        else:
-            logger.info(f"API key registry refreshed from database ({len(keys)} key(s)).")
-    except Exception as e:
-        logger.error(f"Failed to refresh API key registry from database: {e}")
-
-
-def get_authorized_keys() -> Dict[str, str]:
-    """Thread-safe snapshot of the current API key registry."""
-    with _api_keys_lock:
-        return dict(AUTHORIZED_KEYS)
-
-
-def api_keys_refresh_loop():
-    while True:
-        time.sleep(API_KEYS_REFRESH_INTERVAL_SEC)
-        refresh_api_keys()
-
-
-def initialize_ip_allowlist_table():
-    """Ensures IOT_api and its allowed_ips table exist, then loads the
-    initial registry into memory. Rows can hold a single IP ('203.0.113.7')
-    or a CIDR range ('203.0.113.0/24') — both are parsed the same way by
-    ipaddress.ip_network(..., strict=False)."""
-    _ensure_database_exists(API_DB, label="ahead of IP allowlist table init")
-    try:
-        conn = psycopg2.connect(**API_DB)
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS allowed_ips (
-                cidr VARCHAR(43) PRIMARY KEY,
-                label VARCHAR(100) NOT NULL,
-                enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
-        """)
-        conn.commit()
-        cur.close()
-        conn.close()
-    except Exception as e:
-        logger.error(f"'allowed_ips' table setup failed: {e}")
-
-    refresh_ip_allowlist(initial=True)
-    threading.Thread(target=ip_allowlist_refresh_loop, daemon=True, name="IpAllowlistRefresh").start()
-
-
-def load_allowed_networks_from_db() -> List["ipaddress._BaseNetwork"]:
-    conn = psycopg2.connect(**API_DB)
-    try:
-        cur = conn.cursor()
-        cur.execute("SELECT cidr FROM allowed_ips WHERE enabled = TRUE;")
-        networks = []
-        for (cidr,) in cur.fetchall():
-            try:
-                networks.append(ipaddress.ip_network(cidr.strip(), strict=False))
-            except ValueError:
-                logger.error(f"Skipping invalid entry in 'allowed_ips': {cidr!r}")
-        return networks
-    finally:
-        conn.close()
-
-
-def refresh_ip_allowlist(initial=False):
-    global AUTHORIZED_NETWORKS
-    try:
-        networks = load_allowed_networks_from_db()
-        with _ip_allowlist_lock:
-            AUTHORIZED_NETWORKS = networks
-        if initial:
-            if networks:
-                logger.info(f"Loaded {len(networks)} allowed IP/CIDR entr(y/ies) from the database.")
-            else:
-                logger.warning(
-                    "No enabled entries found in 'allowed_ips' — every request will be rejected "
-                    "until at least one row is added/enabled in that table, e.g.:\n"
-                    "  INSERT INTO allowed_ips (cidr, label) VALUES ('203.0.113.7', 'office');"
-                )
-        else:
-            logger.info(f"IP allowlist refreshed from database ({len(networks)} entr(y/ies)).")
-    except Exception as e:
-        logger.error(f"Failed to refresh IP allowlist from database: {e}")
-
-
-def get_authorized_networks() -> List["ipaddress._BaseNetwork"]:
-    with _ip_allowlist_lock:
-        return list(AUTHORIZED_NETWORKS)
-
-
-def ip_allowlist_refresh_loop():
-    while True:
-        time.sleep(IP_ALLOWLIST_REFRESH_INTERVAL_SEC)
-        refresh_ip_allowlist()
-
-
-def get_client_ip(request: Request) -> str:
-    """Real client IP, accounting for nginx sitting in front (see
-    TRUST_PROXY_HEADERS above). Uses X-Real-IP, which deploy.sh's nginx
-    config always overwrites to $remote_addr — not X-Forwarded-For, which
-    that same config builds with $proxy_add_x_forwarded_for and is
-    therefore spoofable by the client. Falls back to the direct TCP peer
-    if the header is missing, so this degrades safely if nginx config
-    drifts — though that fallback would then be nginx's own IP, not the
-    client's."""
-    if TRUST_PROXY_HEADERS:
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip.strip()
-    return request.client.host if request.client else "Unknown"
-
-
-def is_ip_allowed(client_ip: str) -> bool:
-    try:
-        addr = ipaddress.ip_address(client_ip)
-    except ValueError:
-        return False
-    return any(addr in network for network in get_authorized_networks())
-
-
-def get_seismic_conn():
-    return _seismic_pool.getconn()
-
-
-def release_seismic_conn(conn):
-    if conn:
-        try:
-            _seismic_pool.putconn(conn)
-        except Exception:
-            conn.close()
-
-
-def get_log_conn():
-    return _log_pool.getconn()
-
-
-def release_log_conn(conn):
-    if conn:
-        try:
-            _log_pool.putconn(conn)
-        except Exception:
-            conn.close()
-
-
-def insert_api_log(client_ip, method, path, status_code, duration_ms, api_key_owner, api_key_used):
-    conn = None
-    try:
-        conn = get_api_conn()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO api_request_logs (client_ip, method, path, status_code, duration_ms, api_key_owner, api_key_used)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (client_ip, method, path, status_code, duration_ms, api_key_owner, api_key_used))
-        conn.commit()
+        logger.info("Air quality tables/hypertables verified.")
     except Exception as e:
         if conn:
             conn.rollback()
-        logger.error(f"Error logging API request: {e}")
+        logger.exception(f"Table creation/Hypertable setup failed: {e}")
     finally:
-        release_api_conn(conn)
+        if conn:
+            release_connection(conn)
 
 
-# ==========================================================
-# FASTAPI APP
-# ==========================================================
-app = FastAPI(
-    title="Environmental Monitoring System (Air Quality + Seismic)",
-    version="1.0",
-    description="""Read-only REST endpoints backed by the Air Quality and Seismic TimescaleDB databases.""",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json",
-)
-api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
+def insert_sensor_data(data, ip_address, station_conn=None):
+    """Parses one station reading and enqueues it for batch_insert_worker.
+    Deliberately does no DB I/O itself — this runs on the TCP handler thread
+    for whichever station just sent a frame, so it needs to stay fast and
+    non-blocking regardless of how busy the batch writer/DB currently are."""
+    cp = data.get("CP", {})
+    mn = data.get("MN")
 
+    # Only save data for stations that are registered AND enabled in the DB.
+    # Besides being the correct behavior, this also protects batch writes:
+    # since a whole batch is written as one multi-row INSERT, a row from an
+    # unrecognized station would fail the sensor_data foreign key and roll
+    # back every other valid reading sitting in that same batch.
+    station = get_station(mn)
+    if station is None:
+        _log_station_reading_rejected(mn, ip_address, "is not in the registered station list")
+        return
+    if not station.get("enabled", True):
+        _log_station_reading_rejected(mn, ip_address, "is registered but disabled")
+        return
 
-def _hash_token(raw_token: str) -> str:
-    """API keys are high-entropy random secrets, not user-chosen passwords —
-    so a plain SHA-256 hash is the right tool here, the same approach
-    GitHub/Stripe/etc. use for API tokens. This deliberately isn't a slow
-    salted KDF (bcrypt/scrypt): those exist to resist brute-forcing a
-    low-entropy secret, which doesn't apply to a random 32+ byte token.
-    Only this hash is ever stored; the raw token itself never touches the
-    database."""
-    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    data_time = datetime.now(timezone.utc)  # trusted default: this server's NTP-synced clock
 
+    if "DataTime" in cp:
+        try:
+            naive_dt = datetime.strptime(cp["DataTime"], "%Y%m%d%H%M%S")
+            philippines_tz = timezone(timedelta(hours=8))
+            localized_pht_dt = naive_dt.replace(tzinfo=philippines_tz)
+            candidate_time = localized_pht_dt.astimezone(timezone.utc)
 
-def verify_api_key(api_key: str = Security(api_key_header)):
-    if _hash_token(api_key) not in get_authorized_keys():
-        raise HTTPException(status_code=403, detail="Unauthorized request: Invalid API Token")
-    return api_key
+            # Sensors have their own onboard clock (usually backed by a
+            # coin-cell RTC battery) that's independent of this server's
+            # NTP-synced time. If that battery dies or the unit loses
+            # power, the sensor's clock resets to some default/epoch and
+            # every DataTime it reports afterward is garbage — silently
+            # mis-dating readings by months or years if we trust it as-is.
+            # Guard against that: only accept the sensor's timestamp if
+            # it's within MAX_SENSOR_CLOCK_DRIFT of our own clock; otherwise
+            # fall back to server time and flag it so the field team knows
+            # station `mn` needs its RTC/battery checked.
+            drift_secs = abs((candidate_time - data_time).total_seconds())
+            if drift_secs <= MAX_SENSOR_CLOCK_DRIFT.total_seconds():
+                data_time = candidate_time
+            else:
+                logger.warning(
+                    f"Station {mn}: sensor-reported DataTime '{cp['DataTime']}' is "
+                    f"{drift_secs / 3600:.1f}h off from server time — looks like the "
+                    f"sensor's clock reset (dead RTC battery / power loss). Using "
+                    f"server time for this reading instead; station needs a hardware check."
+                )
+                if AQ_TIME_SYNC_ENABLED and station_conn is not None:
+                    request_sensor_time_sync(station_conn, mn)
+        except ValueError:
+            logger.warning(f"Station {mn}: unparseable DataTime '{cp.get('DataTime')}' — using server time.")
 
-
-def _mask_token(raw_token):
-    """Never put a usable token in service_logs (queryable via the
-    /api/system/logs endpoint by any valid API client) — only the last 4
-    characters, enough to distinguish keys in logs without exposing them."""
-    if not raw_token:
-        return "None"
-    if len(raw_token) <= 4:
-        return "*" * len(raw_token)
-    return f"...{raw_token[-4:]}"
-
-
-@app.middleware("http")
-async def monitor_and_log_api_requests(request: Request, call_next):
-    start_time = time.time()
-    client_ip = get_client_ip(request)
-    method = request.method
-    path = request.url.path
-
-    # IP allowlist is checked first, ahead of the API key and ahead of any
-    # route/DB work — an unlisted IP never even reaches verify_api_key.
-    if not is_ip_allowed(client_ip):
-        duration_ms = round((time.time() - start_time) * 1000, 2)
-        logger.error(f"[API] BLOCKED (IP not allowlisted): {client_ip} -> {method} {path}")
-        threading.Thread(
-            target=insert_api_log,
-            args=(client_ip, method, path, 403, duration_ms, "Blocked/IP", "N/A"),
-            daemon=True,
-        ).start()
-        return JSONResponse(status_code=403, content={"detail": "Unauthorized request: IP address not allowed"})
-
-    raw_token = request.headers.get("X-API-Key")
-    api_key_owner = get_authorized_keys().get(_hash_token(raw_token), "Unauthorized/None") if raw_token else "Unauthorized/None"
-    masked_token = _mask_token(raw_token)
-
-    response = await call_next(request)
-
-    duration_ms = round((time.time() - start_time) * 1000, 2)
-    status_code = response.status_code
-
-    if status_code == 403:
-        logger.error(
-            f"[API] INVALID API TOKEN from {client_ip} -> {method} {path} | token used: {masked_token}"
-        )
-    else:
-        logger.info(
-            f"[API] {client_ip} ({api_key_owner}, token: {masked_token}) -> {method} {path} | "
-            f"Status: {status_code} | {duration_ms}ms"
-        )
-
-    threading.Thread(
-        target=insert_api_log,
-        # masked_token, not raw_token: api_request_logs is a database table,
-        # not just a text log — the raw key has no business being stored
-        # there any more than in service_logs (which _mask_token was
-        # already written to protect).
-        args=(client_ip, method, path, status_code, duration_ms, api_key_owner, masked_token),
-        daemon=True,
-    ).start()
-
-    return response
-
-
-# ----------------------------------------------------------
-# AIR QUALITY ENDPOINTS
-# ----------------------------------------------------------
-def map_aq_station_row_to_json(row, now):
-    status = "offline"
-    last_update_str = None
-    if row['data_time']:
-        # data_time is stored as naive Manila local time (Postgres session
-        # TimeZone converts tz-aware UTC values to local on insert into a
-        # `timestamp without time zone` column) — do NOT tag it as UTC.
-        manila_tz = ZoneInfo("Asia/Manila")
-        last_update_manila = row['data_time'].replace(tzinfo=manila_tz)
-        last_update_str = format_api_datetime(last_update_manila)
-        last_update_utc = last_update_manila.astimezone(timezone.utc)
-        if (now - last_update_utc).total_seconds() < 900:
-            status = "online"
-
-    return {
-        "station_mn": row['station_mn'],
-        "friendly_name": row['station_name'],
-        "location": {"latitude": row['latitude'], "longitude": row['longitude']},
-        "status": status,
-        "last_update": last_update_str,
-        "weather": {
-            "temperature": row['temperature'],
-            "humidity": row['humidity'],
-            "pressure": row['air_pressure'],
-            "rain": row['rain'],
-            "wind_speed": row['wind_speed'],
-            "wind_direction": row['wind_direction'],
-            "noise": row['noise'],
-        },
-        "pollutants": {
-            "pm2_5": row['pm25'],
-            "pm10": row['pm10'],
-            "tsp": row['tsp'],
-            "co": row['carbon_monoxide'],
-            "so2": row['sulfur_dioxide'],
-            "no2": row['nitrogen_dioxide'],
-            "o3": row['ozone'],
-            "pb": row['lead'],
-            "pb_temp": row['lead_temperature'],
-        },
-    }
-
-
-@app.get(
-    "/api/air-quality/stations/latest",
-    tags=["Air Quality - Live"],
-    summary="Latest reading for every air quality station",
-    description="Returns the most recent sensor reading for each registered air quality station, including weather and pollutant values.",
-    response_model=AQStationsLatestResponse,
-    responses=AUTHED_RESPONSES,
-)
-def aq_latest_all(api_key: str = Depends(verify_api_key)):
-    conn = get_aq_conn()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            SELECT DISTINCT ON (st.station_mn)
-                st.station_mn, st.station_name, st.latitude, st.longitude, s.data_time,
-                s.temperature, s.humidity, s.air_pressure, s.rain, s.wind_speed, s.wind_direction, s.noise,
-                s.pm25, s.pm10, s.tsp, s.carbon_monoxide, s.sulfur_dioxide,
-                s.nitrogen_dioxide, s.ozone, s.lead, s.lead_temperature
-            FROM stations st
-            LEFT JOIN sensor_data s ON st.station_mn = s.station_mn
-            ORDER BY st.station_mn, s.data_time DESC NULLS LAST;
-        """)
-        rows = cur.fetchall()
-        now = datetime.now(timezone.utc)
-        stations_list = [map_aq_station_row_to_json(r, now) for r in rows]
-
-        # Top-level "timestamp" = the actual latest saved reading across all
-        # stations (max data_time), not the moment this request was handled.
-        # data_time is naive Manila local time — tag it as such, don't shift it.
-        manila_tz = ZoneInfo("Asia/Manila")
-        data_times = [r['data_time'] for r in rows if r['data_time']]
-        if data_times:
-            latest_manila = max(data_times).replace(tzinfo=manila_tz)
-            response_timestamp = format_api_datetime(latest_manila)
+    row = {"station_mn": mn, "ip_address": ip_address, "data_time": data_time}
+    got_any_value = False
+    for code, sensor in SENSORS.items():
+        value = None
+        if code in cp:
+            sensor_data = cp[code]
+            # Check `is not None` rather than using `sensor_data.get("Rtd") or
+            # ...` — a genuine 0.0 reading (e.g. Rtd=0.00 for rain) is falsy
+            # in Python, so the old `or` chain would silently skip a real
+            # Rtd=0.0 and fall through to Avg/Value instead of using it.
+            for key in ("Rtd", "Avg", "Value"):
+                if sensor_data.get(key) is not None:
+                    value = sensor_data[key]
+                    break
+        if value is None:
+            # Sensor code wasn't in this frame at all (or was present with
+            # no usable Rtd/Avg/Value) — store 0 instead of NULL.
+            value = 0.0
         else:
-            response_timestamp = format_api_datetime(now)
+            got_any_value = True
+        row[sensor["column"]] = value
 
-        return {"timestamp": response_timestamp, "total_stations": len(stations_list), "stations": stations_list}
-    except Exception as e:
-        logger.error(f"AQ latest error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-    finally:
-        release_aq_conn(conn)
+    if not got_any_value:
+        # Every column above is a defaulted 0 — this frame didn't actually
+        # report a single real sensor value. Discard rather than writing a
+        # row that's all zero-fill and no real data.
+        _log_station_reading_rejected(mn, ip_address, "sent a frame with no usable sensor values")
+        return
+
+    _sensor_data_queue.put(row)
 
 
-@app.get(
-    "/api/air-quality/stations/{station_mn}/latest",
-    tags=["Air Quality - Live"],
-    summary="Latest reading for one air quality station",
-    description="Returns the most recent sensor reading for a single station, identified by its monitoring number (station_mn).",
-    response_model=AQStationLatestResponse,
-    responses=AUTHED_LOOKUP_RESPONSES,
-)
-def aq_latest_station(
-    station_mn: str = ApiPath(..., description="Station monitoring number, e.g. '4101025U122041'."),
-    api_key: str = Depends(verify_api_key),
-):
-    conn = get_aq_conn()
+def _flush_batch(rows):
+    """Writes a batch of parsed readings as one multi-row INSERT + one
+    commit. Runs only on the batch_insert_worker thread."""
+    if not rows:
+        return
+    conn = None
     try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
+        conn = get_connection()
+        cur = conn.cursor()
+        values = [tuple(row.get(col) for col in _ROW_COLUMNS) for row in rows]
+        query = f"INSERT INTO sensor_data ({', '.join(_ROW_COLUMNS)}) VALUES %s"
+        execute_values(cur, query, values)
+        conn.commit()
+        logger.info(f"Ingested {len(rows)} air quality reading(s) in one batch.")
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"Error inserting batch of {len(rows)} sensor reading(s): {e}")
+    finally:
+        if conn:
+            release_connection(conn)
+
+
+def batch_insert_worker():
+    """Drains _sensor_data_queue and flushes to the DB whenever
+    AQ_BATCH_MAX_SIZE readings have accumulated or AQ_BATCH_MAX_INTERVAL_SEC
+    seconds have elapsed since the first reading in the current batch,
+    whichever happens first. Runs for the lifetime of the process."""
+    batch = []
+    deadline = None
+    while True:
+        timeout = max(0.0, deadline - time.monotonic()) if deadline is not None else None
+        try:
+            row = _sensor_data_queue.get(timeout=timeout)
+            batch.append(row)
+            if deadline is None:
+                deadline = time.monotonic() + AQ_BATCH_MAX_INTERVAL_SEC
+        except queue.Empty:
+            pass  # nothing new arrived before the deadline — flush what we have
+
+        if batch and (len(batch) >= AQ_BATCH_MAX_SIZE or (deadline is not None and time.monotonic() >= deadline)):
+            _flush_batch(batch)
+            batch = []
+            deadline = None
+
+
+def start_batch_insert_worker():
+    threading.Thread(target=batch_insert_worker, daemon=True, name="SensorDataBatchWriter").start()
+
+
+def update_lead_value(mn, ip, lead, temperature):
+    """Attaches a Modbus lead reading to station `mn`'s most recent
+    sensor_data row — but only if that row is recent enough (see
+    AQ_LEAD_MAX_ROW_AGE_SEC), and only for `mn` (never any other station,
+    regardless of what else might share that lead IP/port). `ip` is the
+    lead_ip this station is assigned in the `stations` table — passed
+    through purely so success/failure logs are traceable to a specific
+    station+IP pairing rather than just an MN."""
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=AQ_LEAD_MAX_ROW_AGE_SEC)
         cur.execute("""
-            SELECT st.station_mn, st.station_name, st.latitude, st.longitude, s.data_time,
-                   s.temperature, s.humidity, s.air_pressure, s.rain, s.wind_speed, s.wind_direction, s.noise,
-                   s.pm25, s.pm10, s.tsp, s.carbon_monoxide, s.sulfur_dioxide,
-                   s.nitrogen_dioxide, s.ozone, s.lead, s.lead_temperature
-            FROM stations st
-            LEFT JOIN sensor_data s ON st.station_mn = s.station_mn
-            WHERE st.station_mn = %s
-            ORDER BY s.data_time DESC NULLS LAST LIMIT 1;
-        """, (station_mn,))
-        row = cur.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Station Identifier not found in database records.")
-        now = datetime.now(timezone.utc)
-        station_json = map_aq_station_row_to_json(row, now)
-        response_timestamp = station_json["last_update"] or format_api_datetime(now)
-        return {"timestamp": response_timestamp, "station": station_json}
-    except HTTPException:
-        raise
+            UPDATE sensor_data SET lead = %s, lead_temperature = %s
+            WHERE station_mn = %s AND data_time = (
+                SELECT MAX(data_time) FROM sensor_data
+                WHERE station_mn = %s AND data_time >= %s
+            )
+            """, (lead, temperature, mn, mn, cutoff))
+        conn.commit()
+        if cur.rowcount == 0:
+            logger.warning(
+                f"Station {mn} (lead IP {ip}): read a Modbus lead value but found no "
+                f"sensor_data row from the last {AQ_LEAD_MAX_ROW_AGE_SEC}s to attach it to "
+                f"— station's HJ212 telemetry may have gone quiet. Lead reading discarded."
+            )
+        else:
+            logger.info(f"Station {mn} (lead IP {ip}): synced lead={lead}, lead_temperature={temperature}.")
     except Exception as e:
-        logger.error(f"AQ single station error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        if conn:
+            conn.rollback()
+        logger.error(f"Station {mn} (lead IP {ip}): error updating Modbus lead values: {e}")
     finally:
-        release_aq_conn(conn)
+        if conn:
+            release_connection(conn)
 
 
-def _aq_avg_query(interval: str):
-    return f"""
-        SELECT st.station_mn, st.station_name,
-               ROUND(AVG(s.temperature)::numeric, 2) as temperature,
-               ROUND(AVG(s.humidity)::numeric, 2) as humidity,
-               ROUND(AVG(s.air_pressure)::numeric, 2) as air_pressure,
-               ROUND(AVG(s.rain)::numeric, 2) as rain,
-               ROUND(AVG(s.wind_speed)::numeric, 2) as wind_speed,
-               ROUND(AVG(s.wind_direction)::numeric, 2) as wind_direction,
-               ROUND(AVG(s.noise)::numeric, 2) as noise,
-               ROUND(AVG(s.pm25)::numeric, 2) as pm25,
-               ROUND(AVG(s.pm10)::numeric, 2) as pm10,
-               ROUND(AVG(s.tsp)::numeric, 2) as tsp,
-               ROUND(AVG(s.carbon_monoxide)::numeric, 2) as carbon_monoxide,
-               ROUND(AVG(s.sulfur_dioxide)::numeric, 2) as sulfur_dioxide,
-               ROUND(AVG(s.nitrogen_dioxide)::numeric, 2) as nitrogen_dioxide,
-               ROUND(AVG(s.ozone)::numeric, 2) as ozone,
-               ROUND(AVG(s.lead)::numeric, 2) as lead,
-               ROUND(AVG(s.lead_temperature)::numeric, 2) as lead_temperature
-        FROM stations st
-        JOIN sensor_data s ON st.station_mn = s.station_mn
-        WHERE s.data_time >= NOW() - INTERVAL '{interval}'
-        GROUP BY st.station_mn, st.station_name
-        ORDER BY st.station_mn;
-    """
+# ==========================================================
+# HJ212 PROTOCOL & PARSER
+# ==========================================================
+def crc16(data: str) -> str:
+    crc = 0xFFFF
+    for b in data.encode("ascii"):
+        crc ^= b
+        for _ in range(8):
+            if crc & 0x0001:
+                crc >>= 1
+                crc ^= 0xA001
+            else:
+                crc >>= 1
+    return f"{crc:04X}"
 
 
-@app.get(
-    "/api/air-quality/analytics/1d",
-    tags=["Air Quality - Analytics"],
-    summary="24-hour average readings per station",
-    description="Returns one averaged row per station, aggregated over the last 24 hours.",
-    response_model=AQAnalytics1dResponse,
-    responses=AUTHED_RESPONSES,
-)
-def aq_avg_1d(api_key: str = Depends(verify_api_key)):
-    conn = get_aq_conn()
+def verify_crc(frame: str) -> bool:
     try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute(_aq_avg_query("1 day"))
-        return {"range": "24_hours_aggregated_average", "timestamp": format_api_datetime(datetime.now(timezone.utc)), "results": cur.fetchall()}
-    except Exception as e:
-        logger.error(f"AQ 1d analytics error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Analytical Server Error")
-    finally:
-        release_aq_conn(conn)
+        return frame[-4:].upper() == crc16(frame[6:-4])
+    except Exception:
+        return False
 
 
-def _aq_daily_avg_query(interval: str):
-    return f"""
-        SELECT st.station_mn, st.station_name,
-               time_bucket('1 day', s.data_time) as summary_date,
-               ROUND(AVG(s.temperature)::numeric, 2) as temperature,
-               ROUND(AVG(s.humidity)::numeric, 2) as humidity,
-               ROUND(AVG(s.air_pressure)::numeric, 2) as air_pressure,
-               ROUND(AVG(s.rain)::numeric, 2) as rain,
-               ROUND(AVG(s.wind_speed)::numeric, 2) as wind_speed,
-               ROUND(AVG(s.wind_direction)::numeric, 2) as wind_direction,
-               ROUND(AVG(s.noise)::numeric, 2) as noise,
-               ROUND(AVG(s.pm25)::numeric, 2) as pm25,
-               ROUND(AVG(s.pm10)::numeric, 2) as pm10,
-               ROUND(AVG(s.tsp)::numeric, 2) as tsp,
-               ROUND(AVG(s.carbon_monoxide)::numeric, 2) as carbon_monoxide,
-               ROUND(AVG(s.sulfur_dioxide)::numeric, 2) as sulfur_dioxide,
-               ROUND(AVG(s.nitrogen_dioxide)::numeric, 2) as nitrogen_dioxide,
-               ROUND(AVG(s.ozone)::numeric, 2) as ozone,
-               ROUND(AVG(s.lead)::numeric, 2) as lead,
-               ROUND(AVG(s.lead_temperature)::numeric, 2) as lead_temperature
-        FROM stations st
-        JOIN sensor_data s ON st.station_mn = s.station_mn
-        WHERE s.data_time >= NOW() - INTERVAL '{interval}'
-        GROUP BY st.station_mn, st.station_name, summary_date
-        ORDER BY st.station_mn, summary_date DESC;
-    """
+def get_field(frame: str, field: str) -> str:
+    match = re.search(rf"{field}=([^;]+)", frame)
+    return match.group(1) if match else ""
 
 
-@app.get(
-    "/api/air-quality/analytics/7d",
-    tags=["Air Quality - Analytics"],
-    summary="7-day daily average readings per station",
-    description="Returns one averaged row per station per day, aggregated over the last 7 days (time-bucketed daily).",
-    response_model=AQAnalyticsDailyResponse,
-    responses=AUTHED_RESPONSES,
-)
-def aq_avg_7d(api_key: str = Depends(verify_api_key)):
-    conn = get_aq_conn()
+def extract_frames(buffer: str):
+    frames = []
+    while True:
+        start = buffer.find("##")
+        if start == -1 or len(buffer) < start + 6:
+            break
+        try:
+            length = int(buffer[start + 2:start + 6])
+        except ValueError:
+            buffer = buffer[start + 2:]
+            continue
+        total_length = 2 + 4 + length + 4
+        if len(buffer) < start + total_length:
+            break
+        frames.append(buffer[start:start + total_length])
+        buffer = buffer[start + total_length:]
+    return frames, buffer
+
+
+def build_ack(frame: str) -> str:
+    body = f"QN={get_field(frame, 'QN')};ST=91;CN=9014;PW={get_field(frame, 'PW')};MN={get_field(frame, 'MN')};Flag=4;CP=&&QnRtn=1;ExeRtn=1&&"
+    return f"##{len(body):04d}{body}{crc16(body)}\r\n"
+
+
+# ---- Outbound command: CN=1012 设置现场机时间 (HJ212 §6.6.5 Table 9,示例 C.3) ----
+# This is the monitoring center (us) actively telling a station to correct
+# its clock. Response comes back on the same connection as CN=9011
+# (request ack) then CN=9012 (execution result) — see _pending_time_syncs.
+_pending_time_syncs = {}
+_pending_time_syncs_lock = threading.Lock()
+_last_time_sync_attempt = {}  # mn -> monotonic time of last attempt, for cooldown
+
+
+def build_time_sync_command(mn: str) -> tuple:
+    """Builds a CN=1012 request frame that sets the station's clock to this
+    server's current (NTP-synced) local time. No PolId in CP means the
+    command targets the field machine's overall clock, not one instrument.
+    Returns (qn, frame_string)."""
+    qn = datetime.now().strftime("%Y%m%d%H%M%S") + f"{int(time.time() * 1000) % 1000:03d}"
+    philippines_tz = timezone(timedelta(hours=8))
+    system_time_str = datetime.now(philippines_tz).strftime("%Y%m%d%H%M%S")
+    body = (
+        f"QN={qn};ST={AQ_HJ212_ST};CN=1012;PW={AQ_HJ212_PW};MN={mn};Flag=5;"
+        f"CP=&&SystemTime={system_time_str}&&"
+    )
+    frame = f"##{len(body):04d}{body}{crc16(body)}\r\n"
+    return qn, frame
+
+
+def request_sensor_time_sync(conn, mn):
+    """Sends a CN=1012 time-correction command to the station over its live
+    connection, subject to a per-station cooldown so a persistently drifting
+    sensor doesn't get flooded with commands."""
+    now_mono = time.monotonic()
+    last = _last_time_sync_attempt.get(mn, 0)
+    if now_mono - last < AQ_TIME_SYNC_COOLDOWN_MIN * 60:
+        return
+    _last_time_sync_attempt[mn] = now_mono
+
+    qn, frame = build_time_sync_command(mn)
     try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute(_aq_daily_avg_query("7 days"))
-        rows = cur.fetchall()
-        for r in rows:
-            if r['summary_date']:
-                r['summary_date'] = r['summary_date'].strftime("%Y-%m-%d")
-        return {"range": "7_days_daily_averages", "results": rows}
+        conn.sendall(frame.encode())
+        with _pending_time_syncs_lock:
+            _pending_time_syncs[qn] = {"mn": mn, "sent_at": now_mono}
+        logger.info(f"Station {mn}: sent HJ212 CN=1012 time-sync command to correct its clock.")
     except Exception as e:
-        logger.error(f"AQ 7d analytics error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Analytical Server Error")
-    finally:
-        release_aq_conn(conn)
+        logger.error(f"Station {mn}: failed to send time-sync command: {e}")
 
 
-@app.get(
-    "/api/air-quality/analytics/30d",
-    tags=["Air Quality - Analytics"],
-    summary="30-day daily average readings per station",
-    description="Returns one averaged row per station per day, aggregated over the last 30 days (time-bucketed daily).",
-    response_model=AQAnalyticsDailyResponse,
-    responses=AUTHED_RESPONSES,
-)
-def aq_avg_30d(api_key: str = Depends(verify_api_key)):
-    conn = get_aq_conn()
+def handle_command_response(frame: str):
+    """Handles CN=9011/9012 responses to our own outbound commands (currently
+    just the CN=1012 time-sync). Not a data frame, so it's routed separately
+    from process_frame() in handle_client()."""
+    cn = get_field(frame, "CN")
+    qn = get_field(frame, "QN")
+    with _pending_time_syncs_lock:
+        pending = _pending_time_syncs.get(qn)
+    if not pending:
+        return  # not one of ours (or already resolved)
+
+    mn = pending["mn"]
+    if cn == "9011":
+        qnrtn = get_field(frame, "QnRtn")
+        if qnrtn != "1":
+            logger.warning(f"Station {mn}: time-sync command rejected by station (QnRtn={qnrtn}).")
+            with _pending_time_syncs_lock:
+                _pending_time_syncs.pop(qn, None)
+        # QnRtn==1: station accepted the request, wait for CN=9012 execution result.
+    elif cn == "9012":
+        exertn = get_field(frame, "ExeRtn")
+        if exertn == "1":
+            logger.info(f"Station {mn}: sensor clock corrected successfully via HJ212 time-sync.")
+        else:
+            logger.warning(
+                f"Station {mn}: time-sync execution failed (ExeRtn={exertn}). "
+                f"If this keeps failing, the station's RTC/battery likely needs physical service."
+            )
+        with _pending_time_syncs_lock:
+            _pending_time_syncs.pop(qn, None)
+
+
+def parse_cp(cp_data: str):
+    result = {}
+    if not cp_data:
+        return result
+    for section in cp_data.split(";"):
+        if not section:
+            continue
+        if section.startswith("DataTime="):
+            result["DataTime"] = section.split("=", 1)[1]
+            continue
+        # Format: <SensorName>-Rtd=<val>,Avg=<val>,... or similar HJ212 key-value groupings
+        if "-" in section:
+            name, rest = section.split("-", 1)
+            fields = {}
+            for kv in rest.split(","):
+                if "=" in kv:
+                    k, v = kv.split("=", 1)
+                    try:
+                        fields[k] = float(v)
+                    except ValueError:
+                        fields[k] = v
+            result[name] = fields
+    return result
+
+
+def parse_frame(frame: str):
+    fields = {"QN": get_field(frame, "QN"), "CN": get_field(frame, "CN"), "MN": get_field(frame, "MN")}
+    cp_match = re.search(r"CP=&&(.*)&&", frame)
+    return {"Length": frame[2:6], "QN": fields.get("QN"), "CN": fields.get("CN"), "MN": fields.get("MN"),
+            "CP": parse_cp(cp_match.group(1) if cp_match else "")}
+
+
+def process_frame(frame, ip_address, conn=None):
+    data = parse_frame(frame)
+    if data:
+        insert_sensor_data(data, ip_address, station_conn=conn)
+
+
+# ==========================================================
+# MODBUS LEAD SENSOR SERVICE
+# ==========================================================
+def poll_station(mn, station):
+    ip, port, slave = station["lead_ip"], station["lead_port"], station["lead_slave"]
+    client = ModbusTcpClient(host=ip, port=port, framer=FramerType.RTU, timeout=3)
+    if not client.connect():
+        logger.error(f"[MODBUS] Station {mn} (IP {ip}): could not connect.")
+        return
     try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute(_aq_daily_avg_query("30 days"))
-        rows = cur.fetchall()
-        for r in rows:
-            if r['summary_date']:
-                r['summary_date'] = r['summary_date'].strftime("%Y-%m-%d")
-        return {"range": "30_days_daily_averages", "results": rows}
+        rr = None
+        try:
+            rr = client.read_holding_registers(address=0, count=10, slave=slave)
+        except TypeError:
+            try:
+                rr = client.read_holding_registers(address=0, count=10, device_id=slave)
+            except TypeError:
+                rr = client.read_holding_registers(address=0, count=10, unit=slave)
+
+        if rr and not rr.isError():
+            update_lead_value(mn, ip, rr.registers[2] / 10.0, rr.registers[1] / 10.0)
     except Exception as e:
-        logger.error(f"AQ 30d analytics error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Analytical Server Error")
+        logger.error(f"[MODBUS] Station {mn} (IP {ip}): {e}")
     finally:
-        release_aq_conn(conn)
+        client.close()
 
 
-@app.get(
-    "/api/air-quality/stations",
-    tags=["Air Quality - Infrastructure"],
-    summary="List all registered air quality stations",
-    description="Returns the static registry of air quality stations (id, name, location) — not live readings.",
-    response_model=AQStationsListResponse,
-    responses=AUTHED_RESPONSES,
-)
-def aq_list_stations(api_key: str = Depends(verify_api_key)):
-    conn = get_aq_conn()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT station_mn, station_name, latitude, longitude, updated_at FROM stations ORDER BY station_mn;")
-        rows = cur.fetchall()
-        for r in rows:
-            if r['updated_at']:
-                r['updated_at'] = format_api_datetime(r['updated_at'])
-        return {"total_registered": len(rows), "stations": rows}
-    except Exception as e:
-        logger.error(f"AQ stations list error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Database Error")
-    finally:
-        release_aq_conn(conn)
+def lead_service():
+    while True:
+        for mn, station in get_stations().items():
+            if station["enabled"]:
+                poll_station(mn, station)
+        time.sleep(LEAD_POLL_INTERVAL)
 
 
-# ----------------------------------------------------------
-# SEISMIC ENDPOINTS
-# ----------------------------------------------------------
-def map_seismic_row_to_json(row, now):
-    status = "offline"
-    last_update_str = None
-    if row['time']:
-        last_update_utc = row['time'] if row['time'].tzinfo else row['time'].replace(tzinfo=timezone.utc)
-        last_update_str = format_api_datetime(last_update_utc)
-        if (now - last_update_utc).total_seconds() < 300:
-            status = "online"
-
-    return {
-        "station_id": row['station_id'],
-        "friendly_name": row['station_name'],
-        "location": {
-            "latitude": row['latitude'],
-            "longitude": row['longitude'],
-            "elevation_m": row['elevation_m'],
-        },
-        "status": status,
-        "last_update": last_update_str,
-        "acceleration": {"x": row['acc_x'], "y": row['acc_y'], "z": row['acc_z']},
-        "velocity": {"x": row['vel_x'], "y": row['vel_y'], "z": row['vel_z']},
-        "displacement": {"x": row['disp_x'], "y": row['disp_y'], "z": row['disp_z']},
-        "graph": {
-            "x": row['graph_x'], "y": row['graph_y'], "z": row['graph_z'],
-            "scale": row['graph_scale'], "center": row['graph_center'],
-        },
-        "pga": row['pga'],
-        "peis": row['peis'],
-    }
+def start_lead_service():
+    threading.Thread(target=lead_service, daemon=True, name="ModbusLeadService").start()
 
 
-def map_seismic_graph_row_to_json(row, now):
-    """Lighter-weight mapper for the graph-only endpoints — just station
-    identity/status plus the graph_* fields, without acc/vel/disp/pga/peis."""
-    status = "offline"
-    last_update_str = None
-    if row['time']:
-        last_update_utc = row['time'] if row['time'].tzinfo else row['time'].replace(tzinfo=timezone.utc)
-        last_update_str = format_api_datetime(last_update_utc)
-        if (now - last_update_utc).total_seconds() < 300:
-            status = "online"
+# ==========================================================
+# TCP SERVER
+# ==========================================================
+def handle_client(conn, addr):
+    ip_address = addr[0]
+    buffer = ""
+    while True:
+        try:
+            data = conn.recv(BUFFER_SIZE)
+            if not data:
+                break
+            buffer += data.decode(errors="ignore")
+            frames, buffer = extract_frames(buffer)
 
-    return {
-        "station_id": row['station_id'],
-        "friendly_name": row['station_name'],
-        "status": status,
-        "last_update": last_update_str,
-        "graph": {
-            "x": row['graph_x'], "y": row['graph_y'], "z": row['graph_z'],
-            "scale": row['graph_scale'], "center": row['graph_center'],
-        },
-    }
-
-
-@app.get(
-    "/api/seismic/stations/latest",
-    tags=["Seismic - Live"],
-    summary="Latest reading for every seismic station",
-    description="Returns the most recent acceleration/velocity/displacement reading for each seismic station.",
-    response_model=SeismicStationsLatestResponse,
-    responses=AUTHED_RESPONSES,
-)
-def seismic_latest_all(api_key: str = Depends(verify_api_key)):
-    conn = get_seismic_conn()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            SELECT DISTINCT ON (station_id)
-                station_id, station_name, latitude, longitude, elevation_m, time,
-                acc_x, acc_y, acc_z, vel_x, vel_y, vel_z, disp_x, disp_y, disp_z,
-                graph_x, graph_y, graph_z, graph_scale, graph_center, pga, peis
-            FROM station_metrics
-            ORDER BY station_id, time DESC;
-        """)
-        rows = cur.fetchall()
-        now = datetime.now(timezone.utc)
-        stations_list = [map_seismic_row_to_json(r, now) for r in rows]
-        return {"timestamp": format_api_datetime(now), "total_stations": len(stations_list), "stations": stations_list}
-    except Exception as e:
-        logger.error(f"Seismic latest error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-    finally:
-        release_seismic_conn(conn)
+            for frame in frames:
+                if VERIFY_CHECKSUM and not verify_crc(frame):
+                    continue
+                cn = get_field(frame, "CN")
+                if cn == "2011":
+                    process_frame(frame, ip_address, conn)
+                elif cn in ("9011", "9012"):
+                    # Station's response to a command WE sent it (e.g. our
+                    # CN=1012 time-sync request) — not something to ack.
+                    handle_command_response(frame)
+                if cn in SUPPORTED_CN:
+                    conn.sendall(build_ack(frame).encode())
+        except Exception:
+            break
+    conn.close()
 
 
-@app.get(
-    "/api/seismic/stations/{station_id}/latest",
-    tags=["Seismic - Live"],
-    summary="Latest reading for one seismic station",
-    description="Returns the most recent reading for a single seismic station, identified by its station_id.",
-    response_model=SeismicStationLatestResponse,
-    responses=AUTHED_LOOKUP_RESPONSES,
-)
-def seismic_latest_station(
-    station_id: str = ApiPath(..., description="Seismic station identifier, e.g. 'STN-001'."),
-    api_key: str = Depends(verify_api_key),
-):
-    conn = get_seismic_conn()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            SELECT station_id, station_name, latitude, longitude, elevation_m, time,
-                   acc_x, acc_y, acc_z, vel_x, vel_y, vel_z, disp_x, disp_y, disp_z,
-                   graph_x, graph_y, graph_z, graph_scale, graph_center, pga, peis
-            FROM station_metrics
-            WHERE station_id = %s
-            ORDER BY time DESC LIMIT 1;
-        """, (station_id,))
-        row = cur.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Station Identifier not found in database records.")
-        now = datetime.now(timezone.utc)
-        return {"timestamp": format_api_datetime(now), "station": map_seismic_row_to_json(row, now)}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Seismic single station error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-    finally:
-        release_seismic_conn(conn)
+def start_tcp_server():
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind((SERVER_HOST, SERVER_PORT))
+    server.listen(MAX_CONNECTIONS)
+    logger.info(f"Air quality TCP server running on {SERVER_HOST}:{SERVER_PORT}")
+    while True:
+        conn, addr = server.accept()
+        conn.settimeout(60)
+        threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
 
 
-@app.get(
-    "/api/seismic/graph/latest",
-    tags=["Seismic - Live"],
-    summary="Latest graph data for every seismic station",
-    description="Returns just the waveform/graph fields (graph_x, graph_y, graph_z, graph_scale, graph_center) for each seismic station's most recent reading — a lighter payload than /api/seismic/stations/latest for clients that only render the live graph.",
-    response_model=SeismicGraphAllResponse,
-    responses=AUTHED_RESPONSES,
-)
-def seismic_graph_latest_all(api_key: str = Depends(verify_api_key)):
-    conn = get_seismic_conn()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            SELECT DISTINCT ON (station_id)
-                station_id, station_name, time,
-                graph_x, graph_y, graph_z, graph_scale, graph_center
-            FROM station_metrics
-            ORDER BY station_id, time DESC;
-        """)
-        rows = cur.fetchall()
-        now = datetime.now(timezone.utc)
-        stations_list = [map_seismic_graph_row_to_json(r, now) for r in rows]
-        return {"timestamp": format_api_datetime(now), "total_stations": len(stations_list), "stations": stations_list}
-    except Exception as e:
-        logger.error(f"Seismic graph latest (all stations) error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-    finally:
-        release_seismic_conn(conn)
+def _validate_config():
+    env_path = SCRIPT_DIR / ".env"
+    if not DB_PASSWORD:
+        logger.critical("=" * 70)
+        logger.critical("CONFIG ERROR: SYSTEM_DB_PASSWORD not loaded from .env")
+        logger.critical(f"Expected .env at: {env_path} (exists: {env_path.exists()})")
+        logger.critical("Check: file isn't secretly named '.env.txt', is in this script's folder, and is saved as UTF-8.")
+        logger.critical("=" * 70)
+        raise SystemExit(1)
 
 
-@app.get(
-    "/api/seismic/stations/{station_id}/graph/latest",
-    tags=["Seismic - Live"],
-    summary="Latest graph data for one seismic station",
-    description="Returns just the waveform/graph fields for a single station's most recent reading, identified by its station_id.",
-    response_model=SeismicStationGraphResponse,
-    responses=AUTHED_LOOKUP_RESPONSES,
-)
-def seismic_graph_latest_station(
-    station_id: str = ApiPath(..., description="Seismic station identifier, e.g. 'STN-001'."),
-    api_key: str = Depends(verify_api_key),
-):
-    conn = get_seismic_conn()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            SELECT station_id, station_name, time,
-                   graph_x, graph_y, graph_z, graph_scale, graph_center
-            FROM station_metrics
-            WHERE station_id = %s
-            ORDER BY time DESC LIMIT 1;
-        """, (station_id,))
-        row = cur.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Station Identifier not found in database records.")
-        now = datetime.now(timezone.utc)
-        return {"timestamp": format_api_datetime(now), "station": map_seismic_graph_row_to_json(row, now)}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Seismic graph latest (single station) error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-    finally:
-        release_seismic_conn(conn)
+def main():
+    _validate_config()
+    if not initialize_database():
+        logger.critical("Database initialization failed. Halting.")
+        return
 
+    refresh_stations(initial=True)
+    threading.Thread(target=stations_refresh_loop, daemon=True, name="StationsRefresh").start()
 
-@app.get(
-    "/api/seismic/stations/{station_id}/history",
-    tags=["Seismic - History"],
-    summary="Raw reading history for one seismic station",
-    description="Returns every raw telemetry reading for a station within the lookback window, ordered oldest to newest.",
-    response_model=SeismicHistoryResponse,
-    responses=AUTHED_RESPONSES,
-)
-def seismic_station_history(
-    station_id: str = ApiPath(..., description="Seismic station identifier, e.g. 'STN-001'."),
-    hours: int = Query(1, ge=1, le=24, description="Lookback window in hours. Minimum 1, maximum 24."),
-    api_key: str = Depends(verify_api_key),
-):
-    """Raw readings for a station over the last N hours (default 1, max 24)."""
-    hours = max(1, min(hours, 24))
-    conn = get_seismic_conn()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            SELECT time, acc_x, acc_y, acc_z, vel_x, vel_y, vel_z,
-                   disp_x, disp_y, disp_z, pga, peis
-            FROM station_metrics
-            WHERE station_id = %s AND time >= NOW() - (%s || ' hours')::interval
-            ORDER BY time ASC;
-        """, (station_id, hours))
-        rows = cur.fetchall()
-        for r in rows:
-            if r['time']:
-                r['time'] = format_api_datetime(r['time'])
-        return {"station_id": station_id, "hours": hours, "readings": rows}
-    except Exception as e:
-        logger.error(f"Seismic history error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-    finally:
-        release_seismic_conn(conn)
-
-
-@app.get(
-    "/api/seismic/events",
-    tags=["Seismic - Events"],
-    summary="Seismic readings flagged as events",
-    description="Returns readings where the PEIS intensity value meets or exceeds min_peis, within the lookback window.",
-    response_model=SeismicEventsResponse,
-    responses=AUTHED_RESPONSES,
-)
-def seismic_events(
-    min_peis: int = Query(1, ge=0, description="Minimum PEIS intensity value to include (readings with peis >= this value)."),
-    hours: int = Query(24, ge=1, le=168, description="Lookback window in hours. Minimum 1, maximum 168 (7 days)."),
-    api_key: str = Depends(verify_api_key),
-):
-    """Readings flagged as seismic events (PEIS >= min_peis) within the lookback window."""
-    hours = max(1, min(hours, 168))
-    conn = get_seismic_conn()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("""
-            SELECT time, station_id, station_name, latitude, longitude, pga, peis
-            FROM station_metrics
-            WHERE peis >= %s AND time >= NOW() - (%s || ' hours')::interval
-            ORDER BY time DESC;
-        """, (min_peis, hours))
-        rows = cur.fetchall()
-        for r in rows:
-            if r['time']:
-                r['time'] = format_api_datetime(r['time'])
-        return {"min_peis": min_peis, "hours": hours, "total_events": len(rows), "events": rows}
-    except Exception as e:
-        logger.error(f"Seismic events error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-    finally:
-        release_seismic_conn(conn)
-
-
-# ----------------------------------------------------------
-# SYSTEM LOGS
-# ----------------------------------------------------------
-@app.get(
-    "/api/system/logs",
-    tags=["System"],
-    summary="Query centralized service logs",
-    description=(
-        "Returns log records written by air_quality_ingest, seismic_mqtt, and api_server "
-        "into the shared `service_logs` table."
-    ),
-    response_model=ServiceLogsResponse,
-    responses=AUTHED_RESPONSES,
-)
-def system_logs(
-    service: Optional[str] = Query(None, description="Filter to one service: air_quality_ingest, seismic_mqtt, or api_server."),
-    level: Optional[str] = Query(None, description="Filter to one log level: INFO, WARNING, ERROR, CRITICAL."),
-    hours: int = Query(24, ge=1, le=168, description="Lookback window in hours. Minimum 1, maximum 168 (7 days)."),
-    limit: int = Query(200, ge=1, le=1000, description="Max rows to return."),
-    api_key: str = Depends(verify_api_key),
-):
-    conn = get_log_conn()
-    try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        clauses = ["created_at >= NOW() - (%s || ' hours')::interval"]
-        params: list = [hours]
-        if service:
-            clauses.append("service = %s")
-            params.append(service)
-        if level:
-            clauses.append("level = %s")
-            params.append(level.upper())
-        where = " AND ".join(clauses)
-        params.append(limit)
-        cur.execute(f"""
-            SELECT created_at, service, level, logger_name, thread_name, message
-            FROM service_logs
-            WHERE {where}
-            ORDER BY created_at DESC
-            LIMIT %s;
-        """, params)
-        rows = cur.fetchall()
-        for r in rows:
-            if r['created_at']:
-                r['created_at'] = format_api_datetime(r['created_at'])
-        return {"total": len(rows), "logs": rows}
-    except Exception as e:
-        logger.error(f"System logs query error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-    finally:
-        release_log_conn(conn)
-
-
-# ----------------------------------------------------------
-# SYSTEM STATUS
-# ----------------------------------------------------------
-@app.get(
-    "/api/system/status",
-    tags=["System"],
-    summary="API health check",
-    description="Returns overall API status and whether each database connection pool is initialized. No API key required.",
-    response_model=SystemStatusResponse,
-    responses=VALIDATION_RESPONSES,
-)
-def system_health_check():
-    return {
-        "status": "operational",
-        "timestamp": format_api_datetime(datetime.now(timezone.utc)),
-        "subsystems": {
-            "air_quality_db_pool": "initialized" if _aq_pool else "not initialized",
-            "seismic_db_pool": "initialized" if _seismic_pool else "not initialized",
-            "api_db_pool": "initialized" if _api_pool else "not initialized",
-        },
-    }
+    start_batch_insert_worker()
+    start_lead_service()
+    start_tcp_server()  # blocks the main thread
 
 
 if __name__ == "__main__":
-    initialize_pools()
-    initialize_api_keys_table()
-    initialize_ip_allowlist_table()
-    logger.info(f"Monitoring API starting on {API_BIND_HOST}:{API_PORT}")
-    uvicorn.run(app, host=API_BIND_HOST, port=API_PORT, log_level="warning")
+    main()
