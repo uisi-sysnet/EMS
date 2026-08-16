@@ -12,12 +12,24 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
+
     /**
      * Display the user management page
      */
     public function index(): View
     {
-        $users = User::orderBy('created_at', 'desc')->get();
+        $currentUserRole = session('role');
+        
+        // If user is Admin, hide Super Admin users
+        if ($currentUserRole === 'admin') {
+            $users = User::where('role', '!=', 'superAdmin')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        } else {
+            // SuperAdmin can see all users
+            $users = User::orderBy('created_at', 'desc')->get();
+        }
+        
         return view('user_management', compact('users'));
     }
 
@@ -42,8 +54,16 @@ class UserController extends Controller
                 ->withInput();
         }
 
+        // FIXED: Get user role from session instead of auth()
+        $currentUserRole = session('role');
+        
+        // Prevent non-superAdmin from creating superAdmin accounts
+        if ($currentUserRole !== 'superAdmin' && $request->role === 'superAdmin') {
+            return back()->withErrors(['role' => 'You do not have permission to create Super Administrator accounts.']);
+        }
+
         $user = User::create([
-            'name' => $request->first_name . ' ' . $request->last_name, // <-- ADD THIS
+            'name' => $request->first_name . ' ' . $request->last_name,
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'contact_number' => $request->contact_number,
@@ -81,8 +101,21 @@ class UserController extends Controller
                 ->withInput();
         }
 
+        // FIXED: Get user role from session instead of auth()
+        $currentUserRole = session('role');
+        
+        // Prevent non-superAdmin from updating to superAdmin
+        if ($currentUserRole !== 'superAdmin' && $request->role === 'superAdmin') {
+            return back()->withErrors(['role' => 'You do not have permission to assign Super Administrator role.']);
+        }
+        
+        // Prevent non-superAdmin from editing superAdmin accounts
+        if ($currentUserRole !== 'superAdmin' && $user->role === 'superAdmin') {
+            return back()->withErrors(['role' => 'You do not have permission to edit Super Administrator accounts.']);
+        }
+
         $user->update([
-            'name' => $request->first_name . ' ' . $request->last_name, // <-- ADD THIS
+            'name' => $request->first_name . ' ' . $request->last_name,
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'contact_number' => $request->contact_number,
@@ -109,8 +142,17 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         
+        // FIXED: Get user role and ID from session instead of auth()
+        $currentUserRole = session('role');
+        $currentUserId = session('user_id');
+        
+        // Prevent non-superAdmin from deleting superAdmin accounts
+        if ($currentUserRole !== 'superAdmin' && $user->role === 'superAdmin') {
+            return back()->withErrors(['error' => 'You do not have permission to delete Super Administrator accounts.']);
+        }
+        
         // Prevent deleting yourself
-        if (auth()->id() === $user->id) {
+        if ($currentUserId === $user->id) {
             return redirect()->route('user.index')
                 ->with('error', 'You cannot delete your own account.');
         }
@@ -138,5 +180,42 @@ class UserController extends Controller
             'username' => $user->username,
             'role' => $user->role,
         ]);
+    }
+
+    /**
+     * Change the password for the current authenticated user
+     */
+    public function changePassword(Request $request): RedirectResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'current_password' => ['required', 'string'],
+            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
+            'new_password_confirmation' => ['required', 'string', 'min:8'],
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        // Get user from session
+        $userId = session('user_id');
+        $user = User::findOrFail($userId);
+
+        // Verify current password
+        if (!Hash::check($request->current_password, $user->password)) {
+            return redirect()->back()
+                ->withErrors(['current_password' => 'Current password is incorrect.'])
+                ->withInput();
+        }
+
+        // Update password
+        $user->update([
+            'password' => Hash::make($request->new_password),
+        ]);
+
+        return redirect()->back()
+            ->with('success', 'Password changed successfully!');
     }
 }
