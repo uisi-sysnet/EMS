@@ -12,6 +12,7 @@ import hashlib
 import ipaddress
 import threading
 import time
+from collections import deque
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -357,6 +358,47 @@ API_KEYS_REFRESH_INTERVAL_SEC = int(os.getenv("API_KEYS_REFRESH_INTERVAL_SEC", 3
 AUTHORIZED_NETWORKS: List["ipaddress._BaseNetwork"] = []
 _ip_allowlist_lock = threading.Lock()
 IP_ALLOWLIST_REFRESH_INTERVAL_SEC = int(os.getenv("IP_ALLOWLIST_REFRESH_INTERVAL_SEC", 300))
+
+# ---- Rate limiting ----
+# Simple in-memory sliding window: at most RATE_LIMIT_REQUESTS requests per
+# RATE_LIMIT_WINDOW_SEC seconds, per API token. Deliberately in-process
+# (a dict behind a lock, same pattern as AUTHORIZED_KEYS above) rather than
+# Redis/DB-backed, since this deploys as a single `uvicorn.run(app, ...)`
+# process behind nginx — see API_BIND_HOST below. If this ever moves to
+# multiple worker processes, these counters would need to move to Redis or
+# the DB too, since each process would otherwise keep its own separate count
+# and the real per-token rate would be RATE_LIMIT_REQUESTS × worker count.
+RATE_LIMIT_REQUESTS = int(os.getenv("API_RATE_LIMIT_REQUESTS", 6))
+RATE_LIMIT_WINDOW_SEC = int(os.getenv("API_RATE_LIMIT_WINDOW_SEC", 60))
+# Paths exempt from rate limiting — /api/system/status is the public,
+# no-API-key health check (see its endpoint below) and is meant to be
+# polled by uptime monitors more often than a normal client would call
+# a data endpoint.
+RATE_LIMIT_EXEMPT_PATHS = {"/api/system/status"}
+
+_rate_limit_hits: Dict[str, deque] = {}
+_rate_limit_lock = threading.Lock()
+
+
+def _is_rate_limited(key: str) -> bool:
+    """True if `key` has already made RATE_LIMIT_REQUESTS requests within
+    the last RATE_LIMIT_WINDOW_SEC seconds. Records this request's
+    timestamp as a side effect whenever it's NOT rate limited, so callers
+    don't need a separate 'record this request' step. `key` is a hashed
+    API token for authenticated requests, or an IP-derived key for
+    requests with no token at all (see the middleware below) — either way
+    the number of distinct keys stays small and bounded (one per issued
+    API key, plus occasional stray IPs), so the dict is never cleaned up
+    separately; that's fine at this scale."""
+    now = time.monotonic()
+    with _rate_limit_lock:
+        hits = _rate_limit_hits.setdefault(key, deque())
+        while hits and now - hits[0] > RATE_LIMIT_WINDOW_SEC:
+            hits.popleft()
+        if len(hits) >= RATE_LIMIT_REQUESTS:
+            return True
+        hits.append(now)
+        return False
 
 # This deployment sits behind nginx (confirmed), so the real client IP
 # arrives in a header rather than as the TCP peer address — uvicorn only
@@ -1030,8 +1072,36 @@ async def monitor_and_log_api_requests(request: Request, call_next):
         return JSONResponse(status_code=403, content={"detail": "Unauthorized request: IP address not allowed"})
 
     raw_token = request.headers.get("X-API-Key")
-    api_key_owner = get_authorized_keys().get(_hash_token(raw_token), "Unauthorized/None") if raw_token else "Unauthorized/None"
+    hashed_token = _hash_token(raw_token) if raw_token else None
+    api_key_owner = get_authorized_keys().get(hashed_token, "Unauthorized/None") if hashed_token else "Unauthorized/None"
     masked_token = _mask_token(raw_token)
+
+    # Rate limit per API token — falls back to a per-IP key when no token
+    # was sent at all, so that case isn't one shared unlimited bucket for
+    # every anonymous caller. Exempt paths (the public health check) skip
+    # this entirely. Real invalid-token requests still get a normal 403
+    # from verify_api_key below/inside the route; this only ever adds a
+    # 429 on top for a key (or IP) that's exceeded the request rate.
+    if path not in RATE_LIMIT_EXEMPT_PATHS:
+        rate_limit_key = hashed_token if hashed_token else f"ip:{client_ip}"
+        if _is_rate_limited(rate_limit_key):
+            duration_ms = round((time.time() - start_time) * 1000, 2)
+            logger.warning(
+                f"[API] RATE LIMITED: {client_ip} ({api_key_owner}, token: {masked_token}) -> {method} {path}"
+            )
+            threading.Thread(
+                target=insert_api_log,
+                args=(client_ip, method, path, 429, duration_ms, api_key_owner, masked_token),
+                daemon=True,
+            ).start()
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "detail": f"Rate limit exceeded: max {RATE_LIMIT_REQUESTS} requests "
+                              f"per {RATE_LIMIT_WINDOW_SEC}s per API token."
+                },
+                headers={"Retry-After": str(RATE_LIMIT_WINDOW_SEC)},
+            )
 
     response = await call_next(request)
 
