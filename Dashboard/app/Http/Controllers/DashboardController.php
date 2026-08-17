@@ -364,13 +364,19 @@ class DashboardController extends Controller
     private function buildSystemSummary(): array
     {
         return Cache::remember('dashboard.system_summary', 300, function () {
+            $ports = $this->detectNetworkPorts();
+
             return [
                 'device_model' => $this->detectDeviceModel(),
                 'cpu_model'    => $this->detectCpuModel(),
                 'os_version'   => $this->detectOsVersion(),
                 'memory'       => $this->detectMemoryDimms(),
                 'storage'      => $this->detectStorageType(),
-                'network'      => $this->detectNetworkPorts(),
+                'network'      => [
+                    'ports' => $ports,
+                    'used'  => count(array_filter($ports, fn ($port) => $port['active'])),
+                    'total' => count($ports),
+                ],
             ];
         });
     }
@@ -589,8 +595,14 @@ class DashboardController extends Controller
      * Lists physical network interfaces (skips loopback and virtual
      * interfaces like docker bridges/veth pairs, identified by the
      * absence of a /sys/class/net/<iface>/device link back to real
-     * hardware) with link state and speed. Speed is only read while a
-     * link is up — sysfs returns garbage for a down interface's speed.
+     * hardware) with link state, speed, and IPv4 address in CIDR
+     * notation. Speed is only read while a link is up — sysfs returns
+     * garbage for a down interface's speed. Color/active are
+     * precomputed here (rather than in the view) to match the rest of
+     * this file's pattern of keeping status-color logic in one place:
+     *   - green: link up and an IPv4 address is assigned
+     *   - amber: link up but no address yet (e.g. still negotiating DHCP)
+     *   - gray:  link down / cable unplugged
      */
     private function detectNetworkPorts(): array
     {
@@ -619,14 +631,58 @@ class DashboardController extends Controller
                 }
             }
 
+            $cidr   = $this->detectInterfaceCidr($iface);
+            $active = $operstate === 'up';
+
             $ports[] = [
-                'name'   => $iface,
-                'status' => $operstate,
-                'speed'  => $speed,
+                'name'    => $iface,
+                'status'  => $operstate,
+                'speed'   => $speed,
+                'ip_cidr' => $cidr,
+                'active'  => $active,
+                'colors'  => match (true) {
+                    $active && $cidr !== null => ['bg' => 'bg-munti-green-500', 'text' => 'text-munti-green-400'],
+                    $active                   => ['bg' => 'bg-amber-500', 'text' => 'text-amber-400'],
+                    default                   => ['bg' => 'bg-surface-600', 'text' => 'text-text-500'],
+                },
             ];
         }
 
         return $ports;
+    }
+
+    /**
+     * Reads an interface's IPv4 address + prefix length and returns it
+     * as CIDR notation (e.g. "192.168.1.42/24"). Prefers `ip -j` (JSON
+     * output, iproute2 4.14+) for clean structured parsing; falls back
+     * to scraping the plain-text output of the same command for older
+     * iproute2 builds without -j support. Null if the interface has no
+     * IPv4 address (down, or up but not yet configured).
+     */
+    private function detectInterfaceCidr(string $iface): ?string
+    {
+        $json = new Process(['ip', '-j', 'addr', 'show', $iface]);
+        $json->setTimeout(5);
+        $json->run();
+
+        if ($json->isSuccessful()) {
+            $data = json_decode($json->getOutput(), true);
+            foreach ($data[0]['addr_info'] ?? [] as $addr) {
+                if (($addr['family'] ?? null) === 'inet' && !empty($addr['local'])) {
+                    return $addr['local'] . '/' . ($addr['prefixlen'] ?? 32);
+                }
+            }
+            return null;
+        }
+
+        $text = new Process(['ip', 'addr', 'show', $iface]);
+        $text->setTimeout(5);
+        $text->run();
+        if ($text->isSuccessful() && preg_match('/inet\s+(\d{1,3}(?:\.\d{1,3}){3}\/\d{1,2})/', $text->getOutput(), $match)) {
+            return $match[1];
+        }
+
+        return null;
     }
 
     /**

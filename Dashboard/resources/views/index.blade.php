@@ -317,48 +317,67 @@
                             </button>
                         </div>
                     </div>
-                    <div id="system-summary-body" class="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+                    <div id="system-summary-body">
+                        <div class="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
 
-                        <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
-                            <span class="text-text-400">Device Model</span>
-                            <span id="summary-device" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['device_model'] }}</span>
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">Device Model</span>
+                                <span id="summary-device" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['device_model'] }}</span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">CPU Model</span>
+                                <span id="summary-cpu" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['cpu_model'] }}</span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">OS Version</span>
+                                <span id="summary-os" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['os_version'] }}</span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">Memory</span>
+                                <span id="summary-memory" class="text-text-100 font-medium text-right truncate max-w-[65%]">
+                                    @if($systemSummary['memory']['available'])
+                                        {{ $systemSummary['memory']['slots_used'] }}/{{ $systemSummary['memory']['slots_total'] }} DIMMs &middot; {{ $systemSummary['memory']['total_label'] }}
+                                    @else
+                                        {{ $systemSummary['memory']['total_label'] }} <span class="text-text-500">(DIMM count needs sudo)</span>
+                                    @endif
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">Storage Type</span>
+                                <span id="summary-storage" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['storage'] }}</span>
+                            </div>
+
                         </div>
 
-                        <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
-                            <span class="text-text-400">CPU Model</span>
-                            <span id="summary-cpu" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['cpu_model'] }}</span>
-                        </div>
-
-                        <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
-                            <span class="text-text-400">OS Version</span>
-                            <span id="summary-os" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['os_version'] }}</span>
-                        </div>
-
-                        <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
-                            <span class="text-text-400">Memory</span>
-                            <span id="summary-memory" class="text-text-100 font-medium text-right truncate max-w-[65%]">
-                                @if($systemSummary['memory']['available'])
-                                    {{ $systemSummary['memory']['slots_used'] }}/{{ $systemSummary['memory']['slots_total'] }} DIMMs &middot; {{ $systemSummary['memory']['total_label'] }}
-                                @else
-                                    {{ $systemSummary['memory']['total_label'] }} <span class="text-text-500">(DIMM count needs sudo)</span>
-                                @endif
-                            </span>
-                        </div>
-
-                        <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50 sm:border-b-0">
-                            <span class="text-text-400">Storage Type</span>
-                            <span id="summary-storage" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['storage'] }}</span>
-                        </div>
-
-                        <div class="flex items-center justify-between gap-2 py-1">
-                            <span class="text-text-400">Network Port{{ count($systemSummary['network']) === 1 ? '' : 's' }}</span>
-                            <span id="summary-network" class="text-text-100 font-medium text-right truncate max-w-[65%]">
-                                @forelse($systemSummary['network'] as $port)
-                                    {{ $port['name'] }} ({{ $port['status'] }}{{ $port['speed'] ? ', ' . $port['speed'] : '' }}){{ !$loop->last ? ', ' : '' }}
+                        <!-- Network Ports strip -->
+                        <div class="px-3 sm:px-4 pb-3 sm:pb-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[10px] uppercase tracking-wider text-text-400">Network Ports</span>
+                                <span id="summary-network-used" class="inline-flex items-center gap-1 text-xs text-text-100 font-medium">
+                                    Used <span class="text-amber-400">{{ $systemSummary['network']['used'] }}</span>/{{ $systemSummary['network']['total'] }}
+                                </span>
+                            </div>
+                            <div id="summary-network-ports" class="flex items-end gap-3 overflow-x-auto pb-1">
+                                @forelse($systemSummary['network']['ports'] as $port)
+                                    <div class="flex flex-col items-center gap-1 shrink-0">
+                                        <span class="text-[9px] text-text-500 uppercase tracking-wide max-w-[56px] truncate" title="{{ $port['name'] }}">{{ $port['name'] }}</span>
+                                        <div class="w-9 h-9 rounded-lg flex items-center justify-center {{ $port['colors']['bg'] }}">
+                                            @if($port['active'])
+                                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                            @else
+                                                <svg class="w-4 h-4 text-text-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                            @endif
+                                        </div>
+                                        <span class="text-[9px] text-text-500 max-w-[64px] truncate" title="{{ $port['ip_cidr'] ?? 'No IP assigned' }}">{{ $port['ip_cidr'] ?? '—' }}</span>
+                                    </div>
                                 @empty
-                                    &mdash;
+                                    <span class="text-xs text-text-500">No network interfaces detected</span>
                                 @endforelse
-                            </span>
+                            </div>
                         </div>
 
                     </div>
@@ -885,6 +904,12 @@
             if (uptimeEl) uptimeEl.textContent = `${health.uptime.days}d ${health.uptime.hours}h ${health.uptime.minutes}m`;
         }
 
+        function networkPortIconSvg(active) {
+            return active
+                ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>'
+                : '<svg class="w-4 h-4 text-text-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>';
+        }
+
         function updateSystemSummary(summary) {
             if (!summary) return;
 
@@ -907,11 +932,24 @@
             const storageEl = document.getElementById('summary-storage');
             if (storageEl) storageEl.textContent = summary.storage;
 
-            const netEl = document.getElementById('summary-network');
-            if (netEl) {
-                netEl.textContent = summary.network.length
-                    ? summary.network.map(p => `${p.name} (${p.status}${p.speed ? ', ' + p.speed : ''})`).join(', ')
-                    : '—';
+            const usedEl = document.getElementById('summary-network-used');
+            if (usedEl) {
+                usedEl.innerHTML = `Used <span class="text-amber-400">${summary.network.used}</span>/${summary.network.total}`;
+            }
+
+            const portsEl = document.getElementById('summary-network-ports');
+            if (portsEl) {
+                portsEl.innerHTML = summary.network.ports.length
+                    ? summary.network.ports.map(p => `
+                        <div class="flex flex-col items-center gap-1 shrink-0">
+                            <span class="text-[9px] text-text-500 uppercase tracking-wide max-w-[56px] truncate" title="${esc(p.name)}">${esc(p.name)}</span>
+                            <div class="w-9 h-9 rounded-lg flex items-center justify-center ${p.colors.bg}">
+                                ${networkPortIconSvg(p.active)}
+                            </div>
+                            <span class="text-[9px] text-text-500 max-w-[64px] truncate" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
+                        </div>
+                    `).join('')
+                    : '<span class="text-xs text-text-500">No network interfaces detected</span>';
             }
         }
 
