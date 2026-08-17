@@ -1138,7 +1138,13 @@ www-data ALL=(ALL) NOPASSWD: \
     /usr/bin/systemctl restart mosquitto.service, \
     /usr/bin/systemctl start postgresql.service, \
     /usr/bin/systemctl stop postgresql.service, \
-    /usr/bin/systemctl restart postgresql.service
+    /usr/bin/systemctl restart postgresql.service,\
+    /bin/cp,\
+    /bin/rm -f *,\
+    /usr/sbin/nginx -t,\
+    /usr/bin/systemctl start * ,\
+    /usr/bin/systemctl stop *,\
+    /usr/bin/systemctl restart *
 SUDOEOF
 chown root:root "$SUDOERS_FILE"
 chmod 440 "$SUDOERS_FILE"

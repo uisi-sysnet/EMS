@@ -291,6 +291,63 @@
                     </div>
                 </div>
 
+                <!-- SYSTEM SUMMARY: Device / CPU / OS / Memory / Storage / Network identity -->
+                <div class="lg:col-span-2 bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                    <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                        <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                            <span class="truncate">System Summary</span>
+                        </h3>
+                        <span class="text-[10px] text-text-400 bg-surface-700/40 px-1.5 py-0.5 rounded-full shrink-0 border border-border-600/30">
+                            Hardware
+                        </span>
+                    </div>
+                    <div class="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+
+                        <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                            <span class="text-text-400">Device Model</span>
+                            <span id="summary-device" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['device_model'] }}</span>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                            <span class="text-text-400">CPU Model</span>
+                            <span id="summary-cpu" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['cpu_model'] }}</span>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                            <span class="text-text-400">OS Version</span>
+                            <span id="summary-os" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['os_version'] }}</span>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                            <span class="text-text-400">Memory</span>
+                            <span id="summary-memory" class="text-text-100 font-medium text-right truncate max-w-[65%]">
+                                @if($systemSummary['memory']['available'])
+                                    {{ $systemSummary['memory']['slots_used'] }}/{{ $systemSummary['memory']['slots_total'] }} DIMMs &middot; {{ $systemSummary['memory']['total_label'] }}
+                                @else
+                                    {{ $systemSummary['memory']['total_label'] }} <span class="text-text-500">(DIMM count needs sudo)</span>
+                                @endif
+                            </span>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50 sm:border-b-0">
+                            <span class="text-text-400">Storage Type</span>
+                            <span id="summary-storage" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['storage'] }}</span>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-2 py-1">
+                            <span class="text-text-400">Network Port{{ count($systemSummary['network']) === 1 ? '' : 's' }}</span>
+                            <span id="summary-network" class="text-text-100 font-medium text-right truncate max-w-[65%]">
+                                @forelse($systemSummary['network'] as $port)
+                                    {{ $port['name'] }} ({{ $port['status'] }}{{ $port['speed'] ? ', ' . $port['speed'] : '' }}){{ !$loop->last ? ', ' : '' }}
+                                @empty
+                                    &mdash;
+                                @endforelse
+                            </span>
+                        </div>
+
+                    </div>
+                </div>
+
                 <!-- Air Quality Station Status -->
                 <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
                     <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
@@ -782,6 +839,36 @@
             if (uptimeEl) uptimeEl.textContent = `${health.uptime.days}d ${health.uptime.hours}h ${health.uptime.minutes}m`;
         }
 
+        function updateSystemSummary(summary) {
+            if (!summary) return;
+
+            const deviceEl = document.getElementById('summary-device');
+            if (deviceEl) deviceEl.textContent = summary.device_model;
+
+            const cpuEl = document.getElementById('summary-cpu');
+            if (cpuEl) cpuEl.textContent = summary.cpu_model;
+
+            const osEl = document.getElementById('summary-os');
+            if (osEl) osEl.textContent = summary.os_version;
+
+            const memEl = document.getElementById('summary-memory');
+            if (memEl) {
+                memEl.textContent = summary.memory.available
+                    ? `${summary.memory.slots_used}/${summary.memory.slots_total} DIMMs · ${summary.memory.total_label}`
+                    : `${summary.memory.total_label} (DIMM count needs sudo)`;
+            }
+
+            const storageEl = document.getElementById('summary-storage');
+            if (storageEl) storageEl.textContent = summary.storage;
+
+            const netEl = document.getElementById('summary-network');
+            if (netEl) {
+                netEl.textContent = summary.network.length
+                    ? summary.network.map(p => `${p.name} (${p.status}${p.speed ? ', ' + p.speed : ''})`).join(', ')
+                    : '—';
+            }
+        }
+
         function updateStatusBanner(airCounts, seismicCounts) {
             const totalOnline = airCounts.online + seismicCounts.online;
             const totalStations = airCounts.online + airCounts.idle + airCounts.offline
@@ -870,6 +957,7 @@
                 updateDonutCard('seismic', data.seismicCounts);
                 updateStatusBanner(data.airQualityCounts, data.seismicCounts);
                 updateSystemHealth(data.systemHealth);
+                updateSystemSummary(data.systemSummary);
 
                 const lastUpdated = document.getElementById('last-updated');
                 if (lastUpdated) lastUpdated.textContent = `Last updated: ${data.generatedAt}`;
