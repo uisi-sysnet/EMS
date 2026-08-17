@@ -401,23 +401,37 @@ class DashboardController extends Controller
     }
 
     /**
-     * "model name" covers x86 and most 64-bit ARM kernels (5.x+); older
-     * 32-bit ARM boards don't populate it, so we fall back to the
-     * "Hardware" field those boards use instead.
+     * lscpu (util-linux, present on virtually every distro incl.
+     * Raspberry Pi OS) is far more reliable across architectures than
+     * hand-parsing /proc/cpuinfo: on ARM it decodes the CPU
+     * implementer/part fields against a known-core database (e.g.
+     * "Cortex-A72") even when /proc/cpuinfo itself has no "model name"
+     * line, which is exactly the case on Raspberry Pi OS kernels since
+     * Bookworm — they dropped the old "Hardware" field in favor of a
+     * plain "Model" line. /proc/cpuinfo is kept as a fallback (with
+     * every field name different kernels have used for this) in case
+     * lscpu isn't installed.
      */
     private function detectCpuModel(): string
     {
-        if (@is_readable('/proc/cpuinfo')) {
-            $cpuinfo = file('/proc/cpuinfo');
-
-            foreach ($cpuinfo as $line) {
-                if (str_starts_with($line, 'model name')) {
-                    return trim(explode(':', $line, 2)[1]);
-                }
+        $lscpu = new Process(['lscpu']);
+        $lscpu->setTimeout(5);
+        $lscpu->run();
+        if ($lscpu->isSuccessful() && preg_match('/^\s*Model name:\s*(.+)$/mi', $lscpu->getOutput(), $match)) {
+            $model = trim($match[1]);
+            if ($model !== '') {
+                return $model;
             }
-            foreach ($cpuinfo as $line) {
-                if (str_starts_with($line, 'Hardware')) {
-                    return trim(explode(':', $line, 2)[1]);
+        }
+
+        if (@is_readable('/proc/cpuinfo')) {
+            $cpuinfo = file_get_contents('/proc/cpuinfo');
+            foreach (['model name', 'Model', 'Hardware', 'cpu model'] as $field) {
+                if (preg_match('/^' . preg_quote($field, '/') . '\s*:\s*(.+)$/mi', $cpuinfo, $match)) {
+                    $value = trim($match[1]);
+                    if ($value !== '') {
+                        return $value;
+                    }
                 }
             }
         }
