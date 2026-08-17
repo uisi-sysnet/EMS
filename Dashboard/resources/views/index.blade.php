@@ -224,11 +224,19 @@
                         <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
                             <span class="truncate">System Health</span>
                         </h3>
-                        <span class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
-                            Live
-                        </span>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full border border-munti-green-600/30">
+                                Live
+                            </span>
+                            <button type="button" id="system-health-toggle" aria-expanded="true" aria-controls="system-health-body"
+                                    class="p-0.5 rounded hover:bg-surface-700/60 text-text-400 hover:text-text-200 transition">
+                                <svg id="system-health-chevron" class="w-3.5 h-3.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-                    <div class="p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div id="system-health-body" class="p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
 
                         <!-- CPU -->
                         <div class="bg-surface-900/60 rounded-lg border border-border-700 p-3 flex flex-col gap-2">
@@ -297,11 +305,19 @@
                         <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
                             <span class="truncate">System Summary</span>
                         </h3>
-                        <span class="text-[10px] text-text-400 bg-surface-700/40 px-1.5 py-0.5 rounded-full shrink-0 border border-border-600/30">
-                            Hardware
-                        </span>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-[10px] text-text-400 bg-surface-700/40 px-1.5 py-0.5 rounded-full border border-border-600/30">
+                                Hardware
+                            </span>
+                            <button type="button" id="system-summary-toggle" aria-expanded="true" aria-controls="system-summary-body"
+                                    class="p-0.5 rounded hover:bg-surface-700/60 text-text-400 hover:text-text-200 transition">
+                                <svg id="system-summary-chevron" class="w-3.5 h-3.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-                    <div class="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+                    <div id="system-summary-body" class="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
 
                         <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
                             <span class="text-text-400">Device Model</span>
@@ -821,6 +837,36 @@
             barEl.className = 'h-full rounded-full ' + tileData.colors.bar;
         }
 
+        /**
+         * Wires up a card's header toggle button to show/hide its body
+         * and persist the collapsed state in localStorage (per card, via
+         * storageKey) so it survives a page reload. Deliberately an
+         * instant show/hide (Tailwind's `hidden` class) rather than an
+         * animated height transition — the body's contents get replaced
+         * wholesale by refreshDashboard() every 20s, and measuring
+         * scrollHeight against that moving target is more trouble than
+         * it's worth for a collapse toggle.
+         */
+        function initCollapsible(toggleId, bodyId, chevronId, storageKey) {
+            const toggle = document.getElementById(toggleId);
+            const body = document.getElementById(bodyId);
+            const chevron = document.getElementById(chevronId);
+            if (!toggle || !body) return;
+
+            function setCollapsed(collapsed) {
+                body.classList.toggle('hidden', collapsed);
+                toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                if (chevron) chevron.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+                try { localStorage.setItem(storageKey, collapsed ? '1' : '0'); } catch (e) { /* private mode etc. */ }
+            }
+
+            let startCollapsed = false;
+            try { startCollapsed = localStorage.getItem(storageKey) === '1'; } catch (e) { /* private mode etc. */ }
+            setCollapsed(startCollapsed);
+
+            toggle.addEventListener('click', () => setCollapsed(!body.classList.contains('hidden')));
+        }
+
         function updateSystemHealth(health) {
             if (!health) return;
             setBarTile('cpu', health.cpu);
@@ -965,6 +1011,9 @@
                 console.error('Dashboard refresh failed:', e);
             }
         }
+
+        initCollapsible('system-health-toggle', 'system-health-body', 'system-health-chevron', 'dashboard.system-health.collapsed');
+        initCollapsible('system-summary-toggle', 'system-summary-body', 'system-summary-chevron', 'dashboard.system-summary.collapsed');
 
         setInterval(refreshDashboard, 20000);
     });
