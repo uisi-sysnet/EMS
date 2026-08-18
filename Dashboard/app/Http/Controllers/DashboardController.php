@@ -13,6 +13,15 @@ use Symfony\Component\Process\Process;
 
 class DashboardController extends Controller
 {
+    // Fixed canvas for the JPEG export (generateImageReport). Unlike the
+    // PDF, this can't grow to fit content, so the station tables are
+    // capped and a "+N more" note is shown when a list runs past that.
+    private const IMAGE_WIDTH          = 1920;
+    private const IMAGE_HEIGHT         = 1080;
+    private const IMAGE_MARGIN         = 48;
+    private const IMAGE_MAX_TABLE_ROWS = 8;
+    private const IMAGE_MAX_PORT_ROWS  = 5;
+
     public function index()
     {
         [$airQualityData, $seismicData] = $this->buildDashboardData();
@@ -56,6 +65,52 @@ class DashboardController extends Controller
      */
     public function generateReport(Request $request)
     {
+        $ctx = $this->buildReportContext();
+
+        $pdf = Pdf::loadView('reports.system-status', $ctx)->setPaper('a4', 'portrait');
+
+        $filename = 'system-status-report-' . $ctx['generatedAt']->format('Y-m-d_His') . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Same report as generateReport(), rendered as a flat 1920x1080 JPEG
+     * instead of a PDF. Drawn directly with GD rather than a headless
+     * browser/Node dependency, so it stays cheap to run on the same
+     * low-resource boxes this app already targets (see
+     * detectDeviceModel()'s Raspberry Pi device-tree check below). Reuses
+     * the DejaVu Sans font dompdf already ships for the PDF report, so no
+     * new font files are needed either.
+     *
+     * Unlike the PDF, the canvas is a fixed size rather than a scrolling
+     * page, so the two station tables are capped to
+     * IMAGE_MAX_TABLE_ROWS rows each (same total-readings sort
+     * buildDashboardData() already applies) with a "+N more" note when a
+     * list runs longer than that — see the PDF report for the full list.
+     */
+    public function generateImageReport(Request $request)
+    {
+        $ctx   = $this->buildReportContext();
+        $image = $this->renderSystemStatusImage($ctx);
+
+        $filename = 'system-status-report-' . $ctx['generatedAt']->format('Y-m-d_His') . '.jpg';
+
+        return response()->streamDownload(function () use ($image) {
+            imagejpeg($image, null, 90);
+            imagedestroy($image);
+        }, $filename, ['Content-Type' => 'image/jpeg']);
+    }
+
+    /**
+     * Shared data-gathering for both the PDF (generateReport) and JPEG
+     * (generateImageReport) exports, so the two can never drift out of
+     * sync with each other. Field names match the reports.system-status
+     * blade's variable names 1:1 so the PDF branch can hand the array
+     * straight to the view.
+     */
+    private function buildReportContext(): array
+    {
         [$airQualityData, $seismicData] = $this->buildDashboardData();
 
         $idleThresholdMinutes    = 2;
@@ -81,7 +136,7 @@ class DashboardController extends Controller
 
         // Same "X/Y DIMMs · total" vs "total (DIMM count needs sudo)"
         // formatting the dashboard's summary-memory tile uses — kept in
-        // sync here rather than in the blade so the PDF and live view
+        // sync here rather than in the blade so the PDF/JPEG and live view
         // never phrase this differently.
         $memoryText = $systemSummary['memory']['available']
             ? $systemSummary['memory']['slots_used'] . '/' . $systemSummary['memory']['slots_total']
@@ -95,7 +150,7 @@ class DashboardController extends Controller
         $systemUptimeHuman = implode(' ', $uptimeParts);
 
         // buildSystemHealth()'s disk.percent is "% used" (matches the live
-        // dashboard's red/amber/green bars, high = bad). The PDF report's
+        // dashboard's red/amber/green bars, high = bad). The report's
         // Good/Warning/Critical bands run the other direction (high =
         // good), so what we hand the report is the inverse: % of the disk
         // that's still free.
@@ -109,7 +164,7 @@ class DashboardController extends Controller
         $database = $this->checkUnitStatus('postgresql.service');
         $ems      = $this->checkUnitStatus('ems.target');
 
-        $pdf = Pdf::loadView('reports.system-status', [
+        return [
             'airQualityData'   => $airQualityData,
             'seismicData'      => $seismicData,
             'airQualityCounts' => $airQualityCounts,
@@ -118,9 +173,7 @@ class DashboardController extends Controller
             'generatedBy'      => $generatedBy,
 
             // Hardware/OS identity — same buildSystemSummary() data the
-            // live dashboard's "System Summary" tile shows, so the PDF
-            // reports the same device/CPU/OS/memory/storage/network
-            // details instead of the placeholder dashes it showed before.
+            // live dashboard's "System Summary" tile shows.
             'deviceModel'  => $systemSummary['device_model'],
             'cpuModel'     => $systemSummary['cpu_model'],
             'osVersion'    => $systemSummary['os_version'],
@@ -139,11 +192,7 @@ class DashboardController extends Controller
             'databaseStatusText' => $database['active'],
             'emsOnline'          => $ems['running'],
             'emsStatusText'      => $ems['active'],
-        ])->setPaper('a4', 'portrait');
-
-        $filename = 'system-status-report-' . $generatedAt->format('Y-m-d_His') . '.pdf';
-
-        return $pdf->download($filename);
+        ];
     }
 
     /**
@@ -819,5 +868,518 @@ class DashboardController extends Controller
                 // this station first — safe to ignore.
             }
         }
+    }
+
+    // ------------------------------------------------------------------
+    // JPEG export (generateImageReport) — GD drawing helpers.
+    // Mirrors reports/system-status.blade.php's layout/colors as closely
+    // as a fixed-size raster canvas allows.
+    // ------------------------------------------------------------------
+
+    /**
+     * Builds the full 1920x1080 GD image resource for generateImageReport().
+     * Caller is responsible for imagejpeg()/imagedestroy()-ing the result.
+     */
+    private function renderSystemStatusImage(array $ctx)
+    {
+        $canvasWidth  = self::IMAGE_WIDTH;
+        $canvasHeight = self::IMAGE_HEIGHT;
+        $margin       = self::IMAGE_MARGIN;
+        $contentX     = $margin;
+        $contentWidth = $canvasWidth - ($margin * 2);
+
+        $image = imagecreatetruecolor($canvasWidth, $canvasHeight);
+        $white = imagecolorallocate($image, 255, 255, 255);
+        imagefilledrectangle($image, 0, 0, $canvasWidth, $canvasHeight, $white);
+
+        $y = $margin;
+        $y = $this->drawImgHeader($image, $ctx['generatedAt'], $ctx['generatedBy'], $contentX, $contentWidth, $y);
+
+        $y += 20;
+        $y = $this->drawImgHardwareNetwork($image, $ctx, $contentX, $contentWidth, $y);
+
+        $y += 20;
+        $y = $this->drawImgSectionTitle($image, 'Stations Status Summary', $contentX, $contentWidth, $y);
+        [$catW, $onlineW, $idleW, $offlineW, $totalW] = $this->imgColumnWidths($contentWidth, [0.32, 0.17, 0.17, 0.17, 0.17]);
+        $y = $this->drawImgTable(
+            $image, $contentX, $y, $contentWidth,
+            [
+                ['label' => 'Category', 'width' => $catW],
+                ['label' => 'Online',   'width' => $onlineW, 'align' => 'center'],
+                ['label' => 'Idle',     'width' => $idleW,   'align' => 'center'],
+                ['label' => 'Offline',  'width' => $offlineW, 'align' => 'center'],
+                ['label' => 'Total',    'width' => $totalW,  'align' => 'center'],
+            ],
+            [
+                ['Air Quality', $ctx['airQualityCounts']['online'], $ctx['airQualityCounts']['idle'], $ctx['airQualityCounts']['offline'], $ctx['airQualityData']->count()],
+                ['Seismic', $ctx['seismicCounts']['online'], $ctx['seismicCounts']['idle'], $ctx['seismicCounts']['offline'], $ctx['seismicData']->count()],
+                [
+                    'Total',
+                    $ctx['airQualityCounts']['online'] + $ctx['seismicCounts']['online'],
+                    $ctx['airQualityCounts']['idle'] + $ctx['seismicCounts']['idle'],
+                    $ctx['airQualityCounts']['offline'] + $ctx['seismicCounts']['offline'],
+                    $ctx['airQualityData']->count() + $ctx['seismicData']->count(),
+                ],
+            ]
+        );
+
+        $y += 20;
+        $y = $this->drawImgSectionTitle($image, 'System Status', $contentX, $contentWidth, $y);
+
+        $storageDetail = isset($ctx['storageUsedGb'], $ctx['storageTotalGb'])
+            ? number_format($ctx['storageUsedGb'], 1) . ' GB used of ' . number_format($ctx['storageTotalGb'], 1) . ' GB'
+            : '—';
+        $storageValue = $ctx['storagePercent'] !== null ? number_format($ctx['storagePercent'], 2) . '% free' : '—';
+
+        [$metricW, $detailW, $valueW, $statusW] = $this->imgColumnWidths($contentWidth, [0.22, 0.38, 0.20, 0.20]);
+        $y = $this->drawImgTable(
+            $image, $contentX, $y, $contentWidth,
+            [
+                ['label' => 'Metric', 'width' => $metricW],
+                ['label' => 'Detail', 'width' => $detailW],
+                ['label' => 'Value',  'width' => $valueW],
+                ['label' => 'Status', 'width' => $statusW],
+            ],
+            [
+                [
+                    'System Uptime', 'Since last restart', $ctx['systemUptimeHuman'] ?: '—',
+                    ['badge' => true, 'label' => $this->boolStatusLabel(isset($ctx['systemUptimeHuman'])), 'status' => $this->boolStatusKey(isset($ctx['systemUptimeHuman']))],
+                ],
+                [
+                    'Storage', $storageDetail, $storageValue,
+                    ['badge' => true, 'label' => $this->percentStatusLabel($ctx['storagePercent']), 'status' => $this->percentStatusKey($ctx['storagePercent'])],
+                ],
+                [
+                    'MQTT Broker (Mosquitto)', 'mosquitto.service', $ctx['mqttStatusText'] ?? '—',
+                    ['badge' => true, 'label' => $this->boolStatusLabel($ctx['mqttOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['mqttOnline'] ?? null)],
+                ],
+                [
+                    'Database (PostgreSQL)', 'postgresql.service', $ctx['databaseStatusText'] ?? '—',
+                    ['badge' => true, 'label' => $this->boolStatusLabel($ctx['databaseOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['databaseOnline'] ?? null)],
+                ],
+                [
+                    'EMS Gateway', 'ems.target', $ctx['emsStatusText'] ?? '—',
+                    ['badge' => true, 'label' => $this->boolStatusLabel($ctx['emsOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['emsOnline'] ?? null)],
+                ],
+            ]
+        );
+
+        $y += 24;
+        $gutter    = 32;
+        $halfWidth = (int) (($contentWidth - $gutter) / 2);
+        $rightX    = $contentX + $halfWidth + $gutter;
+
+        $this->drawImgStationTable($image, 'Air Quality Stations', $ctx['airQualityData'], $ctx['airQualityCounts'], $contentX, $y, $halfWidth);
+        $this->drawImgStationTable($image, 'Seismic Stations', $ctx['seismicData'], $ctx['seismicCounts'], $rightX, $y, $halfWidth);
+
+        $this->drawImgFooter($image, $contentX, $contentWidth, $canvasHeight - $margin, $ctx['generatedAt']);
+
+        return $image;
+    }
+
+    private function drawImgHeader($image, $generatedAt, string $generatedBy, int $x, int $width, int $y): int
+    {
+        $teal = [15, 118, 110];
+        $gray = [136, 136, 136];
+        $dark = [26, 26, 26];
+
+        $titleBaseline = $y + 28;
+        $this->imgText($image, 'Environment Monitoring System Status Report', $x, $titleBaseline, 24, $teal, true);
+
+        $subtitleBaseline = $titleBaseline + 22;
+        $this->imgText($image, 'Developed by Uplink Integrated Solutions Inc.', $x, $subtitleBaseline, 13, $gray);
+
+        // Right-aligned report meta, roughly vertically centered against the title block.
+        $this->imgText($image, 'Report Date/Time: ' . $generatedAt->format('F d, Y  h:i A'), $x + $width, $titleBaseline - 4, 14, $dark, false, 'right');
+        $this->imgText($image, 'Generated By: ' . $generatedBy, $x + $width, $titleBaseline + 20, 14, $dark, false, 'right');
+
+        $dividerY  = $subtitleBaseline + 14;
+        $tealColor = imagecolorallocate($image, $teal[0], $teal[1], $teal[2]);
+        imagefilledrectangle($image, $x, $dividerY, $x + $width, $dividerY + 3, $tealColor);
+
+        return $dividerY + 3;
+    }
+
+    private function drawImgHardwareNetwork($image, array $ctx, int $x, int $width, int $y): int
+    {
+        $boxHeight = 190;
+        $gutter    = 32;
+        $halfWidth = (int) (($width - $gutter) / 2);
+        $rightX    = $x + $halfWidth + $gutter;
+
+        $this->drawImgBox($image, $x, $y, $halfWidth, $boxHeight);
+        $this->drawImgBox($image, $rightX, $y, $halfWidth, $boxHeight);
+
+        $labelColor = [119, 119, 119];
+        $valueColor = [26, 26, 26];
+        $pad        = 16;
+
+        // Hardware box
+        $rowY = $y + $pad + 12;
+        $this->imgText($image, 'HARDWARE', $x + $pad, $rowY, 12, $labelColor, true);
+        $rowY += 22;
+        foreach ([
+            ['Device Model', $ctx['deviceModel']],
+            ['CPU Model', $ctx['cpuModel']],
+            ['OS Version', $ctx['osVersion']],
+            ['Memory', $ctx['memoryText']],
+            ['Storage Type', $ctx['storageType']],
+        ] as [$label, $value]) {
+            $this->imgText($image, $label . ':', $x + $pad, $rowY, 13, $labelColor);
+            $valueText = $this->imgTruncate((string) $value, $halfWidth - $pad - 170, 13);
+            $this->imgText($image, $valueText, $x + $pad + 150, $rowY, 13, $valueColor);
+            $rowY += 26;
+        }
+
+        // Network ports box
+        $rowY = $y + $pad + 12;
+        $this->imgText($image, 'NETWORK PORTS', $rightX + $pad, $rowY, 12, $labelColor, true);
+        $rowY += 22;
+
+        $ports = $ctx['networkPorts'];
+        $shown = array_slice($ports, 0, self::IMAGE_MAX_PORT_ROWS);
+
+        foreach ($shown as $port) {
+            $active = $port['active'] ?? false;
+            $ipCidr = $port['ip_cidr'] ?? null;
+            $status = $active && $ipCidr ? 'online' : ($active ? 'idle' : 'offline');
+            $label  = $active && $ipCidr ? 'Up' : ($active ? 'Up (No IP)' : 'Down');
+
+            $this->imgText($image, (string) ($port['name'] ?? '—'), $rightX + $pad, $rowY, 13, $valueColor, true);
+            $this->drawImgStatusBadge($image, $rightX + $pad + 90, $rowY - 14, $label, $status, 18);
+
+            $detail     = trim(($ipCidr ?? '—') . (!empty($port['speed']) ? ' · ' . $port['speed'] : ''));
+            $detailText = $this->imgTruncate($detail, $halfWidth - $pad - 220, 12);
+            $this->imgText($image, $detailText, $rightX + $pad + 220, $rowY, 12, $labelColor);
+
+            $rowY += 26;
+        }
+
+        if (empty($shown)) {
+            $this->imgText($image, 'No network interfaces detected', $rightX + $pad, $rowY, 13, $labelColor);
+        } elseif (count($ports) > self::IMAGE_MAX_PORT_ROWS) {
+            $this->imgText($image, '+' . (count($ports) - self::IMAGE_MAX_PORT_ROWS) . ' more not shown', $rightX + $pad, $rowY, 11, $labelColor);
+        }
+
+        return $y + $boxHeight;
+    }
+
+    private function drawImgBox($image, int $x, int $y, int $width, int $height): void
+    {
+        $bg     = imagecolorallocate($image, 245, 247, 247);
+        $border = imagecolorallocate($image, 221, 221, 221);
+        imagefilledrectangle($image, $x, $y, $x + $width, $y + $height, $bg);
+        imagerectangle($image, $x, $y, $x + $width, $y + $height, $border);
+    }
+
+    private function drawImgSectionTitle($image, string $title, int $x, int $width, int $y): int
+    {
+        $teal     = [15, 118, 110];
+        $baseline = $y + 20;
+        $this->imgText($image, $title, $x, $baseline, 17, $teal, true);
+
+        $lineY  = $baseline + 8;
+        $border = imagecolorallocate($image, 204, 204, 204);
+        imageline($image, $x, $lineY, $x + $width, $lineY, $border);
+
+        return $lineY + 10;
+    }
+
+    /**
+     * Draws a bordered table: a teal header row (white uppercase labels)
+     * then zebra-striped data rows — the raster equivalent of the PDF's
+     * table.data-table. $columns items: ['label' => ..., 'width' => px,
+     * 'align' => 'left'|'right'|'center']. $rows items are plain arrays
+     * of cell values in column order; a cell may instead be
+     * ['badge' => true, 'label' => ..., 'status' => ...] to render a
+     * colored status pill. Returns the y position just below the table.
+     */
+    private function drawImgTable($image, int $x, int $y, int $width, array $columns, array $rows, int $rowHeight = 26): int
+    {
+        $tableTop  = $y;
+        $teal      = imagecolorallocate($image, 15, 118, 110);
+        $border    = imagecolorallocate($image, 229, 229, 229);
+        $zebra     = imagecolorallocate($image, 250, 250, 250);
+        $textColor = [26, 26, 26];
+
+        imagefilledrectangle($image, $x, $y, $x + $width, $y + $rowHeight, $teal);
+        $colX = $x;
+        foreach ($columns as $col) {
+            $labelX = $this->imgColumnX($colX, $col);
+            $this->imgText($image, strtoupper($col['label']), $labelX, $y + intdiv($rowHeight, 2) + 5, 11.5, [255, 255, 255], true, $col['align'] ?? 'left');
+            $colX += $col['width'];
+        }
+        $y += $rowHeight;
+
+        foreach ($rows as $i => $row) {
+            if ($i % 2 === 1) {
+                imagefilledrectangle($image, $x, $y, $x + $width, $y + $rowHeight, $zebra);
+            }
+            $colX = $x;
+            foreach ($columns as $ci => $col) {
+                $cell   = $row[$ci] ?? '';
+                $labelX = $this->imgColumnX($colX, $col);
+                if (is_array($cell) && ($cell['badge'] ?? false)) {
+                    $this->drawImgStatusBadge($image, $colX + 10, $y + 4, $cell['label'], $cell['status'], $rowHeight - 8);
+                } else {
+                    $text = $this->imgTruncate((string) $cell, $col['width'] - 20, 12);
+                    $this->imgText($image, $text, $labelX, $y + intdiv($rowHeight, 2) + 4, 12, $textColor, false, $col['align'] ?? 'left');
+                }
+                $colX += $col['width'];
+            }
+            $y += $rowHeight;
+            imageline($image, $x, $y, $x + $width, $y, $border);
+        }
+
+        imagerectangle($image, $x, $tableTop, $x + $width, $y, $border);
+
+        return $y;
+    }
+
+    private function drawImgStationTable($image, string $title, $data, array $counts, int $x, int $y, int $width): void
+    {
+        $heading = $title . ' (' . $counts['online'] . ' online / ' . $data->count() . ' total)';
+        $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
+
+        [$noW, $stationW, $totalW, $latestW, $statusW] = $this->imgColumnWidths($width, [0.06, 0.36, 0.16, 0.24, 0.18]);
+        $columns = [
+            ['label' => 'No.',     'width' => $noW, 'align' => 'center'],
+            ['label' => 'Station', 'width' => $stationW],
+            ['label' => 'Total',   'width' => $totalW, 'align' => 'right'],
+            ['label' => 'Latest',  'width' => $latestW],
+            ['label' => 'Status',  'width' => $statusW],
+        ];
+
+        $shown = $data->take(self::IMAGE_MAX_TABLE_ROWS);
+        $rows  = [];
+        foreach ($shown as $i => $item) {
+            $rows[] = [
+                $i + 1,
+                (string) $item->station,
+                number_format($item->total),
+                $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d H:i') : '—',
+                ['badge' => true, 'label' => ucfirst($item->status), 'status' => $item->status],
+            ];
+        }
+
+        if ($rows === []) {
+            $rows[] = ['—', 'No stations available', '', '', ['badge' => true, 'label' => 'N/A', 'status' => 'unknown']];
+        }
+
+        $y = $this->drawImgTable($image, $x, $y, $width, $columns, $rows, 24);
+
+        if ($data->count() > self::IMAGE_MAX_TABLE_ROWS) {
+            $note = '+' . ($data->count() - self::IMAGE_MAX_TABLE_ROWS) . ' more not shown in this snapshot — see the PDF report for the full list.';
+            $this->imgText($image, $note, $x, $y + 16, 11, [136, 136, 136]);
+        }
+    }
+
+    private function drawImgFooter($image, int $x, int $width, int $baselineBottom, $generatedAt): void
+    {
+        $gray  = [136, 136, 136];
+        $line1 = 'This report reflects station status at the time it was generated and may not match a subsequently refreshed dashboard.';
+        $line2 = '© ' . $generatedAt->format('Y') . ' Uplink Integrated Solutions Inc. All rights reserved.';
+
+        $this->imgText($image, $line1, $x + intdiv($width, 2), $baselineBottom - 16, 10.5, $gray, false, 'center');
+        $this->imgText($image, $line2, $x + intdiv($width, 2), $baselineBottom, 10.5, $gray, false, 'center');
+    }
+
+    private function drawImgStatusBadge($image, int $x, int $y, string $label, string $status, int $height): void
+    {
+        [$r, $g, $b] = $this->statusRgb($status);
+        $bg          = imagecolorallocate($image, $r, $g, $b);
+        $labelUpper  = strtoupper($label);
+        $badgeWidth  = (int) ($this->imgTextWidth($labelUpper, 10, true) + 16);
+
+        imagefilledrectangle($image, $x, $y, $x + $badgeWidth, $y + $height, $bg);
+        $this->imgText($image, $labelUpper, $x + 8, $y + $height - 6, 10, [255, 255, 255], true);
+    }
+
+    private function statusRgb(string $status): array
+    {
+        return match ($status) {
+            'online', 'good'       => [22, 163, 74],
+            'idle', 'warning'      => [217, 119, 6],
+            'offline', 'critical'  => [220, 38, 38],
+            default                => [107, 114, 128],
+        };
+    }
+
+    /**
+     * Same >=100 good / >=81 warning / else critical bands as
+     * $systemStatusClass in reports/system-status.blade.php (used for
+     * uptime/storage % metrics).
+     */
+    private function percentStatusKey(?float $percent): string
+    {
+        if ($percent === null) return 'warning';
+        if ($percent >= 100)   return 'good';
+        if ($percent >= 81)    return 'warning';
+        return 'critical';
+    }
+
+    private function percentStatusLabel(?float $percent): string
+    {
+        if ($percent === null) return 'N/A';
+        return match ($this->percentStatusKey($percent)) {
+            'good'    => 'Good',
+            'warning' => 'Warning',
+            default   => 'Critical',
+        };
+    }
+
+    /**
+     * Same true/false/null -> Online/Offline/Unknown bands as
+     * $serviceStatusClass in reports/system-status.blade.php (used for
+     * MQTT/database/EMS and the uptime row).
+     */
+    private function boolStatusKey(?bool $isUp): string
+    {
+        if ($isUp === null) return 'idle';
+        return $isUp ? 'online' : 'offline';
+    }
+
+    private function boolStatusLabel(?bool $isUp): string
+    {
+        if ($isUp === null) return 'Unknown';
+        return $isUp ? 'Online' : 'Offline';
+    }
+
+    /**
+     * Splits $totalWidth across columns by proportion (each 0-1, summing
+     * to 1.0). The last column absorbs whatever rounding left over so
+     * columns always sum to exactly $totalWidth — no 1-2px gap or overlap
+     * at the right edge of a table.
+     */
+    private function imgColumnWidths(int $totalWidth, array $proportions): array
+    {
+        $widths    = [];
+        $used      = 0;
+        $lastIndex = count($proportions) - 1;
+
+        foreach ($proportions as $i => $proportion) {
+            if ($i === $lastIndex) {
+                $widths[] = $totalWidth - $used;
+            } else {
+                $w = (int) round($totalWidth * $proportion);
+                $widths[] = $w;
+                $used += $w;
+            }
+        }
+
+        return $widths;
+    }
+
+    private function imgColumnX(int $colX, array $col): int
+    {
+        return match ($col['align'] ?? 'left') {
+            'right'  => $colX + $col['width'] - 10,
+            'center' => $colX + intdiv($col['width'], 2),
+            default  => $colX + 10,
+        };
+    }
+
+    /**
+     * Locates the DejaVu Sans TTF this app already ships as a dompdf
+     * dependency (see reports/system-status.blade.php's "DejaVu Sans"
+     * font-family) so the JPEG export can use real, antialiased text
+     * without needing a new font file or package.
+     */
+    private function fontPath(bool $bold = false): ?string
+    {
+        $direct = $bold
+            ? base_path('vendor/dompdf/dompdf/lib/fonts/DejaVuSans-Bold.ttf')
+            : base_path('vendor/dompdf/dompdf/lib/fonts/DejaVuSans.ttf');
+
+        if (is_readable($direct)) {
+            return $direct;
+        }
+
+        // Filename has varied slightly across dompdf versions
+        // (DejaVuSans-Bold.ttf vs DejaVuSansBold.ttf) — fall back to a
+        // glob match rather than hardcoding one exact name.
+        $fontsDir = base_path('vendor/dompdf/dompdf/lib/fonts');
+        if (is_dir($fontsDir)) {
+            $pattern = $bold ? '/DejaVuSans*Bold*.ttf' : '/DejaVuSans.ttf';
+            $matches = glob($fontsDir . $pattern);
+            if (!empty($matches)) {
+                return $matches[0];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Draws $text with its origin at ($x, $y). $y is the text baseline
+     * (TTF convention), not the top of the glyphs. Falls back to GD's
+     * built-in bitmap font if the DejaVu TTF can't be found, so a missing
+     * font file degrades the image rather than failing the whole export.
+     */
+    private function imgText($image, string $text, int $x, int $y, float $size, array $rgb, bool $bold = false, string $align = 'left'): void
+    {
+        $color = imagecolorallocate($image, $rgb[0], $rgb[1], $rgb[2]);
+        $font  = $this->fontPath($bold);
+
+        if ($font) {
+            $width = $this->imgTextWidth($text, $size, $bold);
+            $drawX = match ($align) {
+                'right'  => $x - $width,
+                'center' => $x - ($width / 2),
+                default  => $x,
+            };
+            imagettftext($image, $size, 0, (int) round($drawX), $y, $color, $font, $text);
+            return;
+        }
+
+        $gdFont = 5; // largest of GD's built-in bitmap fonts
+        $width  = imagefontwidth($gdFont) * strlen($text);
+        $drawX  = match ($align) {
+            'right'  => $x - $width,
+            'center' => $x - ($width / 2),
+            default  => $x,
+        };
+        imagestring($image, $gdFont, (int) round($drawX), $y - imagefontheight($gdFont), $text, $color);
+    }
+
+    private function imgTextWidth(string $text, float $size, bool $bold = false): float
+    {
+        $font = $this->fontPath($bold);
+        if ($font) {
+            $bbox = imagettfbbox($size, 0, $font, $text);
+            return $bbox[2] - $bbox[0];
+        }
+
+        return (float) (imagefontwidth(5) * strlen($text));
+    }
+
+    /**
+     * Shrinks $text with a trailing ellipsis until it fits $maxWidth,
+     * binary-searching the cut point rather than trimming char-by-char —
+     * this runs per-cell on every table row, so it needs to stay cheap.
+     */
+    private function imgTruncate(string $text, float $maxWidth, float $size, bool $bold = false): string
+    {
+        if ($maxWidth <= 0 || $this->imgTextWidth($text, $size, $bold) <= $maxWidth) {
+            return $text;
+        }
+
+        $ellipsis = '…';
+        $lo    = 0;
+        $hi    = mb_strlen($text);
+        $best  = $ellipsis;
+
+        while ($lo <= $hi) {
+            $mid       = intdiv($lo + $hi, 2);
+            $candidate = mb_substr($text, 0, $mid) . $ellipsis;
+            if ($this->imgTextWidth($candidate, $size, $bold) <= $maxWidth) {
+                $best = $candidate;
+                $lo   = $mid + 1;
+            } else {
+                $hi = $mid - 1;
+            }
+        }
+
+        return $best;
     }
 }
