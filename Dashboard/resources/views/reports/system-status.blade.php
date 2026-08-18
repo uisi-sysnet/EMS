@@ -113,8 +113,9 @@
         .status-online   { background: #16A34A; }
         .status-idle     { background: #D97706; }
         .status-offline  { background: #DC2626; }
-        /* System status (uptime / storage) thresholds:
-           <=80% critical, 81-99% warning, 100% good */
+        /* System status thresholds:
+           Uptime: <=80% critical, 81-99% warning, 100% good
+           Storage (% free): <=10% critical, 11-20% warning, 21-100% good */
         .status-good     { background: #16A34A; }
         .status-warning  { background: #D97706; }
         .status-critical { background: #DC2626; }
@@ -131,8 +132,7 @@
 <body>
 
     @php
-        // Shared threshold logic for percentage-based system metrics
-        // (uptime %, storage %): 100% = good, 81-99% = warning,
+        // Uptime % thresholds: 100% = good, 81-99% = warning,
         // 80% and below = critical.
         $systemStatusClass = function ($percent) {
             if ($percent === null) return 'status-warning';
@@ -145,6 +145,21 @@
             if ($percent >= 100) return 'Good';
             if ($percent >= 81) return 'Warning';
             return 'Critical';
+        };
+
+        // Storage free-space % thresholds (distinct from uptime above):
+        // 0-10% free = critical, 11-20% free = warning, 21-100% free = good.
+        $storageStatusClass = function ($percent) {
+            if ($percent === null) return 'status-warning';
+            if ($percent <= 10) return 'status-critical';
+            if ($percent <= 20) return 'status-warning';
+            return 'status-good';
+        };
+        $storageStatusLabel = function ($percent) {
+            if ($percent === null) return 'N/A';
+            if ($percent <= 10) return 'Critical';
+            if ($percent <= 20) return 'Warning';
+            return 'Good';
         };
 
         // For binary services (MQTT broker, database, ems.target) rather
@@ -314,8 +329,8 @@
                 </td>
                 <td>{{ isset($storagePercent) ? number_format($storagePercent, 2) . '% free' : '—' }}</td>
                 <td>
-                    <span class="status {{ $systemStatusClass($storagePercent ?? null) }}">
-                        {{ $systemStatusLabel($storagePercent ?? null) }}
+                    <span class="status {{ $storageStatusClass($storagePercent ?? null) }}">
+                        {{ $storageStatusLabel($storagePercent ?? null) }}
                     </span>
                 </td>
             </tr>
