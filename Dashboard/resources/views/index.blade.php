@@ -373,444 +373,37 @@ class DashboardController extends Controller
         $load = $load ?: [0, 0, 0];
         $cpuPercent = round(min(($load[0] / $cpuCores) * 100, 100), 1);
 
-        // Uptime
-        $uptimeSeconds = 0;
-        if (@is_readable('/proc/uptime')) {
-            $uptimeSeconds = (int) floatval(explode(' ', file_get_contents('/proc/uptime'))[0]);
-        }
-
-        return [
-            'cpu' => [
-                'percent' => $cpuPercent,
-                'cores'   => $cpuCores,
-                'load'    => round($load[0], 2),
-                'colors'  => $barColor($cpuPercent),
-            ],
-            'memory' => [
-                'percent' => $memPercent,
-                'used'    => $this->formatBytes($memUsed),
-                'total'   => $this->formatBytes($memTotal),
-                'colors'  => $barColor($memPercent),
-            ],
-            'disk' => [
-                'percent'     => $diskPercent,
-                'used'        => $this->formatBytes($diskUsed),
-                'total'       => $this->formatBytes($diskTotal),
-                // Raw bytes alongside the formatted strings above, so
-                // generateReport() can compute a precise GB figure for the
-                // PDF without re-parsing "120.5 GB" back into a number.
-                'used_bytes'  => $diskUsed,
-                'total_bytes' => $diskTotal,
-                'colors'      => $barColor($diskPercent),
-            ],
-            'uptime' => [
-                'days'    => intdiv($uptimeSeconds, 86400),
-                'hours'   => intdiv($uptimeSeconds % 86400, 3600),
-                'minutes' => intdiv($uptimeSeconds % 3600, 60),
-            ],
-        ];
+    // Uptime
+    $uptimeSeconds = 0;
+    if (@is_readable('/proc/uptime')) {
+        $uptimeSeconds = (int) floatval(explode(' ', file_get_contents('/proc/uptime'))[0]);
     }
+    $uptimeDays    = intdiv($uptimeSeconds, 86400);
+    $uptimeHours   = intdiv($uptimeSeconds % 86400, 3600);
+    $uptimeMinutes = intdiv($uptimeSeconds % 3600, 60);
 
-    /**
-     * Hardware/OS identity info for the "System Summary" tile — device
-     * model, CPU model, OS version, DIMM count, storage type, network
-     * ports. Unlike buildSystemHealth() (live percentages, re-read every
-     * poll), this is essentially static between reboots, so it's cached
-     * for 5 minutes rather than re-run on every request. The 5 minute
-     * window is short enough that a NIC being unplugged still shows up
-     * promptly, but long enough to avoid shelling out to dmidecode/lsblk
-     * on every AJAX poll.
-     *
-     * DIMM detail requires dmidecode, which needs root. If the web
-     * server user doesn't have passwordless sudo for it, memory falls
-     * back to just the total RAM (from /proc/meminfo, no root needed)
-     * with a note — it never breaks the rest of the tile. To enable full
-     * DIMM detail, add a sudoers rule for whatever user PHP-FPM/Apache
-     * runs as, e.g.:
-     *   echo 'www-data ALL=(root) NOPASSWD: /usr/sbin/dmidecode' | sudo tee /etc/sudoers.d/dashboard-dmidecode
-     *
-     * @return array{device_model: string, cpu_model: string, os_version: string, memory: array, storage: string, network: array}
-     */
-    private function buildSystemSummary(): array
-    {
-        return Cache::remember('dashboard.system_summary', 300, function () {
-            $ports = $this->detectNetworkPorts();
+    $cpuColors  = $barColor($cpuPercent);
+    $memColors  = $barColor($memPercent);
+    $diskColors = $barColor($diskPercent);
 
-            return [
-                'device_model' => $this->detectDeviceModel(),
-                'cpu_model'    => $this->detectCpuModel(),
-                'os_version'   => $this->detectOsVersion(),
-                'memory'       => $this->detectMemoryDimms(),
-                'storage'      => $this->detectStorageType(),
-                'network'      => [
-                    'ports' => $ports,
-                    'used'  => count(array_filter($ports, fn ($port) => $port['active'])),
-                    'total' => count($ports),
-                ],
-            ];
-        });
-    }
+    // --- Station status -------------------------------------------------
+    // There's no explicit "status" field coming from the query, so status
+    // is derived from how long ago each station's last reading came in:
+    //   <= 2 min   -> Online
+    //   2–3 min    -> Idle
+    //   > 3 min (or no reading at all) -> Offline
+    // Adjust the two thresholds below to match your stations' real
+    // reporting interval (or swap this out for a real $item->status
+    // column if/when the controller provides one).
+    $idleThresholdMinutes    = 2;
+    $offlineThresholdMinutes = 3;
 
-    /**
-     * Raspberry Pi and most ARM SBCs expose the board model via the
-     * device tree — world-readable, no root needed. Standard x86
-     * servers/desktops expose it via DMI sysfs entries instead, which
-     * (unlike the dmidecode binary) are also world-readable on almost
-     * every distro.
-     */
-    private function detectDeviceModel(): string
-    {
-        if (@is_readable('/proc/device-tree/model')) {
-            $model = trim(str_replace("\0", '', file_get_contents('/proc/device-tree/model')));
-            if ($model !== '') {
-                return $model;
-            }
-        }
-
-        $vendor = @is_readable('/sys/devices/virtual/dmi/id/sys_vendor')
-            ? trim(file_get_contents('/sys/devices/virtual/dmi/id/sys_vendor')) : '';
-        $product = @is_readable('/sys/devices/virtual/dmi/id/product_name')
-            ? trim(file_get_contents('/sys/devices/virtual/dmi/id/product_name')) : '';
-        $combined = trim("$vendor $product");
-
-        return $combined !== '' ? $combined : 'Unknown Device';
-    }
-
-    /**
-     * lscpu (util-linux, present on virtually every distro incl.
-     * Raspberry Pi OS) is far more reliable across architectures than
-     * hand-parsing /proc/cpuinfo: on ARM it decodes the CPU
-     * implementer/part fields against a known-core database (e.g.
-     * "Cortex-A72") even when /proc/cpuinfo itself has no "model name"
-     * line, which is exactly the case on Raspberry Pi OS kernels since
-     * Bookworm — they dropped the old "Hardware" field in favor of a
-     * plain "Model" line. /proc/cpuinfo is kept as a fallback (with
-     * every field name different kernels have used for this) in case
-     * lscpu isn't installed.
-     */
-    private function detectCpuModel(): string
-    {
-        $lscpu = new Process(['lscpu']);
-        $lscpu->setTimeout(5);
-        $lscpu->run();
-        if ($lscpu->isSuccessful() && preg_match('/^\s*Model name:\s*(.+)$/mi', $lscpu->getOutput(), $match)) {
-            $model = trim($match[1]);
-            if ($model !== '') {
-                return $model;
-            }
-        }
-
-        if (@is_readable('/proc/cpuinfo')) {
-            $cpuinfo = file_get_contents('/proc/cpuinfo');
-            foreach (['model name', 'Model', 'Hardware', 'cpu model'] as $field) {
-                if (preg_match('/^' . preg_quote($field, '/') . '\s*:\s*(.+)$/mi', $cpuinfo, $match)) {
-                    $value = trim($match[1]);
-                    if ($value !== '') {
-                        return $value;
-                    }
-                }
-            }
-        }
-
-        return 'Unknown CPU';
-    }
-
-    private function detectOsVersion(): string
-    {
-        $pretty = null;
-
-        if (@is_readable('/etc/os-release')) {
-            foreach (file('/etc/os-release') as $line) {
-                if (str_starts_with($line, 'PRETTY_NAME=')) {
-                    $pretty = trim(explode('=', $line, 2)[1], " \t\n\r\0\x0B\"");
-                    break;
-                }
-            }
-        }
-
-        $kernel = php_uname('r');
-
-        return ($pretty ?: 'Unknown OS') . ($kernel ? " (kernel {$kernel})" : '');
-    }
-
-    /**
-     * Same MemTotal parse buildSystemHealth() does — duplicated rather
-     * than shared so this method still works (with a total-RAM-only
-     * answer) even in contexts where buildSystemHealth() isn't called.
-     */
-    private function readMemTotalBytes(): int
-    {
-        $memTotal = 0;
-        if (@is_readable('/proc/meminfo')) {
-            foreach (file('/proc/meminfo') as $line) {
-                if (str_starts_with($line, 'MemTotal:')) {
-                    $memTotal = (int) filter_var($line, FILTER_SANITIZE_NUMBER_INT) * 1024;
-                    break;
-                }
-            }
-        }
-        return $memTotal;
-    }
-
-    /**
-     * DIMM-level detail (slot count, size, type, speed per stick) needs
-     * dmidecode, which needs root. `sudo -n` fails immediately instead
-     * of hanging on a password prompt if the sudoers rule (see
-     * buildSystemSummary() docblock) hasn't been set up — in that case
-     * we still return the total RAM figure, just without slot detail.
-     */
-    private function detectMemoryDimms(): array
-    {
-        $totalLabel = $this->formatBytes($this->readMemTotalBytes());
-
-        $process = new Process(['sudo', '-n', 'dmidecode', '-t', 'memory']);
-        $process->setTimeout(5);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            return [
-                'available'   => false,
-                'slots_used'  => null,
-                'slots_total' => null,
-                'sticks'      => [],
-                'total_label' => $totalLabel,
-                'note'        => 'DIMM detail requires dmidecode + sudo access',
-            ];
-        }
-
-        // dmidecode separates each record with a blank line; "Memory
-        // Device" (DMI type 17) is one physical slot, populated or not —
-        // distinct from "Physical Memory Array" (type 16), which
-        // describes the slot bank as a whole and isn't per-stick.
-        $records    = preg_split('/\n\s*\n/', $process->getOutput());
-        $sticks     = [];
-        $slotsTotal = 0;
-
-        foreach ($records as $record) {
-            if (!str_contains($record, 'Memory Device')) {
-                continue;
-            }
-            $slotsTotal++;
-
-            if (preg_match('/Size:\s*(.+)/', $record, $sizeMatch) && !str_contains($sizeMatch[1], 'No Module Installed')) {
-                preg_match('/Type:\s*(.+)/', $record, $typeMatch);
-                preg_match('/Speed:\s*(.+)/', $record, $speedMatch);
-                preg_match('/Locator:\s*(.+)/', $record, $locatorMatch);
-
-                $sticks[] = [
-                    'locator' => trim($locatorMatch[1] ?? '—'),
-                    'size'    => trim($sizeMatch[1]),
-                    'type'    => trim($typeMatch[1] ?? '—'),
-                    'speed'   => trim($speedMatch[1] ?? '—'),
-                ];
-            }
-        }
-
-        return [
-            'available'   => true,
-            'slots_used'  => count($sticks),
-            'slots_total' => $slotsTotal,
-            'sticks'      => $sticks,
-            'total_label' => $totalLabel,
-            'note'        => null,
-        ];
-    }
-
-    /**
-     * Resolves the block device backing the root filesystem, then reads
-     * whether it's rotational and what transport it's on to label it
-     * (e.g. "SSD NVMe", "HDD SATA", "SSD eMMC/SD"). Uses lsblk's PKNAME
-     * to walk a partition back to its parent disk rather than
-     * hand-rolling a regex for every naming scheme (sda2, nvme0n1p1,
-     * mmcblk0p2 all differ).
-     */
-    private function detectStorageType(): string
-    {
-        $findmnt = new Process(['findmnt', '-no', 'SOURCE', '/']);
-        $findmnt->setTimeout(5);
-        $findmnt->run();
-        $source = trim($findmnt->getOutput());
-
-        if ($source === '') {
-            return 'Unknown';
-        }
-
-        $parentLookup = new Process(['lsblk', '-no', 'PKNAME', $source]);
-        $parentLookup->setTimeout(5);
-        $parentLookup->run();
-        $parent = trim($parentLookup->getOutput());
-        // No parent means root sits directly on a whole disk with no
-        // partition table — the source itself is already the disk.
-        $disk = $parent !== '' ? $parent : basename($source);
-
-        $diskInfo = new Process(['lsblk', '-dno', 'ROTA,TRAN', "/dev/{$disk}"]);
-        $diskInfo->setTimeout(5);
-        $diskInfo->run();
-        [$rotational, $transport] = array_pad(preg_split('/\s+/', trim($diskInfo->getOutput())), 2, '');
-
-        $transportLabel = match (true) {
-            $transport === 'nvme' => 'NVMe',
-            $transport === 'sata' => 'SATA',
-            $transport === 'usb'  => 'USB',
-            $transport === 'mmc' || str_starts_with($disk, 'mmcblk') => 'eMMC/SD',
-            $transport !== ''     => strtoupper($transport),
-            default => '',
-        };
-        $mediaLabel = $rotational === '0' ? 'SSD' : ($rotational === '1' ? 'HDD' : '');
-
-        return trim("$mediaLabel $transportLabel") ?: 'Unknown';
-    }
-
-    /**
-     * Lists physical network interfaces (skips loopback and virtual
-     * interfaces like docker bridges/veth pairs, identified by the
-     * absence of a /sys/class/net/<iface>/device link back to real
-     * hardware) with link state, speed, and IPv4 address in CIDR
-     * notation. Speed is only read while a link is up — sysfs returns
-     * garbage for a down interface's speed. Color/active are
-     * precomputed here (rather than in the view) to match the rest of
-     * this file's pattern of keeping status-color logic in one place:
-     *   - green: link up and an IPv4 address is assigned
-     *   - amber: link up but no address yet (e.g. still negotiating DHCP)
-     *   - gray:  link down / cable unplugged
-     */
-    private function detectNetworkPorts(): array
-    {
-        $ports = [];
-        $interfaces = @scandir('/sys/class/net') ?: [];
-
-        foreach ($interfaces as $iface) {
-            if ($iface === '.' || $iface === '..' || $iface === 'lo') {
-                continue;
-            }
-            if (!@file_exists("/sys/class/net/{$iface}/device")) {
-                continue;
-            }
-
-            $operstate = @is_readable("/sys/class/net/{$iface}/operstate")
-                ? trim(file_get_contents("/sys/class/net/{$iface}/operstate"))
-                : 'unknown';
-
-            $speed = null;
-            if ($operstate === 'up' && @is_readable("/sys/class/net/{$iface}/speed")) {
-                $speedMbps = (int) trim(@file_get_contents("/sys/class/net/{$iface}/speed"));
-                if ($speedMbps > 0) {
-                    $speed = $speedMbps >= 1000
-                        ? round($speedMbps / 1000, 1) . ' Gbps'
-                        : $speedMbps . ' Mbps';
-                }
-            }
-
-            $cidr   = $this->detectInterfaceCidr($iface);
-            $active = $operstate === 'up';
-
-            $ports[] = [
-                'name'    => $iface,
-                'status'  => $operstate,
-                'speed'   => $speed,
-                'ip_cidr' => $cidr,
-                'active'  => $active,
-                'colors'  => match (true) {
-                    $active && $cidr !== null => ['bg' => 'bg-munti-green-500', 'text' => 'text-munti-green-400'],
-                    $active                   => ['bg' => 'bg-amber-500', 'text' => 'text-amber-400'],
-                    default                   => ['bg' => 'bg-surface-600', 'text' => 'text-text-500'],
-                },
-            ];
-        }
-
-        return $ports;
-    }
-
-    /**
-     * Reads an interface's IPv4 address + prefix length and returns it
-     * as CIDR notation (e.g. "192.168.1.42/24"). Prefers `ip -j` (JSON
-     * output, iproute2 4.14+) for clean structured parsing; falls back
-     * to scraping the plain-text output of the same command for older
-     * iproute2 builds without -j support. Null if the interface has no
-     * IPv4 address (down, or up but not yet configured).
-     */
-    private function detectInterfaceCidr(string $iface): ?string
-    {
-        $json = new Process(['ip', '-j', 'addr', 'show', $iface]);
-        $json->setTimeout(5);
-        $json->run();
-
-        if ($json->isSuccessful()) {
-            $data = json_decode($json->getOutput(), true);
-            foreach ($data[0]['addr_info'] ?? [] as $addr) {
-                if (($addr['family'] ?? null) === 'inet' && !empty($addr['local'])) {
-                    return $addr['local'] . '/' . ($addr['prefixlen'] ?? 32);
-                }
-            }
-            return null;
-        }
-
-        $text = new Process(['ip', 'addr', 'show', $iface]);
-        $text->setTimeout(5);
-        $text->run();
-        if ($text->isSuccessful() && preg_match('/inet\s+(\d{1,3}(?:\.\d{1,3}){3}\/\d{1,2})/', $text->getOutput(), $match)) {
-            return $match[1];
-        }
-
-        return null;
-    }
-
-    /**
-     * Duplicated (deliberately, in miniature) from ServicesController's
-     * runQuiet()/statusFor() rather than shared — this report only needs
-     * a running/stopped bool plus the raw `systemctl is-active` word for
-     * three fixed units, not the enabled-state or start/stop/restart
-     * machinery ServicesController owns for the managed-services page.
-     * Same rule MaintenanceController already follows for its nmcli
-     * duplication: pull this into a shared trait/service if a third
-     * consumer needs the same check.
-     */
-    private function checkUnitStatus(string $unit): array
-    {
-        $process = new Process(['systemctl', 'is-active', $unit]);
-        $process->setTimeout(5);
-        // is-active exits non-zero for inactive/failed units — expected,
-        // stdout ("inactive", "failed", etc.) is still what we want.
-        $process->run();
-        $active = trim($process->getOutput()) ?: 'unknown';
-
-        return [
-            'active'  => $active,
-            'running' => $active === 'active',
-        ];
-    }
-
-    /**
-     * Same byte-formatting helper previously inline in the blade view.
-     */
-    private function formatBytes($bytes, int $decimals = 1): string
-    {
-        if (!$bytes) return '0 GB';
-        $units  = ['B', 'KB', 'MB', 'GB', 'TB'];
-        $factor = (int) floor((strlen((string) (int) $bytes) - 1) / 3);
-        $factor = max(0, min($factor, count($units) - 1));
-        return sprintf("%.{$decimals}f", $bytes / (1024 ** $factor)) . ' ' . $units[$factor];
-    }
-
-    /**
-     * Attaches an ->status ('online'|'idle'|'offline') to every item in the
-     * collection based on how long ago its last reading came in, and
-     * returns the tallies. Same thresholds as the dashboard blade view.
-     */
-    private function annotateStatus($collection, int $idleThresholdMinutes, int $offlineThresholdMinutes): array
-    {
+    $annotateStatus = function ($collection) use ($idleThresholdMinutes, $offlineThresholdMinutes) {
         $counts = ['online' => 0, 'idle' => 0, 'offline' => 0];
-
         foreach ($collection as $item) {
             $status = 'offline';
             if (!empty($item->latest_at)) {
-                // $item->latest_at has already been normalized to an
-                // Asia/Manila-local string by toManila() in
-                // buildDashboardData(), so it must be parsed with that
-                // timezone explicitly — parsing without it would fall
-                // back to the app's default timezone and reintroduce an
-                // 8-hour skew into the online/idle/offline calculation.
-                $minutesAgo = \Carbon\Carbon::parse($item->latest_at, 'Asia/Manila')->diffInMinutes(now());
+                $minutesAgo = \Carbon\Carbon::parse($item->latest_at)->diffInMinutes(now());
                 if ($minutesAgo <= $idleThresholdMinutes) {
                     $status = 'online';
                 } elseif ($minutesAgo <= $offlineThresholdMinutes) {
@@ -820,350 +413,748 @@ class DashboardController extends Controller
             $item->status = $status;
             $counts[$status]++;
         }
-
         return $counts;
+    };
+
+    $statusBadgeMeta = [
+        'online'  => ['label' => 'Online',  'text' => 'text-munti-green-400', 'bg' => 'bg-munti-green-700/20', 'border' => 'border-munti-green-600/30', 'dot' => 'bg-munti-green-400'],
+        'idle'    => ['label' => 'Idle',    'text' => 'text-amber-400',       'bg' => 'bg-amber-700/20',       'border' => 'border-amber-600/30',       'dot' => 'bg-amber-400'],
+        'offline' => ['label' => 'Offline', 'text' => 'text-red-400',         'bg' => 'bg-red-700/20',         'border' => 'border-red-600/30',         'dot' => 'bg-red-400'],
+    ];
+
+    $airQualityData    = $airQualityData ?? [];
+    $seismicData       = $seismicData ?? [];
+    $airQualityCounts  = $annotateStatus($airQualityData);
+    $seismicCounts     = $annotateStatus($seismicData);
+    $airQualityOnline  = $airQualityCounts['online'];
+    $seismicOnline     = $seismicCounts['online'];
+    $airQualityTotal   = count($airQualityData);
+    $seismicTotal      = count($seismicData);
+
+    $totalStations = $airQualityTotal + $seismicTotal;
+    $totalOnline   = $airQualityOnline + $seismicOnline;
+    // Percentage used for the system status banner counts strictly-Online
+    // stations only — an Idle station is a stale-data warning sign too,
+    // so it doesn't count toward "fully healthy" here. If you'd rather
+    // have Idle count as "up", change this to ($totalOnline + idle) / total.
+    $overallOnlinePercent = $totalStations > 0 ? round(($totalOnline / $totalStations) * 100, 1) : 100;
+
+    // System status thresholds (based on % of stations online):
+    //   no stations -> Idle (nothing configured yet, not a "good" or "bad" state)
+    //   100%        -> Good
+    //   80% - 99%   -> Warning
+    //   below 80%   -> Critical
+    if ($totalStations === 0) {
+        $systemStatus = 'idle';
+    } elseif ($overallOnlinePercent >= 100) {
+        $systemStatus = 'good';
+    } elseif ($overallOnlinePercent >= 80) {
+        $systemStatus = 'warning';
+    } else {
+        $systemStatus = 'critical';
     }
 
-    /**
-     * Auto-register any seismic station that's already reporting readings
-     * into station_metrics (on the 'seismic' connection) but doesn't yet
-     * have a row in the local seismic_stations registry — i.e. a station
-     * that just came online for the first time. We pull its most recent
-     * reading to seed station_name/latitude/longitude/elevation_m so the
-     * new registry row isn't blank. This never touches stations that are
-     * already registered.
-     */
-    private function syncNewSeismicStations(): void
-    {
-        $registeredIds = SeismicStation::pluck('station_id')->all();
+    $systemStatusMeta = [
+        'idle' => [
+            'label' => 'No Stations Configured', 'text' => 'text-amber-400',
+            'bg' => 'bg-amber-700/10', 'border' => 'border-amber-600/30', 'dot' => 'bg-amber-400',
+        ],
+        'good' => [
+            'label' => 'All Systems Good', 'text' => 'text-munti-green-400',
+            'bg' => 'bg-munti-green-700/10', 'border' => 'border-munti-green-600/30', 'dot' => 'bg-munti-green-400',
+        ],
+        'warning' => [
+            'label' => 'Warning', 'text' => 'text-amber-400',
+            'bg' => 'bg-amber-700/10', 'border' => 'border-amber-600/30', 'dot' => 'bg-amber-400',
+        ],
+        'critical' => [
+            'label' => 'Critical', 'text' => 'text-red-400',
+            'bg' => 'bg-red-700/10', 'border' => 'border-red-600/30', 'dot' => 'bg-red-400',
+        ],
+    ][$systemStatus];
+@endphp
 
-        $unregisteredIds = DB::connection('seismic')
-            ->table('station_metrics')
-            ->select('station_id')
-            ->whereNotIn('station_id', $registeredIds ?: [''])
-            ->distinct()
-            ->pluck('station_id');
+<style>
+    /* Hide scrollbar but keep scrolling */
+    .thin-scrollbar {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;     /* Firefox */
+    }
+    .thin-scrollbar::-webkit-scrollbar {
+        display: none;             /* Chrome, Safari, Opera */
+    }
+</style>
 
-        foreach ($unregisteredIds as $stationId) {
-            $latest = DB::connection('seismic')
-                ->table('station_metrics')
-                ->where('station_id', $stationId)
-                ->orderByDesc('time')
-                ->first();
+<div id="main-content"
+     data-refresh-url="{{ route('dashboard.data') }}"
+     class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
 
-            try {
-                SeismicStation::firstOrCreate(
-                    ['station_id' => $stationId],
-                    [
-                        'station_name' => $latest->station_name ?? null,
-                        'enabled'      => true,
-                        'latitude'     => $latest->latitude ?? null,
-                        'longitude'    => $latest->longitude ?? null,
-                        'elevation_m'  => $latest->elevation_m ?? null,
-                    ]
-                );
-            } catch (\Illuminate\Database\QueryException $e) {
-                // Another concurrent request (e.g. a second open dashboard
-                // tab auto-refreshing at the same moment) already inserted
-                // this station first — safe to ignore.
-            }
+    <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex flex-col min-h-0">
+
+        <!-- Header -->
+        <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2">
+                <span class="leading-tight uppercase">Dashboard</span>
+            </h2>
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-text-400">Overview of stations</span>
+                <a href="{{ route('dashboard.report') }}"
+                   target="_blank"
+                   class="inline-flex items-center gap-1.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 px-3 py-1.5 rounded-lg hover:bg-munti-green-700/30 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H8a2 2 0 01-2-2V5a2 2 0 012-2h6l6 6v11a2 2 0 01-2 2z" />
+                    </svg>
+                    Generate Report
+                </a>
+            </div>
+        </div>
+
+        <!-- Body – scrollable -->
+        <div class="flex-1 p-3 sm:p-4 overflow-y-auto thin-scrollbar min-h-0 bg-background-900">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                <!-- SYSTEM STATUS BANNER -->
+                <div id="system-status-banner" class="lg:col-span-2 rounded-xl border {{ $systemStatusMeta['border'] }} {{ $systemStatusMeta['bg'] }} overflow-hidden">
+                    <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-2.5 w-2.5">
+                                <span id="system-status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full {{ $systemStatusMeta['dot'] }} opacity-60" @if($systemStatus === 'good') style="display:none" @endif></span>
+                                <span id="system-status-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 {{ $systemStatusMeta['dot'] }}"></span>
+                            </span>
+                            <span id="system-status-label" class="text-sm font-semibold {{ $systemStatusMeta['text'] }}">{{ $systemStatusMeta['label'] }}</span>
+                        </div>
+                        <span id="system-status-count" class="text-xs text-text-300">
+                            @if($totalStations === 0)
+                                No stations added yet
+                            @else
+                                {{ $totalOnline }}/{{ $totalStations }} stations online ({{ $overallOnlinePercent }}%)
+                            @endif
+                        </span>
+                    </div>
+                </div>
+
+                <!-- SYSTEM HEALTH: CPU / Memory / Storage / Uptime -->
+                <div class="lg:col-span-2 bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                    <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                        <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                            <span class="truncate">System Health</span>
+                        </h3>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full border border-munti-green-600/30">
+                                Live
+                            </span>
+                            <button type="button" id="system-health-toggle" aria-expanded="true" aria-controls="system-health-body"
+                                    class="p-0.5 rounded hover:bg-surface-700/60 text-text-400 hover:text-text-200 transition">
+                                <svg id="system-health-chevron" class="w-3.5 h-3.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="system-health-body" class="p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+                        <!-- CPU -->
+                        <div class="bg-surface-900/60 rounded-lg border border-border-700 p-3 flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] uppercase tracking-wider text-text-400 flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 7h10v10H7V7z"/></svg>
+                                    CPU
+                                </span>
+                                <span id="cpu-percent" class="text-xs font-semibold {{ $cpuColors[0] }}">{{ $cpuPercent }}%</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-surface-700 rounded-full overflow-hidden">
+                                <div id="cpu-bar" class="h-full {{ $cpuColors[1] }} rounded-full" style="width: {{ min($cpuPercent, 100) }}%"></div>
+                            </div>
+                            <span id="cpu-meta" class="text-[10px] text-text-500">{{ $cpuCores }} core{{ $cpuCores > 1 ? 's' : '' }} · load {{ number_format($load[0], 2) }}</span>
+                        </div>
+
+                        <!-- Memory -->
+                        <div class="bg-surface-900/60 rounded-lg border border-border-700 p-3 flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] uppercase tracking-wider text-text-400 flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V7a2 2 0 012-2h14a2 2 0 012 2v3a2 2 0 01-2 2M5 12a2 2 0 00-2 2v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 00-2-2"/></svg>
+                                    Memory
+                                </span>
+                                <span id="mem-percent" class="text-xs font-semibold {{ $memColors[0] }}">{{ $memPercent }}%</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-surface-700 rounded-full overflow-hidden">
+                                <div id="mem-bar" class="h-full {{ $memColors[1] }} rounded-full" style="width: {{ min($memPercent, 100) }}%"></div>
+                            </div>
+                            <span id="mem-meta" class="text-[10px] text-text-500">{{ $formatBytes($memUsed) }} / {{ $formatBytes($memTotal) }}</span>
+                        </div>
+
+                        <!-- Storage -->
+                        <div class="bg-surface-900/60 rounded-lg border border-border-700 p-3 flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] uppercase tracking-wider text-text-400 flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H6a2 2 0 00-2 2z"/></svg>
+                                    Storage
+                                </span>
+                                <span id="disk-percent" class="text-xs font-semibold {{ $diskColors[0] }}">{{ $diskPercent }}%</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-surface-700 rounded-full overflow-hidden">
+                                <div id="disk-bar" class="h-full {{ $diskColors[1] }} rounded-full" style="width: {{ min($diskPercent, 100) }}%"></div>
+                            </div>
+                            <span id="disk-meta" class="text-[10px] text-text-500">{{ $formatBytes($diskUsed) }} / {{ $formatBytes($diskTotal) }}</span>
+                        </div>
+
+                        <!-- Uptime -->
+                        <div class="bg-surface-900/60 rounded-lg border border-border-700 p-3 flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] uppercase tracking-wider text-text-400 flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    Uptime
+                                </span>
+                                <span class="text-xs font-semibold text-munti-green-400">Online</span>
+                            </div>
+                            <span id="uptime-text" class="text-sm font-medium text-text-100">{{ $uptimeDays }}d {{ $uptimeHours }}h {{ $uptimeMinutes }}m</span>
+                            <span class="text-[10px] text-text-500">Since last reboot</span>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- SYSTEM SUMMARY: Device / CPU / OS / Memory / Storage / Network identity -->
+                <div class="lg:col-span-2 bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                    <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                        <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                            <span class="truncate">System Summary</span>
+                        </h3>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-[10px] text-text-400 bg-surface-700/40 px-1.5 py-0.5 rounded-full border border-border-600/30">
+                                Hardware
+                            </span>
+                            <button type="button" id="system-summary-toggle" aria-expanded="true" aria-controls="system-summary-body"
+                                    class="p-0.5 rounded hover:bg-surface-700/60 text-text-400 hover:text-text-200 transition">
+                                <svg id="system-summary-chevron" class="w-3.5 h-3.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="system-summary-body">
+                        <div class="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">Device Model</span>
+                                <span id="summary-device" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['device_model'] }}</span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">CPU Model</span>
+                                <span id="summary-cpu" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['cpu_model'] }}</span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">OS Version</span>
+                                <span id="summary-os" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['os_version'] }}</span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">Memory</span>
+                                <span id="summary-memory" class="text-text-100 font-medium text-right truncate max-w-[65%]">
+                                    @if($systemSummary['memory']['available'])
+                                        {{ $systemSummary['memory']['slots_used'] }}/{{ $systemSummary['memory']['slots_total'] }} DIMMs &middot; {{ $systemSummary['memory']['total_label'] }}
+                                    @else
+                                        {{ $systemSummary['memory']['total_label'] }} <span class="text-text-500">(DIMM count needs sudo)</span>
+                                    @endif
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">Storage Type</span>
+                                <span id="summary-storage" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['storage'] }}</span>
+                            </div>
+
+                            <!-- Network Ports strip -->
+                            <div class="flex items-center gap-4 min-w-0">
+                                <span class="text-[10px] uppercase tracking-wider text-text-400 shrink-0 me-32">Network Ports</span>
+                                <div id="summary-network-ports" class="flex items-center justify-center gap-4 flex-nowrap min-w-0">
+                                    @forelse($systemSummary['network']['ports'] as $port)
+                                        <div class="flex flex-col items-center w-[90px] gap-1.5 shrink-0">
+                                            <span class="text-[9px] text-text-500 uppercase tracking-wide w-[90px] text-center"
+                                                title="{{ $port['name'] }}">
+                                                {{ $port['name'] }}
+                                            </span>
+                                            <div class="w-9 h-9 rounded-lg flex items-center justify-center {{ $port['colors']['bg'] }}">
+                                                @if($port['active'])
+                                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                                            d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                                    </svg>
+                                                @else
+                                                    <svg class="w-4 h-4 text-text-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                                    </svg>
+                                                @endif
+                                            </div>
+                                            <span class="text-[9px] text-text-500 w-[90px] text-center leading-none"
+                                                title="{{ $port['ip_cidr'] ?? 'No IP assigned' }}">
+                                                {{ $port['ip_cidr'] ?? '—' }}
+                                            </span>
+                                        </div>
+                                    @empty
+                                        <span class="text-xs text-text-500">No network interfaces detected</span>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Air Quality Station Status -->
+                <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                    <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                        <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                            <span class="truncate">Air Quality Station Status</span>
+                        </h3>
+                    </div>
+
+                    <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-[minmax(0,30%)_minmax(0,40%)_minmax(0,30%)] gap-5 sm:gap-6 items-center w-full min-w-0">
+                        <!-- Column 1: Donut Chart -->
+                        <div class="flex justify-center min-w-0">
+                            <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
+                                <canvas id="airQualityStatusChart"></canvas>
+                                <div id="aq-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    @if($airQualityTotal > 0)
+                                        <span class="text-lg font-bold text-text-100 leading-none">
+                                            {{ round(($airQualityOnline / $airQualityTotal) * 100) }}%
+                                        </span>
+                                        <span class="text-[10px] text-text-400 uppercase tracking-wide mt-0.5">Online</span>
+                                    @else
+                                        <span class="text-lg font-bold text-amber-400 leading-none">—</span>
+                                        <span class="text-[10px] text-amber-400 uppercase tracking-wide mt-0.5">No Stations</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Column 2: Status Counts -->
+                        <div class="flex flex-col gap-2.5 min-w-0">
+                            <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Online</span>
+                                </span>
+                                <span id="aq-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                    {{ $airQualityCounts['online'] }}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Idle</span>
+                                </span>
+                                <span id="aq-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                    {{ $airQualityCounts['idle'] }}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Offline</span>
+                                </span>
+                                <span id="aq-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                    {{ $airQualityCounts['offline'] }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Column 3: Summary Badge -->
+                        <div class="flex justify-center min-w-0">
+                            <div class="inline-flex flex-col items-center gap-1">
+                                <span id="aq-online-badge"
+                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
+                                            bg-munti-green-700/20 px-4 py-2.5 rounded-full
+                                            border border-munti-green-600/30 shadow-sm whitespace-nowrap">
+                                    {{ $airQualityOnline }}/{{ $airQualityTotal }} Online
+                                </span>
+                                <span class="text-[10px] text-text-500 uppercase tracking-wider whitespace-nowrap">
+                                    Station Status
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seismic Station Status -->
+                <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                    <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                        <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                            <span class="truncate">Seismic Station Status</span>
+                        </h3>
+                    </div>
+
+                    <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-[minmax(0,30%)_minmax(0,40%)_minmax(0,30%)] gap-5 sm:gap-6 items-center w-full min-w-0">
+                        <!-- Column 1: Donut Chart -->
+                        <div class="flex justify-center min-w-0">
+                            <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
+                                <canvas id="seismicStatusChart"></canvas>
+                                <div id="seismic-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    @if($seismicTotal > 0)
+                                        <span class="text-lg font-bold text-text-100 leading-none">
+                                            {{ round(($seismicOnline / $seismicTotal) * 100) }}%
+                                        </span>
+                                        <span class="text-[10px] text-text-400 uppercase tracking-wide mt-0.5">Online</span>
+                                    @else
+                                        <span class="text-lg font-bold text-amber-400 leading-none">—</span>
+                                        <span class="text-[10px] text-amber-400 uppercase tracking-wide mt-0.5">No Stations</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Column 2: Status Counts -->
+                        <div class="flex flex-col gap-2.5 min-w-0">
+                            <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Online</span>
+                                </span>
+                                <span id="seismic-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                    {{ $seismicCounts['online'] }}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Idle</span>
+                                </span>
+                                <span id="seismic-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                    {{ $seismicCounts['idle'] }}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Offline</span>
+                                </span>
+                                <span id="seismic-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                    {{ $seismicCounts['offline'] }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Column 3: Summary Badge -->
+                        <div class="flex justify-center min-w-0">
+                            <div class="inline-flex flex-col items-center gap-1">
+                                <span id="seismic-online-badge"
+                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
+                                            bg-munti-green-700/20 px-4 py-2.5 rounded-full
+                                            border border-munti-green-600/30 shadow-sm whitespace-nowrap">
+                                    {{ $seismicOnline }}/{{ $seismicTotal }} Online
+                                </span>
+                                <span class="text-[10px] text-text-500 uppercase tracking-wider whitespace-nowrap">
+                                    Station Status
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LEFT COLUMN: Air Quality -->
+                <div class="flex flex-col gap-4">
+                    <!-- Graph Card -->
+                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">Air Quality – Total per Station</span>
+                            </h3>
+                            <span id="aq-chart-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
+                                {{ count($airQualityData ?? []) }} total
+                            </span>
+                        </div>
+                        <div class="px-2 sm:px-3 pt-3 pb-1 h-[220px] sm:h-[260px] lg:h-[300px]">
+                            <canvas id="airQualityChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Table Card -->
+                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden flex flex-col">
+                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">Air Quality Stations</span>
+                            </h3>
+                            <span id="aq-table-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
+                                {{ count($airQualityData ?? []) }} total
+                            </span>
+                        </div>
+                        <div class="overflow-x-auto max-h-[220px] sm:max-h-[250px] thin-scrollbar">
+                            <table class="min-w-full divide-y divide-border-700 text-xs">
+                                <thead class="bg-surface-900 sticky top-0">
+                                    <tr class="h-10">
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">No.</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Station</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">IP Address</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Installation</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Latest</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Total</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="aq-table-body" class="bg-surface-800 divide-y divide-border-800">
+                                    @forelse ($airQualityData as $item)
+                                    <tr class="hover:bg-surface-700 transition h-10">
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip ?? '—' }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-400">
+                                            {{ $item->installed_at ? \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') : '—' }}
+                                        </td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-400">
+                                            {{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d h:i A') : '—' }}
+                                        </td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap">
+                                            @php($meta = $statusBadgeMeta[$item->status])
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium {{ $meta['text'] }} {{ $meta['bg'] }} border {{ $meta['border'] }} px-1.5 py-0.5 rounded-full">
+                                                <span class="w-1.5 h-1.5 rounded-full {{ $meta['dot'] }}"></span> {{ $meta['label'] }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="7" class="px-2 py-4 text-center text-text-400">No air quality data available</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN: Seismic -->
+                <div class="flex flex-col gap-4">
+                    <!-- Graph Card -->
+                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">Seismic – Total per Station</span>
+                            </h3>
+                            <span id="seismic-chart-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
+                                {{ count($seismicData ?? []) }} total
+                            </span>
+                        </div>
+                        <div class="px-2 sm:px-3 pt-3 pb-1 h-[220px] sm:h-[260px] lg:h-[300px]">
+                            <canvas id="seismicChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Table Card -->
+                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden flex flex-col">
+                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">Seismic Stations</span>
+                            </h3>
+                            <span id="seismic-table-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
+                                {{ count($seismicData ?? []) }} total
+                            </span>
+                        </div>
+                        <div class="overflow-x-auto max-h-[220px] sm:max-h-[250px] thin-scrollbar">
+                            <table class="min-w-full divide-y divide-border-700 text-xs">
+                                <thead class="bg-surface-900 sticky top-0">
+                                    <tr class="h-10">
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">No.</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Station</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Station ID</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Installation</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Latest</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Total</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="seismic-table-body" class="bg-surface-800 divide-y divide-border-800">
+                                    @forelse ($seismicData as $item)
+                                    <tr class="hover:bg-surface-700 transition h-10">
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip ?? '—' }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-400">
+                                            {{ $item->installed_at ? \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') : '—' }}
+                                        </td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-400">
+                                            {{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d h:i A') : '—' }}
+                                        </td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap">
+                                            @php($meta = $statusBadgeMeta[$item->status])
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium {{ $meta['text'] }} {{ $meta['bg'] }} border {{ $meta['border'] }} px-1.5 py-0.5 rounded-full">
+                                                <span class="w-1.5 h-1.5 rounded-full {{ $meta['dot'] }}"></span> {{ $meta['label'] }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="7" class="px-2 py-4 text-center text-text-400">No seismic data available</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-4 sm:px-6 py-2 bg-surface-800 border-t border-border-800 flex flex-col sm:flex-row justify-between items-center gap-1 text-xs text-text-400">
+            <span id="last-updated">Last updated: {{ now()->timezone('Asia/Manila')->format('Y-m-d h:i A') }}</span>
+            <span>Data from station database</span>
+        </div>
+    </div>
+</div>
+
+@include('layouts.footer')
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusBadgeMeta = {
+            online:  { label: 'Online',  text: 'text-munti-green-400', bg: 'bg-munti-green-700/20', border: 'border-munti-green-600/30', dot: 'bg-munti-green-400' },
+            idle:    { label: 'Idle',    text: 'text-amber-400',       bg: 'bg-amber-700/20',       border: 'border-amber-600/30',       dot: 'bg-amber-400' },
+            offline: { label: 'Offline', text: 'text-red-400',         bg: 'bg-red-700/20',         border: 'border-red-600/30',         dot: 'bg-red-400' },
+        };
+
+        function getChartData(collection) {
+            let labels = collection.map(item => item.station);
+            let totals = collection.map(item => parseInt(String(item.total).replace(/,/g, '')) || 0);
+            return { labels, totals };
         }
-    }
 
-    // ------------------------------------------------------------------
-    // JPEG export (generateImageReport) — GD drawing helpers.
-    // Mirrors reports/system-status.blade.php's layout/colors as closely
-    // as a fixed-size raster canvas allows.
-    // ------------------------------------------------------------------
-
-    /**
-     * Builds the full 1920x1080 GD image resource for generateImageReport().
-     * Caller is responsible for imagejpeg()/imagedestroy()-ing the result.
-     */
-    private function renderSystemStatusImage(array $ctx)
-    {
-        $canvasWidth  = self::IMAGE_WIDTH;
-        $canvasHeight = self::IMAGE_HEIGHT;
-        $margin       = self::IMAGE_MARGIN;
-        $contentX     = $margin;
-        $contentWidth = $canvasWidth - ($margin * 2);
-
-        $image = imagecreatetruecolor($canvasWidth, $canvasHeight);
-        $white = imagecolorallocate($image, 255, 255, 255);
-        imagefilledrectangle($image, 0, 0, $canvasWidth, $canvasHeight, $white);
-
-        $y = $margin;
-        $y = $this->drawImgHeader($image, $ctx['generatedAt'], $ctx['generatedBy'], $contentX, $contentWidth, $y);
-
-        $y += 20;
-        $y = $this->drawImgHardwareNetwork($image, $ctx, $contentX, $contentWidth, $y);
-
-        $y += 20;
-        $y = $this->drawImgSectionTitle($image, 'Stations Status Summary', $contentX, $contentWidth, $y);
-        [$catW, $onlineW, $idleW, $offlineW, $totalW] = $this->imgColumnWidths($contentWidth, [0.32, 0.17, 0.17, 0.17, 0.17]);
-        $y = $this->drawImgTable(
-            $image, $contentX, $y, $contentWidth,
-            [
-                ['label' => 'Category', 'width' => $catW],
-                ['label' => 'Online',   'width' => $onlineW, 'align' => 'center'],
-                ['label' => 'Idle',     'width' => $idleW,   'align' => 'center'],
-                ['label' => 'Offline',  'width' => $offlineW, 'align' => 'center'],
-                ['label' => 'Total',    'width' => $totalW,  'align' => 'center'],
-            ],
-            [
-                ['Air Quality', $ctx['airQualityCounts']['online'], $ctx['airQualityCounts']['idle'], $ctx['airQualityCounts']['offline'], $ctx['airQualityData']->count()],
-                ['Seismic', $ctx['seismicCounts']['online'], $ctx['seismicCounts']['idle'], $ctx['seismicCounts']['offline'], $ctx['seismicData']->count()],
-                [
-                    'Total',
-                    $ctx['airQualityCounts']['online'] + $ctx['seismicCounts']['online'],
-                    $ctx['airQualityCounts']['idle'] + $ctx['seismicCounts']['idle'],
-                    $ctx['airQualityCounts']['offline'] + $ctx['seismicCounts']['offline'],
-                    $ctx['airQualityData']->count() + $ctx['seismicData']->count(),
-                ],
-            ]
-        );
-
-        $y += 20;
-        $y = $this->drawImgSectionTitle($image, 'System Status', $contentX, $contentWidth, $y);
-
-        $storageDetail = isset($ctx['storageUsedGb'], $ctx['storageTotalGb'])
-            ? number_format($ctx['storageUsedGb'], 1) . ' GB used of ' . number_format($ctx['storageTotalGb'], 1) . ' GB'
-            : '—';
-        $storageValue = $ctx['storagePercent'] !== null ? number_format($ctx['storagePercent'], 2) . '% free' : '—';
-
-        [$metricW, $detailW, $valueW, $statusW] = $this->imgColumnWidths($contentWidth, [0.22, 0.38, 0.20, 0.20]);
-        $y = $this->drawImgTable(
-            $image, $contentX, $y, $contentWidth,
-            [
-                ['label' => 'Metric', 'width' => $metricW],
-                ['label' => 'Detail', 'width' => $detailW],
-                ['label' => 'Value',  'width' => $valueW],
-                ['label' => 'Status', 'width' => $statusW],
-            ],
-            [
-                [
-                    'System Uptime', 'Since last restart', $ctx['systemUptimeHuman'] ?: '—',
-                    ['badge' => true, 'label' => $this->boolStatusLabel(isset($ctx['systemUptimeHuman'])), 'status' => $this->boolStatusKey(isset($ctx['systemUptimeHuman']))],
-                ],
-                [
-                    'Storage', $storageDetail, $storageValue,
-                    ['badge' => true, 'label' => $this->percentStatusLabel($ctx['storagePercent']), 'status' => $this->percentStatusKey($ctx['storagePercent'])],
-                ],
-                [
-                    'MQTT Broker (Mosquitto)', 'mosquitto.service', $ctx['mqttStatusText'] ?? '—',
-                    ['badge' => true, 'label' => $this->boolStatusLabel($ctx['mqttOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['mqttOnline'] ?? null)],
-                ],
-                [
-                    'Database (PostgreSQL)', 'postgresql.service', $ctx['databaseStatusText'] ?? '—',
-                    ['badge' => true, 'label' => $this->boolStatusLabel($ctx['databaseOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['databaseOnline'] ?? null)],
-                ],
-                [
-                    'EMS Gateway', 'ems.target', $ctx['emsStatusText'] ?? '—',
-                    ['badge' => true, 'label' => $this->boolStatusLabel($ctx['emsOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['emsOnline'] ?? null)],
-                ],
-            ]
-        );
-
-        $y += 24;
-        $gutter    = 32;
-        $halfWidth = (int) (($contentWidth - $gutter) / 2);
-        $rightX    = $contentX + $halfWidth + $gutter;
-
-        $this->drawImgStationTable($image, 'Air Quality Stations', $ctx['airQualityData'], $ctx['airQualityCounts'], $contentX, $y, $halfWidth);
-        $this->drawImgStationTable($image, 'Seismic Stations', $ctx['seismicData'], $ctx['seismicCounts'], $rightX, $y, $halfWidth);
-
-        $this->drawImgFooter($image, $contentX, $contentWidth, $canvasHeight - $margin, $ctx['generatedAt']);
-
-        return $image;
-    }
-
-    private function drawImgHeader($image, $generatedAt, string $generatedBy, int $x, int $width, int $y): int
-    {
-        $teal = [15, 118, 110];
-        $gray = [136, 136, 136];
-        $dark = [26, 26, 26];
-
-        $titleBaseline = $y + 28;
-        $this->imgText($image, 'Environment Monitoring System Status Report', $x, $titleBaseline, 24, $teal, true);
-
-        $subtitleBaseline = $titleBaseline + 22;
-        $this->imgText($image, 'Developed by Uplink Integrated Solutions Inc.', $x, $subtitleBaseline, 13, $gray);
-
-        // Right-aligned report meta, roughly vertically centered against the title block.
-        $this->imgText($image, 'Report Date/Time: ' . $generatedAt->format('F d, Y  h:i A'), $x + $width, $titleBaseline - 4, 14, $dark, false, 'right');
-        $this->imgText($image, 'Generated By: ' . $generatedBy, $x + $width, $titleBaseline + 20, 14, $dark, false, 'right');
-
-        $dividerY  = $subtitleBaseline + 14;
-        $tealColor = imagecolorallocate($image, $teal[0], $teal[1], $teal[2]);
-        imagefilledrectangle($image, $x, $dividerY, $x + $width, $dividerY + 3, $tealColor);
-
-        return $dividerY + 3;
-    }
-
-    private function drawImgHardwareNetwork($image, array $ctx, int $x, int $width, int $y): int
-    {
-        $boxHeight = 190;
-        $gutter    = 32;
-        $halfWidth = (int) (($width - $gutter) / 2);
-        $rightX    = $x + $halfWidth + $gutter;
-
-        $this->drawImgBox($image, $x, $y, $halfWidth, $boxHeight);
-        $this->drawImgBox($image, $rightX, $y, $halfWidth, $boxHeight);
-
-        $labelColor = [119, 119, 119];
-        $valueColor = [26, 26, 26];
-        $pad        = 16;
-
-        // Hardware box
-        $rowY = $y + $pad + 12;
-        $this->imgText($image, 'HARDWARE', $x + $pad, $rowY, 12, $labelColor, true);
-        $rowY += 22;
-        foreach ([
-            ['Device Model', $ctx['deviceModel']],
-            ['CPU Model', $ctx['cpuModel']],
-            ['OS Version', $ctx['osVersion']],
-            ['Memory', $ctx['memoryText']],
-            ['Storage Type', $ctx['storageType']],
-        ] as [$label, $value]) {
-            $this->imgText($image, $label . ':', $x + $pad, $rowY, 13, $labelColor);
-            $valueText = $this->imgTruncate((string) $value, $halfWidth - $pad - 170, 13);
-            $this->imgText($image, $valueText, $x + $pad + 150, $rowY, 13, $valueColor);
-            $rowY += 26;
+        function esc(str) {
+            const d = document.createElement('div');
+            d.textContent = str ?? '';
+            return d.innerHTML;
         }
 
-        // Network ports box
-        $rowY = $y + $pad + 12;
-        $this->imgText($image, 'NETWORK PORTS', $rightX + $pad, $rowY, 12, $labelColor, true);
-        $rowY += 22;
-
-        $ports = $ctx['networkPorts'];
-        $shown = array_slice($ports, 0, self::IMAGE_MAX_PORT_ROWS);
-
-        foreach ($shown as $port) {
-            $active = $port['active'] ?? false;
-            $ipCidr = $port['ip_cidr'] ?? null;
-            $status = $active && $ipCidr ? 'online' : ($active ? 'idle' : 'offline');
-            $label  = $active && $ipCidr ? 'Up' : ($active ? 'Up (No IP)' : 'Down');
-
-            $this->imgText($image, (string) ($port['name'] ?? '—'), $rightX + $pad, $rowY, 13, $valueColor, true);
-            $this->drawImgStatusBadge($image, $rightX + $pad + 90, $rowY - 14, $label, $status, 18);
-
-            $detail     = trim(($ipCidr ?? '—') . (!empty($port['speed']) ? ' · ' . $port['speed'] : ''));
-            $detailText = $this->imgTruncate($detail, $halfWidth - $pad - 220, 12);
-            $this->imgText($image, $detailText, $rightX + $pad + 220, $rowY, 12, $labelColor);
-
-            $rowY += 26;
+        function fmtDate(str) {
+            if (!str) return '—';
+            // Extract YYYY-MM-DD directly instead of round-tripping through
+            // the native Date object — new Date() is strict about format
+            // (timezone suffix, fractional-second precision, separators)
+            // and can silently fail to Invalid Date on strings Carbon::parse
+            // (used for the server-rendered first load) handles fine. Since
+            // we only ever display Y-m-d anyway, we don't need a Date object.
+            const match = String(str).match(/^(\d{4}-\d{2}-\d{2})/);
+            return match ? match[1] : '—';
         }
 
-        if (empty($shown)) {
-            $this->imgText($image, 'No network interfaces detected', $rightX + $pad, $rowY, 13, $labelColor);
-        } elseif (count($ports) > self::IMAGE_MAX_PORT_ROWS) {
-            $this->imgText($image, '+' . (count($ports) - self::IMAGE_MAX_PORT_ROWS) . ' more not shown', $rightX + $pad, $rowY, 11, $labelColor);
+        // Same regex-extraction approach as fmtDate, but keeps the time
+        // portion too and formats it to match the server-rendered
+        // 'Y-m-d h:i A' style (12-hour, leading zero, AM/PM) used for the
+        // Latest column and the "generatedAt" tile elsewhere on this page.
+        function fmtDateTime(str) {
+            if (!str) return '—';
+            const match = String(str).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
+            if (!match) return fmtDate(str);
+            const [, datePart, hh, mm] = match;
+            let hour = parseInt(hh, 10) % 12;
+            if (hour === 0) hour = 12;
+            const ampm = parseInt(hh, 10) >= 12 ? 'PM' : 'AM';
+            return `${datePart} ${String(hour).padStart(2, '0')}:${mm} ${ampm}`;
         }
 
-        return $y + $boxHeight;
-    }
+        // Color palette (dynamically sized)
+        const barColors = ['#14B8A6', '#0F766E', '#5EEAD4', '#0B4F3A', '#2DD4BF', '#115E59'];
 
-    private function drawImgBox($image, int $x, int $y, int $width, int $height): void
-    {
-        $bg     = imagecolorallocate($image, 245, 247, 247);
-        $border = imagecolorallocate($image, 221, 221, 221);
-        imagefilledrectangle($image, $x, $y, $x + $width, $y + $height, $bg);
-        imagerectangle($image, $x, $y, $x + $width, $y + $height, $border);
-    }
-
-    private function drawImgSectionTitle($image, string $title, int $x, int $width, int $y): int
-    {
-        $teal     = [15, 118, 110];
-        $baseline = $y + 20;
-        $this->imgText($image, $title, $x, $baseline, 17, $teal, true);
-
-        $lineY  = $baseline + 8;
-        $border = imagecolorallocate($image, 204, 204, 204);
-        imageline($image, $x, $lineY, $x + $width, $lineY, $border);
-
-        return $lineY + 10;
-    }
-
-    /**
-     * Draws a bordered table: a teal header row (white uppercase labels)
-     * then zebra-striped data rows — the raster equivalent of the PDF's
-     * table.data-table. $columns items: ['label' => ..., 'width' => px,
-     * 'align' => 'left'|'right'|'center']. $rows items are plain arrays
-     * of cell values in column order; a cell may instead be
-     * ['badge' => true, 'label' => ..., 'status' => ...] to render a
-     * colored status pill. Returns the y position just below the table.
-     */
-    private function drawImgTable($image, int $x, int $y, int $width, array $columns, array $rows, int $rowHeight = 26): int
-    {
-        $tableTop  = $y;
-        $teal      = imagecolorallocate($image, 15, 118, 110);
-        $border    = imagecolorallocate($image, 229, 229, 229);
-        $zebra     = imagecolorallocate($image, 250, 250, 250);
-        $textColor = [26, 26, 26];
-
-        imagefilledrectangle($image, $x, $y, $x + $width, $y + $rowHeight, $teal);
-        $colX = $x;
-        foreach ($columns as $col) {
-            $labelX = $this->imgColumnX($colX, $col);
-            $this->imgText($image, strtoupper($col['label']), $labelX, $y + intdiv($rowHeight, 2) + 5, 11.5, [255, 255, 255], true, $col['align'] ?? 'left');
-            $colX += $col['width'];
-        }
-        $y += $rowHeight;
-
-        foreach ($rows as $i => $row) {
-            if ($i % 2 === 1) {
-                imagefilledrectangle($image, $x, $y, $x + $width, $y + $rowHeight, $zebra);
-            }
-            $colX = $x;
-            foreach ($columns as $ci => $col) {
-                $cell   = $row[$ci] ?? '';
-                $labelX = $this->imgColumnX($colX, $col);
-                if (is_array($cell) && ($cell['badge'] ?? false)) {
-                    $this->drawImgStatusBadge($image, $colX + 10, $y + 4, $cell['label'], $cell['status'], $rowHeight - 8);
-                } else {
-                    $text = $this->imgTruncate((string) $cell, $col['width'] - 20, 12);
-                    $this->imgText($image, $text, $labelX, $y + intdiv($rowHeight, 2) + 4, 12, $textColor, false, $col['align'] ?? 'left');
+        const chartDefaults = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1A1A1A',
+                    titleColor: '#F3F4F6',
+                    bodyColor: '#E5E7EB',
+                    borderColor: '#374151',
+                    borderWidth: 1
                 }
-                $colX += $col['width'];
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#2B3442' }, ticks: { color: '#9CA3AF' } },
+                x: { grid: { display: false }, ticks: { color: '#9CA3AF' } }
             }
-            $y += $rowHeight;
-            imageline($image, $x, $y, $x + $width, $y, $border);
+        };
+
+        const airData = @json($airQualityData ?? []);
+        const seismicDataInit = @json($seismicData ?? []);
+        const airChartData = getChartData(airData);
+        const seismicChartData = getChartData(seismicDataInit);
+
+        const airChart = new Chart(document.getElementById('airQualityChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: airChartData.labels,
+                datasets: [{ label: 'Total Records', data: airChartData.totals, backgroundColor: barColors.slice(0, airChartData.labels.length || 1), borderRadius: 6 }]
+            },
+            options: chartDefaults
+        });
+
+        const seismicChart = new Chart(document.getElementById('seismicChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: seismicChartData.labels,
+                datasets: [{ label: 'Total Records', data: seismicChartData.totals, backgroundColor: barColors.slice(0, seismicChartData.labels.length || 1), borderRadius: 6 }]
+            },
+            options: chartDefaults
+        });
+
+        function makeStatusChart(canvasId, online, idle, offline) {
+            const el = document.getElementById(canvasId);
+            if (!el) return null;
+            const total = online + idle + offline;
+            const labels = total > 0 ? ['Online', 'Idle', 'Offline'] : ['No Stations'];
+            const data = total > 0 ? [online, idle, offline] : [1];
+            const colors = total > 0 ? ['#2DD4BF', '#FBBF24', '#F87171'] : ['#FBBF24'];
+            return new Chart(el.getContext('2d'), {
+                type: 'doughnut',
+                data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderColor: '#1E293B', borderWidth: 2 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '72%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: '#1A1A1A', titleColor: '#F3F4F6', bodyColor: '#E5E7EB', borderColor: '#374151', borderWidth: 1 }
+                    }
+                }
+            });
         }
 
-        imagerectangle($image, $x, $tableTop, $x + $width, $y, $border);
-
-        return $y;
-    }
-
-    private function drawImgStationTable($image, string $title, $data, array $counts, int $x, int $y, int $width): void
-    {
-        $heading = $title . ' (' . $counts['online'] . ' online / ' . $data->count() . ' total)';
-        $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
-
-        [$noW, $stationW, $totalW, $latestW, $statusW] = $this->imgColumnWidths($width, [0.06, 0.36, 0.16, 0.24, 0.18]);
-        $columns = [
-            ['label' => 'No.',     'width' => $noW, 'align' => 'center'],
-            ['label' => 'Station', 'width' => $stationW],
-            ['label' => 'Total',   'width' => $totalW, 'align' => 'right'],
-            ['label' => 'Latest',  'width' => $latestW],
-            ['label' => 'Status',  'width' => $statusW],
-        ];
-
-        $shown = $data->take(self::IMAGE_MAX_TABLE_ROWS);
-        $rows  = [];
-        foreach ($shown as $i => $item) {
-            $rows[] = [
-                $i + 1,
-                (string) $item->station,
-                number_format($item->total),
-                $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d H:i') : '—',
-                ['badge' => true, 'label' => ucfirst($item->status), 'status' => $item->status],
-            ];
+        function updateStatusChart(chart, online, idle, offline) {
+            if (!chart) return;
+            const total = online + idle + offline;
+            chart.data.labels = total > 0 ? ['Online', 'Idle', 'Offline'] : ['No Stations'];
+            chart.data.datasets[0].data = total > 0 ? [online, idle, offline] : [1];
+            chart.data.datasets[0].backgroundColor = total > 0 ? ['#2DD4BF', '#FBBF24', '#F87171'] : ['#FBBF24'];
+            chart.update();
         }
 
-        if ($rows === []) {
-            $rows[] = ['—', 'No stations available', '', '', ['badge' => true, 'label' => 'N/A', 'status' => 'unknown']];
+        let airStatusChart = makeStatusChart('airQualityStatusChart', {{ $airQualityCounts['online'] }}, {{ $airQualityCounts['idle'] }}, {{ $airQualityCounts['offline'] }});
+        let seismicStatusChart = makeStatusChart('seismicStatusChart', {{ $seismicCounts['online'] }}, {{ $seismicCounts['idle'] }}, {{ $seismicCounts['offline'] }});
+
+        function rowHtml(item, no) {
+            const meta = statusBadgeMeta[item.status] || statusBadgeMeta.offline;
+            return `<tr class="hover:bg-surface-700 transition h-10">
+                <td class="px-2 py-0 whitespace-nowrap text-text-300">${no}</td>
+                <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">${esc(item.station)}</td>
+                <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">${esc(item.ip ?? '—')}</td>
+                <td class="px-2 py-0 whitespace-nowrap text-text-400">${fmtDate(item.installed_at)}</td>
+                <td class="px-2 py-0 whitespace-nowrap text-text-400">${fmtDateTime(item.latest_at)}</td>
+                <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">${Number(item.total || 0).toLocaleString()}</td>
+                <td class="px-2 py-0 whitespace-nowrap">
+                    <span class="inline-flex items-center gap-1 text-[10px] font-medium ${meta.text} ${meta.bg} border ${meta.border} px-1.5 py-0.5 rounded-full">
+                        <span class="w-1.5 h-1.5 rounded-full ${meta.dot}"></span> ${meta.label}
+                    </span>
+                </td>
+            </tr>`;
         }
 
         $y = $this->drawImgTable($image, $x, $y, $width, $columns, $rows, 24);
@@ -1172,211 +1163,208 @@ class DashboardController extends Controller
             $note = '+' . ($data->count() - self::IMAGE_MAX_TABLE_ROWS) . ' more not shown in this snapshot — see the PDF report for the full list.';
             $this->imgText($image, $note, $x, $y + 16, 11, [136, 136, 136]);
         }
-    }
 
-    private function drawImgFooter($image, int $x, int $width, int $baselineBottom, $generatedAt): void
-    {
-        $gray  = [136, 136, 136];
-        $line1 = 'This report reflects station status at the time it was generated and may not match a subsequently refreshed dashboard.';
-        $line2 = '© ' . $generatedAt->format('Y') . ' Uplink Integrated Solutions Inc. All rights reserved.';
+        function setBarTile(prefix, tileData) {
+            const percentEl = document.getElementById(prefix + '-percent');
+            const barEl = document.getElementById(prefix + '-bar');
+            if (!percentEl || !barEl || !tileData) return;
+            percentEl.textContent = tileData.percent + '%';
+            percentEl.className = 'text-xs font-semibold ' + tileData.colors.text;
+            barEl.style.width = Math.min(tileData.percent, 100) + '%';
+            barEl.className = 'h-full rounded-full ' + tileData.colors.bar;
+        }
 
-        $this->imgText($image, $line1, $x + intdiv($width, 2), $baselineBottom - 16, 10.5, $gray, false, 'center');
-        $this->imgText($image, $line2, $x + intdiv($width, 2), $baselineBottom, 10.5, $gray, false, 'center');
-    }
+        /**
+         * Wires up a card's header toggle button to show/hide its body
+         * and persist the collapsed state in localStorage (per card, via
+         * storageKey) so it survives a page reload. Deliberately an
+         * instant show/hide (Tailwind's `hidden` class) rather than an
+         * animated height transition — the body's contents get replaced
+         * wholesale by refreshDashboard() every 20s, and measuring
+         * scrollHeight against that moving target is more trouble than
+         * it's worth for a collapse toggle.
+         */
+        function initCollapsible(toggleId, bodyId, chevronId, storageKey) {
+            const toggle = document.getElementById(toggleId);
+            const body = document.getElementById(bodyId);
+            const chevron = document.getElementById(chevronId);
+            if (!toggle || !body) return;
 
-    private function drawImgStatusBadge($image, int $x, int $y, string $label, string $status, int $height): void
-    {
-        [$r, $g, $b] = $this->statusRgb($status);
-        $bg          = imagecolorallocate($image, $r, $g, $b);
-        $labelUpper  = strtoupper($label);
-        $badgeWidth  = (int) ($this->imgTextWidth($labelUpper, 10, true) + 16);
+            function setCollapsed(collapsed) {
+                body.classList.toggle('hidden', collapsed);
+                toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                if (chevron) chevron.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+                try { localStorage.setItem(storageKey, collapsed ? '1' : '0'); } catch (e) { /* private mode etc. */ }
+            }
 
-        imagefilledrectangle($image, $x, $y, $x + $badgeWidth, $y + $height, $bg);
-        $this->imgText($image, $labelUpper, $x + 8, $y + $height - 6, 10, [255, 255, 255], true);
-    }
+            let startCollapsed = false;
+            try { startCollapsed = localStorage.getItem(storageKey) === '1'; } catch (e) { /* private mode etc. */ }
+            setCollapsed(startCollapsed);
 
-    private function statusRgb(string $status): array
-    {
-        return match ($status) {
-            'online', 'good'       => [22, 163, 74],
-            'idle', 'warning'      => [217, 119, 6],
-            'offline', 'critical'  => [220, 38, 38],
-            default                => [107, 114, 128],
-        };
-    }
+            toggle.addEventListener('click', () => setCollapsed(!body.classList.contains('hidden')));
+        }
 
-    /**
-     * Same >=100 good / >=81 warning / else critical bands as
-     * $systemStatusClass in reports/system-status.blade.php (used for
-     * uptime/storage % metrics).
-     */
-    private function percentStatusKey(?float $percent): string
-    {
-        if ($percent === null) return 'warning';
-        if ($percent >= 100)   return 'good';
-        if ($percent >= 81)    return 'warning';
-        return 'critical';
-    }
+        function updateSystemHealth(health) {
+            if (!health) return;
+            setBarTile('cpu', health.cpu);
+            const cpuMeta = document.getElementById('cpu-meta');
+            if (cpuMeta) cpuMeta.textContent = `${health.cpu.cores} core${health.cpu.cores > 1 ? 's' : ''} · load ${health.cpu.load}`;
 
-    private function percentStatusLabel(?float $percent): string
-    {
-        if ($percent === null) return 'N/A';
-        return match ($this->percentStatusKey($percent)) {
-            'good'    => 'Good',
-            'warning' => 'Warning',
-            default   => 'Critical',
-        };
-    }
+            setBarTile('mem', health.memory);
+            const memMeta = document.getElementById('mem-meta');
+            if (memMeta) memMeta.textContent = `${health.memory.used} / ${health.memory.total}`;
 
-    /**
-     * Same true/false/null -> Online/Offline/Unknown bands as
-     * $serviceStatusClass in reports/system-status.blade.php (used for
-     * MQTT/database/EMS and the uptime row).
-     */
-    private function boolStatusKey(?bool $isUp): string
-    {
-        if ($isUp === null) return 'idle';
-        return $isUp ? 'online' : 'offline';
-    }
+            setBarTile('disk', health.disk);
+            const diskMeta = document.getElementById('disk-meta');
+            if (diskMeta) diskMeta.textContent = `${health.disk.used} / ${health.disk.total}`;
 
-    private function boolStatusLabel(?bool $isUp): string
-    {
-        if ($isUp === null) return 'Unknown';
-        return $isUp ? 'Online' : 'Offline';
-    }
+            const uptimeEl = document.getElementById('uptime-text');
+            if (uptimeEl) uptimeEl.textContent = `${health.uptime.days}d ${health.uptime.hours}h ${health.uptime.minutes}m`;
+        }
 
-    /**
-     * Splits $totalWidth across columns by proportion (each 0-1, summing
-     * to 1.0). The last column absorbs whatever rounding left over so
-     * columns always sum to exactly $totalWidth — no 1-2px gap or overlap
-     * at the right edge of a table.
-     */
-    private function imgColumnWidths(int $totalWidth, array $proportions): array
-    {
-        $widths    = [];
-        $used      = 0;
-        $lastIndex = count($proportions) - 1;
+        function networkPortIconSvg(active) {
+            return active
+                ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>'
+                : '<svg class="w-4 h-4 text-text-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>';
+        }
 
-        foreach ($proportions as $i => $proportion) {
-            if ($i === $lastIndex) {
-                $widths[] = $totalWidth - $used;
-            } else {
-                $w = (int) round($totalWidth * $proportion);
-                $widths[] = $w;
-                $used += $w;
+        function updateSystemSummary(summary) {
+            if (!summary) return;
+
+            const deviceEl = document.getElementById('summary-device');
+            if (deviceEl) deviceEl.textContent = summary.device_model;
+
+            const cpuEl = document.getElementById('summary-cpu');
+            if (cpuEl) cpuEl.textContent = summary.cpu_model;
+
+            const osEl = document.getElementById('summary-os');
+            if (osEl) osEl.textContent = summary.os_version;
+
+            const memEl = document.getElementById('summary-memory');
+            if (memEl) {
+                memEl.textContent = summary.memory.available
+                    ? `${summary.memory.slots_used}/${summary.memory.slots_total} DIMMs · ${summary.memory.total_label}`
+                    : `${summary.memory.total_label} (DIMM count needs sudo)`;
+            }
+
+            const storageEl = document.getElementById('summary-storage');
+            if (storageEl) storageEl.textContent = summary.storage;
+
+            const usedEl = document.getElementById('summary-network-used');
+            if (usedEl) {
+                usedEl.innerHTML = `Used <span class="text-amber-400">${summary.network.used}</span>/${summary.network.total}`;
+            }
+
+            const portsEl = document.getElementById('summary-network-ports');
+            if (portsEl) {
+                portsEl.innerHTML = summary.network.ports.length
+                    ? summary.network.ports.map(p => `
+                        <div class="flex flex-col items-center gap-1 shrink-0">
+                            <span class="text-[10px] uppercase tracking-wider text-text-400 shrink-0" title="${esc(p.name)}">${esc(p.name)}</span>
+                            <div class="w-9 h-9 rounded-lg flex items-center justify-center ${p.colors.bg}">
+                                ${networkPortIconSvg(p.active)}
+                            </div>
+                            <span class="text-[9px] text-text-500 w-[90px] text-center leading-none" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
+                        </div>
+                    `).join('')
+                    : '<span class="text-xs text-text-500">No network interfaces detected</span>';
             }
         }
 
-        return $widths;
-    }
+        function updateStatusBanner(airCounts, seismicCounts) {
+            const totalOnline = airCounts.online + seismicCounts.online;
+            const totalStations = airCounts.online + airCounts.idle + airCounts.offline
+                + seismicCounts.online + seismicCounts.idle + seismicCounts.offline;
+            const percent = totalStations > 0 ? Math.round((totalOnline / totalStations) * 1000) / 10 : 100;
 
-    private function imgColumnX(int $colX, array $col): int
-    {
-        return match ($col['align'] ?? 'left') {
-            'right'  => $colX + $col['width'] - 10,
-            'center' => $colX + intdiv($col['width'], 2),
-            default  => $colX + 10,
-        };
-    }
+            let status = 'idle';
+            if (totalStations === 0) status = 'idle';
+            else if (percent >= 100) status = 'good';
+            else if (percent >= 80) status = 'warning';
+            else status = 'critical';
 
-    /**
-     * Locates the DejaVu Sans TTF this app already ships as a dompdf
-     * dependency (see reports/system-status.blade.php's "DejaVu Sans"
-     * font-family) so the JPEG export can use real, antialiased text
-     * without needing a new font file or package.
-     */
-    private function fontPath(bool $bold = false): ?string
-    {
-        $direct = $bold
-            ? base_path('vendor/dompdf/dompdf/lib/fonts/DejaVuSans-Bold.ttf')
-            : base_path('vendor/dompdf/dompdf/lib/fonts/DejaVuSans.ttf');
+            const meta = {
+                idle:     { label: 'No Stations Configured', text: 'text-amber-400', bg: 'bg-amber-700/10', border: 'border-amber-600/30', dot: 'bg-amber-400' },
+                good:     { label: 'All Systems Good', text: 'text-munti-green-400', bg: 'bg-munti-green-700/10', border: 'border-munti-green-600/30', dot: 'bg-munti-green-400' },
+                warning:  { label: 'Warning', text: 'text-amber-400', bg: 'bg-amber-700/10', border: 'border-amber-600/30', dot: 'bg-amber-400' },
+                critical: { label: 'Critical', text: 'text-red-400', bg: 'bg-red-700/10', border: 'border-red-600/30', dot: 'bg-red-400' },
+            }[status];
 
-        if (is_readable($direct)) {
-            return $direct;
+            const banner = document.getElementById('system-status-banner');
+            const ping = document.getElementById('system-status-ping');
+            const dot = document.getElementById('system-status-dot');
+            const label = document.getElementById('system-status-label');
+            const count = document.getElementById('system-status-count');
+
+            if (banner) banner.className = `lg:col-span-2 rounded-xl border ${meta.border} ${meta.bg} overflow-hidden`;
+            if (ping) { ping.className = `animate-ping absolute inline-flex h-full w-full rounded-full ${meta.dot} opacity-60`; ping.style.display = status === 'good' ? 'none' : ''; }
+            if (dot) dot.className = `relative inline-flex rounded-full h-2.5 w-2.5 ${meta.dot}`;
+            if (label) { label.textContent = meta.label; label.className = `text-sm font-semibold ${meta.text}`; }
+            if (count) count.textContent = totalStations === 0 ? 'No stations added yet' : `${totalOnline}/${totalStations} stations online (${percent}%)`;
         }
 
-        // Filename has varied slightly across dompdf versions
-        // (DejaVuSans-Bold.ttf vs DejaVuSansBold.ttf) — fall back to a
-        // glob match rather than hardcoding one exact name.
-        $fontsDir = base_path('vendor/dompdf/dompdf/lib/fonts');
-        if (is_dir($fontsDir)) {
-            $pattern = $bold ? '/DejaVuSans*Bold*.ttf' : '/DejaVuSans.ttf';
-            $matches = glob($fontsDir . $pattern);
-            if (!empty($matches)) {
-                return $matches[0];
+        function updateDonutCard(prefix, counts) {
+            const total = counts.online + counts.idle + counts.offline;
+            const center = document.getElementById(prefix + '-donut-center');
+            if (center) {
+                center.innerHTML = total > 0
+                    ? `<span class="text-sm sm:text-base font-bold text-text-100">${Math.round((counts.online / total) * 100)}%</span><span class="text-[9px] text-text-400 uppercase">Online</span>`
+                    : `<span class="text-sm sm:text-base font-bold text-amber-400">—</span><span class="text-[9px] text-amber-400 uppercase">No Stations</span>`;
             }
+            const badge = document.getElementById(prefix + '-online-badge');
+            if (badge) badge.textContent = `${counts.online}/${total} online`;
+            const onlineEl = document.getElementById(prefix + '-online-count');
+            const idleEl = document.getElementById(prefix + '-idle-count');
+            const offlineEl = document.getElementById(prefix + '-offline-count');
+            if (onlineEl) onlineEl.textContent = counts.online;
+            if (idleEl) idleEl.textContent = counts.idle;
+            if (offlineEl) offlineEl.textContent = counts.offline;
         }
 
-        return null;
-    }
-
-    /**
-     * Draws $text with its origin at ($x, $y). $y is the text baseline
-     * (TTF convention), not the top of the glyphs. Falls back to GD's
-     * built-in bitmap font if the DejaVu TTF can't be found, so a missing
-     * font file degrades the image rather than failing the whole export.
-     */
-    private function imgText($image, string $text, int $x, int $y, float $size, array $rgb, bool $bold = false, string $align = 'left'): void
-    {
-        $color = imagecolorallocate($image, $rgb[0], $rgb[1], $rgb[2]);
-        $font  = $this->fontPath($bold);
-
-        if ($font) {
-            $width = $this->imgTextWidth($text, $size, $bold);
-            $drawX = match ($align) {
-                'right'  => $x - $width,
-                'center' => $x - ($width / 2),
-                default  => $x,
-            };
-            imagettftext($image, $size, 0, (int) round($drawX), $y, $color, $font, $text);
-            return;
+        function updateTotalBadges(prefix, count) {
+            const chartBadge = document.getElementById(prefix + '-chart-total-badge');
+            const tableBadge = document.getElementById(prefix + '-table-total-badge');
+            if (chartBadge) chartBadge.textContent = `${count} total`;
+            if (tableBadge) tableBadge.textContent = `${count} total`;
         }
 
-        $gdFont = 5; // largest of GD's built-in bitmap fonts
-        $width  = imagefontwidth($gdFont) * strlen($text);
-        $drawX  = match ($align) {
-            'right'  => $x - $width,
-            'center' => $x - ($width / 2),
-            default  => $x,
-        };
-        imagestring($image, $gdFont, (int) round($drawX), $y - imagefontheight($gdFont), $text, $color);
-    }
+        async function refreshDashboard() {
+            const url = document.getElementById('main-content')?.dataset.refreshUrl;
+            if (!url) return;
+            try {
+                const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                if (!res.ok) return;
+                const data = await res.json();
 
-    private function imgTextWidth(string $text, float $size, bool $bold = false): float
-    {
-        $font = $this->fontPath($bold);
-        if ($font) {
-            $bbox = imagettfbbox($size, 0, $font, $text);
-            return $bbox[2] - $bbox[0];
-        }
+                renderTable('aq-table-body', data.airQualityData, 'No air quality data available');
+                renderTable('seismic-table-body', data.seismicData, 'No seismic data available');
+                updateTotalBadges('aq', data.airQualityData.length);
+                updateTotalBadges('seismic', data.seismicData.length);
 
-        return (float) (imagefontwidth(5) * strlen($text));
-    }
+                const airChartData2 = getChartData(data.airQualityData);
+                airChart.data.labels = airChartData2.labels;
+                airChart.data.datasets[0].data = airChartData2.totals;
+                airChart.data.datasets[0].backgroundColor = barColors.slice(0, airChartData2.labels.length || 1);
+                airChart.update();
 
-    /**
-     * Shrinks $text with a trailing ellipsis until it fits $maxWidth,
-     * binary-searching the cut point rather than trimming char-by-char —
-     * this runs per-cell on every table row, so it needs to stay cheap.
-     */
-    private function imgTruncate(string $text, float $maxWidth, float $size, bool $bold = false): string
-    {
-        if ($maxWidth <= 0 || $this->imgTextWidth($text, $size, $bold) <= $maxWidth) {
-            return $text;
-        }
+                const seismicChartData2 = getChartData(data.seismicData);
+                seismicChart.data.labels = seismicChartData2.labels;
+                seismicChart.data.datasets[0].data = seismicChartData2.totals;
+                seismicChart.data.datasets[0].backgroundColor = barColors.slice(0, seismicChartData2.labels.length || 1);
+                seismicChart.update();
 
-        $ellipsis = '…';
-        $lo    = 0;
-        $hi    = mb_strlen($text);
-        $best  = $ellipsis;
+                updateStatusChart(airStatusChart, data.airQualityCounts.online, data.airQualityCounts.idle, data.airQualityCounts.offline);
+                updateStatusChart(seismicStatusChart, data.seismicCounts.online, data.seismicCounts.idle, data.seismicCounts.offline);
+                updateDonutCard('aq', data.airQualityCounts);
+                updateDonutCard('seismic', data.seismicCounts);
+                updateStatusBanner(data.airQualityCounts, data.seismicCounts);
+                updateSystemHealth(data.systemHealth);
+                updateSystemSummary(data.systemSummary);
 
-        while ($lo <= $hi) {
-            $mid       = intdiv($lo + $hi, 2);
-            $candidate = mb_substr($text, 0, $mid) . $ellipsis;
-            if ($this->imgTextWidth($candidate, $size, $bold) <= $maxWidth) {
-                $best = $candidate;
-                $lo   = $mid + 1;
-            } else {
-                $hi = $mid - 1;
+                const lastUpdated = document.getElementById('last-updated');
+                if (lastUpdated) lastUpdated.textContent = `Last updated: ${data.generatedAt}`;
+            } catch (e) {
+                console.error('Dashboard refresh failed:', e);
             }
         }
 
