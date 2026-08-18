@@ -14,7 +14,10 @@ class RecentLogsController extends Controller
         $apiLogs = ApiLog::latest('created_at')->limit(50)->get();
         
         // Fetch 50 most recent System logs
-        $systemLogs = SystemLog::latest('created_at')->limit(50)->get();
+        $systemLogs = SystemLog::where('level', '!=', 'INFO')
+            ->latest('created_at')
+            ->limit(50)
+            ->get();
 
         $seenIds = $this->parseSeenIds($request->input('seen', ''));
         
@@ -44,7 +47,10 @@ class RecentLogsController extends Controller
     {
         // Get the 50 most recent API logs
         $apiLogs = ApiLog::latest('created_at')->limit(50)->get();
-        $systemLogs = SystemLog::latest('created_at')->limit(50)->get();
+        $systemLogs = SystemLog::where('level', '!=', 'INFO')
+        ->latest('created_at')
+        ->limit(50)
+        ->get();
         
         // Count how many of these have seen_at null
         $unseenCount = 0;
