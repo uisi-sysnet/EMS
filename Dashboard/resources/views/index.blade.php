@@ -947,11 +947,11 @@
                 portsEl.innerHTML = summary.network.ports.length
                     ? summary.network.ports.map(p => `
                         <div class="flex flex-col items-center gap-1 shrink-0">
-                            <span class="text-[9px] text-text-500 uppercase tracking-wide max-w-[90px] truncate" title="${esc(p.name)}">${esc(p.name)}</span>
+                            <span class="text-[10px] uppercase tracking-wider text-text-400 shrink-0 me-30" title="${esc(p.name)}">${esc(p.name)}</span>
                             <div class="w-9 h-9 rounded-lg flex items-center justify-center ${p.colors.bg}">
                                 ${networkPortIconSvg(p.active)}
                             </div>
-                            <span class="text-[9px] text-text-500 max-w-[90px] truncate" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
+                            <span class="text-[9px] text-text-500 max-w-[90px]" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
                         </div>
                     `).join('')
                     : '<span class="text-xs text-text-500">No network interfaces detected</span>';
