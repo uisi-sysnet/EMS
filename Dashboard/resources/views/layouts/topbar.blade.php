@@ -152,14 +152,14 @@
 
                             <a href="{{ route('services.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Services</a>
                             <!-- API Logs with badge -->
-                            <a href="{{ route('logs.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition flex items-center justify-between">
-                                <span>System Logs</span>
+                            <a href="{{ route('api-logs.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors border-t border-border-700 flex items-center justify-between">
+                                <span>API Logs</span>
                                 @php
-                                    $systemUnseenCount = \App\Models\SystemLog::where('level', '!=', 'INFO')->unseen()->count();
+                                    $apiUnseenCount = \App\Models\ApiLog::unseen()->count();
                                 @endphp
-                                @if($systemUnseenCount > 0)
+                                @if($apiUnseenCount > 0)
                                     <span class="inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
-                                        {{ $systemUnseenCount }}
+                                        {{ $apiUnseenCount }}
                                     </span>
                                 @endif
                             </a>
