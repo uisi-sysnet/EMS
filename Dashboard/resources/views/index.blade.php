@@ -947,7 +947,7 @@
                 portsEl.innerHTML = summary.network.ports.length
                     ? summary.network.ports.map(p => `
                         <div class="flex flex-col items-center gap-1 shrink-0">
-                            <span class="text-[10px] uppercase tracking-wider text-text-400 shrink-0 me-32" title="${esc(p.name)}">${esc(p.name)}</span>
+                            <span class="text-[10px] uppercase tracking-wider text-text-400 shrink-0" title="${esc(p.name)}">${esc(p.name)}</span>
                             <div class="w-9 h-9 rounded-lg flex items-center justify-center ${p.colors.bg}">
                                 ${networkPortIconSvg(p.active)}
                             </div>
