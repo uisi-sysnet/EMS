@@ -374,7 +374,7 @@
                                                     </svg>
                                                 @endif
                                             </div>
-                                            <span class="text-[9px] text-text-500 max-w-[80px] text-center leading-none"
+                                            <span class="text-[9px] text-text-500 max-w-[82px] text-center leading-none"
                                                 title="{{ $port['ip_cidr'] ?? 'No IP assigned' }}">
                                                 {{ $port['ip_cidr'] ?? '—' }}
                                             </span>
