@@ -353,7 +353,7 @@
 
                             <!-- Network Ports strip -->
                             <div class="flex items-center gap-4 min-w-0">
-                                <span class="text-[10px] uppercase tracking-wider text-text-400 justify-start me-8">Network Ports</span>
+                                <span class="text-[10px] uppercase tracking-wider text-text-400 justify-start me-16">Network Ports</span>
                                 <div id="summary-network-ports" class="flex items-center justify-center gap-16 overflow-x-auto flex-nowrap min-w-0">
                                     @forelse($systemSummary['network']['ports'] as $port)
                                         <div class="flex flex-col items-center gap-1.5 shrink-0">
