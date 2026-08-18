@@ -47,7 +47,9 @@ class LogController extends Controller
             ->withQueryString();
 
         // Get unseen count for notification badge
-        $unseenCount = SystemLog::unseen()->count();
+        $unseenCount = SystemLog::where('level', '!=', 'INFO')
+        ->unseen()
+        ->count();
 
         return view('logs.system', compact('logs', 'defaultFrom', 'defaultTo', 'unseenCount'));
     }
