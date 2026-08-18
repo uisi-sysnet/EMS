@@ -182,6 +182,15 @@
             </h2>
             <div class="flex items-center gap-3">
                 <span class="text-xs text-text-400">Overview of stations</span>
+                <a href="{{ route('dashboard.report.image') }}"
+                   target="_blank"
+                   class="inline-flex items-center gap-1.5 text-xs font-medium text-text-200 bg-surface-700/40 border border-border-600/30 px-3 py-1.5 rounded-lg hover:bg-surface-700/60 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Download Image
+                </a>
                 <a href="{{ route('dashboard.report') }}"
                    target="_blank"
                    class="inline-flex items-center gap-1.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 px-3 py-1.5 rounded-lg hover:bg-munti-green-700/30 transition">
@@ -353,11 +362,11 @@
 
                             <!-- Network Ports strip -->
                             <div class="flex items-center gap-4 min-w-0">
-                                <span class="text-[10px] uppercase tracking-wider text-text-400 shrink-0 me-32">Network Ports</span>
-                                <div id="summary-network-ports" class="flex items-center justify-center gap-4 flex-nowrap min-w-0">
+                                <span class="text-[10px] uppercase tracking-wider text-text-400 justify-start me-16">Network Ports</span>
+                                <div id="summary-network-ports" class="flex items-center justify-center gap-16 overflow-x-auto flex-nowrap min-w-0">
                                     @forelse($systemSummary['network']['ports'] as $port)
-                                        <div class="flex flex-col items-center w-[90px] gap-1.5 shrink-0">
-                                            <span class="text-[9px] text-text-500 uppercase tracking-wide w-[90px] text-center"
+                                        <div class="flex flex-col items-center gap-1.5 shrink-0">
+                                            <span class="text-[9px] text-text-500 uppercase tracking-wide max-w-[56px] truncate"
                                                 title="{{ $port['name'] }}">
                                                 {{ $port['name'] }}
                                             </span>
@@ -374,7 +383,7 @@
                                                     </svg>
                                                 @endif
                                             </div>
-                                            <span class="text-[9px] text-text-500 w-[90px] text-center leading-none"
+                                            <span class="text-[9px] text-text-500 max-w-[64px] text-center leading-none"
                                                 title="{{ $port['ip_cidr'] ?? 'No IP assigned' }}">
                                                 {{ $port['ip_cidr'] ?? '—' }}
                                             </span>
@@ -385,6 +394,7 @@
                                 </div>
                             </div>
                         </div>
+
                     </div>
                 </div>
 
@@ -947,11 +957,11 @@
                 portsEl.innerHTML = summary.network.ports.length
                     ? summary.network.ports.map(p => `
                         <div class="flex flex-col items-center gap-1 shrink-0">
-                            <span class="text-[10px] uppercase tracking-wider text-text-400 shrink-0" title="${esc(p.name)}">${esc(p.name)}</span>
+                            <span class="text-[9px] text-text-500 uppercase tracking-wide max-w-[56px] truncate" title="${esc(p.name)}">${esc(p.name)}</span>
                             <div class="w-9 h-9 rounded-lg flex items-center justify-center ${p.colors.bg}">
                                 ${networkPortIconSvg(p.active)}
                             </div>
-                            <span class="text-[9px] text-text-500 w-[90px] text-center leading-none" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
+                            <span class="text-[9px] text-text-500 max-w-[64px] truncate" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
                         </div>
                     `).join('')
                     : '<span class="text-xs text-text-500">No network interfaces detected</span>';
