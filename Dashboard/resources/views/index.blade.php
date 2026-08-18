@@ -361,9 +361,9 @@
                                     Used <span class="text-amber-400">{{ $systemSummary['network']['used'] }}</span>/{{ $systemSummary['network']['total'] }}
                                 </span>
                             </div>
-                            <div id="summary-network-ports" class="flex items-end gap-3 overflow-x-auto pb-1">
+                            <div id="summary-network-ports" class="flex flex-nowrap items-end gap-3 overflow-x-auto pb-1 whitespace-nowrap">
                                 @forelse($systemSummary['network']['ports'] as $port)
-                                    <div class="flex flex-col items-center gap-1 shrink-0">
+                                    <div class="flex flex-col items-center gap-1 shrink-0 w-14">
                                         <span class="text-[9px] text-text-500 uppercase tracking-wide max-w-[56px] truncate" title="{{ $port['name'] }}">{{ $port['name'] }}</span>
                                         <div class="w-9 h-9 rounded-lg flex items-center justify-center {{ $port['colors']['bg'] }}">
                                             @if($port['active'])
