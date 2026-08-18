@@ -174,6 +174,55 @@
         </table>
     </div>
 
+    {{-- ---------- System Summary (Hardware / Network Ports) ---------- --}}
+    <h2 class="section-title">System Summary</h2>
+    <table style="width: 100%; margin-bottom: 18px;">
+        <tr>
+            <td style="width: 50%; padding-right: 8px; vertical-align: top;">
+                <div class="summary-box" style="margin-bottom: 0;">
+                    <div style="font-size: 9.5px; color: #777; text-transform: uppercase; margin-bottom: 6px;">Hardware</div>
+                    <table class="meta-table">
+                        <tr>
+                            <td class="label">Device Model:</td>
+                            <td>{{ $deviceModel ?? '—' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label">CPU Model:</td>
+                            <td>{{ $cpuModel ?? '—' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label">OS Version:</td>
+                            <td>{{ $osVersion ?? '—' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Memory:</td>
+                            <td>{{ $memoryText ?? '—' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Storage Type:</td>
+                            <td>{{ $storageType ?? '—' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+            <td style="width: 50%; padding-left: 8px; vertical-align: top;">
+                <div class="summary-box" style="margin-bottom: 0;">
+                    <div style="font-size: 9.5px; color: #777; text-transform: uppercase; margin-bottom: 6px;">Network Ports</div>
+                    <table class="meta-table">
+                        @forelse (($networkPorts ?? []) as $portName => $portAddress)
+                            <tr>
+                                <td class="label">{{ $portName }}:</td>
+                                <td>{{ $portAddress ?: '—' }}</td>
+                            </tr>
+                        @empty
+                            <tr><td>No network interfaces reported</td></tr>
+                        @endforelse
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+
     {{-- ---------- Stations Status Summary ---------- --}}
     <h2 class="section-title">Stations Status Summary</h2>
     <div class="summary-box">
