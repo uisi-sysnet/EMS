@@ -947,7 +947,7 @@ class DashboardController extends Controller
                 ],
                 [
                     'Storage', $storageDetail, $storageValue,
-                    ['badge' => true, 'label' => $this->storageStatusLabel($ctx['storagePercent']), 'status' => $this->storageStatusKey($ctx['storagePercent'])],
+                    ['badge' => true, 'label' => $this->percentStatusLabel($ctx['storagePercent']), 'status' => $this->percentStatusKey($ctx['storagePercent'])],
                 ],
                 [
                     'MQTT Broker (Mosquitto)', 'mosquitto.service', $ctx['mqttStatusText'] ?? '—',
@@ -1206,10 +1206,9 @@ class DashboardController extends Controller
     }
 
     /**
-     * >=100 good / >=81 warning / else critical bands as $systemStatusClass
-     * in reports/system-status.blade.php — used ONLY for uptime %, where
-     * high = good. Do not use this for storage; see percentStatusKey's
-     * doc comment and storageStatusKey below.
+     * Same >=100 good / >=81 warning / else critical bands as
+     * $systemStatusClass in reports/system-status.blade.php (used for
+     * uptime/storage % metrics).
      */
     private function percentStatusKey(?float $percent): string
     {
@@ -1223,31 +1222,6 @@ class DashboardController extends Controller
     {
         if ($percent === null) return 'N/A';
         return match ($this->percentStatusKey($percent)) {
-            'good'    => 'Good',
-            'warning' => 'Warning',
-            default   => 'Critical',
-        };
-    }
-
-    /**
-     * Storage free-space % bands, mirroring $storageStatusClass in
-     * reports/system-status.blade.php: 0-10% free = critical, 11-20%
-     * free = warning, 21-100% free = good. $percent here is % FREE
-     * (see buildReportContext()'s storagePercent, which already inverts
-     * buildSystemHealth()'s % used before handing it off).
-     */
-    private function storageStatusKey(?float $percent): string
-    {
-        if ($percent === null) return 'warning';
-        if ($percent <= 10)    return 'critical';
-        if ($percent <= 20)    return 'warning';
-        return 'good';
-    }
-
-    private function storageStatusLabel(?float $percent): string
-    {
-        if ($percent === null) return 'N/A';
-        return match ($this->storageStatusKey($percent)) {
             'good'    => 'Good',
             'warning' => 'Warning',
             default   => 'Critical',
