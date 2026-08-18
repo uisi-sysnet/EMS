@@ -117,16 +117,7 @@
                                     autocomplete="off"
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('lead_ip') border-munti-red-500 @enderror"
                                     placeholder="e.g. 192.168.1.10"
-                                    oninput="
-                                        let v = this.value.replace(/[^0-9.]/g, '');
-                                        const parts = v.split('.');
-                                        if (parts.length > 4) {
-                                            v = parts.slice(0, 4).join('.');
-                                        }
-                                        // limit each octet to 3 digits
-                                        v = parts.slice(0, 4).map(p => p.slice(0, 3)).join('.');
-                                        this.value = v;
-                                    ">
+                                    oninput="this.value = this.value.replace(/[^0-9.]/g, '')">
                                 @error('lead_ip')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
