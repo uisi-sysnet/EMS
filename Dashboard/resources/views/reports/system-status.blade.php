@@ -146,12 +146,6 @@
             if ($percent >= 81) return 'Warning';
             return 'Critical';
         };
-        $systemStorageStatusLabel = function ($percent) {
-            if ($percent === null) return 'N/A';
-            if ($percent >= 100) return 'Warning';
-            if ($percent >= 81) return 'Good';
-            return 'Critical';
-        };
 
         // For binary services (MQTT broker, database, ems.target) rather
         // than percentage metrics: true = Online, false = Offline,
@@ -321,7 +315,7 @@
                 <td>{{ isset($storagePercent) ? number_format($storagePercent, 2) . '% free' : '—' }}</td>
                 <td>
                     <span class="status {{ $systemStatusClass($storagePercent ?? null) }}">
-                        {{ $systemStorageStatusLabel($storagePercent ?? null) }}
+                        {{ $systemStatusLabel($storagePercent ?? null) }}
                     </span>
                 </td>
             </tr>
