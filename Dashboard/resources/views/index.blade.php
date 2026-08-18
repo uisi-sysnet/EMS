@@ -355,30 +355,30 @@
 
                         <!-- Network Ports strip -->
                         <div class="px-3 sm:px-4 pb-3 sm:pb-4">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-[10px] uppercase tracking-wider text-text-400">Network Ports</span>
-                                <span id="summary-network-used" class="inline-flex items-center gap-1 text-xs text-text-100 font-medium">
-                                    Used <span class="text-amber-400">{{ $systemSummary['network']['used'] }}</span>/{{ $systemSummary['network']['total'] }}
-                                </span>
-                            </div>
-                            <div id="summary-network-ports" class="flex flex-nowrap items-end gap-3 overflow-x-auto pb-1">
-                                @forelse($systemSummary['network']['ports'] as $port)
-                                    <div class="flex flex-col items-center gap-1 shrink-0">
-                                        <span class="text-[9px] text-text-500 uppercase tracking-wide max-w-[56px] truncate" title="{{ $port['name'] }}">{{ $port['name'] }}</span>
-                                        <div class="w-9 h-9 rounded-lg flex items-center justify-center {{ $port['colors']['bg'] }}">
-                                            @if($port['active'])
-                                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                                            @else
-                                                <svg class="w-4 h-4 text-text-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                                            @endif
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[10px] uppercase tracking-wider text-text-400">Network Ports</span>
+                                    <span id="summary-network-used" class="inline-flex items-center gap-1 text-xs text-text-100 font-medium">
+                                        Used <span class="text-amber-400">{{ $systemSummary['network']['used'] }}</span>/{{ $systemSummary['network']['total'] }}
+                                    </span>
+                                </div>
+                                <div id="summary-network-ports" class="flex flex-row flex-nowrap items-end gap-3 overflow-x-auto pb-1">
+                                    @forelse($systemSummary['network']['ports'] as $port)
+                                        <div class="flex flex-col items-center gap-1 shrink-0 min-w-[4.5rem]">
+                                            <span class="text-[9px] text-text-500 uppercase tracking-wide max-w-[56px] truncate" title="{{ $port['name'] }}">{{ $port['name'] }}</span>
+                                            <div class="w-9 h-9 rounded-lg flex items-center justify-center {{ $port['colors']['bg'] }}">
+                                                @if($port['active'])
+                                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                                @else
+                                                    <svg class="w-4 h-4 text-text-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                                @endif
+                                            </div>
+                                            <span class="text-[9px] text-text-500 max-w-[64px] truncate" title="{{ $port['ip_cidr'] ?? 'No IP assigned' }}">{{ $port['ip_cidr'] ?? '—' }}</span>
                                         </div>
-                                        <span class="text-[9px] text-text-500 max-w-[64px] truncate" title="{{ $port['ip_cidr'] ?? 'No IP assigned' }}">{{ $port['ip_cidr'] ?? '—' }}</span>
-                                    </div>
-                                @empty
-                                    <span class="text-xs text-text-500">No network interfaces detected</span>
-                                @endforelse
+                                    @empty
+                                        <span class="text-xs text-text-500">No network interfaces detected</span>
+                                    @endforelse
+                                </div>
                             </div>
-                        </div>
 
                     </div>
                 </div>
