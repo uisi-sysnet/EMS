@@ -124,6 +124,21 @@ class StationController extends Controller
         
         // Custom validation with existence checks excluding current station
         $validated = $request->validate([
+            'station_mn' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) use ($station_mn) {
+                    if ($value !== $station_mn) {
+                        $exists = Station::where('station_mn', $value)
+                            ->where('station_mn', '!=', $station_mn)
+                            ->exists();
+                        if ($exists) {
+                            $fail('The station MN "' . $value . '" is already taken. Please use a unique station MN.');
+                        }
+                    }
+                }
+            ],
             'station_name' => [
                 'nullable',
                 'string',
