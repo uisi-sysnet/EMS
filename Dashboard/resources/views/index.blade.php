@@ -354,44 +354,44 @@
                         </div>
 
                         <!-- Network Ports strip -->
-                        <div class="px-3 sm:px-4 pb-3 sm:pb-4 border-t border-border-700/60 pt-3">
-                            <div class="flex items-center justify-between gap-4">
-                                <span class="text-[11px] font-semibold tracking-wider text-text-300 uppercase">
-                                    Network Ports
-                                </span>
-                                <div class="flex items-end gap-4">
-                                    @forelse($systemSummary['network']['ports'] as $port)
-                                        <div class="flex flex-col items-center gap-1 shrink-0">
-                                            <span class="text-[9px] text-text-500 uppercase tracking-wide">
-                                                {{ $port['name'] }}
-                                            </span>
-                                            <div class="w-8 h-8 rounded-md flex items-center justify-center
-                                                        {{ $port['active']
-                                                            ? 'bg-emerald-500'
-                                                            : 'bg-surface-700 border border-border-600' }}">
-                                                @if($port['active'])
-                                                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                                                            d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                                    </svg>
-                                                @else
-                                                    <svg class="w-3.5 h-3.5 text-text-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                                                    </svg>
-                                                @endif
-                                            </div>
-                                            <span class="text-[9px] text-text-500 max-w-[70px] truncate text-center leading-none"
-                                                title="{{ $port['ip_cidr'] ?? 'No IP' }}">
-                                                {{ $port['ip_cidr'] ?? '—' }}
-                                            </span>
+                                <div class="px-3 sm:px-4 pb-3 sm:pb-4">
+                                    <div class="flex items-center justify-between gap-4">
+                                        <span class="text-[11px] font-semibold tracking-wider text-text-300 uppercase">
+                                            Network Ports
+                                        </span>
+                                        <div class="flex items-end gap-4">
+                                            @forelse($systemSummary['network']['ports'] as $port)
+                                                <div class="flex flex-col items-center gap-1 shrink-0">
+                                                    <span class="text-[9px] text-text-500 uppercase tracking-wide">
+                                                        {{ $port['name'] }}
+                                                    </span>
+                                                    <div class="w-8 h-8 rounded-md flex items-center justify-center
+                                                                {{ $port['active']
+                                                                    ? 'bg-emerald-500'
+                                                                    : 'bg-surface-700 border border-border-600' }}">
+                                                        @if($port['active'])
+                                                            <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                                                    d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                                            </svg>
+                                                        @else
+                                                            <svg class="w-3.5 h-3.5 text-text-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                                            </svg>
+                                                        @endif
+                                                    </div>
+                                                    <span class="text-[9px] text-text-500 max-w-[70px] truncate text-center leading-none"
+                                                        title="{{ $port['ip_cidr'] ?? 'No IP' }}">
+                                                        {{ $port['ip_cidr'] ?? '—' }}
+                                                    </span>
+                                                </div>
+                                            @empty
+                                                <span class="text-xs text-text-500">No interfaces</span>
+                                            @endforelse
                                         </div>
-                                    @empty
-                                        <span class="text-xs text-text-500">No interfaces</span>
-                                    @endforelse
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
 
                     </div>
                 </div>
