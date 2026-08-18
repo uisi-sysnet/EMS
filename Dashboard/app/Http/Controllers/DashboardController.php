@@ -7,6 +7,7 @@ use App\Models\Station;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Process\Process;
 
@@ -15,8 +16,9 @@ class DashboardController extends Controller
     public function index()
     {
         [$airQualityData, $seismicData] = $this->buildDashboardData();
+        $systemSummary = $this->buildSystemSummary();
 
-        return view('index', compact('airQualityData', 'seismicData'));
+        return view('index', compact('airQualityData', 'seismicData', 'systemSummary'));
     }
 
     /**
@@ -40,6 +42,7 @@ class DashboardController extends Controller
             'airQualityCounts' => $airQualityCounts,
             'seismicCounts'    => $seismicCounts,
             'systemHealth'     => $this->buildSystemHealth(),
+            'systemSummary'    => $this->buildSystemSummary(),
             'generatedAt'      => now()->timezone('Asia/Manila')->format('Y-m-d h:i A'),
         ]);
     }
@@ -336,6 +339,350 @@ class DashboardController extends Controller
                 'minutes' => intdiv($uptimeSeconds % 3600, 60),
             ],
         ];
+    }
+
+    /**
+     * Hardware/OS identity info for the "System Summary" tile — device
+     * model, CPU model, OS version, DIMM count, storage type, network
+     * ports. Unlike buildSystemHealth() (live percentages, re-read every
+     * poll), this is essentially static between reboots, so it's cached
+     * for 5 minutes rather than re-run on every request. The 5 minute
+     * window is short enough that a NIC being unplugged still shows up
+     * promptly, but long enough to avoid shelling out to dmidecode/lsblk
+     * on every AJAX poll.
+     *
+     * DIMM detail requires dmidecode, which needs root. If the web
+     * server user doesn't have passwordless sudo for it, memory falls
+     * back to just the total RAM (from /proc/meminfo, no root needed)
+     * with a note — it never breaks the rest of the tile. To enable full
+     * DIMM detail, add a sudoers rule for whatever user PHP-FPM/Apache
+     * runs as, e.g.:
+     *   echo 'www-data ALL=(root) NOPASSWD: /usr/sbin/dmidecode' | sudo tee /etc/sudoers.d/dashboard-dmidecode
+     *
+     * @return array{device_model: string, cpu_model: string, os_version: string, memory: array, storage: string, network: array}
+     */
+    private function buildSystemSummary(): array
+    {
+        return Cache::remember('dashboard.system_summary', 300, function () {
+            $ports = $this->detectNetworkPorts();
+
+            return [
+                'device_model' => $this->detectDeviceModel(),
+                'cpu_model'    => $this->detectCpuModel(),
+                'os_version'   => $this->detectOsVersion(),
+                'memory'       => $this->detectMemoryDimms(),
+                'storage'      => $this->detectStorageType(),
+                'network'      => [
+                    'ports' => $ports,
+                    'used'  => count(array_filter($ports, fn ($port) => $port['active'])),
+                    'total' => count($ports),
+                ],
+            ];
+        });
+    }
+
+    /**
+     * Raspberry Pi and most ARM SBCs expose the board model via the
+     * device tree — world-readable, no root needed. Standard x86
+     * servers/desktops expose it via DMI sysfs entries instead, which
+     * (unlike the dmidecode binary) are also world-readable on almost
+     * every distro.
+     */
+    private function detectDeviceModel(): string
+    {
+        if (@is_readable('/proc/device-tree/model')) {
+            $model = trim(str_replace("\0", '', file_get_contents('/proc/device-tree/model')));
+            if ($model !== '') {
+                return $model;
+            }
+        }
+
+        $vendor = @is_readable('/sys/devices/virtual/dmi/id/sys_vendor')
+            ? trim(file_get_contents('/sys/devices/virtual/dmi/id/sys_vendor')) : '';
+        $product = @is_readable('/sys/devices/virtual/dmi/id/product_name')
+            ? trim(file_get_contents('/sys/devices/virtual/dmi/id/product_name')) : '';
+        $combined = trim("$vendor $product");
+
+        return $combined !== '' ? $combined : 'Unknown Device';
+    }
+
+    /**
+     * lscpu (util-linux, present on virtually every distro incl.
+     * Raspberry Pi OS) is far more reliable across architectures than
+     * hand-parsing /proc/cpuinfo: on ARM it decodes the CPU
+     * implementer/part fields against a known-core database (e.g.
+     * "Cortex-A72") even when /proc/cpuinfo itself has no "model name"
+     * line, which is exactly the case on Raspberry Pi OS kernels since
+     * Bookworm — they dropped the old "Hardware" field in favor of a
+     * plain "Model" line. /proc/cpuinfo is kept as a fallback (with
+     * every field name different kernels have used for this) in case
+     * lscpu isn't installed.
+     */
+    private function detectCpuModel(): string
+    {
+        $lscpu = new Process(['lscpu']);
+        $lscpu->setTimeout(5);
+        $lscpu->run();
+        if ($lscpu->isSuccessful() && preg_match('/^\s*Model name:\s*(.+)$/mi', $lscpu->getOutput(), $match)) {
+            $model = trim($match[1]);
+            if ($model !== '') {
+                return $model;
+            }
+        }
+
+        if (@is_readable('/proc/cpuinfo')) {
+            $cpuinfo = file_get_contents('/proc/cpuinfo');
+            foreach (['model name', 'Model', 'Hardware', 'cpu model'] as $field) {
+                if (preg_match('/^' . preg_quote($field, '/') . '\s*:\s*(.+)$/mi', $cpuinfo, $match)) {
+                    $value = trim($match[1]);
+                    if ($value !== '') {
+                        return $value;
+                    }
+                }
+            }
+        }
+
+        return 'Unknown CPU';
+    }
+
+    private function detectOsVersion(): string
+    {
+        $pretty = null;
+
+        if (@is_readable('/etc/os-release')) {
+            foreach (file('/etc/os-release') as $line) {
+                if (str_starts_with($line, 'PRETTY_NAME=')) {
+                    $pretty = trim(explode('=', $line, 2)[1], " \t\n\r\0\x0B\"");
+                    break;
+                }
+            }
+        }
+
+        $kernel = php_uname('r');
+
+        return ($pretty ?: 'Unknown OS') . ($kernel ? " (kernel {$kernel})" : '');
+    }
+
+    /**
+     * Same MemTotal parse buildSystemHealth() does — duplicated rather
+     * than shared so this method still works (with a total-RAM-only
+     * answer) even in contexts where buildSystemHealth() isn't called.
+     */
+    private function readMemTotalBytes(): int
+    {
+        $memTotal = 0;
+        if (@is_readable('/proc/meminfo')) {
+            foreach (file('/proc/meminfo') as $line) {
+                if (str_starts_with($line, 'MemTotal:')) {
+                    $memTotal = (int) filter_var($line, FILTER_SANITIZE_NUMBER_INT) * 1024;
+                    break;
+                }
+            }
+        }
+        return $memTotal;
+    }
+
+    /**
+     * DIMM-level detail (slot count, size, type, speed per stick) needs
+     * dmidecode, which needs root. `sudo -n` fails immediately instead
+     * of hanging on a password prompt if the sudoers rule (see
+     * buildSystemSummary() docblock) hasn't been set up — in that case
+     * we still return the total RAM figure, just without slot detail.
+     */
+    private function detectMemoryDimms(): array
+    {
+        $totalLabel = $this->formatBytes($this->readMemTotalBytes());
+
+        $process = new Process(['sudo', '-n', 'dmidecode', '-t', 'memory']);
+        $process->setTimeout(5);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            return [
+                'available'   => false,
+                'slots_used'  => null,
+                'slots_total' => null,
+                'sticks'      => [],
+                'total_label' => $totalLabel,
+                'note'        => 'DIMM detail requires dmidecode + sudo access',
+            ];
+        }
+
+        // dmidecode separates each record with a blank line; "Memory
+        // Device" (DMI type 17) is one physical slot, populated or not —
+        // distinct from "Physical Memory Array" (type 16), which
+        // describes the slot bank as a whole and isn't per-stick.
+        $records    = preg_split('/\n\s*\n/', $process->getOutput());
+        $sticks     = [];
+        $slotsTotal = 0;
+
+        foreach ($records as $record) {
+            if (!str_contains($record, 'Memory Device')) {
+                continue;
+            }
+            $slotsTotal++;
+
+            if (preg_match('/Size:\s*(.+)/', $record, $sizeMatch) && !str_contains($sizeMatch[1], 'No Module Installed')) {
+                preg_match('/Type:\s*(.+)/', $record, $typeMatch);
+                preg_match('/Speed:\s*(.+)/', $record, $speedMatch);
+                preg_match('/Locator:\s*(.+)/', $record, $locatorMatch);
+
+                $sticks[] = [
+                    'locator' => trim($locatorMatch[1] ?? '—'),
+                    'size'    => trim($sizeMatch[1]),
+                    'type'    => trim($typeMatch[1] ?? '—'),
+                    'speed'   => trim($speedMatch[1] ?? '—'),
+                ];
+            }
+        }
+
+        return [
+            'available'   => true,
+            'slots_used'  => count($sticks),
+            'slots_total' => $slotsTotal,
+            'sticks'      => $sticks,
+            'total_label' => $totalLabel,
+            'note'        => null,
+        ];
+    }
+
+    /**
+     * Resolves the block device backing the root filesystem, then reads
+     * whether it's rotational and what transport it's on to label it
+     * (e.g. "SSD NVMe", "HDD SATA", "SSD eMMC/SD"). Uses lsblk's PKNAME
+     * to walk a partition back to its parent disk rather than
+     * hand-rolling a regex for every naming scheme (sda2, nvme0n1p1,
+     * mmcblk0p2 all differ).
+     */
+    private function detectStorageType(): string
+    {
+        $findmnt = new Process(['findmnt', '-no', 'SOURCE', '/']);
+        $findmnt->setTimeout(5);
+        $findmnt->run();
+        $source = trim($findmnt->getOutput());
+
+        if ($source === '') {
+            return 'Unknown';
+        }
+
+        $parentLookup = new Process(['lsblk', '-no', 'PKNAME', $source]);
+        $parentLookup->setTimeout(5);
+        $parentLookup->run();
+        $parent = trim($parentLookup->getOutput());
+        // No parent means root sits directly on a whole disk with no
+        // partition table — the source itself is already the disk.
+        $disk = $parent !== '' ? $parent : basename($source);
+
+        $diskInfo = new Process(['lsblk', '-dno', 'ROTA,TRAN', "/dev/{$disk}"]);
+        $diskInfo->setTimeout(5);
+        $diskInfo->run();
+        [$rotational, $transport] = array_pad(preg_split('/\s+/', trim($diskInfo->getOutput())), 2, '');
+
+        $transportLabel = match (true) {
+            $transport === 'nvme' => 'NVMe',
+            $transport === 'sata' => 'SATA',
+            $transport === 'usb'  => 'USB',
+            $transport === 'mmc' || str_starts_with($disk, 'mmcblk') => 'eMMC/SD',
+            $transport !== ''     => strtoupper($transport),
+            default => '',
+        };
+        $mediaLabel = $rotational === '0' ? 'SSD' : ($rotational === '1' ? 'HDD' : '');
+
+        return trim("$mediaLabel $transportLabel") ?: 'Unknown';
+    }
+
+    /**
+     * Lists physical network interfaces (skips loopback and virtual
+     * interfaces like docker bridges/veth pairs, identified by the
+     * absence of a /sys/class/net/<iface>/device link back to real
+     * hardware) with link state, speed, and IPv4 address in CIDR
+     * notation. Speed is only read while a link is up — sysfs returns
+     * garbage for a down interface's speed. Color/active are
+     * precomputed here (rather than in the view) to match the rest of
+     * this file's pattern of keeping status-color logic in one place:
+     *   - green: link up and an IPv4 address is assigned
+     *   - amber: link up but no address yet (e.g. still negotiating DHCP)
+     *   - gray:  link down / cable unplugged
+     */
+    private function detectNetworkPorts(): array
+    {
+        $ports = [];
+        $interfaces = @scandir('/sys/class/net') ?: [];
+
+        foreach ($interfaces as $iface) {
+            if ($iface === '.' || $iface === '..' || $iface === 'lo') {
+                continue;
+            }
+            if (!@file_exists("/sys/class/net/{$iface}/device")) {
+                continue;
+            }
+
+            $operstate = @is_readable("/sys/class/net/{$iface}/operstate")
+                ? trim(file_get_contents("/sys/class/net/{$iface}/operstate"))
+                : 'unknown';
+
+            $speed = null;
+            if ($operstate === 'up' && @is_readable("/sys/class/net/{$iface}/speed")) {
+                $speedMbps = (int) trim(@file_get_contents("/sys/class/net/{$iface}/speed"));
+                if ($speedMbps > 0) {
+                    $speed = $speedMbps >= 1000
+                        ? round($speedMbps / 1000, 1) . ' Gbps'
+                        : $speedMbps . ' Mbps';
+                }
+            }
+
+            $cidr   = $this->detectInterfaceCidr($iface);
+            $active = $operstate === 'up';
+
+            $ports[] = [
+                'name'    => $iface,
+                'status'  => $operstate,
+                'speed'   => $speed,
+                'ip_cidr' => $cidr,
+                'active'  => $active,
+                'colors'  => match (true) {
+                    $active && $cidr !== null => ['bg' => 'bg-munti-green-500', 'text' => 'text-munti-green-400'],
+                    $active                   => ['bg' => 'bg-amber-500', 'text' => 'text-amber-400'],
+                    default                   => ['bg' => 'bg-surface-600', 'text' => 'text-text-500'],
+                },
+            ];
+        }
+
+        return $ports;
+    }
+
+    /**
+     * Reads an interface's IPv4 address + prefix length and returns it
+     * as CIDR notation (e.g. "192.168.1.42/24"). Prefers `ip -j` (JSON
+     * output, iproute2 4.14+) for clean structured parsing; falls back
+     * to scraping the plain-text output of the same command for older
+     * iproute2 builds without -j support. Null if the interface has no
+     * IPv4 address (down, or up but not yet configured).
+     */
+    private function detectInterfaceCidr(string $iface): ?string
+    {
+        $json = new Process(['ip', '-j', 'addr', 'show', $iface]);
+        $json->setTimeout(5);
+        $json->run();
+
+        if ($json->isSuccessful()) {
+            $data = json_decode($json->getOutput(), true);
+            foreach ($data[0]['addr_info'] ?? [] as $addr) {
+                if (($addr['family'] ?? null) === 'inet' && !empty($addr['local'])) {
+                    return $addr['local'] . '/' . ($addr['prefixlen'] ?? 32);
+                }
+            }
+            return null;
+        }
+
+        $text = new Process(['ip', 'addr', 'show', $iface]);
+        $text->setTimeout(5);
+        $text->run();
+        if ($text->isSuccessful() && preg_match('/inet\s+(\d{1,3}(?:\.\d{1,3}){3}\/\d{1,2})/', $text->getOutput(), $match)) {
+            return $match[1];
+        }
+
+        return null;
     }
 
     /**

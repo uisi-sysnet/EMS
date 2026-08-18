@@ -224,11 +224,19 @@
                         <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
                             <span class="truncate">System Health</span>
                         </h3>
-                        <span class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
-                            Live
-                        </span>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full border border-munti-green-600/30">
+                                Live
+                            </span>
+                            <button type="button" id="system-health-toggle" aria-expanded="true" aria-controls="system-health-body"
+                                    class="p-0.5 rounded hover:bg-surface-700/60 text-text-400 hover:text-text-200 transition">
+                                <svg id="system-health-chevron" class="w-3.5 h-3.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-                    <div class="p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div id="system-health-body" class="p-3 sm:p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
 
                         <!-- CPU -->
                         <div class="bg-surface-900/60 rounded-lg border border-border-700 p-3 flex flex-col gap-2">
@@ -286,6 +294,90 @@
                             </div>
                             <span id="uptime-text" class="text-sm font-medium text-text-100">{{ $uptimeDays }}d {{ $uptimeHours }}h {{ $uptimeMinutes }}m</span>
                             <span class="text-[10px] text-text-500">Since last reboot</span>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- SYSTEM SUMMARY: Device / CPU / OS / Memory / Storage / Network identity -->
+                <div class="lg:col-span-2 bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                    <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                        <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                            <span class="truncate">System Summary</span>
+                        </h3>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-[10px] text-text-400 bg-surface-700/40 px-1.5 py-0.5 rounded-full border border-border-600/30">
+                                Hardware
+                            </span>
+                            <button type="button" id="system-summary-toggle" aria-expanded="true" aria-controls="system-summary-body"
+                                    class="p-0.5 rounded hover:bg-surface-700/60 text-text-400 hover:text-text-200 transition">
+                                <svg id="system-summary-chevron" class="w-3.5 h-3.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="system-summary-body">
+                        <div class="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">Device Model</span>
+                                <span id="summary-device" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['device_model'] }}</span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">CPU Model</span>
+                                <span id="summary-cpu" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['cpu_model'] }}</span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">OS Version</span>
+                                <span id="summary-os" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['os_version'] }}</span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">Memory</span>
+                                <span id="summary-memory" class="text-text-100 font-medium text-right truncate max-w-[65%]">
+                                    @if($systemSummary['memory']['available'])
+                                        {{ $systemSummary['memory']['slots_used'] }}/{{ $systemSummary['memory']['slots_total'] }} DIMMs &middot; {{ $systemSummary['memory']['total_label'] }}
+                                    @else
+                                        {{ $systemSummary['memory']['total_label'] }} <span class="text-text-500">(DIMM count needs sudo)</span>
+                                    @endif
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2 py-1 border-b border-border-700/50">
+                                <span class="text-text-400">Storage Type</span>
+                                <span id="summary-storage" class="text-text-100 font-medium text-right truncate max-w-[65%]">{{ $systemSummary['storage'] }}</span>
+                            </div>
+
+                        </div>
+
+                        <!-- Network Ports strip -->
+                        <div class="px-3 sm:px-4 pb-3 sm:pb-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[10px] uppercase tracking-wider text-text-400">Network Ports</span>
+                                <span id="summary-network-used" class="inline-flex items-center gap-1 text-xs text-text-100 font-medium">
+                                    Used <span class="text-amber-400">{{ $systemSummary['network']['used'] }}</span>/{{ $systemSummary['network']['total'] }}
+                                </span>
+                            </div>
+                            <div id="summary-network-ports" class="flex items-end gap-3 overflow-x-auto pb-1">
+                                @forelse($systemSummary['network']['ports'] as $port)
+                                    <div class="flex flex-col items-center gap-1 shrink-0">
+                                        <span class="text-[9px] text-text-500 uppercase tracking-wide max-w-[56px] truncate" title="{{ $port['name'] }}">{{ $port['name'] }}</span>
+                                        <div class="w-9 h-9 rounded-lg flex items-center justify-center {{ $port['colors']['bg'] }}">
+                                            @if($port['active'])
+                                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                            @else
+                                                <svg class="w-4 h-4 text-text-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                            @endif
+                                        </div>
+                                        <span class="text-[9px] text-text-500 max-w-[64px] truncate" title="{{ $port['ip_cidr'] ?? 'No IP assigned' }}">{{ $port['ip_cidr'] ?? '—' }}</span>
+                                    </div>
+                                @empty
+                                    <span class="text-xs text-text-500">No network interfaces detected</span>
+                                @endforelse
+                            </div>
                         </div>
 
                     </div>
@@ -764,6 +856,36 @@
             barEl.className = 'h-full rounded-full ' + tileData.colors.bar;
         }
 
+        /**
+         * Wires up a card's header toggle button to show/hide its body
+         * and persist the collapsed state in localStorage (per card, via
+         * storageKey) so it survives a page reload. Deliberately an
+         * instant show/hide (Tailwind's `hidden` class) rather than an
+         * animated height transition — the body's contents get replaced
+         * wholesale by refreshDashboard() every 20s, and measuring
+         * scrollHeight against that moving target is more trouble than
+         * it's worth for a collapse toggle.
+         */
+        function initCollapsible(toggleId, bodyId, chevronId, storageKey) {
+            const toggle = document.getElementById(toggleId);
+            const body = document.getElementById(bodyId);
+            const chevron = document.getElementById(chevronId);
+            if (!toggle || !body) return;
+
+            function setCollapsed(collapsed) {
+                body.classList.toggle('hidden', collapsed);
+                toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                if (chevron) chevron.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+                try { localStorage.setItem(storageKey, collapsed ? '1' : '0'); } catch (e) { /* private mode etc. */ }
+            }
+
+            let startCollapsed = false;
+            try { startCollapsed = localStorage.getItem(storageKey) === '1'; } catch (e) { /* private mode etc. */ }
+            setCollapsed(startCollapsed);
+
+            toggle.addEventListener('click', () => setCollapsed(!body.classList.contains('hidden')));
+        }
+
         function updateSystemHealth(health) {
             if (!health) return;
             setBarTile('cpu', health.cpu);
@@ -780,6 +902,55 @@
 
             const uptimeEl = document.getElementById('uptime-text');
             if (uptimeEl) uptimeEl.textContent = `${health.uptime.days}d ${health.uptime.hours}h ${health.uptime.minutes}m`;
+        }
+
+        function networkPortIconSvg(active) {
+            return active
+                ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>'
+                : '<svg class="w-4 h-4 text-text-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>';
+        }
+
+        function updateSystemSummary(summary) {
+            if (!summary) return;
+
+            const deviceEl = document.getElementById('summary-device');
+            if (deviceEl) deviceEl.textContent = summary.device_model;
+
+            const cpuEl = document.getElementById('summary-cpu');
+            if (cpuEl) cpuEl.textContent = summary.cpu_model;
+
+            const osEl = document.getElementById('summary-os');
+            if (osEl) osEl.textContent = summary.os_version;
+
+            const memEl = document.getElementById('summary-memory');
+            if (memEl) {
+                memEl.textContent = summary.memory.available
+                    ? `${summary.memory.slots_used}/${summary.memory.slots_total} DIMMs · ${summary.memory.total_label}`
+                    : `${summary.memory.total_label} (DIMM count needs sudo)`;
+            }
+
+            const storageEl = document.getElementById('summary-storage');
+            if (storageEl) storageEl.textContent = summary.storage;
+
+            const usedEl = document.getElementById('summary-network-used');
+            if (usedEl) {
+                usedEl.innerHTML = `Used <span class="text-amber-400">${summary.network.used}</span>/${summary.network.total}`;
+            }
+
+            const portsEl = document.getElementById('summary-network-ports');
+            if (portsEl) {
+                portsEl.innerHTML = summary.network.ports.length
+                    ? summary.network.ports.map(p => `
+                        <div class="flex flex-col items-center gap-1 shrink-0">
+                            <span class="text-[9px] text-text-500 uppercase tracking-wide max-w-[56px] truncate" title="${esc(p.name)}">${esc(p.name)}</span>
+                            <div class="w-9 h-9 rounded-lg flex items-center justify-center ${p.colors.bg}">
+                                ${networkPortIconSvg(p.active)}
+                            </div>
+                            <span class="text-[9px] text-text-500 max-w-[64px] truncate" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
+                        </div>
+                    `).join('')
+                    : '<span class="text-xs text-text-500">No network interfaces detected</span>';
+            }
         }
 
         function updateStatusBanner(airCounts, seismicCounts) {
@@ -870,6 +1041,7 @@
                 updateDonutCard('seismic', data.seismicCounts);
                 updateStatusBanner(data.airQualityCounts, data.seismicCounts);
                 updateSystemHealth(data.systemHealth);
+                updateSystemSummary(data.systemSummary);
 
                 const lastUpdated = document.getElementById('last-updated');
                 if (lastUpdated) lastUpdated.textContent = `Last updated: ${data.generatedAt}`;
@@ -877,6 +1049,9 @@
                 console.error('Dashboard refresh failed:', e);
             }
         }
+
+        initCollapsible('system-health-toggle', 'system-health-body', 'system-health-chevron', 'dashboard.system-health.collapsed');
+        initCollapsible('system-summary-toggle', 'system-summary-body', 'system-summary-chevron', 'dashboard.system-summary.collapsed');
 
         setInterval(refreshDashboard, 20000);
     });
