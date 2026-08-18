@@ -1,377 +1,61 @@
-<?php
+@include('layouts.header')
+@include('layouts.topbar')
 
-namespace App\Http\Controllers;
+@php
+    // --- System stats -------------------------------------------------
+    // Note: this reads Linux's /proc filesystem + PHP's disk_*_space()
+    // functions. It works out of the box on a typical Linux server /
+    // Raspberry Pi. On shared hosting these can be disabled, and on
+    // Windows /proc simply won't exist — in that case the tiles below
+    // fall back to 0 / "—" instead of erroring. Ideally this logic
+    // moves into a controller/service and gets passed to the view (or
+    // exposed via a small JSON endpoint for AJAX refresh), but it's
+    // inlined here since only the view file is in hand.
 
-use App\Models\SeismicStation;
-use App\Models\Station;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
-use Symfony\Component\Process\Process;
+    $formatBytes = function ($bytes, $decimals = 1) {
+        if (!$bytes) return '0 GB';
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $factor = (int) floor((strlen((string) (int) $bytes) - 1) / 3);
+        $factor = max(0, min($factor, count($units) - 1));
+        return sprintf("%.{$decimals}f", $bytes / (1024 ** $factor)) . ' ' . $units[$factor];
+    };
 
-class DashboardController extends Controller
-{
-    // Fixed canvas for the JPEG export (generateImageReport). Unlike the
-    // PDF, this can't grow to fit content, so the station tables are
-    // capped and a "+N more" note is shown when a list runs past that.
-    private const IMAGE_WIDTH          = 1920;
-    private const IMAGE_HEIGHT         = 1080;
-    private const IMAGE_MARGIN         = 48;
-    private const IMAGE_MAX_TABLE_ROWS = 8;
-    private const IMAGE_MAX_PORT_ROWS  = 5;
+    $barColor = function ($percent) {
+        if ($percent >= 85) return ['text-red-400', 'bg-red-500'];
+        if ($percent >= 60) return ['text-amber-400', 'bg-amber-500'];
+        return ['text-munti-green-400', 'bg-munti-green-500'];
+    };
 
-    public function index()
-    {
-        [$airQualityData, $seismicData] = $this->buildDashboardData();
-        $systemSummary = $this->buildSystemSummary();
+    // Storage (root filesystem)
+    $diskTotal   = @disk_total_space('/') ?: 0;
+    $diskFree    = @disk_free_space('/') ?: 0;
+    $diskUsed    = $diskTotal ? $diskTotal - $diskFree : 0;
+    $diskPercent = $diskTotal ? round(($diskUsed / $diskTotal) * 100, 1) : 0;
 
-        return view('index', compact('airQualityData', 'seismicData', 'systemSummary'));
-    }
-
-    /**
-     * JSON endpoint used by the dashboard's AJAX polling (see index.blade.php).
-     * Returns everything the view needs to refresh in place: station tables,
-     * status counts, and system health tiles — without a full page reload.
-     */
-    public function data()
-    {
-        [$airQualityData, $seismicData] = $this->buildDashboardData();
-
-        $idleThresholdMinutes    = 2;
-        $offlineThresholdMinutes = 3;
-
-        $airQualityCounts = $this->annotateStatus($airQualityData, $idleThresholdMinutes, $offlineThresholdMinutes);
-        $seismicCounts    = $this->annotateStatus($seismicData, $idleThresholdMinutes, $offlineThresholdMinutes);
-
-        return response()->json([
-            'airQualityData'   => $airQualityData,
-            'seismicData'      => $seismicData,
-            'airQualityCounts' => $airQualityCounts,
-            'seismicCounts'    => $seismicCounts,
-            'systemHealth'     => $this->buildSystemHealth(),
-            'systemSummary'    => $this->buildSystemSummary(),
-            'generatedAt'      => now()->timezone('Asia/Manila')->format('Y-m-d h:i A'),
-        ]);
-    }
-
-    /**
-     * Generates a point-in-time PDF snapshot of system status: air quality
-     * and seismic station tables (location, status, total readings), plus
-     * who generated it and when. Mirrors the same online/idle/offline
-     * thresholds used on the live dashboard so the numbers on the PDF match
-     * what the user was looking at when they clicked the button.
-     */
-    public function generateReport(Request $request)
-    {
-        $ctx = $this->buildReportContext();
-
-        $pdf = Pdf::loadView('reports.system-status', $ctx)->setPaper('a4', 'portrait');
-
-        $filename = 'system-status-report-' . $ctx['generatedAt']->format('Y-m-d_His') . '.pdf';
-
-        return $pdf->download($filename);
-    }
-
-    /**
-     * Same report as generateReport(), rendered as a flat 1920x1080 JPEG
-     * instead of a PDF. Drawn directly with GD rather than a headless
-     * browser/Node dependency, so it stays cheap to run on the same
-     * low-resource boxes this app already targets (see
-     * detectDeviceModel()'s Raspberry Pi device-tree check below). Reuses
-     * the DejaVu Sans font dompdf already ships for the PDF report, so no
-     * new font files are needed either.
-     *
-     * Unlike the PDF, the canvas is a fixed size rather than a scrolling
-     * page, so the two station tables are capped to
-     * IMAGE_MAX_TABLE_ROWS rows each (same total-readings sort
-     * buildDashboardData() already applies) with a "+N more" note when a
-     * list runs longer than that — see the PDF report for the full list.
-     */
-    public function generateImageReport(Request $request)
-    {
-        $ctx   = $this->buildReportContext();
-        $image = $this->renderSystemStatusImage($ctx);
-
-        $filename = 'system-status-report-' . $ctx['generatedAt']->format('Y-m-d_His') . '.jpg';
-
-        return response()->streamDownload(function () use ($image) {
-            imagejpeg($image, null, 90);
-            imagedestroy($image);
-        }, $filename, ['Content-Type' => 'image/jpeg']);
-    }
-
-    /**
-     * Shared data-gathering for both the PDF (generateReport) and JPEG
-     * (generateImageReport) exports, so the two can never drift out of
-     * sync with each other. Field names match the reports.system-status
-     * blade's variable names 1:1 so the PDF branch can hand the array
-     * straight to the view.
-     */
-    private function buildReportContext(): array
-    {
-        [$airQualityData, $seismicData] = $this->buildDashboardData();
-
-        $idleThresholdMinutes    = 2;
-        $offlineThresholdMinutes = 3;
-
-        $airQualityCounts = $this->annotateStatus($airQualityData, $idleThresholdMinutes, $offlineThresholdMinutes);
-        $seismicCounts    = $this->annotateStatus($seismicData, $idleThresholdMinutes, $offlineThresholdMinutes);
-
-        $generatedAt = now()->timezone('Asia/Manila');
-
-        // $request->user() only resolves if the auth guard actually
-        // populated the request — this app doesn't always rely on that
-        // (see ServicesController::action(), which falls back to
-        // session('username') for the exact same reason). Match that
-        // pattern here instead of defaulting straight to 'Unknown user'.
-        $generatedBy = optional(Auth::user())->name
-            ?? optional(Auth::user())->username
-            ?? session('username')
-            ?? 'Unknown user';
-
-        $health        = $this->buildSystemHealth();
-        $systemSummary = $this->buildSystemSummary();
-
-        // Same "X/Y DIMMs · total" vs "total (DIMM count needs sudo)"
-        // formatting the dashboard's summary-memory tile uses — kept in
-        // sync here rather than in the blade so the PDF/JPEG and live view
-        // never phrase this differently.
-        $memoryText = $systemSummary['memory']['available']
-            ? $systemSummary['memory']['slots_used'] . '/' . $systemSummary['memory']['slots_total']
-                . ' DIMMs · ' . $systemSummary['memory']['total_label']
-            : $systemSummary['memory']['total_label'] . ' (DIMM count needs sudo)';
-
-        $uptimeParts = [];
-        if ($health['uptime']['days'] > 0)  $uptimeParts[] = $health['uptime']['days'] . 'd';
-        if ($health['uptime']['hours'] > 0) $uptimeParts[] = $health['uptime']['hours'] . 'h';
-        $uptimeParts[]     = $health['uptime']['minutes'] . 'm';
-        $systemUptimeHuman = implode(' ', $uptimeParts);
-
-        // buildSystemHealth()'s disk.percent is "% used" (matches the live
-        // dashboard's red/amber/green bars, high = bad). The report's
-        // Good/Warning/Critical bands run the other direction (high =
-        // good), so what we hand the report is the inverse: % of the disk
-        // that's still free.
-        $storageTotalGb = round($health['disk']['total_bytes'] / (1024 ** 3), 1);
-        $storageUsedGb  = round($health['disk']['used_bytes'] / (1024 ** 3), 1);
-        $storagePercent = $health['disk']['total_bytes']
-            ? round(100 - $health['disk']['percent'], 1)
-            : null;
-
-        $mqtt     = $this->checkUnitStatus('mosquitto.service');
-        $database = $this->checkUnitStatus('postgresql.service');
-        $ems      = $this->checkUnitStatus('ems.target');
-
-        return [
-            'airQualityData'   => $airQualityData,
-            'seismicData'      => $seismicData,
-            'airQualityCounts' => $airQualityCounts,
-            'seismicCounts'    => $seismicCounts,
-            'generatedAt'      => $generatedAt,
-            'generatedBy'      => $generatedBy,
-
-            // Hardware/OS identity — same buildSystemSummary() data the
-            // live dashboard's "System Summary" tile shows.
-            'deviceModel'  => $systemSummary['device_model'],
-            'cpuModel'     => $systemSummary['cpu_model'],
-            'osVersion'    => $systemSummary['os_version'],
-            'memoryText'   => $memoryText,
-            'storageType'  => $systemSummary['storage'],
-            'networkPorts' => $systemSummary['network']['ports'],
-
-            'systemUptimeHuman' => $systemUptimeHuman,
-            'storagePercent'    => $storagePercent,
-            'storageUsedGb'     => $storageUsedGb,
-            'storageTotalGb'    => $storageTotalGb,
-
-            'mqttOnline'         => $mqtt['running'],
-            'mqttStatusText'     => $mqtt['active'],
-            'databaseOnline'     => $database['running'],
-            'databaseStatusText' => $database['active'],
-            'emsOnline'          => $ems['running'],
-            'emsStatusText'      => $ems['active'],
-        ];
-    }
-
-    /**
-     * The aq/seismic database connections store data_time/time as naive
-     * UTC (no offset in the string), while the server/app displays in
-     * Asia/Manila (UTC+8). Left unconverted, the dashboard's "Latest"
-     * column silently showed the raw UTC value as if it were already
-     * local time — e.g. reading 05:31 AM when the server clock actually
-     * read 01:28 PM. This normalizes every installed_at/latest_at value
-     * to a Manila-local string as soon as it leaves the DB, so both the
-     * server-rendered first load and the JSON used by AJAX/PDF are
-     * already correct — no timezone math left for the blade/JS to get
-     * wrong.
-     */
-    private function toManila($rawUtcTimestamp): ?string
-    {
-        if (empty($rawUtcTimestamp)) {
-            return null;
-        }
-
-        return \Carbon\Carbon::parse($rawUtcTimestamp, 'UTC')
-            ->timezone('Asia/Manila')
-            ->format('Y-m-d H:i:s');
-    }
-
-    /**
-     * Shared query/merge logic for both the live dashboard and the PDF
-     * report, so the two never drift out of sync.
-     *
-     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
-     */
-    private function buildDashboardData(): array
-    {
-        // ---------- Air Quality ----------
-        $stations = Station::orderBy('station_mn')->get();
-
-        // Grouping by station_mn ALONE (not station_mn + ip_address) is
-        // deliberate: if a station's ip_address ever changes in sensor_data
-        // (DHCP reassignment, reconnect, etc.), grouping by both columns
-        // splits one station's readings into two groups, and the keyBy()
-        // below would silently keep only one of them — freezing
-        // installed_at/latest_at even while the other group keeps growing.
-        $aqReadings = DB::connection('aq')
-            ->table('sensor_data')
-            ->select(
-                'station_mn',
-                DB::raw('MIN(data_time) as installed_at'),
-                DB::raw('MAX(data_time) as latest_at'),
-                DB::raw('COUNT(*) as total')
-            )
-            ->groupBy('station_mn')
-            ->get()
-            ->keyBy('station_mn');
-
-        // IP is fetched separately, tied to whichever row actually has the
-        // max data_time per station, so it doesn't affect the aggregation
-        // above and always reflects the most recent reading.
-        $latestIps = collect(DB::connection('aq')->select("
-                SELECT s1.station_mn, s1.ip_address AS ip
-                FROM sensor_data s1
-                INNER JOIN (
-                    SELECT station_mn, MAX(data_time) AS max_time
-                    FROM sensor_data
-                    GROUP BY station_mn
-                ) s2 ON s1.station_mn = s2.station_mn AND s1.data_time = s2.max_time
-            "))
-            ->keyBy('station_mn');
-
-        $airQualityData = $stations
-            ->map(function ($station) use ($aqReadings, $latestIps) {
-                $reading = $aqReadings->get($station->station_mn);
-                $ip      = $latestIps->get($station->station_mn)->ip ?? null;
-
-                return (object) [
-                    'station_mn'   => $station->station_mn,
-                    'station'      => $station->station_name ?: $station->station_mn,
-                    'ip'           => $ip ?? $station->lead_ip,
-                    // TODO: swap for a real location/address column on the
-                    // stations table if one exists — currently falling
-                    // back to the IP, same as the rest of the dashboard.
-                    'location'     => $station->location ?? $station->lead_ip ?? '—',
-                    'installed_at' => $this->toManila($reading->installed_at ?? null),
-                    'latest_at'    => $this->toManila($reading->latest_at ?? null),
-                    'total'        => $reading->total ?? 0,
-                ];
-            })
-            ->sortByDesc('total')
-            ->values();
-
-        // ---------- Seismic ----------
-        $this->syncNewSeismicStations();
-
-        $seismicStations = SeismicStation::orderBy('station_id')->get();
-
-        // Grouped by station_id alone — same reasoning as the air quality
-        // query above. station_name is never read off $reading downstream
-        // (the display uses $station->station_name from the local
-        // seismic_stations registry instead), so it's safe to drop here.
-        $seismicReadings = DB::connection('seismic')
-            ->table('station_metrics')
-            ->select(
-                'station_id',
-                DB::raw('MIN(time) as installed_at'),
-                DB::raw('MAX(time) as latest_at'),
-                DB::raw('COUNT(*) as total')
-            )
-            ->groupBy('station_id')
-            ->get()
-            ->keyBy('station_id');
-
-        $seismicData = $seismicStations
-            ->map(function ($station) use ($seismicReadings) {
-                $reading = $seismicReadings->get($station->station_id);
-
-                return (object) [
-                    'station_id'   => $station->station_id,
-                    'station'      => $station->station_name ?: $station->station_id,
-                    'ip'           => $station->station_id,
-                    'location'     => ($station->latitude !== null && $station->longitude !== null)
-                        ? number_format((float) $station->latitude, 4) . ', ' . number_format((float) $station->longitude, 4)
-                        : '—',
-                    'installed_at' => $this->toManila($reading->installed_at ?? null),
-                    'latest_at'    => $this->toManila($reading->latest_at ?? null),
-                    'total'        => $reading->total ?? 0,
-                ];
-            })
-            ->sortByDesc('total')
-            ->values();
-
-        return [$airQualityData, $seismicData];
-    }
-
-    /**
-     * Reads CPU / Memory / Storage / Uptime from /proc and disk_*_space().
-     * Same logic that used to live inline in index.blade.php — pulled out
-     * here so the AJAX data() endpoint can refresh these tiles too instead
-     * of only the station tables. Falls back to zeros/"—" on platforms
-     * without /proc (e.g. shared hosting, Windows) exactly as before.
-     *
-     * @return array{cpu: array, memory: array, disk: array, uptime: array}
-     */
-    private function buildSystemHealth(): array
-    {
-        $barColor = function ($percent) {
-            if ($percent >= 85) return ['text' => 'text-red-400', 'bar' => 'bg-red-500'];
-            if ($percent >= 60) return ['text' => 'text-amber-400', 'bar' => 'bg-amber-500'];
-            return ['text' => 'text-munti-green-400', 'bar' => 'bg-munti-green-500'];
-        };
-
-        // Storage (root filesystem)
-        $diskTotal   = @disk_total_space('/') ?: 0;
-        $diskFree    = @disk_free_space('/') ?: 0;
-        $diskUsed    = $diskTotal ? $diskTotal - $diskFree : 0;
-        $diskPercent = $diskTotal ? round(($diskUsed / $diskTotal) * 100, 1) : 0;
-
-        // Memory
-        $memTotal = 0;
-        $memAvailable = 0;
-        if (@is_readable('/proc/meminfo')) {
-            foreach (file('/proc/meminfo') as $line) {
-                if (str_starts_with($line, 'MemTotal:')) {
-                    $memTotal = (int) filter_var($line, FILTER_SANITIZE_NUMBER_INT) * 1024;
-                }
-                if (str_starts_with($line, 'MemAvailable:')) {
-                    $memAvailable = (int) filter_var($line, FILTER_SANITIZE_NUMBER_INT) * 1024;
-                }
+    // Memory
+    $memTotal = 0;
+    $memAvailable = 0;
+    if (@is_readable('/proc/meminfo')) {
+        foreach (file('/proc/meminfo') as $line) {
+            if (str_starts_with($line, 'MemTotal:')) {
+                $memTotal = (int) filter_var($line, FILTER_SANITIZE_NUMBER_INT) * 1024;
+            }
+            if (str_starts_with($line, 'MemAvailable:')) {
+                $memAvailable = (int) filter_var($line, FILTER_SANITIZE_NUMBER_INT) * 1024;
             }
         }
-        $memUsed    = $memTotal ? $memTotal - $memAvailable : 0;
-        $memPercent = $memTotal ? round(($memUsed / $memTotal) * 100, 1) : 0;
+    }
+    $memUsed    = $memTotal ? $memTotal - $memAvailable : 0;
+    $memPercent = $memTotal ? round(($memUsed / $memTotal) * 100, 1) : 0;
 
-        // CPU (approximated from 1-minute load average / core count)
-        $cpuCores = 1;
-        if (@is_readable('/proc/cpuinfo')) {
-            $cpuCores = max(1, substr_count(file_get_contents('/proc/cpuinfo'), 'processor'));
-        }
-        $load = function_exists('sys_getloadavg') ? sys_getloadavg() : false;
-        $load = $load ?: [0, 0, 0];
-        $cpuPercent = round(min(($load[0] / $cpuCores) * 100, 100), 1);
+    // CPU (approximated from 1-minute load average / core count)
+    $cpuCores = 1;
+    if (@is_readable('/proc/cpuinfo')) {
+        $cpuCores = max(1, substr_count(file_get_contents('/proc/cpuinfo'), 'processor'));
+    }
+    $load = function_exists('sys_getloadavg') ? sys_getloadavg() : false;
+    $load = $load ?: [0, 0, 0];
+    $cpuPercent = round(min(($load[0] / $cpuCores) * 100, 100), 1);
 
     // Uptime
     $uptimeSeconds = 0;
@@ -1157,11 +841,14 @@ class DashboardController extends Controller
             </tr>`;
         }
 
-        $y = $this->drawImgTable($image, $x, $y, $width, $columns, $rows, 24);
-
-        if ($data->count() > self::IMAGE_MAX_TABLE_ROWS) {
-            $note = '+' . ($data->count() - self::IMAGE_MAX_TABLE_ROWS) . ' more not shown in this snapshot — see the PDF report for the full list.';
-            $this->imgText($image, $note, $x, $y + 16, 11, [136, 136, 136]);
+        function renderTable(tbodyId, collection, emptyLabel) {
+            const tbody = document.getElementById(tbodyId);
+            if (!tbody) return;
+            if (!collection.length) {
+                tbody.innerHTML = `<tr><td colspan="7" class="px-2 py-4 text-center text-text-400">${emptyLabel}</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = collection.map((item, i) => rowHtml(item, i + 1)).join('');
         }
 
         function setBarTile(prefix, tileData) {
@@ -1368,6 +1055,9 @@ class DashboardController extends Controller
             }
         }
 
-        return $best;
-    }
-}
+        initCollapsible('system-health-toggle', 'system-health-body', 'system-health-chevron', 'dashboard.system-health.collapsed');
+        initCollapsible('system-summary-toggle', 'system-summary-body', 'system-summary-chevron', 'dashboard.system-summary.collapsed');
+
+        setInterval(refreshDashboard, 20000);
+    });
+</script>
