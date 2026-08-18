@@ -108,5 +108,8 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::post('/maintenance/services/{service}/action', [ServicesController::class, 'action'])->name('services.action');
     Route::post('/maintenance/terminal/token', [TerminalAuthController::class, 'issue'])->name('terminal.token');
     Route::get('/maintenance/terminal', [ServicesController::class, 'terminal'])->name('services.terminal');
+    
+    Route::get('/dashboard/report/image', [DashboardController::class, 'generateImageReport'])
+    ->name('dashboard.report.image');
 
 });
