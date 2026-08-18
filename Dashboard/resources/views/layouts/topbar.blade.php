@@ -103,7 +103,7 @@
     @php
         $systemName = config('app.system_name', 'Environmental Monitoring System Gateway');
         $companyName = config('app.company_name', 'Uplink Integrated Solutions Inc.');
-        $appVersion = config('app.version', '7.0');
+        $appVersion = config('app.version', '8.0');
     @endphp
     <div class="max-w-8xl mx-auto px-3 sm:px-6">
         <div class="h-16 flex items-center justify-between">
