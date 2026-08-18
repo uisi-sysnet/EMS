@@ -173,12 +173,7 @@ class DashboardController extends Controller
             'generatedBy'      => $generatedBy,
 
             // Hardware/OS identity — same buildSystemSummary() data the
-            // live dashboard's "System Summary" tile shows. Exposed both
-            // as the raw array (systemSummary) for blade sections that
-            // read it directly the way index.blade.php does, and as
-            // flattened keys below for the parts of the report that
-            // predate that array (e.g. memoryText's DIMM-count phrasing).
-            'systemSummary' => $systemSummary,
+            // live dashboard's "System Summary" tile shows.
             'deviceModel'  => $systemSummary['device_model'],
             'cpuModel'     => $systemSummary['cpu_model'],
             'osVersion'    => $systemSummary['os_version'],
