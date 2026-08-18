@@ -158,10 +158,28 @@
             if ($isUp === null) return 'Unknown';
             return $isUp ? 'Online' : 'Offline';
         };
+
+        // Network port status, mirroring the dashboard's summary-network
+        // color rule: green when the link is up and has an IPv4 address,
+        // amber when it's up but still negotiating (no address yet), gray
+        // when the link is down.
+        $portStatusClass = function ($port) {
+            if ($port['active'] && !empty($port['ip_cidr'])) return 'status-online';
+            if ($port['active']) return 'status-idle';
+            return 'status-offline';
+        };
+        $portStatusLabel = function ($port) {
+            if ($port['active'] && !empty($port['ip_cidr'])) return 'Up';
+            if ($port['active']) return 'Up (No IP)';
+            return 'Down';
+        };
     @endphp
 
     <div class="header">
         <h1>Environment Monitoring System Status Report</h1>
+        <div style="font-size: 9.5px; color: #888; margin: -2px 0 8px 0;">
+            Developed by Uplink Integrated Solutions Inc.
+        </div>
         <table class="meta-table">
             <tr>
                 <td class="label">Report Date/Time:</td>
@@ -209,10 +227,15 @@
                 <div class="summary-box" style="margin-bottom: 0;">
                     <div style="font-size: 9.5px; color: #777; text-transform: uppercase; margin-bottom: 6px;">Network Ports</div>
                     <table class="meta-table">
-                        @forelse (($networkPorts ?? []) as $portName => $portAddress)
+                        @forelse (($networkPorts ?? []) as $port)
                             <tr>
-                                <td class="label">{{ $portName }}:</td>
-                                <td>{{ $portAddress ?: '—' }}</td>
+                                <td class="label">{{ $port['name'] }}:</td>
+                                <td>
+                                    <span class="status {{ $portStatusClass($port) }}" style="padding: 1px 5px; font-size: 8px;">
+                                        {{ $portStatusLabel($port) }}
+                                    </span>
+                                    {{ $port['ip_cidr'] ?? '—' }}{{ !empty($port['speed']) ? ' · ' . $port['speed'] : '' }}
+                                </td>
                             </tr>
                         @empty
                             <tr><td>No network interfaces reported</td></tr>
@@ -410,7 +433,8 @@
     </table>
 
     <div class="footer">
-        This report reflects station status at the time it was generated and may not match a subsequently refreshed dashboard.
+        This report reflects station status at the time it was generated and may not match a subsequently refreshed dashboard.<br>
+        &copy; {{ $generatedAt->format('Y') }} Uplink Integrated Solutions Inc. All rights reserved.
     </div>
 
 </body>
