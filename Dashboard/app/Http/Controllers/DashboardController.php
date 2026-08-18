@@ -76,7 +76,17 @@ class DashboardController extends Controller
             ?? session('username')
             ?? 'Unknown user';
 
-        $health = $this->buildSystemHealth();
+        $health        = $this->buildSystemHealth();
+        $systemSummary = $this->buildSystemSummary();
+
+        // Same "X/Y DIMMs · total" vs "total (DIMM count needs sudo)"
+        // formatting the dashboard's summary-memory tile uses — kept in
+        // sync here rather than in the blade so the PDF and live view
+        // never phrase this differently.
+        $memoryText = $systemSummary['memory']['available']
+            ? $systemSummary['memory']['slots_used'] . '/' . $systemSummary['memory']['slots_total']
+                . ' DIMMs · ' . $systemSummary['memory']['total_label']
+            : $systemSummary['memory']['total_label'] . ' (DIMM count needs sudo)';
 
         $uptimeParts = [];
         if ($health['uptime']['days'] > 0)  $uptimeParts[] = $health['uptime']['days'] . 'd';
@@ -106,6 +116,17 @@ class DashboardController extends Controller
             'seismicCounts'    => $seismicCounts,
             'generatedAt'      => $generatedAt,
             'generatedBy'      => $generatedBy,
+
+            // Hardware/OS identity — same buildSystemSummary() data the
+            // live dashboard's "System Summary" tile shows, so the PDF
+            // reports the same device/CPU/OS/memory/storage/network
+            // details instead of the placeholder dashes it showed before.
+            'deviceModel'  => $systemSummary['device_model'],
+            'cpuModel'     => $systemSummary['cpu_model'],
+            'osVersion'    => $systemSummary['os_version'],
+            'memoryText'   => $memoryText,
+            'storageType'  => $systemSummary['storage'],
+            'networkPorts' => $systemSummary['network']['ports'],
 
             'systemUptimeHuman' => $systemUptimeHuman,
             'storagePercent'    => $storagePercent,
