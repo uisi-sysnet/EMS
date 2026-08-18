@@ -146,7 +146,7 @@
             if ($percent >= 81) return 'Warning';
             return 'Critical';
         };
-        $systemStorageStatus = function ($percent) {
+        $systemStorageStatusLabel = function ($percent) {
             if ($percent === null) return 'N/A';
             if ($percent >= 100) return 'Warning';
             if ($percent >= 81) return 'Good';
@@ -321,7 +321,7 @@
                 <td>{{ isset($storagePercent) ? number_format($storagePercent, 2) . '% free' : '—' }}</td>
                 <td>
                     <span class="status {{ $systemStatusClass($storagePercent ?? null) }}">
-                        {{ $systemStatusLabel($storagePercent ?? null) }}
+                        {{ $systemStorageStatusLabel($storagePercent ?? null) }}
                     </span>
                 </td>
             </tr>
