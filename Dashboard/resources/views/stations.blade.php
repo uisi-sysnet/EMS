@@ -394,25 +394,8 @@
                                     <label for="edit_lead_ip" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                         IP Address
                                     </label>
-                                    <input type="text"
-                                        id="edit_lead_ip"
-                                        name="lead_ip"
-                                        required
-                                        maxlength="15"
-                                        pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-                                        inputmode="decimal"
-                                        autocomplete="off"
-                                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
-                                        placeholder="e.g. 192.168.1.10"
-                                        oninput="
-                                            let v = this.value.replace(/[^0-9.]/g, '');
-                                            const parts = v.split('.');
-                                            if (parts.length > 4) {
-                                                v = parts.slice(0, 4).join('.');
-                                            }
-                                            v = parts.slice(0, 4).map(p => p.slice(0, 3)).join('.');
-                                            this.value = v;
-                                        ">
+                                    <input type="text" id="edit_lead_ip" name="lead_ip"
+                                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                                 </div>
 
                                 <!-- Lead Port - Auto-filled with 8899 -->
