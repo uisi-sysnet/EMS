@@ -15,7 +15,7 @@ from datetime import datetime
 LISTEN_HOST = "0.0.0.0"
 LISTEN_PORT = 1935          # match the device's "Remote Port Number"
 
-SLAVE_ID      = 0x01        # transmitter address (factory default 0x01)
+SLAVE_ID      = 0x02        # transmitter address (factory default 0x01)
 POLL_START    = 0x0001      # 0x0001 = water temp, 0x0002 = lead ion
 POLL_COUNT    = 2           # reading 2 registers from POLL_START covers both
 POLL_INTERVAL = 2.0         # seconds between queries

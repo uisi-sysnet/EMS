@@ -34,9 +34,9 @@ from datetime import datetime
 LISTEN_HOST = "0.0.0.0"
 LISTEN_PORT = 1935          # match the device's "Remote Port Number"
 
-SLAVE_ID      = 0x01        # device's CURRENT address, before any change
+SLAVE_ID      = 0x02        # device's CURRENT address, before any change
 NEW_SLAVE_ID  = 2           # register 0x0100, valid range 0-252. None = skip.
-NEW_BAUD_RATE = None        # register 0x0101, must be 2400/4800/9600. None = skip.
+NEW_BAUD_RATE = 115200      # register 0x0101, must be 2400/4800/9600. None = skip.
 
 POLL_START    = 0x0001      # 0x0001 = water temp, 0x0002 = lead ion
 POLL_COUNT    = 2           # reading 2 registers from POLL_START covers both
