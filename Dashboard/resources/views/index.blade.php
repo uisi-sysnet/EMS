@@ -354,7 +354,7 @@
                             <!-- Network Ports strip -->
                             <div class="flex items-center gap-4 min-w-0">
                                 <span class="text-[10px] uppercase tracking-wider text-text-400 justify-start me-16">Network Ports</span>
-                                <div id="summary-network-ports" class="flex items-center justify-center lg:gap-16 gap-16 overflow-x-auto flex-nowrap min-w-0">
+                                <div id="summary-network-ports" class="flex items-center justify-center gap-16 overflow-x-auto flex-nowrap min-w-0">
                                     @forelse($systemSummary['network']['ports'] as $port)
                                         <div class="flex flex-col items-center gap-1.5 shrink-0">
                                             <span class="text-[9px] text-text-500 uppercase tracking-wide max-w-[56px] truncate"
@@ -374,7 +374,7 @@
                                                     </svg>
                                                 @endif
                                             </div>
-                                            <span class="text-[9px] text-text-500 max-w-[80px] text-center leading-none"
+                                            <span class="text-[9px] text-text-500 max-w-[64px] text-center leading-none"
                                                 title="{{ $port['ip_cidr'] ?? 'No IP assigned' }}">
                                                 {{ $port['ip_cidr'] ?? '—' }}
                                             </span>
