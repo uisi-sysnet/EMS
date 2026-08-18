@@ -146,6 +146,12 @@
             if ($percent >= 81) return 'Warning';
             return 'Critical';
         };
+        $systemStorageStatus = function ($percent) {
+            if ($percent === null) return 'N/A';
+            if ($percent >= 100) return 'Warning';
+            if ($percent >= 81) return 'Good';
+            return 'Critical';
+        };
 
         // For binary services (MQTT broker, database, ems.target) rather
         // than percentage metrics: true = Online, false = Offline,
