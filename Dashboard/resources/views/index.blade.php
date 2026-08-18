@@ -951,7 +951,7 @@
                             <div class="w-9 h-9 rounded-lg flex items-center justify-center ${p.colors.bg}">
                                 ${networkPortIconSvg(p.active)}
                             </div>
-                            <span class="text-[9px] text-text-500 max-w-[90px]" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
+                            <span class="text-[9px] text-text-500 w-[90px] text-center leading-none" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
                         </div>
                     `).join('')
                     : '<span class="text-xs text-text-500">No network interfaces detected</span>';
