@@ -362,10 +362,7 @@
                                                     title="{{ $port['name'] }}">
                                                     {{ $port['name'] }}
                                                 </span>
-                                                <div class="w-9 h-9 rounded-lg flex items-center justify-center
-                                                            {{ $port['active']
-                                                                ? 'bg-emerald-500 shadow-sm shadow-emerald-500/40'
-                                                                : 'bg-surface-700 border border-border-600' }}">
+                                                <div class="w-9 h-9 rounded-lg flex items-center justify-center {{ $port['colors']['bg'] }}">
                                                     @if($port['active'])
                                                         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
@@ -390,10 +387,7 @@
                                 </div>
                             </div>
 
-
                         </div>
-
-
 
                     </div>
                 </div>
