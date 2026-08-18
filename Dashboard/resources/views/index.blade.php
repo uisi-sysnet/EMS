@@ -353,11 +353,11 @@
 
                             <!-- Network Ports strip -->
                             <div class="flex items-center gap-4 min-w-0">
-                                <span class="text-[10px] uppercase tracking-wider text-text-400 justify-start me-16">Network Ports</span>
-                                <div id="summary-network-ports" class="flex items-center justify-center gap-16 flex-nowrap min-w-0">
+                                <span class="text-[10px] uppercase tracking-wider text-text-400 shrink-0">Network Ports</span>
+                                <div id="summary-network-ports" class="flex items-center justify-center gap-4 flex-nowrap min-w-0">
                                     @forelse($systemSummary['network']['ports'] as $port)
-                                        <div class="flex flex-col items-center w-[80px] gap-1.5 shrink-0">
-                                            <span class="text-[9px] text-text-500 uppercase tracking-wide w-full truncate text-center"
+                                        <div class="flex flex-col items-center w-[90px] gap-1.5 shrink-0">
+                                            <span class="text-[9px] text-text-500 uppercase tracking-wide w-[90px] text-center"
                                                 title="{{ $port['name'] }}">
                                                 {{ $port['name'] }}
                                             </span>
@@ -374,7 +374,7 @@
                                                     </svg>
                                                 @endif
                                             </div>
-                                            <span class="text-[9px] text-text-500 w-full truncate text-center leading-none"
+                                            <span class="text-[9px] text-text-500 w-[90px] text-center leading-none"
                                                 title="{{ $port['ip_cidr'] ?? 'No IP assigned' }}">
                                                 {{ $port['ip_cidr'] ?? '—' }}
                                             </span>
@@ -385,7 +385,6 @@
                                 </div>
                             </div>
                         </div>
-
                     </div>
                 </div>
 
@@ -948,11 +947,11 @@
                 portsEl.innerHTML = summary.network.ports.length
                     ? summary.network.ports.map(p => `
                         <div class="flex flex-col items-center gap-1 shrink-0">
-                            <span class="text-[9px] text-text-500 uppercase tracking-wide max-w-[56px] truncate" title="${esc(p.name)}">${esc(p.name)}</span>
+                            <span class="text-[9px] text-text-500 uppercase tracking-wide max-w-[90px] truncate" title="${esc(p.name)}">${esc(p.name)}</span>
                             <div class="w-9 h-9 rounded-lg flex items-center justify-center ${p.colors.bg}">
                                 ${networkPortIconSvg(p.active)}
                             </div>
-                            <span class="text-[9px] text-text-500 max-w-[64px] truncate" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
+                            <span class="text-[9px] text-text-500 max-w-[90px] truncate" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
                         </div>
                     `).join('')
                     : '<span class="text-xs text-text-500">No network interfaces detected</span>';
