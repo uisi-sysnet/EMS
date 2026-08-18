@@ -356,7 +356,7 @@
                                 <span class="text-[10px] uppercase tracking-wider text-text-400 justify-start me-16">Network Ports</span>
                                 <div id="summary-network-ports" class="flex items-center justify-center gap-16 flex-nowrap min-w-0">
                                     @forelse($systemSummary['network']['ports'] as $port)
-                                        <div class="flex flex-col items-center w-[90px] gap-1.5 shrink-0">
+                                        <div class="flex flex-col items-center w-[100px] gap-1.5 shrink-0">
                                             <span class="text-[9px] text-text-500 uppercase tracking-wide w-full truncate text-center"
                                                 title="{{ $port['name'] }}">
                                                 {{ $port['name'] }}
