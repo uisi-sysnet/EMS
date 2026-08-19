@@ -45,19 +45,18 @@
                             <!-- Station MN -->
                             <div class="flex flex-col">
                                 <label for="station_mn" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Station MN <span class="text-munti-red-400">*</span>
+                                    Station MN
                                 </label>
                                 <input type="text"
                                     id="station_mn"
                                     name="station_mn"
                                     value="{{ old('station_mn') }}"
-                                    required
                                     maxlength="14"
-                                    pattern="\d{14}"
+                                    pattern="[0-9]{1,14}"
                                     inputmode="numeric"
                                     autocomplete="off"
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_mn') border-munti-red-500 @enderror"
-                                    placeholder="Enter 14-digit Station MN"
+                                    placeholder="Enter Station MN"
                                     oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 14)">
                                 @error('station_mn')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
@@ -70,7 +69,7 @@
                                     Station Name <span class="text-munti-red-400">*</span>
                                 </label>
                                 <input type="text" id="station_name" name="station_name" value="{{ old('station_name') }}" required
-                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_name') border-munti-red-500 @enderror"
+                                    maxlength="32" class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_name') border-munti-red-500 @enderror"
                                     placeholder="Enter unique station name">
                                 @error('station_name')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
@@ -82,7 +81,13 @@
                                 <label for="latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Latitude
                                 </label>
-                                <input type="number" step="any" id="latitude" name="latitude" value="{{ old('latitude') }}"
+                                <input type="number"
+                                    step="0.000001"
+                                    min="4.5"
+                                    max="21.5"
+                                    id="latitude"
+                                    name="latitude"
+                                    value="{{ old('latitude') }}"
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('latitude') border-munti-red-500 @enderror">
                                 @error('latitude')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
@@ -94,7 +99,13 @@
                                 <label for="longitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Longitude
                                 </label>
-                                <input type="number" step="any" id="longitude" name="longitude" value="{{ old('longitude') }}"
+                                <input type="number"
+                                    step="0.000001"
+                                    min="116.0"
+                                    max="127.0"
+                                    id="longitude"
+                                    name="longitude"
+                                    value="{{ old('longitude') }}"
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('longitude') border-munti-red-500 @enderror">
                                 @error('longitude')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
@@ -355,7 +366,7 @@
                                         Station Name
                                     </label>
                                     <input type="text" id="edit_station_name" name="station_name"
-                                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                                        maxlength="32" class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                                 </div>
 
                                 <!-- Enabled -->
@@ -394,8 +405,25 @@
                                     <label for="edit_lead_ip" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                         IP Address
                                     </label>
-                                    <input type="text" id="edit_lead_ip" name="lead_ip"
-                                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                                    <input type="text"
+                                        id="edit_lead_ip"
+                                        name="lead_ip"
+                                        required
+                                        maxlength="15"
+                                        pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                                        inputmode="decimal"
+                                        autocomplete="off"
+                                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                                        placeholder="e.g. 192.168.1.10"
+                                        oninput="
+                                            let v = this.value.replace(/[^0-9.]/g, '');
+                                            const parts = v.split('.');
+                                            if (parts.length > 4) {
+                                                v = parts.slice(0, 4).join('.');
+                                            }
+                                            v = parts.slice(0, 4).map(p => p.slice(0, 3)).join('.');
+                                            this.value = v;
+                                        ">
                                 </div>
 
                                 <!-- Lead Port - Auto-filled with 8899 -->
