@@ -70,7 +70,7 @@
                                     Station Name <span class="text-munti-red-400">*</span>
                                 </label>
                                 <input type="text" id="station_name" name="station_name" value="{{ old('station_name') }}" required
-                                    class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_name') border-munti-red-500 @enderror"
+                                    maxlength="32" class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_name') border-munti-red-500 @enderror"
                                     placeholder="Enter unique station name">
                                 @error('station_name')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
@@ -355,7 +355,7 @@
                                         Station Name
                                     </label>
                                     <input type="text" id="edit_station_name" name="station_name"
-                                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                                        maxlength="32" class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                                 </div>
 
                                 <!-- Enabled -->
