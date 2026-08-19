@@ -24,21 +24,24 @@ use Illuminate\Console\Command;
  */
 class SendTelegramDailyDigest extends Command
 {
-    protected $signature = 'telegram:daily-digest';
+    protected $signature = 'telegram:daily-digest
+        {--force : Skip the scheduled-time and already-sent-today checks and send both digests immediately — for testing}';
 
     protected $description = 'Send the morning/afternoon Telegram digest image, if either is due right now.';
 
     public function handle(DashboardController $dashboard, TelegramNotifier $telegram): int
     {
         $settings = TelegramSetting::current();
+        $force    = (bool) $this->option('force');
 
         if (! $settings->isConfigured()) {
+            $this->warn('Telegram bot token / chat ID not configured — nothing sent.');
             return self::SUCCESS;
         }
 
         $now = now('Asia/Manila');
 
-        $this->maybeSend($settings, $telegram, $dashboard, $now,
+        $this->maybeSend($settings, $telegram, $dashboard, $now, $force,
             enabled: $settings->morning_digest_enabled,
             time: $settings->morning_digest_time,
             lastSentDate: $settings->morning_digest_last_sent_date,
@@ -46,7 +49,7 @@ class SendTelegramDailyDigest extends Command
             label: 'Morning Digest',
         );
 
-        $this->maybeSend($settings, $telegram, $dashboard, $now,
+        $this->maybeSend($settings, $telegram, $dashboard, $now, $force,
             enabled: $settings->afternoon_digest_enabled,
             time: $settings->afternoon_digest_time,
             lastSentDate: $settings->afternoon_digest_last_sent_date,
@@ -62,6 +65,7 @@ class SendTelegramDailyDigest extends Command
         TelegramNotifier $telegram,
         DashboardController $dashboard,
         \Carbon\Carbon $now,
+        bool $force,
         bool $enabled,
         string $time,
         ?\Carbon\Carbon $lastSentDate,
@@ -69,22 +73,38 @@ class SendTelegramDailyDigest extends Command
         string $label,
     ): void {
         if (! $enabled) {
+            if ($force) {
+                $this->line("{$label}: skipped — not enabled in settings.");
+            }
             return;
         }
 
-        if ($now->format('H:i') !== $time) {
-            return;
-        }
+        if (! $force) {
+            if ($now->format('H:i') !== $time) {
+                return;
+            }
 
-        if ($lastSentDate?->isSameDay($now)) {
-            return; // this slot already sent today
+            if ($lastSentDate?->isSameDay($now)) {
+                return; // this slot already sent today
+            }
         }
 
         $image   = $dashboard->buildReportImageJpeg();
         $caption = "📊 <b>{$label}</b> — {$now->format('M j, Y g:i A')}";
 
-        $telegram->sendPhoto($image, $caption);
+        $ok = $telegram->sendPhoto($image, $caption);
 
-        $settings->update([$lastSentColumn => $now->toDateString()]);
+        if ($force) {
+            $this->line($ok
+                ? "{$label}: sent."
+                : "{$label}: FAILED — check storage/logs/laravel.log for the Telegram API response.");
+        }
+
+        // Forced test sends don't count as "today's digest" — otherwise
+        // testing at 10am would suppress the real 8am/2pm scheduled send
+        // for the rest of the day.
+        if (! $force) {
+            $settings->update([$lastSentColumn => $now->toDateString()]);
+        }
     }
 }
