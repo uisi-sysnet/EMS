@@ -82,7 +82,13 @@
                                 <label for="latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Latitude
                                 </label>
-                                <input type="number" step="any" id="latitude" name="latitude" value="{{ old('latitude') }}"
+                                <input type="number"
+                                    step="0.000001"
+                                    min="4.5"
+                                    max="21.5"
+                                    id="latitude"
+                                    name="latitude"
+                                    value="{{ old('latitude') }}"
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('latitude') border-munti-red-500 @enderror">
                                 @error('latitude')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
@@ -94,7 +100,13 @@
                                 <label for="longitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                     Longitude
                                 </label>
-                                <input type="number" step="any" id="longitude" name="longitude" value="{{ old('longitude') }}"
+                                <input type="number"
+                                    step="0.000001"
+                                    min="116.0"
+                                    max="127.0"
+                                    id="longitude"
+                                    name="longitude"
+                                    value="{{ old('longitude') }}"
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('longitude') border-munti-red-500 @enderror">
                                 @error('longitude')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
