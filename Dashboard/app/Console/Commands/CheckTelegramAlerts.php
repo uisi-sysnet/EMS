@@ -57,9 +57,11 @@ class CheckTelegramAlerts extends Command
                 telegram: $telegram,
                 onEnter: [
                     'offline' => "🔴 <b>{$type} station offline</b>\n{$name} has stopped reporting.",
+                    'idle'    => "🟡 <b>{$type} station idle</b>\n{$name} hasn't sent a reading in a while.",
                 ],
                 onRecoverFrom: [
                     'offline' => "🟢 <b>{$type} station back online</b>\n{$name} is reporting again.",
+                    'idle'    => "🟢 <b>{$type} station back online</b>\n{$name} is reporting again.",
                 ],
             );
         }

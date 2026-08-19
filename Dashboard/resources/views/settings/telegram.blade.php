@@ -59,14 +59,28 @@
 
         <div class="flex items-center justify-between gap-4">
             <div>
-                <label for="daily_digest_enabled" class="text-sm font-medium text-text-100">Daily digest</label>
-                <p class="text-xs text-text-400">Station status + system health, sent once a day.</p>
+                <label for="morning_digest_enabled" class="text-sm font-medium text-text-100">Morning digest</label>
+                <p class="text-xs text-text-400">Station status + system health, sent once a day at this time.</p>
             </div>
             <div class="flex items-center gap-3">
-                <input type="time" name="daily_digest_time" value="{{ old('daily_digest_time', $settings->daily_digest_time) }}"
+                <input type="time" name="morning_digest_time" value="{{ old('morning_digest_time', $settings->morning_digest_time) }}"
                        class="rounded-lg border border-border-700 bg-transparent px-2 py-1 text-sm text-text-100">
-                <input type="checkbox" id="daily_digest_enabled" name="daily_digest_enabled" value="1"
-                       @checked(old('daily_digest_enabled', $settings->daily_digest_enabled))
+                <input type="checkbox" id="morning_digest_enabled" name="morning_digest_enabled" value="1"
+                       @checked(old('morning_digest_enabled', $settings->morning_digest_enabled))
+                       class="h-5 w-5 rounded border-border-700 text-munti-green-500 focus:ring-munti-green-500">
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <label for="afternoon_digest_enabled" class="text-sm font-medium text-text-100">Afternoon digest</label>
+                <p class="text-xs text-text-400">A second digest later in the day, at this time.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <input type="time" name="afternoon_digest_time" value="{{ old('afternoon_digest_time', $settings->afternoon_digest_time) }}"
+                       class="rounded-lg border border-border-700 bg-transparent px-2 py-1 text-sm text-text-100">
+                <input type="checkbox" id="afternoon_digest_enabled" name="afternoon_digest_enabled" value="1"
+                       @checked(old('afternoon_digest_enabled', $settings->afternoon_digest_enabled))
                        class="h-5 w-5 rounded border-border-700 text-munti-green-500 focus:ring-munti-green-500">
             </div>
         </div>

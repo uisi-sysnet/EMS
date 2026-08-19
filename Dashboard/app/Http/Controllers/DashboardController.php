@@ -154,6 +154,26 @@ class DashboardController extends Controller
     }
 
     /**
+     * Same image renderSystemStatusImage() draws for the "Download Image"
+     * button, captured as raw JPEG bytes instead of streamed to the
+     * browser. Used by the Telegram digest so what gets posted to chat is
+     * the same report a user gets from that button — not a separate
+     * text-only re-implementation that could drift from it.
+     */
+    public function buildReportImageJpeg(): string
+    {
+        $ctx   = $this->buildReportContext();
+        $image = $this->renderSystemStatusImage($ctx);
+
+        ob_start();
+        imagejpeg($image, null, 90);
+        $bytes = ob_get_clean();
+        imagedestroy($image);
+
+        return $bytes;
+    }
+
+    /**
      * Shared data-gathering for both the PDF (generateReport) and JPEG
      * (generateImageReport) exports, so the two can never drift out of
      * sync with each other. Field names match the reports.system-status

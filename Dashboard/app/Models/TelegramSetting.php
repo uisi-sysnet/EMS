@@ -9,9 +9,12 @@ class TelegramSetting extends Model
     protected $fillable = [
         'bot_token',
         'chat_id',
-        'daily_digest_enabled',
-        'daily_digest_time',
-        'last_digest_sent_date',
+        'morning_digest_enabled',
+        'morning_digest_time',
+        'morning_digest_last_sent_date',
+        'afternoon_digest_enabled',
+        'afternoon_digest_time',
+        'afternoon_digest_last_sent_date',
         'offline_alert_enabled',
         'health_alert_enabled',
     ];
@@ -19,11 +22,13 @@ class TelegramSetting extends Model
     protected $casts = [
         // Encrypted/decrypted transparently using the app's APP_KEY, so
         // the token is never stored or logged in plaintext.
-        'bot_token'             => 'encrypted',
-        'daily_digest_enabled'  => 'boolean',
-        'offline_alert_enabled' => 'boolean',
-        'health_alert_enabled'  => 'boolean',
-        'last_digest_sent_date' => 'date',
+        'bot_token'                       => 'encrypted',
+        'morning_digest_enabled'          => 'boolean',
+        'morning_digest_last_sent_date'   => 'date',
+        'afternoon_digest_enabled'        => 'boolean',
+        'afternoon_digest_last_sent_date' => 'date',
+        'offline_alert_enabled'           => 'boolean',
+        'health_alert_enabled'            => 'boolean',
     ];
 
     /**
@@ -35,10 +40,12 @@ class TelegramSetting extends Model
     public static function current(): self
     {
         return static::firstOrCreate([], [
-            'daily_digest_enabled'  => false,
-            'daily_digest_time'     => '08:00',
-            'offline_alert_enabled' => false,
-            'health_alert_enabled'  => false,
+            'morning_digest_enabled'   => false,
+            'morning_digest_time'      => '08:00',
+            'afternoon_digest_enabled' => false,
+            'afternoon_digest_time'    => '17:00',
+            'offline_alert_enabled'    => false,
+            'health_alert_enabled'     => false,
         ]);
     }
 

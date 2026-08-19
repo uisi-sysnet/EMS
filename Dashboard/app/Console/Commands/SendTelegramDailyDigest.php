@@ -8,68 +8,83 @@ use App\Services\TelegramNotifier;
 use Illuminate\Console\Command;
 
 /**
- * Fires the configured daily digest. Register this to run every minute
- * (see routes/console.php or App\Console\Kernel::schedule()) — it only
- * actually sends once the current Asia/Manila time matches the
- * admin-configured daily_digest_time AND today's digest hasn't already
- * gone out, so it's safe for the underlying cron to invoke
- * `schedule:run` every minute without risking a duplicate send.
+ * Fires the morning and/or afternoon digest, whichever is due right now.
+ * Register this to run every minute (see routes/console.php or
+ * App\Console\Kernel::schedule()) — each slot only actually sends once
+ * the current Asia/Manila time matches that slot's configured time AND
+ * that slot hasn't already sent today, so it's safe for the underlying
+ * cron to invoke `schedule:run` every minute without risking a duplicate
+ * send, and the two slots track their own "already sent today" state
+ * independently.
+ *
+ * The digest is the same JPEG image the dashboard's "Download Image"
+ * button produces (see DashboardController::buildReportImageJpeg()),
+ * posted as a Telegram photo — not a separate text summary that could
+ * drift from what the dashboard shows.
  */
 class SendTelegramDailyDigest extends Command
 {
     protected $signature = 'telegram:daily-digest';
 
-    protected $description = 'Send the scheduled daily Telegram digest (station status + system health), if one is due right now.';
+    protected $description = 'Send the morning/afternoon Telegram digest image, if either is due right now.';
 
     public function handle(DashboardController $dashboard, TelegramNotifier $telegram): int
     {
         $settings = TelegramSetting::current();
 
-        if (! $settings->daily_digest_enabled || ! $settings->isConfigured()) {
+        if (! $settings->isConfigured()) {
             return self::SUCCESS;
         }
 
         $now = now('Asia/Manila');
 
-        if ($now->format('H:i') !== $settings->daily_digest_time) {
-            return self::SUCCESS;
-        }
+        $this->maybeSend($settings, $telegram, $dashboard, $now,
+            enabled: $settings->morning_digest_enabled,
+            time: $settings->morning_digest_time,
+            lastSentDate: $settings->morning_digest_last_sent_date,
+            lastSentColumn: 'morning_digest_last_sent_date',
+            label: 'Morning Digest',
+        );
 
-        if ($settings->last_digest_sent_date?->isSameDay($now)) {
-            return self::SUCCESS; // already sent today
-        }
-
-        $snapshot = $dashboard->telegramSnapshot();
-        $telegram->send($this->formatMessage($snapshot, $now));
-
-        $settings->update(['last_digest_sent_date' => $now->toDateString()]);
+        $this->maybeSend($settings, $telegram, $dashboard, $now,
+            enabled: $settings->afternoon_digest_enabled,
+            time: $settings->afternoon_digest_time,
+            lastSentDate: $settings->afternoon_digest_last_sent_date,
+            lastSentColumn: 'afternoon_digest_last_sent_date',
+            label: 'Afternoon Digest',
+        );
 
         return self::SUCCESS;
     }
 
-    private function formatMessage(array $snapshot, \Carbon\Carbon $now): string
-    {
-        $aq = $snapshot['airQualityCounts'];
-        $sm = $snapshot['seismicCounts'];
-        $h  = $snapshot['health'];
+    private function maybeSend(
+        TelegramSetting $settings,
+        TelegramNotifier $telegram,
+        DashboardController $dashboard,
+        \Carbon\Carbon $now,
+        bool $enabled,
+        string $time,
+        ?\Carbon\Carbon $lastSentDate,
+        string $lastSentColumn,
+        string $label,
+    ): void {
+        if (! $enabled) {
+            return;
+        }
 
-        $dot = fn (string $status) => match ($status) {
-            'good', 'online'  => '🟢',
-            'warning', 'idle' => '🟡',
-            default           => '🔴',
-        };
+        if ($now->format('H:i') !== $time) {
+            return;
+        }
 
-        return implode("\n", [
-            "📊 <b>Daily System Digest</b> — {$now->format('M j, Y g:i A')}",
-            '',
-            '<b>Stations</b>',
-            "{$dot($aq['offline'] > 0 ? 'critical' : 'good')} Air Quality: {$aq['online']} online, {$aq['idle']} idle, {$aq['offline']} offline",
-            "{$dot($sm['offline'] > 0 ? 'critical' : 'good')} Seismic: {$sm['online']} online, {$sm['idle']} idle, {$sm['offline']} offline",
-            '',
-            '<b>System Health</b>',
-            "{$dot($h['cpu']['status'])} CPU: {$h['cpu']['percent']}%",
-            "{$dot($h['memory']['status'])} Memory: {$h['memory']['percent']}%",
-            "{$dot($h['storage']['status'])} Storage: {$h['storage']['percent_free']}% free",
-        ]);
+        if ($lastSentDate?->isSameDay($now)) {
+            return; // this slot already sent today
+        }
+
+        $image   = $dashboard->buildReportImageJpeg();
+        $caption = "📊 <b>{$label}</b> — {$now->format('M j, Y g:i A')}";
+
+        $telegram->sendPhoto($image, $caption);
+
+        $settings->update([$lastSentColumn => $now->toDateString()]);
     }
 }

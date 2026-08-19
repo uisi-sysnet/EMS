@@ -18,9 +18,10 @@ class TelegramSettingsController extends Controller
     public function update(Request $request)
     {
         $validated = $request->validate([
-            'bot_token'         => ['nullable', 'string'],
-            'chat_id'           => ['nullable', 'string', 'max:64'],
-            'daily_digest_time' => ['required', 'date_format:H:i'],
+            'bot_token'             => ['nullable', 'string'],
+            'chat_id'               => ['nullable', 'string', 'max:64'],
+            'morning_digest_time'   => ['required', 'date_format:H:i'],
+            'afternoon_digest_time' => ['required', 'date_format:H:i'],
         ]);
 
         $settings = TelegramSetting::current();
@@ -35,9 +36,10 @@ class TelegramSettingsController extends Controller
 
         // Checkboxes are absent from the request entirely when unchecked,
         // so read them explicitly rather than relying on $validated.
-        $validated['daily_digest_enabled']  = $request->boolean('daily_digest_enabled');
-        $validated['offline_alert_enabled'] = $request->boolean('offline_alert_enabled');
-        $validated['health_alert_enabled']  = $request->boolean('health_alert_enabled');
+        $validated['morning_digest_enabled']   = $request->boolean('morning_digest_enabled');
+        $validated['afternoon_digest_enabled'] = $request->boolean('afternoon_digest_enabled');
+        $validated['offline_alert_enabled']    = $request->boolean('offline_alert_enabled');
+        $validated['health_alert_enabled']     = $request->boolean('health_alert_enabled');
 
         $settings->update($validated);
 
