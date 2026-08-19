@@ -45,19 +45,18 @@
                             <!-- Station MN -->
                             <div class="flex flex-col">
                                 <label for="station_mn" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Station MN <span class="text-munti-red-400">*</span>
+                                    Station MN
                                 </label>
                                 <input type="text"
                                     id="station_mn"
                                     name="station_mn"
                                     value="{{ old('station_mn') }}"
-                                    required
                                     maxlength="14"
-                                    pattern="\d{14}"
+                                    pattern="[0-9]{1,14}"
                                     inputmode="numeric"
                                     autocomplete="off"
                                     class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('station_mn') border-munti-red-500 @enderror"
-                                    placeholder="Enter 14-digit Station MN"
+                                    placeholder="Enter Station MN"
                                     oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 14)">
                                 @error('station_mn')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
