@@ -18,6 +18,7 @@ use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\SeismicStationController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\TerminalAuthController;
+use App\Http\Controllers\TelegramSettingsController;
 
 Route::get('/register', [LoginController::class, 'showRegisterForm'])->name('register');
 Route::post('/register', [LoginController::class, 'register']);
@@ -111,5 +112,10 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     
     Route::get('/dashboard/report/image', [DashboardController::class, 'generateImageReport'])
     ->name('dashboard.report.image');
+
+    Route::get('/settings/telegram', [TelegramSettingsController::class, 'edit'])->name('settings.telegram.edit');
+    Route::put('/settings/telegram', [TelegramSettingsController::class, 'update'])->name('settings.telegram.update');
+    Route::post('/settings/telegram/test', [TelegramSettingsController::class, 'test'])->name('settings.telegram.test');
+    
 
 });

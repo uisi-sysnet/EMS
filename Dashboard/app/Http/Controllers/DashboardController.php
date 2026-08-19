@@ -31,6 +31,57 @@ class DashboardController extends Controller
     }
 
     /**
+     * Snapshot of station statuses and system health for Telegram
+     * notifications (daily digest + real-time alerts). Deliberately
+     * reuses the exact same helpers as the live dashboard and JSON
+     * polling endpoint (buildDashboardData, annotateStatus,
+     * buildSystemHealth) so a station or health metric can never read
+     * differently in a Telegram message than it does on-screen — the
+     * storage-threshold mismatch between the PDF/JPEG reports earlier is
+     * exactly the kind of drift this avoids.
+     */
+    public function telegramSnapshot(): array
+    {
+        [$airQualityData, $seismicData] = $this->buildDashboardData();
+
+        // Same thresholds as data()'s AJAX polling endpoint.
+        $idleThresholdMinutes    = 2;
+        $offlineThresholdMinutes = 3;
+
+        $airQualityCounts = $this->annotateStatus($airQualityData, $idleThresholdMinutes, $offlineThresholdMinutes);
+        $seismicCounts    = $this->annotateStatus($seismicData, $idleThresholdMinutes, $offlineThresholdMinutes);
+
+        $health = $this->buildSystemHealth();
+
+        // buildSystemHealth()'s disk.percent is % USED; storageStatusKey
+        // expects % FREE (see its doc comment), so invert here exactly
+        // like buildReportContext() does for the PDF/JPEG reports.
+        $storagePercentFree = round(100 - $health['disk']['percent'], 1);
+
+        return [
+            'airQualityData'   => $airQualityData,   // Collection, each item already has ->status set
+            'seismicData'      => $seismicData,
+            'airQualityCounts' => $airQualityCounts, // ['online'=>n,'idle'=>n,'offline'=>n]
+            'seismicCounts'    => $seismicCounts,
+            'health' => [
+                'cpu' => [
+                    'percent' => $health['cpu']['percent'],
+                    'status'  => $this->usageStatusKey($health['cpu']['percent']),
+                ],
+                'memory' => [
+                    'percent' => $health['memory']['percent'],
+                    'status'  => $this->usageStatusKey($health['memory']['percent']),
+                ],
+                'storage' => [
+                    'percent_free' => $storagePercentFree,
+                    'status'       => $this->storageStatusKey($storagePercentFree),
+                ],
+            ],
+            'generatedAt' => now()->timezone('Asia/Manila')->format('M j, Y g:i A'),
+        ];
+    }
+
+    /**
      * JSON endpoint used by the dashboard's AJAX polling (see index.blade.php).
      * Returns everything the view needs to refresh in place: station tables,
      * status counts, and system health tiles — without a full page reload.
@@ -1253,6 +1304,29 @@ class DashboardController extends Controller
     {
         if ($percent === null) return 'N/A';
         return match ($this->storageStatusKey($percent)) {
+            'good'    => 'Good',
+            'warning' => 'Warning',
+            default   => 'Critical',
+        };
+    }
+
+    /**
+     * CPU/memory usage % bands (high = bad) — same 85/60 split as the
+     * live dashboard's $barColor closure in buildSystemHealth(), just
+     * expressed as good/warning/critical instead of Tailwind classes so
+     * Telegram alerts read the same "is this bad?" signal the dashboard
+     * shows in red/amber/green.
+     */
+    private function usageStatusKey(float $percent): string
+    {
+        if ($percent >= 85) return 'critical';
+        if ($percent >= 60) return 'warning';
+        return 'good';
+    }
+
+    private function usageStatusLabel(float $percent): string
+    {
+        return match ($this->usageStatusKey($percent)) {
             'good'    => 'Good',
             'warning' => 'Warning',
             default   => 'Critical',
