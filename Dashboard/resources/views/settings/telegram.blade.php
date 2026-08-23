@@ -128,7 +128,7 @@
                             </p>
 
                             <!-- Morning Digest -->
-                            <div class="flex flex-col xs:flex-row xs:items-center justify-between gap-3">
+                            <div class="flex items-center justify-between gap-4">
                                 <div class="min-w-0">
                                     <label for="morning_digest_enabled" class="text-sm font-medium text-text-100">Morning digest</label>
                                     <p class="text-xs text-text-500">Station status + system health, sent once a day at this time.</p>
@@ -144,7 +144,7 @@
                             </div>
 
                             <!-- Afternoon Digest -->
-                            <div class="flex flex-col xs:flex-row xs:items-center justify-between gap-3">
+                            <div class="flex items-center justify-between gap-4">
                                 <div class="min-w-0">
                                     <label for="afternoon_digest_enabled" class="text-sm font-medium text-text-100">Afternoon digest</label>
                                     <p class="text-xs text-text-500">A second digest later in the day, at this time.</p>
