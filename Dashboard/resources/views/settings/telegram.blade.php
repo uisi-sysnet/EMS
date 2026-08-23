@@ -94,32 +94,35 @@
                         @method('PUT')
 
                         <div class="space-y-5 flex-1 overflow-auto">
-                            <!-- Bot Token -->
-                            <div>
-                                <label for="bot_token" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Bot Token
-                                </label>
-                                <input type="password" id="bot_token" name="bot_token" autocomplete="off"
-                                       placeholder="{{ $settings->isConfigured() ? 'Saved — leave blank to keep it' : 'e.g. 123456789:AAExampleTokenGoesHere' }}"
-                                       class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
-                                              bg-surface-900 text-text-100 placeholder-text-500
-                                              focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
-                                <p class="text-xs text-text-500 mt-1.5">
-                                    Stored encrypted. Never shown again once saved — leave blank to keep the current token.
-                                </p>
-                            </div>
+                            <!-- Bot Token + Chat ID in one row -->
+                            <div class="flex flex-col sm:flex-row gap-4">
+                                <!-- Bot Token -->
+                                <div class="flex-1 min-w-0">
+                                    <label for="bot_token" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                        Bot Token
+                                    </label>
+                                    <input type="password" id="bot_token" name="bot_token" autocomplete="off"
+                                           placeholder="{{ $settings->isConfigured() ? 'Saved — leave blank to keep it' : 'e.g. 123456789:AAExampleTokenGoesHere' }}"
+                                           class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
+                                                  bg-surface-900 text-text-100 placeholder-text-500
+                                                  focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                                    <p class="text-xs text-text-500 mt-1.5">
+                                        Stored encrypted. Never shown again once saved — leave blank to keep the current token.
+                                    </p>
+                                </div>
 
-                            <!-- Chat ID -->
-                            <div>
-                                <label for="chat_id" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                    Chat ID
-                                </label>
-                                <input type="text" id="chat_id" name="chat_id"
-                                       value="{{ old('chat_id', $settings->chat_id) }}"
-                                       placeholder="e.g. -1001234567890"
-                                       class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
-                                              bg-surface-900 text-text-100 placeholder-text-500
-                                              focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition font-mono">
+                                <!-- Chat ID -->
+                                <div class="flex-1 min-w-0">
+                                    <label for="chat_id" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                        Chat ID
+                                    </label>
+                                    <input type="text" id="chat_id" name="chat_id"
+                                           value="{{ old('chat_id', $settings->chat_id) }}"
+                                           placeholder="e.g. -1001234567890"
+                                           class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
+                                                  bg-surface-900 text-text-100 placeholder-text-500
+                                                  focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition font-mono">
+                                </div>
                             </div>
 
                             <!-- Morning Digest -->
