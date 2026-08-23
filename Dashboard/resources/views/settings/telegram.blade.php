@@ -175,18 +175,20 @@
                                        @checked(old('health_alert_enabled', $settings->health_alert_enabled))
                                        class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0 shrink-0">
                             </div>
+
+                            <div class="mt-6">
+                                <button type="submit"
+                                        class="w-full px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center justify-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    Save Settings
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Save button -->
-                        <div class="mt-6">
-                            <button type="submit"
-                                    class="w-full px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center justify-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                </svg>
-                                Save Settings
-                            </button>
-                        </div>
+
                     </form>
                 </div>
 
