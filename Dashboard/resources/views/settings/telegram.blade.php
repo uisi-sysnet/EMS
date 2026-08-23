@@ -93,7 +93,7 @@
                         @csrf
                         @method('PUT')
 
-                        <div class="space-y-5 flex-1">
+                        <div class="space-y-5 flex-1 overflow-auto">
                             <!-- Bot Token -->
                             <div>
                                 <label for="bot_token" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
@@ -186,8 +186,6 @@
                                 </button>
                             </div>
                         </div>
-
-                        <!-- Save button -->
 
                     </form>
                 </div>
