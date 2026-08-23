@@ -106,9 +106,6 @@
                                            class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
                                                   bg-surface-900 text-text-100 placeholder-text-500
                                                   focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
-                                    <p class="text-xs text-text-500 mt-1.5">
-                                        Stored encrypted. Never shown again once saved — leave blank to keep the current token.
-                                    </p>
                                 </div>
 
                                 <!-- Chat ID -->
@@ -123,6 +120,9 @@
                                                   bg-surface-900 text-text-100 placeholder-text-500
                                                   focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition font-mono">
                                 </div>
+                                <p class="text-xs text-text-500 mt-1.5">
+                                    Stored encrypted. Never shown again once saved — leave blank to keep the current token.
+                                </p>
                             </div>
 
                             <!-- Morning Digest -->
