@@ -13,16 +13,16 @@
         </div>
 
         <!-- Content -->
-        <div class="flex-1 overflow-y-auto thin-scrollbar min-h-0 bg-background-900 py-5 sm:py-6 px-4 sm:px-6 lg:px-8">
+        <div class="flex-1 overflow-y-auto thin-scrollbar min-h-0 bg-background-900 py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
 
             @if (session('status'))
-                <div class="mb-5 rounded-lg border border-border-700 bg-munti-green-500/10 text-munti-green-400 text-sm px-4 py-3">
+                <div class="mb-4 sm:mb-6 rounded-lg border border-border-700 bg-munti-green-500/10 text-munti-green-400 text-sm px-4 py-3">
                     {{ session('status') }}
                 </div>
             @endif
 
             @if ($errors->any())
-                <div class="mb-5 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 text-sm px-4 py-3">
+                <div class="mb-4 sm:mb-6 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 text-sm px-4 py-3">
                     <ul class="list-disc list-inside">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
@@ -31,7 +31,7 @@
                 </div>
             @endif
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6">
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
 
                 <!-- ==================== LEFT: INSTRUCTIONS ==================== -->
                 <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
@@ -70,7 +70,7 @@
                         <form method="POST" action="{{ route('settings.telegram.test') }}" class="mt-6">
                             @csrf
                             <button type="submit"
-                                    class="w-full px-4 py-2.5 bg-surface-700 hover:bg-surface-600 text-text-100 font-semibold rounded-lg transition border border-border-600 flex items-center justify-center gap-2 text-sm">
+                                    class="w-full px-4 py-2.5 bg-surface-700 hover:bg-surface-600 text-text-100 font-semibold rounded-lg transition border border-border-600 flex items-center justify-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                                 </svg>
@@ -94,10 +94,11 @@
                         @method('PUT')
 
                         <div class="space-y-5 flex-1">
+
                             <!-- Bot Token + Chat ID -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <!-- Bot Token -->
-                                <div>
+                                <div class="min-w-0">
                                     <label for="bot_token" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                         Bot Token
                                     </label>
@@ -106,13 +107,10 @@
                                            class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg
                                                   bg-surface-900 text-text-100 placeholder-text-500
                                                   focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
-                                    <p class="text-xs text-text-500 mt-1.5">
-                                        Stored encrypted. Leave blank to keep current token.
-                                    </p>
                                 </div>
 
                                 <!-- Chat ID -->
-                                <div>
+                                <div class="min-w-0">
                                     <label for="chat_id" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                         Chat ID
                                     </label>
@@ -125,8 +123,12 @@
                                 </div>
                             </div>
 
+                            <p class="text-xs text-text-500 -mt-2">
+                                Stored encrypted. Never shown again once saved — leave blank to keep the current token.
+                            </p>
+
                             <!-- Morning Digest -->
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex flex-col xs:flex-row xs:items-center justify-between gap-3">
                                 <div class="min-w-0">
                                     <label for="morning_digest_enabled" class="text-sm font-medium text-text-100">Morning digest</label>
                                     <p class="text-xs text-text-500">Station status + system health, sent once a day at this time.</p>
@@ -142,7 +144,7 @@
                             </div>
 
                             <!-- Afternoon Digest -->
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex flex-col xs:flex-row xs:items-center justify-between gap-3">
                                 <div class="min-w-0">
                                     <label for="afternoon_digest_enabled" class="text-sm font-medium text-text-100">Afternoon digest</label>
                                     <p class="text-xs text-text-500">A second digest later in the day, at this time.</p>
@@ -158,32 +160,32 @@
                             </div>
 
                             <!-- Station Offline Alerts -->
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex items-center justify-between gap-4">
                                 <div class="min-w-0">
                                     <label for="offline_alert_enabled" class="text-sm font-medium text-text-100">Station offline alerts</label>
                                     <p class="text-xs text-text-500">Sent immediately when a station goes offline, and again when it comes back.</p>
                                 </div>
                                 <input type="checkbox" id="offline_alert_enabled" name="offline_alert_enabled" value="1"
                                        @checked(old('offline_alert_enabled', $settings->offline_alert_enabled))
-                                       class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0 shrink-0 self-start sm:self-auto">
+                                       class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0 shrink-0">
                             </div>
 
                             <!-- System Health Alerts -->
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex items-center justify-between gap-4">
                                 <div class="min-w-0">
                                     <label for="health_alert_enabled" class="text-sm font-medium text-text-100">System health alerts</label>
                                     <p class="text-xs text-text-500">Sent when CPU, memory, or storage crosses into critical — and again when it recovers.</p>
                                 </div>
                                 <input type="checkbox" id="health_alert_enabled" name="health_alert_enabled" value="1"
                                        @checked(old('health_alert_enabled', $settings->health_alert_enabled))
-                                       class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0 shrink-0 self-start sm:self-auto">
+                                       class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0 shrink-0">
                             </div>
                         </div>
 
                         <!-- Save button -->
                         <div class="mt-6 pt-2">
                             <button type="submit"
-                                    class="w-full px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center justify-center gap-2 text-sm">
+                                    class="w-full px-4 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center justify-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                 </svg>
