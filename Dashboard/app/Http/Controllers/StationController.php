@@ -109,7 +109,7 @@ class StationController extends Controller
 
         Station::create($validated);
 
-        return redirect()->route('stations.index')
+        return redirect()->route('inventory.stations.index')
                          ->with('success', 'Station created successfully.');
     }
 
@@ -184,7 +184,7 @@ class StationController extends Controller
 
         $station->update($validated);
 
-        return redirect()->route('stations.index')
+        return redirect()->route('inventory.stations.index')
                          ->with('success', 'Station updated successfully.');
     }
 
@@ -205,7 +205,7 @@ class StationController extends Controller
             $message = 'Station deleted successfully.';
         }
 
-        return redirect()->route('stations.index')
+        return redirect()->route('inventory.stations.index')
             ->with('success', $message);
     }
 
@@ -220,7 +220,7 @@ class StationController extends Controller
 
         $station->update(['deleted' => false]);
 
-        return redirect()->route('stations.index')
+        return redirect()->route('inventory.stations.index')
             ->with('success', 'Station restored successfully.');
     }
 }
