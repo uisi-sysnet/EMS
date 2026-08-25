@@ -8,16 +8,35 @@ use Illuminate\Support\Str;
 class Camera extends Model
 {
     protected $fillable = [
-        'name', 'location',
-        'ip_address', 'onvif_port', 'username', 'password',
-        'onvif_profile_token', 'rtsp_uri',
-        'enabled', 'notes',
+        'channel',
+        'name', 
+        'slug',
+        'location',
+        'ip_address', 
+        'onvif_port', 
+        'username', 
+        'password',
+        'onvif_profile_token', 
+        'rtsp_uri',
+        'device_type',
+        'serial_number',
+        'latitude',
+        'longitude',
+        'enabled', 
+        'last_synced_at',
+        'last_status',
+        'last_error',
+        'notes',
+        'deleted_at', // boolean flag
     ];
 
     protected $casts = [
         'password' => 'encrypted',
         'enabled' => 'boolean',
+        'deleted_at' => 'boolean',
         'last_synced_at' => 'datetime',
+        'created_at' => 'datetime', // Explicit cast (optional, Laravel does this automatically)
+        'updated_at' => 'datetime', // Explicit cast (optional, Laravel does this automatically)
     ];
 
     // Never let the password leak into array/JSON output (API responses, logs).
@@ -62,4 +81,5 @@ class Camera extends Model
 
         return "rtsp://{$userinfo}@{$parts['host']}{$port}{$path}{$query}";
     }
+
 }
