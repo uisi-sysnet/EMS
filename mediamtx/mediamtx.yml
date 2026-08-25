@@ -1,0 +1,40 @@
+logLevel: info
+
+# Local-only REST API — Laravel's MediaMtxClient uses this to add/edit/
+# remove paths dynamically as cameras are managed in the dashboard.
+# Never bind this beyond localhost.
+api: yes
+apiAddress: 127.0.0.1:9997
+
+# RTSP ingest from cameras — same LAN as this server, nothing browser-
+# facing here.
+rtsp: yes
+rtmp: no
+hls: no
+
+# WebRTC/WHEP egress to browsers. The HTTP signaling endpoint is bound to
+# localhost and reverse-proxied by nginx at /cctv-stream/ (see the nginx
+# config) so remote viewers never talk to this port directly.
+webrtc: yes
+webrtcAddress: 127.0.0.1:8889
+
+# The actual WebRTC media (UDP) is NOT proxied through nginx — it's a
+# direct connection from each viewer's browser to this server. This port
+# must be reachable from the dashboard's network (open the firewall /
+# forward this UDP port however your two networks are already bridged,
+# e.g. VPN or NAT).
+webrtcLocalUDPAddress: :8189
+
+webrtcICEServers2:
+  - url: stun:stun.l.google.com:19302
+
+# If this server sits behind NAT/port-forwarding and doesn't know its own
+# externally-reachable address, uncomment and set this to whatever
+# hostname or IP the dashboard's network actually uses to reach it —
+# otherwise WebRTC will advertise an address viewers can't connect to.
+# webrtcAdditionalHosts:
+#   - YOUR_SERVER_ADDRESS_AS_SEEN_FROM_THE_DASHBOARD_NETWORK
+
+# Paths are created/updated dynamically by Laravel via the API — nothing
+# needs to be hand-written here per camera.
+paths:

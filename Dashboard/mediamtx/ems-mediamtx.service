@@ -1,0 +1,24 @@
+[Unit]
+Description=EMS CCTV Media Bridge (RTSP ingest / WebRTC egress via mediamtx)
+Documentation=file://__EMS_DIR__/mediamtx/mediamtx.yml
+After=network-online.target
+Wants=network-online.target
+PartOf=ems.target
+
+[Service]
+Type=simple
+User=__EMS_USER__
+WorkingDirectory=__EMS_DIR__/mediamtx
+ExecStart=__EMS_DIR__/mediamtx/mediamtx __EMS_DIR__/mediamtx/mediamtx.yml
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ems-mediamtx
+
+# Uncomment to cap memory on a resource-constrained host; systemd kills and
+# restarts (Restart=on-failure, above) the service if it's exceeded.
+#MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target ems.target
