@@ -46,6 +46,73 @@
                             <span class="w-1.5 h-1.5 rounded-full bg-radar-400"></span>
                             Add New Camera
                         </h3>
+                        {{-- Action Buttons --}}
+                        <div class="flex items-center gap-1.5">
+
+                            {{-- Download Format --}}
+                            <a href="{{ route('inventory.cameras.download-format') }}"
+                                class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-text-200 bg-surface-700/40 border border-border-600/30 rounded-md hover:bg-surface-700/60 transition whitespace-nowrap">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="w-3.5 h-3.5 shrink-0"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Download Format
+                            </a>
+
+                            {{-- Export --}}
+                            <a href="{{ route('inventory.cameras.export') }}"
+                                class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 rounded-md hover:bg-munti-green-700/30 transition whitespace-nowrap">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="w-3.5 h-3.5 shrink-0"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Export
+                            </a>
+
+                            {{-- Import --}}
+                            <form id="importForm"
+                                action="{{ route('inventory.cameras.import') }}"
+                                method="POST"
+                                enctype="multipart/form-data"
+                                class="m-0">
+                                @csrf
+
+                                <label for="importFile"
+                                    class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-yellow-400 bg-munti-yellow-300/10 border border-munti-yellow-600/30 rounded-md hover:bg-munti-yellow-700/30 transition whitespace-nowrap cursor-pointer">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="w-3.5 h-3.5 shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                    Import
+                                </label>
+
+                                <input type="file"
+                                    id="importFile"
+                                    name="file"
+                                    accept=".xlsx,.xls,.csv"
+                                    class="hidden"
+                                    onchange="this.form.submit()">
+                            </form>
+
+                        </div>
                     </div>
 
                     <form action="{{ route('inventory.cameras.store') }}" method="POST">
