@@ -613,7 +613,7 @@ function editStation(stationMn) {
     modal.style.display = 'flex';
     
     // Fetch station data
-    fetch(`/stations/${stationMn}/edit`)
+    fetch(`/inventory/stations/${stationMn}/edit`)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
@@ -631,7 +631,7 @@ function editStation(stationMn) {
             document.getElementById('edit_enabled').checked = data.enabled === true;
             
             // Set form action
-            document.getElementById('editForm').action = `/stations/${stationMn}`;
+            document.getElementById('editForm').action = `/inventory/stations/${stationMn}`;
         })
         .catch(error => {
             console.error('Error:', error);
@@ -646,7 +646,7 @@ function closeEditModal() {
 // Delete Station
 function deleteStation(stationMn, stationName) {
     // First check if station has data via AJAX
-    fetch(`/stations/${stationMn}/check-data`)
+    fetch(`/inventory/stations/${stationMn}/check-data`)
         .then(response => response.json())
         .then(data => {
             let titleText = 'Delete Station?';
@@ -675,7 +675,7 @@ function deleteStation(stationMn, stationName) {
                 if (result.isConfirmed) {
                     const form = document.createElement('form');
                     form.method = 'POST';
-                    form.action = `/stations/${stationMn}`;
+                    form.action = `/inventory/stations/${stationMn}`;
                     
                     const csrfToken = document.createElement('input');
                     csrfToken.type = 'hidden';
@@ -713,7 +713,7 @@ function deleteStation(stationMn, stationName) {
                 if (result.isConfirmed) {
                     const form = document.createElement('form');
                     form.method = 'POST';
-                    form.action = `/stations/${stationMn}`;
+                    form.action = `/inventory/stations/${stationMn}`;
                     
                     const csrfToken = document.createElement('input');
                     csrfToken.type = 'hidden';
