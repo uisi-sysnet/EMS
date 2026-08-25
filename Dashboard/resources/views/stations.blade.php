@@ -287,7 +287,7 @@
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
 
             <!-- Form Section -->
-            <div class="p-5 border-b border-border-700">
+            <div class="p-5 py-3 border-b border-border-700">
                 <!-- Toggle Button -->
                 <button type="button" 
                         onclick="toggleStationForm()" 
@@ -474,7 +474,7 @@
 
                 <!-- Table Section -->
                 <div class="flex-1 flex flex-col min-h-0">
-                    <div class="py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
+                    <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
                         <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider flex items-center gap-2">
                             <span class="w-1.5 h-1.5 rounded-full bg-radar-400"></span>
                             Existing Stations
