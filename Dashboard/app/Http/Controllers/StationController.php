@@ -24,7 +24,7 @@ class StationController extends Controller
             ->orderBy('station_mn')
             ->get();
             
-        return view('stations', compact('stations', 'deletedStations'));
+        return view('inventory.stations', compact('stations', 'deletedStations'));
     }
 
     /**
