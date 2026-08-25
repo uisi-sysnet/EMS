@@ -76,8 +76,6 @@
             <div class="hidden xl:flex items-center gap-x-5 lg:gap-x-20 text-sm font-medium">
                 @if(session('role') === 'admin' || session('role') === 'superAdmin')
                     <a href="{{ route('home') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Dashboards</a>
-                    <a href="{{ route('stations.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Stations</a>
-                    <a href="{{ route('sms.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">SMS</a>
                     
                     {{-- Inventory Dropdown --}}
                     <div class="relative" id="inventory-dropdown-desktop">
@@ -90,6 +88,8 @@
                             <a href="#" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">CCTV</a>
                         </div>
                     </div>
+
+                    <a href="{{ route('sms.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">SMS</a>
 
                     {{-- Maintenance Dropdown --}}
                     <div class="relative" id="maintenance-dropdown-desktop">
@@ -215,7 +215,20 @@
         <div class="px-4 pt-2 pb-4 space-y-1">
             @if(session('role') === 'admin' || session('role') === 'superAdmin')
                 <a href="{{ route('home') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">Dashboards</a>
-                <a href="{{ route('stations.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">Stations</a>
+
+                <div class="relative">
+                    <button type="button" class="mobile-submenu-toggle w-full flex items-center justify-between px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition" data-target="inventory-mobile-submenu" aria-expanded="false">
+                        <span>Inventory</span>
+                        <svg class="h-5 w-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div id="inventory-mobile-submenu" class="mobile-submenu hidden pl-4 space-y-1 mt-1">
+                        <a href="{{ route('stations.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Stations</a>
+                        <a href="#" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">CCTV</a>
+                    </div>
+                </div> 
+                              
                 <a href="{{ route('sms.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">SMS</a>
 
                 <div class="relative">
