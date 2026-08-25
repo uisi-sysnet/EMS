@@ -46,6 +46,7 @@
                             <span class="w-1.5 h-1.5 rounded-full bg-radar-400"></span>
                             Add New Camera
                         </h3>
+                        
                         {{-- Action Buttons --}}
                         <div class="flex items-center gap-1.5">
 
