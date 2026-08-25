@@ -51,7 +51,7 @@
                         <div class="flex items-center gap-1.5">
 
                             {{-- Download Format --}}
-                            <a href="{{ route('inventory.cameras.download-format') }}"
+                            <a href="{{-- {{ route('inventory.cameras.download-format') }} --}}"
                                 class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-text-200 bg-surface-700/40 border border-border-600/30 rounded-md hover:bg-surface-700/60 transition whitespace-nowrap">
                                 <svg xmlns="http://www.w3.org/2000/svg"
                                     class="w-3.5 h-3.5 shrink-0"
@@ -67,7 +67,7 @@
                             </a>
 
                             {{-- Export --}}
-                            <a href="{{ route('inventory.cameras.export') }}"
+                            <a href="{{-- {{ route('inventory.cameras.export') }} --}}"
                                 class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 rounded-md hover:bg-munti-green-700/30 transition whitespace-nowrap">
                                 <svg xmlns="http://www.w3.org/2000/svg"
                                     class="w-3.5 h-3.5 shrink-0"
@@ -84,7 +84,7 @@
 
                             {{-- Import --}}
                             <form id="importForm"
-                                action="{{ route('inventory.cameras.import') }}"
+                                action="{{-- {{ route('inventory.cameras.import') }} --}}"
                                 method="POST"
                                 enctype="multipart/form-data"
                                 class="m-0">
