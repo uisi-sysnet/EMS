@@ -229,7 +229,7 @@
                                         {{ $station->updated_at ? $station->updated_at->format('Y-m-d H:i') : '-' }}
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap text-center">
-                                        <form action="{{ route('stations.restore', $station->station_mn) }}" method="POST" class="inline">
+                                        <form action="{{ route('inventory.stations.restore', $station->station_mn) }}" method="POST" class="inline">
                                             @csrf
                                             <button type="submit"
                                                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
@@ -305,7 +305,7 @@
 
                 <!-- Collapsible Form -->
                 <div id="stationForm" class="mt-4 hidden">
-                    <form action="{{ route('stations.store') }}" method="POST">
+                    <form action="{{ route('inventory.stations.store') }}" method="POST">
                         @csrf
 
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -471,12 +471,13 @@
                         </div>
                     </form>
                 </div>
+            </div>
 
                 <!-- Table Section -->
-                <div class="pt-5 flex-1 flex flex-col min-h-0">
+                <div class="flex-1 flex flex-col min-h-0">
                     <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
                         <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider flex items-center gap-2">
-                            <span class="w-1.5 h-1.5 rounded-full bg-radar-400"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span>
                             Existing Stations
                         </h3>
                         <div class="flex items-center gap-3">
@@ -612,7 +613,7 @@ function editStation(stationMn) {
     modal.style.display = 'flex';
     
     // Fetch station data
-    fetch(`/stations/${stationMn}/edit`)
+    fetch(`/inventory/stations/${stationMn}/edit`)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
@@ -630,7 +631,7 @@ function editStation(stationMn) {
             document.getElementById('edit_enabled').checked = data.enabled === true;
             
             // Set form action
-            document.getElementById('editForm').action = `/stations/${stationMn}`;
+            document.getElementById('editForm').action = `/inventory/stations/${stationMn}`;
         })
         .catch(error => {
             console.error('Error:', error);
@@ -645,7 +646,7 @@ function closeEditModal() {
 // Delete Station
 function deleteStation(stationMn, stationName) {
     // First check if station has data via AJAX
-    fetch(`/stations/${stationMn}/check-data`)
+    fetch(`/inventory/stations/${stationMn}/check-data`)
         .then(response => response.json())
         .then(data => {
             let titleText = 'Delete Station?';
@@ -674,7 +675,7 @@ function deleteStation(stationMn, stationName) {
                 if (result.isConfirmed) {
                     const form = document.createElement('form');
                     form.method = 'POST';
-                    form.action = `/stations/${stationMn}`;
+                    form.action = `/inventory/stations/${stationMn}`;
                     
                     const csrfToken = document.createElement('input');
                     csrfToken.type = 'hidden';
@@ -712,7 +713,7 @@ function deleteStation(stationMn, stationName) {
                 if (result.isConfirmed) {
                     const form = document.createElement('form');
                     form.method = 'POST';
-                    form.action = `/stations/${stationMn}`;
+                    form.action = `/inventory/stations/${stationMn}`;
                     
                     const csrfToken = document.createElement('input');
                     csrfToken.type = 'hidden';

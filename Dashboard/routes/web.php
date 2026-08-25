@@ -51,14 +51,15 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
 
     Route::get('/sms', [SmsController::class, 'index'])->name('sms.index');
 
-    Route::get('/stations', [StationController::class, 'index'])->name('stations.index');
-    Route::post('/stations', [StationController::class, 'store'])->name('stations.store');
+    Route::get('/inventory/stations', [StationController::class, 'index'])->name('inventory.stations.index');
+    Route::post('/inventory/stations', [StationController::class, 'store'])->name('inventory.stations.store');
+    Route::put('/inventory/stations/{station}', [StationController::class, 'update'])->name('inventory.stations.update');
+    Route::get('/inventory/stations/{station}/edit', [StationController::class, 'edit'])->name('inventory.stations.edit');
+    Route::delete('/inventory/stations/{station}', [StationController::class, 'destroy'])->name('inventory.stations.destroy');
+    Route::post('/inventory/stations/{station_mn}/restore', [StationController::class, 'restore'])->name('inventory.stations.restore');
+    Route::get('/inventory/stations/{station_mn}/check-data', [StationController::class, 'checkData'])->name('inventory.stations.check-data');
     Route::delete('/allowed-networks', [ApiKeyController::class, 'destroyIp'])->name('allowed-networks.destroy');
-    Route::put('/stations/{station}', [StationController::class, 'update'])->name('stations.update');
-    Route::get('/stations/{station}/edit', [StationController::class, 'edit'])->name('stations.edit');
-    Route::delete('/stations/{station}', [StationController::class, 'destroy'])->name('stations.destroy');
-    Route::post('/stations/{station_mn}/restore', [StationController::class, 'restore'])->name('stations.restore');
-    Route::get('/stations/{station_mn}/check-data', [StationController::class, 'checkData'])->name('stations.check-data');
+
 
     Route::get('/env-editor', [EnvEditorController::class, 'index'])->name('env.editor');
     Route::get('/load-env', [EnvEditorController::class, 'load'])->name('env.load');
