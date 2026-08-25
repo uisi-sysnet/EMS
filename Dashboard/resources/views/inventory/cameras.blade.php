@@ -130,8 +130,13 @@
                                             <a href="{{ route('inventory.cameras.edit', $camera->id) }}" class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group" title="Edit Camera">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                             </a>
-                                            <button type="button" onclick="deleteCamera('{{ $camera->id }}', '{{ $camera->name }}')" class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group" title="Delete Camera">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                                            <button type="button" 
+                                                    onclick="deleteCamera('{{ $camera->id }}', '{{ $camera->name }}')" 
+                                                    class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group" 
+                                                    title="Delete Camera">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
+                                                    <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                                </svg>
                                             </button>
                                         </div>
                                     </td>
@@ -171,7 +176,7 @@ function deleteCamera(cameraId, cameraName) {
         if (result.isConfirmed) {
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = `/inventory/cameras/${cameraId}`;
+            form.action = `{{ route('inventory.cameras.destroy', '') }}/${cameraId}`;
 
             const csrfToken = document.createElement('input');
             csrfToken.type = 'hidden';

@@ -113,17 +113,16 @@ class CameraController extends Controller
     }
 
     /**
-     * Remove the specified camera from storage (soft delete).
+     * Remove the specified camera from storage.
      */
     public function destroy(Camera $camera): RedirectResponse
     {
         $name = $camera->name;
         
-        // Soft delete using the deleted_at boolean flag
-        $camera->update(['deleted_at' => true]);
-
+        $camera->delete(); // This uses Laravel's soft delete if enabled on the model
+        
         return redirect()
-            ->route('cameras.index')
+            ->route('inventory.cameras.index')
             ->with('success', "Camera '{$name}' deleted successfully.");
     }
 
