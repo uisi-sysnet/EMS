@@ -471,6 +471,7 @@
                         </div>
                     </form>
                 </div>
+            </div>
 
                 <!-- Table Section -->
                 <div class="pt-5 flex-1 flex flex-col min-h-0">
