@@ -26,7 +26,7 @@ class CameraController extends Controller
      */
     public function create(): View
     {
-        return view('inventory.cameras-create');
+        return view('inventory.cameras.create');
     }
 
     /**
@@ -65,21 +65,11 @@ class CameraController extends Controller
     }
 
     /**
-     * Display the specified camera.
-     */
-    public function show(Camera $camera): View
-    {
-        return view('inventory.cameras-show', [
-            'camera' => $camera,
-        ]);
-    }
-
-    /**
      * Show the form for editing the specified camera.
      */
     public function edit(Camera $camera): View
     {
-        return view('inventory.cameras-edit', [
+        return view('inventory.cameras.edit', [
             'camera' => $camera,
         ]);
     }
