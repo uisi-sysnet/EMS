@@ -37,7 +37,7 @@
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider flex items-center gap-2">
                             <span class="w-1.5 h-1.5 rounded-full bg-radar-400"></span>
-                            Edit Camera: {{ $camera->name }}
+                            Edit Camera
                         </h3>
                         <a href="{{ route('inventory.cameras.index') }}" 
                            class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-surface-700 hover:bg-surface-600 text-text-300 transition border border-border-600">
