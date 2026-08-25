@@ -126,7 +126,6 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::post('/settings/telegram/test', [TelegramSettingsController::class, 'test'])->name('settings.telegram.test');
     
     Route::get('/inventory/cameras', [CameraController::class, 'index'])->name('inventory.cameras.index');
-    Route::resource('/inventory/cameras', CameraController::class);
     Route::get('/inventory/cameras/live', [CameraController::class, 'live'])->name('inventory.cameras.live');
     Route::get('/inventory/cameras/export', [CameraController::class, 'export'])->name('inventory.cameras.export');
     Route::get('/inventory/cameras/download-format', [CameraController::class, 'downloadFormat'])->name('cameras.download-format');
