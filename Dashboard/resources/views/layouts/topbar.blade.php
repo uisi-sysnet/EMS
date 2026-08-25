@@ -223,7 +223,7 @@
                     </button>
                     <div id="inventory-mobile-submenu" class="mobile-submenu hidden pl-4 space-y-1 mt-1">
                         <a href="{{ route('inventory.stations.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Stations</a>
-                        <a href="#" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">CCTV</a>
+                        <a href="{{ route('camera.stations.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">CCTV</a>
                     </div>
                 </div> 
                               

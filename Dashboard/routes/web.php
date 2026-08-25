@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StationController;
+use App\Http\Controllers\CameraController;
 use App\Http\Controllers\AboutController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ApiFileController;
@@ -58,6 +59,8 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::post('/inventory/stations/{station_mn}/restore', [StationController::class, 'restore'])->name('inventory.stations.restore');
     Route::get('/inventory/stations/{station_mn}/check-data', [StationController::class, 'checkData'])->name('inventory.stations.check-data');
     Route::delete('/allowed-networks', [ApiKeyController::class, 'destroyIp'])->name('allowed-networks.destroy');
+
+    Route::get('/inventory/cameras', [CameraController::class, 'index'])->name('inventory.cameras.index');
 
 
     Route::get('/env-editor', [EnvEditorController::class, 'index'])->name('env.editor');
