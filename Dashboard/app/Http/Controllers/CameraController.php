@@ -6,7 +6,7 @@ use Illuminate\View\View;
 
 class CameraController extends Controller
 {
-    public function camera(): View
+    public function index(): View
     {
         return view('inventory.cameras');
     }
