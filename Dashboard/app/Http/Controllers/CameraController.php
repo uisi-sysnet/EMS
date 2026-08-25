@@ -8,6 +8,6 @@ class CameraController extends Controller
 {
     public function camera(): View
     {
-        return view('camera.stations');
+        return view('inventory.cameras');
     }
 }
