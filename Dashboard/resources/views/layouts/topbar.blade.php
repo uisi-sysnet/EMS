@@ -88,6 +88,8 @@
                         </div>
                     </div>
 
+                    <a href="{{ route('cctv.live') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Live View</a>
+
                     <a href="{{ route('sms.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">SMS</a>
 
                     <div class="relative" id="maintenance-dropdown-desktop">
@@ -227,6 +229,8 @@
                     </div>
                 </div> 
                               
+                <a href="{{ route('cctv.live') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">Live View</a>
+
                 <a href="{{ route('sms.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">SMS</a>
 
                 <div class="relative">

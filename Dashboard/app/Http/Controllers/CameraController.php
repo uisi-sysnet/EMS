@@ -10,4 +10,16 @@ class CameraController extends Controller
     {
         return view('inventory.cameras');
     }
+
+    public function live()
+    {
+        $cameras = Camera::where('enabled', true)->orderBy('name')->get();
+
+        return view('server.cameras-live', [
+            'cameras'          => $cameras,
+            'mediamtxReadUser' => config('services.mediamtx.read_user'),
+            'mediamtxReadPass' => config('services.mediamtx.read_pass'),
+        ]);
+    }
+
 }
