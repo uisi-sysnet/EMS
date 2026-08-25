@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Camera;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
 class CameraController extends Controller
@@ -60,29 +61,30 @@ class CameraController extends Controller
         $camera = Camera::create($validated);
 
         return redirect()
-            ->route('cameras.index')
+            ->route('inventory.cameras.index')
             ->with('success', "Camera '{$camera->name}' created successfully.");
     }
 
     /**
-     * Show the form for editing the specified camera.
+     * Get camera data as JSON for modal editing.
      */
-    public function edit(Camera $camera): View
+    public function edit($id): JsonResponse
     {
-        return view('inventory.cameras.edit', [
-            'camera' => $camera,
-        ]);
+        $camera = Camera::findOrFail($id);
+        return response()->json($camera);
     }
 
     /**
      * Update the specified camera in storage.
      */
-    public function update(Request $request, Camera $camera): RedirectResponse
+    public function update(Request $request, $id): RedirectResponse
     {
+        $camera = Camera::findOrFail($id);
+        
         $validated = $request->validate([
             'channel' => 'required|string|max:50',
             'name' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:255|unique:cameras,slug,' . $camera->id,
+            'slug' => 'nullable|string|max:255|unique:cameras,slug,' . $id,
             'location' => 'nullable|string|max:255',
             'ip_address' => 'required|string|max:255',
             'onvif_port' => 'required|integer|min:1|max:65535',
@@ -91,7 +93,7 @@ class CameraController extends Controller
             'onvif_profile_token' => 'nullable|string|max:255',
             'rtsp_uri' => 'nullable|string',
             'device_type' => 'nullable|string|max:50',
-            'serial_number' => 'nullable|string|max:50|unique:cameras,serial_number,' . $camera->id,
+            'serial_number' => 'nullable|string|max:50|unique:cameras,serial_number,' . $id,
             'latitude' => 'nullable|numeric|min:-90|max:90',
             'longitude' => 'nullable|numeric|min:-180|max:180',
             'enabled' => 'boolean',
@@ -108,15 +110,16 @@ class CameraController extends Controller
         $camera->update($validated);
 
         return redirect()
-            ->route('cameras.index')
+            ->route('inventory.cameras.index')
             ->with('success', "Camera '{$camera->name}' updated successfully.");
     }
 
     /**
      * Remove the specified camera from storage.
      */
-    public function destroy(Camera $camera): RedirectResponse
+    public function destroy($id): RedirectResponse
     {
+        $camera = Camera::findOrFail($id);
         $name = $camera->name;
         
         $camera->delete(); // This uses Laravel's soft delete if enabled on the model
@@ -131,11 +134,11 @@ class CameraController extends Controller
      */
     public function restore($id): RedirectResponse
     {
-        $camera = Camera::where('deleted_at', true)->findOrFail($id);
-        $camera->update(['deleted_at' => false]);
+        $camera = Camera::withTrashed()->findOrFail($id);
+        $camera->restore();
 
         return redirect()
-            ->route('cameras.index')
+            ->route('inventory.cameras.index')
             ->with('success', "Camera '{$camera->name}' restored successfully.");
     }
 
@@ -159,9 +162,8 @@ class CameraController extends Controller
     public function export()
     {
         // Implementation for export functionality
-        // This would typically generate a CSV or Excel file
         return redirect()
-            ->route('cameras.index')
+            ->route('inventory.cameras.index')
             ->with('error', 'Export functionality is coming soon.');
     }
 
@@ -171,9 +173,8 @@ class CameraController extends Controller
     public function downloadFormat()
     {
         // Implementation for downloading import template
-        // This would typically generate a sample CSV or Excel file
         return redirect()
-            ->route('cameras.index')
+            ->route('inventory.cameras.index')
             ->with('error', 'Download format functionality is coming soon.');
     }
 
@@ -188,7 +189,7 @@ class CameraController extends Controller
 
         // Implementation for import functionality
         return redirect()
-            ->route('cameras.index')
+            ->route('inventory.cameras.index')
             ->with('success', 'Import functionality is coming soon.');
     }
 }
