@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Camera;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
 class CameraController extends Controller
@@ -60,15 +61,22 @@ class CameraController extends Controller
         $camera = Camera::create($validated);
 
         return redirect()
-            ->route('cameras.index')
+            ->route('inventory.cameras.index')
             ->with('success', "Camera '{$camera->name}' created successfully.");
     }
 
     /**
      * Show the form for editing the specified camera.
+     * Returns JSON for modal or View for full page.
      */
-    public function edit(Camera $camera): View
+    public function edit(Camera $camera)
     {
+        // If the request wants JSON (from the modal), return JSON
+        if (request()->wantsJson()) {
+            return response()->json($camera);
+        }
+        
+        // Otherwise return the full edit view (if you still need it)
         return view('inventory.cameras.edit', [
             'camera' => $camera,
         ]);
@@ -108,7 +116,7 @@ class CameraController extends Controller
         $camera->update($validated);
 
         return redirect()
-            ->route('cameras.index')
+            ->route('inventory.cameras.index')
             ->with('success', "Camera '{$camera->name}' updated successfully.");
     }
 
@@ -119,7 +127,7 @@ class CameraController extends Controller
     {
         $name = $camera->name;
         
-        $camera->delete(); // This uses Laravel's soft delete if enabled on the model
+        $camera->delete();
         
         return redirect()
             ->route('inventory.cameras.index')
@@ -131,11 +139,11 @@ class CameraController extends Controller
      */
     public function restore($id): RedirectResponse
     {
-        $camera = Camera::where('deleted_at', true)->findOrFail($id);
-        $camera->update(['deleted_at' => false]);
+        $camera = Camera::withTrashed()->findOrFail($id);
+        $camera->restore();
 
         return redirect()
-            ->route('cameras.index')
+            ->route('inventory.cameras.index')
             ->with('success', "Camera '{$camera->name}' restored successfully.");
     }
 
@@ -158,10 +166,8 @@ class CameraController extends Controller
      */
     public function export()
     {
-        // Implementation for export functionality
-        // This would typically generate a CSV or Excel file
         return redirect()
-            ->route('cameras.index')
+            ->route('inventory.cameras.index')
             ->with('error', 'Export functionality is coming soon.');
     }
 
@@ -170,10 +176,8 @@ class CameraController extends Controller
      */
     public function downloadFormat()
     {
-        // Implementation for downloading import template
-        // This would typically generate a sample CSV or Excel file
         return redirect()
-            ->route('cameras.index')
+            ->route('inventory.cameras.index')
             ->with('error', 'Download format functionality is coming soon.');
     }
 
@@ -186,9 +190,8 @@ class CameraController extends Controller
             'file' => 'required|file|mimes:xlsx,xls,csv|max:5120',
         ]);
 
-        // Implementation for import functionality
         return redirect()
-            ->route('cameras.index')
+            ->route('inventory.cameras.index')
             ->with('success', 'Import functionality is coming soon.');
     }
 }
