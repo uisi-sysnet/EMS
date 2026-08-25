@@ -57,9 +57,18 @@
                                 <label for="channel" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
                                     Channel <span class="text-munti-red-400">*</span>
                                 </label>
-                                <input type="text" id="channel" name="channel" value="{{ old('channel') }}" required maxlength="50" 
-                                       class="w-full min-w-0 h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('channel') border-munti-red-500 @enderror" 
-                                       placeholder="Channel 1">
+
+                                <input type="text"
+                                    id="channel"
+                                    name="channel"
+                                    value="{{ old('channel') }}"
+                                    required
+                                    maxlength="14"
+                                    pattern="[A-Za-z0-9]{1,14}"
+                                    oninput="this.value = this.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 14)"
+                                    class="w-full min-w-0 h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('channel') border-munti-red-500 @enderror"
+                                    placeholder="Channel 1">
+
                                 @error('channel')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -70,10 +79,17 @@
                                 <label for="name" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
                                     Camera Name <span class="text-munti-red-400">*</span>
                                 </label>
-                                <input type="text" id="name" name="name" value="{{ old('name') }}" required maxlength="255" 
-                                       class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('name') border-munti-red-500 @enderror" 
-                                       placeholder="Front Gate Camera"
-                                       oninput="document.getElementById('slug_preview').value=this.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')">
+
+                                <input type="text"
+                                    id="name"
+                                    name="name"
+                                    value="{{ old('name') }}"
+                                    required
+                                    maxlength="30"
+                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('name') border-munti-red-500 @enderror"
+                                    placeholder="Front Gate Camera"
+                                    oninput="this.value=this.value.slice(0,30); document.getElementById('slug_preview').value=this.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')">
+
                                 @error('name')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -84,10 +100,28 @@
                                 <label for="ip_address" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
                                     IP Address <span class="text-munti-red-400">*</span>
                                 </label>
-                                <input type="text" id="ip_address" name="ip_address" value="{{ old('ip_address') }}" required maxlength="255" 
-                                       class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('ip_address') border-munti-red-500 @enderror" 
-                                       placeholder="192.168.1.10"
-                                       oninput="let v=this.value.replace(/[^0-9.]/g,'');const parts=v.split('.');if(parts.length>4)v=parts.slice(0,4).join('.');v=v.split('.').slice(0,4).map(p=>p.slice(0,3)).join('.');this.value=v;">
+
+                                <input type="text"
+                                    id="ip_address"
+                                    name="ip_address"
+                                    value="{{ old('ip_address') }}"
+                                    required
+                                    maxlength="15"
+                                    pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                                    inputmode="decimal"
+                                    autocomplete="off"
+                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('ip_address') border-munti-red-500 @enderror"
+                                    placeholder="e.g. 192.168.1.10"
+                                    oninput="
+                                        let v = this.value.replace(/[^0-9.]/g, '');
+                                        const parts = v.split('.');
+                                        if (parts.length > 4) {
+                                            v = parts.slice(0, 4).join('.');
+                                        }
+                                        v = parts.slice(0, 4).map(p => p.slice(0, 3)).join('.');
+                                        this.value = v;
+                                    ">
+
                                 @error('ip_address')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -98,9 +132,19 @@
                                 <label for="onvif_port" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
                                     ONVIF Port <span class="text-munti-red-400">*</span>
                                 </label>
-                                <input type="number" id="onvif_port" name="onvif_port" value="{{ old('onvif_port', 80) }}" required min="1" max="65535" 
-                                       class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('onvif_port') border-munti-red-500 @enderror" 
-                                       placeholder="80">
+
+                                <input type="number"
+                                    id="onvif_port"
+                                    name="onvif_port"
+                                    value="{{ old('onvif_port', 80) }}"
+                                    required
+                                    min="1"
+                                    max="65535"
+                                    maxlength="4"
+                                    oninput="this.value=this.value.slice(0,4)"
+                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('onvif_port') border-munti-red-500 @enderror"
+                                    placeholder="80">
+
                                 @error('onvif_port')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -111,9 +155,16 @@
                                 <label for="username" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
                                     Username <span class="text-munti-red-400">*</span>
                                 </label>
-                                <input type="text" id="username" name="username" value="{{ old('username') }}" required maxlength="255" 
-                                       class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('username') border-munti-red-500 @enderror" 
-                                       placeholder="admin">
+
+                                <input type="text"
+                                    id="username"
+                                    name="username"
+                                    value="{{ old('username') }}"
+                                    required
+                                    maxlength="30"
+                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('username') border-munti-red-500 @enderror"
+                                    placeholder="admin">
+
                                 @error('username')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -124,9 +175,15 @@
                                 <label for="password" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
                                     Password <span class="text-munti-red-400">*</span>
                                 </label>
-                                <input type="password" id="password" name="password" required maxlength="255" 
-                                       class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('password') border-munti-red-500 @enderror" 
-                                       placeholder="••••••••">
+
+                                <input type="password"
+                                    id="password"
+                                    name="password"
+                                    required
+                                    maxlength="30"
+                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('password') border-munti-red-500 @enderror"
+                                    placeholder="••••••••">
+
                                 @error('password')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -150,9 +207,16 @@
                                 <label for="device_type" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
                                     Device Type
                                 </label>
-                                <input type="text" id="device_type" name="device_type" value="{{ old('device_type') }}" maxlength="50" 
-                                       class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('device_type') border-munti-red-500 @enderror" 
-                                       placeholder="ONVIF">
+
+                                <select id="device_type"
+                                        name="device_type"
+                                        class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('device_type') border-munti-red-500 @enderror">
+                                    <option value="">Select Device Type</option>
+                                    <option value="PTZ" {{ old('device_type') == 'PTZ' ? 'selected' : '' }}>PTZ</option>
+                                    <option value="Bullet" {{ old('device_type') == 'Bullet' ? 'selected' : '' }}>Bullet</option>
+                                    <option value="Dome" {{ old('device_type') == 'Dome' ? 'selected' : '' }}>Dome</option>
+                                </select>
+
                                 @error('device_type')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -163,9 +227,19 @@
                                 <label for="serial_number" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
                                     Serial Number
                                 </label>
-                                <input type="text" id="serial_number" name="serial_number" value="{{ old('serial_number') }}" maxlength="50" 
-                                       class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('serial_number') border-munti-red-500 @enderror" 
-                                       placeholder="SN-2024-001">
+
+                                <input type="text"
+                                    id="serial_number"
+                                    name="serial_number"
+                                    value="{{ old('serial_number') }}"
+                                    maxlength="30"
+                                    pattern="[A-Za-z0-9]{1,30}"
+                                    inputmode="text"
+                                    autocomplete="off"
+                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('serial_number') border-munti-red-500 @enderror"
+                                    placeholder="SN2024001"
+                                    oninput="this.value=this.value.replace(/[^A-Za-z0-9]/g,'').slice(0,30)">
+
                                 @error('serial_number')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -176,9 +250,17 @@
                                 <label for="latitude" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
                                     Latitude
                                 </label>
-                                <input type="number" step="any" min="-90" max="90" id="latitude" name="latitude" value="{{ old('latitude') }}" 
-                                       class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('latitude') border-munti-red-500 @enderror" 
-                                       placeholder="-6.2088">
+
+                                <input type="number"
+                                    step="any"
+                                    min="4.5"
+                                    max="21.5"
+                                    id="latitude"
+                                    name="latitude"
+                                    value="{{ old('latitude') }}"
+                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('latitude') border-munti-red-500 @enderror"
+                                    placeholder="14.5995">
+
                                 @error('latitude')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
@@ -189,37 +271,42 @@
                                 <label for="longitude" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
                                     Longitude
                                 </label>
-                                <input type="number" step="any" min="-180" max="180" id="longitude" name="longitude" value="{{ old('longitude') }}" 
-                                       class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('longitude') border-munti-red-500 @enderror" 
-                                       placeholder="106.8456">
+
+                                <input type="number"
+                                    step="any"
+                                    min="116.0"
+                                    max="127.0"
+                                    id="longitude"
+                                    name="longitude"
+                                    value="{{ old('longitude') }}"
+                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('longitude') border-munti-red-500 @enderror"
+                                    placeholder="120.9842">
+
                                 @error('longitude')
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
 
                             {{-- Status --}}
-                            <div class="flex flex-col">
-                                <label class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    Status
-                                </label>
-                                <div class="flex items-center h-8 px-2.5 border border-border-600 rounded-md bg-surface-900">
-                                    <input type="hidden" name="enabled" value="0">
-                                    <input type="checkbox" id="enabled" name="enabled" value="1" {{ old('enabled', true) ? 'checked' : '' }} 
-                                           class="h-3.5 w-3.5 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
-                                    <label for="enabled" class="ml-1.5 text-xs text-text-300">Active</label>
-                                </div>
-                                @error('enabled')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
+                            <input type="hidden" name="enabled" value="1">
 
                             {{-- Slug (auto) --}}
                             <div class="flex flex-col">
-                                <label for="slug_preview" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    Slug (auto)
+                                <label for="slug" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
+                                    Slug
                                 </label>
-                                <input type="text" id="slug_preview" class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-800 text-text-400 text-xs cursor-not-allowed" placeholder="auto-generated" readonly>
-                                <input type="hidden" id="slug" name="slug" value="{{ old('slug') }}">
+
+                                <input type="text"
+                                    id="slug"
+                                    name="slug"
+                                    value="{{ old('slug') }}"
+                                    maxlength="30"
+                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('slug') border-munti-red-500 @enderror"
+                                    placeholder="Enter slug">
+
+                                @error('slug')
+                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
+                                @enderror
                             </div>
 
                             {{-- Action --}}
@@ -360,9 +447,16 @@
                     <label for="edit_channel" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                         Channel <span class="text-munti-red-400">*</span>
                     </label>
-                    <input type="text" id="edit_channel" name="channel" required maxlength="50" 
-                           class="w-full min-w-0 h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('channel') border-munti-red-500 @enderror" 
-                           placeholder="Channel 1">
+
+                    <input type="text"
+                        id="edit_channel"
+                        name="channel"
+                        required
+                        maxlength="14"
+                        pattern="[A-Za-z0-9]{1,14}"
+                        oninput="this.value = this.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 14)"
+                        class="w-full min-w-0 h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('channel') border-munti-red-500 @enderror"
+                        placeholder="Channel 1">
                 </div>
 
                 {{-- Edit Camera Name --}}
@@ -370,10 +464,15 @@
                     <label for="edit_name" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                         Camera Name <span class="text-munti-red-400">*</span>
                     </label>
-                    <input type="text" id="edit_name" name="name" required maxlength="255" 
-                           class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('name') border-munti-red-500 @enderror" 
-                           placeholder="Front Gate Camera"
-                           oninput="document.getElementById('edit_slug_preview').value=this.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')">
+
+                    <input type="text"
+                        id="edit_name"
+                        name="name"
+                        required
+                        maxlength="30"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('name') border-munti-red-500 @enderror"
+                        placeholder="Front Gate Camera"
+                        oninput="this.value=this.value.slice(0,30); document.getElementById('edit_slug_preview').value=this.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')">
                 </div>
 
                 {{-- Edit IP Address --}}
@@ -381,10 +480,27 @@
                     <label for="edit_ip_address" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                         IP Address <span class="text-munti-red-400">*</span>
                     </label>
-                    <input type="text" id="edit_ip_address" name="ip_address" required maxlength="255" 
-                           class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('ip_address') border-munti-red-500 @enderror" 
-                           placeholder="192.168.1.10"
-                           oninput="let v=this.value.replace(/[^0-9.]/g,'');const parts=v.split('.');if(parts.length>4)v=parts.slice(0,4).join('.');v=v.split('.').slice(0,4).map(p=>p.slice(0,3)).join('.');this.value=v;">
+
+                    <input type="text"
+                        id="edit_ip_address"
+                        name="ip_address"
+                        required
+                        maxlength="15"
+                        pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                        inputmode="decimal"
+                        autocomplete="off"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('ip_address') border-munti-red-500 @enderror"
+                        placeholder="e.g. 192.168.1.10"
+                        oninput="
+                            let v = this.value.replace(/[^0-9.]/g, '');
+                            const parts = v.split('.');
+                            if (parts.length > 4) {
+                                v = parts.slice(0, 4).join('.');
+                            }
+                            v = parts.slice(0, 4).map(p => p.slice(0, 3)).join('.');
+                            this.value = v;
+                        ">
+
                 </div>
 
                 {{-- Edit ONVIF Port --}}
@@ -392,9 +508,17 @@
                     <label for="edit_onvif_port" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                         ONVIF Port <span class="text-munti-red-400">*</span>
                     </label>
-                    <input type="number" id="edit_onvif_port" name="onvif_port" required min="1" max="65535" 
-                           class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('onvif_port') border-munti-red-500 @enderror" 
-                           placeholder="80">
+
+                    <input type="number"
+                        id="edit_onvif_port"
+                        name="onvif_port"
+                        required
+                        min="1"
+                        max="65535"
+                        maxlength="4"
+                        oninput="this.value=this.value.slice(0,4)"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('onvif_port') border-munti-red-500 @enderror"
+                        placeholder="80">
                 </div>
 
                 {{-- Edit Username --}}
@@ -402,9 +526,14 @@
                     <label for="edit_username" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                         Username <span class="text-munti-red-400">*</span>
                     </label>
-                    <input type="text" id="edit_username" name="username" required maxlength="255" 
-                           class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('username') border-munti-red-500 @enderror" 
-                           placeholder="admin">
+
+                    <input type="text"
+                        id="edit_username"
+                        name="username"
+                        required
+                        maxlength="30"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('username') border-munti-red-500 @enderror"
+                        placeholder="admin">
                 </div>
 
                 {{-- Edit Password --}}
@@ -412,9 +541,13 @@
                     <label for="edit_password" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                         Password <span class="text-text-500">(leave blank to keep current)</span>
                     </label>
-                    <input type="password" id="edit_password" name="password" maxlength="255" 
-                           class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('password') border-munti-red-500 @enderror" 
-                           placeholder="Leave blank to keep current password">
+
+                    <input type="password"
+                        id="edit_password"
+                        name="password"
+                        maxlength="30"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('password') border-munti-red-500 @enderror"
+                        placeholder="Leave blank to keep current password">
                 </div>
 
                 {{-- Edit Location --}}
@@ -432,9 +565,15 @@
                     <label for="edit_device_type" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                         Device Type
                     </label>
-                    <input type="text" id="edit_device_type" name="device_type" maxlength="50" 
-                           class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('device_type') border-munti-red-500 @enderror" 
-                           placeholder="ONVIF">
+
+                    <select id="edit_device_type"
+                            name="device_type"
+                            class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('device_type') border-munti-red-500 @enderror">
+                        <option value="">Select Device Type</option>
+                        <option value="PTZ">PTZ</option>
+                        <option value="Bullet">Bullet</option>
+                        <option value="Dome">Dome</option>
+                    </select>
                 </div>
 
                 {{-- Edit Serial Number --}}
@@ -442,9 +581,17 @@
                     <label for="edit_serial_number" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                         Serial Number
                     </label>
-                    <input type="text" id="edit_serial_number" name="serial_number" maxlength="50" 
-                           class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('serial_number') border-munti-red-500 @enderror" 
-                           placeholder="SN-2024-001">
+
+                    <input type="text"
+                        id="edit_serial_number"
+                        name="serial_number"
+                        maxlength="30"
+                        pattern="[A-Za-z0-9]{1,30}"
+                        inputmode="text"
+                        autocomplete="off"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('serial_number') border-munti-red-500 @enderror"
+                        placeholder="SN2024001"
+                        oninput="this.value=this.value.replace(/[^A-Za-z0-9]/g,'').slice(0,30)">
                 </div>
 
                 {{-- Edit Latitude --}}
@@ -452,9 +599,15 @@
                     <label for="edit_latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                         Latitude
                     </label>
-                    <input type="number" step="any" min="-90" max="90" id="edit_latitude" name="latitude" 
-                           class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('latitude') border-munti-red-500 @enderror" 
-                           placeholder="-6.2088">
+
+                    <input type="number"
+                        step="any"
+                        min="4.5"
+                        max="21.5"
+                        id="edit_latitude"
+                        name="latitude"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('latitude') border-munti-red-500 @enderror"
+                        placeholder="14.5995">
                 </div>
 
                 {{-- Edit Longitude --}}
@@ -462,13 +615,19 @@
                     <label for="edit_longitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                         Longitude
                     </label>
-                    <input type="number" step="any" min="-180" max="180" id="edit_longitude" name="longitude" 
-                           class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('longitude') border-munti-red-500 @enderror" 
-                           placeholder="106.8456">
+
+                    <input type="number"
+                        step="any"
+                        min="116.0"
+                        max="127.0"
+                        id="edit_longitude"
+                        name="longitude"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('longitude') border-munti-red-500 @enderror"
+                        placeholder="120.9842">
                 </div>
 
                 {{-- Edit Status --}}
-                <div class="flex flex-col">
+                {{-- <div class="flex flex-col">
                     <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                         Status
                     </label>
@@ -478,17 +637,21 @@
                                class="h-3.5 w-3.5 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
                         <label for="edit_enabled" class="ml-1.5 text-sm text-text-300">Active</label>
                     </div>
-                </div>
+                </div> --}}
+                <input type="hidden" name="enabled" value="1">
 
-                {{-- Edit Slug (auto) --}}
+                {{-- Edit Slug --}}
                 <div class="flex flex-col">
-                    <label for="edit_slug_preview" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Slug (auto)
+                    <label for="edit_slug" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Slug
                     </label>
-                    <input type="text" id="edit_slug_preview" 
-                           class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-800 text-text-400 text-sm cursor-not-allowed" 
-                           placeholder="auto-generated" readonly>
-                    <input type="hidden" id="edit_slug" name="slug">
+
+                    <input type="text"
+                        id="edit_slug"
+                        name="slug"
+                        maxlength="30"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('slug') border-munti-red-500 @enderror"
+                        placeholder="Enter slug">
                 </div>
             </div>
 
