@@ -229,7 +229,7 @@
                                         {{ $station->updated_at ? $station->updated_at->format('Y-m-d H:i') : '-' }}
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap text-center">
-                                        <form action="{{ route('stations.restore', $station->station_mn) }}" method="POST" class="inline">
+                                        <form action="{{ route('inventory.stations.restore', $station->station_mn) }}" method="POST" class="inline">
                                             @csrf
                                             <button type="submit"
                                                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
@@ -305,7 +305,7 @@
 
                 <!-- Collapsible Form -->
                 <div id="stationForm" class="mt-4 hidden">
-                    <form action="{{ route('stations.store') }}" method="POST">
+                    <form action="{{ route('inventory.stations.store') }}" method="POST">
                         @csrf
 
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
