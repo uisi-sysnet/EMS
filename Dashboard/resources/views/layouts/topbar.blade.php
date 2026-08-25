@@ -77,7 +77,6 @@
                 @if(session('role') === 'admin' || session('role') === 'superAdmin')
                     <a href="{{ route('home') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Dashboards</a>
                     
-                    {{-- Inventory Dropdown --}}
                     <div class="relative" id="inventory-dropdown-desktop">
                         <button type="button" class="dropdown-toggle flex items-center gap-x-1 text-text-400 hover:text-text-100 transition-colors py-1 focus:outline-none" data-target="inventory-menu" aria-expanded="false">
                             Inventory
@@ -91,7 +90,6 @@
 
                     <a href="{{ route('sms.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">SMS</a>
 
-                    {{-- Maintenance Dropdown --}}
                     <div class="relative" id="maintenance-dropdown-desktop">
                         <button type="button" class="dropdown-toggle flex items-center gap-x-1 text-text-400 hover:text-text-100 transition-colors py-1 focus:outline-none" data-target="maintenance-menu" aria-expanded="false">
                             Maintenance
@@ -290,292 +288,292 @@
 </nav>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // ========== DROPDOWN SYSTEM ==========
-    const dropdowns = {
-        // Desktop dropdowns
-        'inventory-menu': { toggle: '#inventory-dropdown-desktop .dropdown-toggle', menu: '#inventory-menu' },
-        'maintenance-menu': { toggle: '#maintenance-dropdown-desktop .dropdown-toggle', menu: '#maintenance-menu' },
-        'settings-gear-dropdown': { toggle: '#settings-gear-button', menu: '#settings-gear-dropdown' },
-        'avatar-dropdown-menu': { toggle: '#avatar-button', menu: '#avatar-dropdown-menu' },
-    };
+    document.addEventListener('DOMContentLoaded', function() {
+        // ========== DROPDOWN SYSTEM ==========
+        const dropdowns = {
+            // Desktop dropdowns
+            'inventory-menu': { toggle: '#inventory-dropdown-desktop .dropdown-toggle', menu: '#inventory-menu' },
+            'maintenance-menu': { toggle: '#maintenance-dropdown-desktop .dropdown-toggle', menu: '#maintenance-menu' },
+            'settings-gear-dropdown': { toggle: '#settings-gear-button', menu: '#settings-gear-dropdown' },
+            'avatar-dropdown-menu': { toggle: '#avatar-button', menu: '#avatar-dropdown-menu' },
+        };
 
-    const allDropdownMenus = Object.values(dropdowns).map(d => d.menu);
-    let activeDropdown = null;
+        const allDropdownMenus = Object.values(dropdowns).map(d => d.menu);
+        let activeDropdown = null;
 
-    function closeAllDropdowns(except = null) {
+        function closeAllDropdowns(except = null) {
+            Object.entries(dropdowns).forEach(([key, { toggle, menu }]) => {
+                if (key === except) return;
+                const menuEl = document.querySelector(menu);
+                const toggleEl = document.querySelector(toggle);
+                if (menuEl) {
+                    menuEl.classList.add('hidden');
+                    if (toggleEl) {
+                        toggleEl.setAttribute('aria-expanded', 'false');
+                        const chevron = toggleEl.querySelector('svg:last-child');
+                        if (chevron) chevron.classList.remove('rotate-180');
+                    }
+                }
+            });
+            // Close notification dropdown
+            const notifDropdown = document.getElementById('notification-dropdown');
+            const notifBell = document.getElementById('notification-bell');
+            if (notifDropdown && except !== 'notification') {
+                notifDropdown.classList.add('hidden');
+                if (notifBell) notifBell.setAttribute('aria-expanded', 'false');
+            }
+            if (activeDropdown !== except) activeDropdown = null;
+        }
+
+        // Setup dropdown toggles
         Object.entries(dropdowns).forEach(([key, { toggle, menu }]) => {
-            if (key === except) return;
-            const menuEl = document.querySelector(menu);
             const toggleEl = document.querySelector(toggle);
-            if (menuEl) {
-                menuEl.classList.add('hidden');
-                if (toggleEl) {
-                    toggleEl.setAttribute('aria-expanded', 'false');
-                    const chevron = toggleEl.querySelector('svg:last-child');
-                    if (chevron) chevron.classList.remove('rotate-180');
-                }
-            }
-        });
-        // Close notification dropdown
-        const notifDropdown = document.getElementById('notification-dropdown');
-        const notifBell = document.getElementById('notification-bell');
-        if (notifDropdown && except !== 'notification') {
-            notifDropdown.classList.add('hidden');
-            if (notifBell) notifBell.setAttribute('aria-expanded', 'false');
-        }
-        if (activeDropdown !== except) activeDropdown = null;
-    }
-
-    // Setup dropdown toggles
-    Object.entries(dropdowns).forEach(([key, { toggle, menu }]) => {
-        const toggleEl = document.querySelector(toggle);
-        const menuEl = document.querySelector(menu);
-        if (toggleEl && menuEl) {
-            toggleEl.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const isOpen = !menuEl.classList.contains('hidden');
-                closeAllDropdowns(key);
-                if (!isOpen) {
-                    menuEl.classList.remove('hidden');
-                    this.setAttribute('aria-expanded', 'true');
-                    const chevron = this.querySelector('svg:last-child');
-                    if (chevron) chevron.classList.add('rotate-180');
-                    activeDropdown = key;
-                }
-            });
-        }
-    });
-
-    // ========== MOBILE MENU ==========
-    const mobileBtn = document.getElementById('mobile-menu-button');
-    const mobileMenu = document.getElementById('mobile-menu');
-    const openIcon = document.getElementById('menu-open-icon');
-    const closeIcon = document.getElementById('menu-close-icon');
-
-    if (mobileBtn && mobileMenu) {
-        mobileBtn.addEventListener('click', function() {
-            const isOpen = !mobileMenu.classList.contains('hidden');
-            mobileMenu.classList.toggle('hidden');
-            openIcon.classList.toggle('hidden');
-            closeIcon.classList.toggle('hidden');
-            this.setAttribute('aria-expanded', String(!isOpen));
-            if (!isOpen) closeAllDropdowns();
-        });
-    }
-
-    // ========== MOBILE SUBMENUS ==========
-    document.querySelectorAll('.mobile-submenu-toggle').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const target = document.getElementById(this.dataset.target);
-            if (target) {
-                const isOpen = !target.classList.contains('hidden');
-                target.classList.toggle('hidden');
-                this.setAttribute('aria-expanded', String(!isOpen));
-                const chevron = this.querySelector('svg');
-                if (chevron) chevron.classList.toggle('rotate-180');
-            }
-        });
-    });
-
-    // ========== NOTIFICATION BELL ==========
-    const bellBtn = document.getElementById('notification-bell');
-    const bellDropdown = document.getElementById('notification-dropdown');
-    const notifList = document.getElementById('notification-list');
-    const notifDot = document.getElementById('notification-dot');
-    const markAllBtn = document.getElementById('mark-all-seen');
-
-    function getSeenIds() {
-        try { return JSON.parse(localStorage.getItem('seen_logs') || '[]'); } catch { return []; }
-    }
-    function setSeenIds(ids) { localStorage.setItem('seen_logs', JSON.stringify(ids)); }
-
-    function renderLogs(logs) {
-        if (!logs.length) {
-            notifList.innerHTML = `<div class="px-4 py-8 text-center text-text-500 text-sm">No recent logs</div>`;
-            notifDot.classList.add('hidden');
-            bellBtn.classList.remove('animate-pulse');
-            return;
-        }
-        const hasUnseen = logs.some(l => !l.is_seen);
-        notifList.innerHTML = logs.map(log => {
-            const isNew = !log.is_seen;
-            const type = log.type || 'api';
-            const badgeColor = type === 'api' ? 'text-blue-400' : 'text-purple-400';
-            let bgClass = 'hover:bg-surface-700/60', borderClass = 'border-transparent', textClass = 'text-text-400';
-            if (isNew) {
-                if (type === 'api') {
-                    bgClass = 'bg-blue-500/10 hover:bg-blue-500/20';
-                    borderClass = 'border-blue-500/60';
-                    textClass = 'text-text-100';
-                } else {
-                    const level = (log.level || '').toLowerCase();
-                    if (['emergency', 'alert', 'critical', 'error'].includes(level)) {
-                        bgClass = 'bg-red-500/10 hover:bg-red-500/20';
-                        borderClass = 'border-red-500/60';
-                        textClass = 'text-text-100';
-                    } else if (['warning'].includes(level)) {
-                        bgClass = 'bg-yellow-500/10 hover:bg-yellow-500/20';
-                        borderClass = 'border-yellow-500/60';
-                        textClass = 'text-text-100';
-                    } else {
-                        bgClass = 'bg-purple-500/10 hover:bg-purple-500/20';
-                        borderClass = 'border-purple-500/60';
-                        textClass = 'text-text-100';
+            const menuEl = document.querySelector(menu);
+            if (toggleEl && menuEl) {
+                toggleEl.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const isOpen = !menuEl.classList.contains('hidden');
+                    closeAllDropdowns(key);
+                    if (!isOpen) {
+                        menuEl.classList.remove('hidden');
+                        this.setAttribute('aria-expanded', 'true');
+                        const chevron = this.querySelector('svg:last-child');
+                        if (chevron) chevron.classList.add('rotate-180');
+                        activeDropdown = key;
                     }
-                }
-            }
-            return `<a href="${log.url}" data-type="${log.type}" data-seen="${log.is_seen}" data-log-data='${JSON.stringify(log._log_data || {})}' class="log-item block px-4 py-3 transition-colors border-l-[3px] ${bgClass} ${borderClass}">
-                <div class="flex items-center justify-between gap-2 mb-1">
-                    <div class="flex items-center gap-2"><span class="text-[10px] font-semibold uppercase tracking-wide ${badgeColor}">${log.time}</span>${isNew ? '<span class="text-[10px] font-bold text-blue-400">NEW</span>' : ''}</div>
-                    <span class="text-xs font-mono ${log.status_color}">${log.status_code || '--'}</span>
-                </div>
-                <div class="text-sm ${textClass} font-medium truncate">${log.summary}</div>
-                <div class="text-xs text-text-500 truncate mt-0.5">${log.detail}</div>
-            </a>`;
-        }).join('');
-
-        if (hasUnseen) { notifDot.classList.remove('hidden'); bellBtn.classList.add('animate-pulse'); } 
-        else { notifDot.classList.add('hidden'); bellBtn.classList.remove('animate-pulse'); }
-
-        document.querySelectorAll('.log-item').forEach(item => {
-            item.addEventListener('click', function(e) {
-                if (this.dataset.seen === 'true' || this.dataset.seen === '1') return;
-                const type = this.dataset.type;
-                const logData = JSON.parse(this.dataset.logData || '{}');
-                fetch('/mark-log-seen', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}' },
-                    body: JSON.stringify({ type, log_data: logData })
-                }).then(r => r.json()).then(data => {
-                    if (data.success) {
-                        this.dataset.seen = 'true';
-                        this.classList.remove('bg-blue-500/10','bg-red-500/10','bg-yellow-500/10','bg-purple-500/10','hover:bg-blue-500/20','hover:bg-red-500/20','hover:bg-yellow-500/20','hover:bg-purple-500/20','border-blue-500/60','border-red-500/60','border-yellow-500/60','border-purple-500/60');
-                        this.classList.add('hover:bg-surface-700/60','border-transparent','opacity-70');
-                        const badge = this.querySelector('.text-blue-400');
-                        if (badge && badge.textContent === 'NEW') badge.remove();
-                        const summary = this.querySelector('.text-text-100');
-                        if (summary) { summary.classList.remove('text-text-100'); summary.classList.add('text-text-400'); }
-                        if (!document.querySelector('.log-item:not([data-seen="true"])')) {
-                            notifDot.classList.add('hidden');
-                            bellBtn.classList.remove('animate-pulse');
-                        }
-                    }
-                }).catch(err => console.error('Error:', err));
-            });
-        });
-    }
-
-    function markAllAsSeen() {
-        const unseenItems = document.querySelectorAll('.log-item:not([data-seen="true"])');
-        if (!unseenItems.length) return;
-        const typesNeeded = new Set();
-        unseenItems.forEach(item => typesNeeded.add(item.dataset.type));
-        markAllBtn.textContent = 'Processing…';
-        markAllBtn.disabled = true;
-        const promises = Array.from(typesNeeded).map(type => fetch('/mark-all-logs-seen', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}' },
-            body: JSON.stringify({ type })
-        }).then(r => r.json()).then(data => ({ type, success: !!data.success })).catch(() => ({ type, success: false })));
-        Promise.all(promises).then(results => {
-            markAllBtn.textContent = 'Mark All as Seen';
-            markAllBtn.disabled = false;
-            if (results.every(r => r.success)) {
-                unseenItems.forEach(item => {
-                    item.dataset.seen = 'true';
-                    item.classList.remove('bg-blue-500/10','bg-red-500/10','bg-yellow-500/10','bg-purple-500/10','hover:bg-blue-500/20','hover:bg-red-500/20','hover:bg-yellow-500/20','hover:bg-purple-500/20','border-blue-500/60','border-red-500/60','border-yellow-500/60','border-purple-500/60');
-                    item.classList.add('hover:bg-surface-700/60','border-transparent','opacity-70');
-                    const badge = item.querySelector('.text-blue-400');
-                    if (badge && badge.textContent === 'NEW') badge.remove();
-                    const summary = item.querySelector('.text-text-100');
-                    if (summary) { summary.classList.remove('text-text-100'); summary.classList.add('text-text-400'); }
                 });
+            }
+        });
+
+        // ========== MOBILE MENU ==========
+        const mobileBtn = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const openIcon = document.getElementById('menu-open-icon');
+        const closeIcon = document.getElementById('menu-close-icon');
+
+        if (mobileBtn && mobileMenu) {
+            mobileBtn.addEventListener('click', function() {
+                const isOpen = !mobileMenu.classList.contains('hidden');
+                mobileMenu.classList.toggle('hidden');
+                openIcon.classList.toggle('hidden');
+                closeIcon.classList.toggle('hidden');
+                this.setAttribute('aria-expanded', String(!isOpen));
+                if (!isOpen) closeAllDropdowns();
+            });
+        }
+
+        // ========== MOBILE SUBMENUS ==========
+        document.querySelectorAll('.mobile-submenu-toggle').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const target = document.getElementById(this.dataset.target);
+                if (target) {
+                    const isOpen = !target.classList.contains('hidden');
+                    target.classList.toggle('hidden');
+                    this.setAttribute('aria-expanded', String(!isOpen));
+                    const chevron = this.querySelector('svg');
+                    if (chevron) chevron.classList.toggle('rotate-180');
+                }
+            });
+        });
+
+        // ========== NOTIFICATION BELL ==========
+        const bellBtn = document.getElementById('notification-bell');
+        const bellDropdown = document.getElementById('notification-dropdown');
+        const notifList = document.getElementById('notification-list');
+        const notifDot = document.getElementById('notification-dot');
+        const markAllBtn = document.getElementById('mark-all-seen');
+
+        function getSeenIds() {
+            try { return JSON.parse(localStorage.getItem('seen_logs') || '[]'); } catch { return []; }
+        }
+        function setSeenIds(ids) { localStorage.setItem('seen_logs', JSON.stringify(ids)); }
+
+        function renderLogs(logs) {
+            if (!logs.length) {
+                notifList.innerHTML = `<div class="px-4 py-8 text-center text-text-500 text-sm">No recent logs</div>`;
                 notifDot.classList.add('hidden');
                 bellBtn.classList.remove('animate-pulse');
+                return;
             }
-        }).catch(() => { markAllBtn.textContent = 'Mark All as Seen'; markAllBtn.disabled = false; });
-    }
+            const hasUnseen = logs.some(l => !l.is_seen);
+            notifList.innerHTML = logs.map(log => {
+                const isNew = !log.is_seen;
+                const type = log.type || 'api';
+                const badgeColor = type === 'api' ? 'text-blue-400' : 'text-purple-400';
+                let bgClass = 'hover:bg-surface-700/60', borderClass = 'border-transparent', textClass = 'text-text-400';
+                if (isNew) {
+                    if (type === 'api') {
+                        bgClass = 'bg-blue-500/10 hover:bg-blue-500/20';
+                        borderClass = 'border-blue-500/60';
+                        textClass = 'text-text-100';
+                    } else {
+                        const level = (log.level || '').toLowerCase();
+                        if (['emergency', 'alert', 'critical', 'error'].includes(level)) {
+                            bgClass = 'bg-red-500/10 hover:bg-red-500/20';
+                            borderClass = 'border-red-500/60';
+                            textClass = 'text-text-100';
+                        } else if (['warning'].includes(level)) {
+                            bgClass = 'bg-yellow-500/10 hover:bg-yellow-500/20';
+                            borderClass = 'border-yellow-500/60';
+                            textClass = 'text-text-100';
+                        } else {
+                            bgClass = 'bg-purple-500/10 hover:bg-purple-500/20';
+                            borderClass = 'border-purple-500/60';
+                            textClass = 'text-text-100';
+                        }
+                    }
+                }
+                return `<a href="${log.url}" data-type="${log.type}" data-seen="${log.is_seen}" data-log-data='${JSON.stringify(log._log_data || {})}' class="log-item block px-4 py-3 transition-colors border-l-[3px] ${bgClass} ${borderClass}">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <div class="flex items-center gap-2"><span class="text-[10px] font-semibold uppercase tracking-wide ${badgeColor}">${log.time}</span>${isNew ? '<span class="text-[10px] font-bold text-blue-400">NEW</span>' : ''}</div>
+                        <span class="text-xs font-mono ${log.status_color}">${log.status_code || '--'}</span>
+                    </div>
+                    <div class="text-sm ${textClass} font-medium truncate">${log.summary}</div>
+                    <div class="text-xs text-text-500 truncate mt-0.5">${log.detail}</div>
+                </a>`;
+            }).join('');
 
-    if (bellBtn && bellDropdown) {
-        bellBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const isOpen = !bellDropdown.classList.contains('hidden');
-            closeAllDropdowns('notification');
-            bellDropdown.classList.toggle('hidden');
-            this.setAttribute('aria-expanded', String(!isOpen));
-            if (!isOpen) {
-                notifList.innerHTML = `<div class="px-4 py-6 text-sm text-text-400 text-center">Loading…</div>`;
-                const seenParam = getSeenIds().join(',');
-                fetch(`{{ route('recent-logs') }}?seen=${encodeURIComponent(seenParam)}`)
-                    .then(r => r.json()).then(renderLogs)
-                    .catch(() => { notifList.innerHTML = `<div class="px-4 py-6 text-sm text-red-400 text-center">Failed to load logs</div>`; });
-            }
+            if (hasUnseen) { notifDot.classList.remove('hidden'); bellBtn.classList.add('animate-pulse'); } 
+            else { notifDot.classList.add('hidden'); bellBtn.classList.remove('animate-pulse'); }
+
+            document.querySelectorAll('.log-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    if (this.dataset.seen === 'true' || this.dataset.seen === '1') return;
+                    const type = this.dataset.type;
+                    const logData = JSON.parse(this.dataset.logData || '{}');
+                    fetch('/mark-log-seen', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}' },
+                        body: JSON.stringify({ type, log_data: logData })
+                    }).then(r => r.json()).then(data => {
+                        if (data.success) {
+                            this.dataset.seen = 'true';
+                            this.classList.remove('bg-blue-500/10','bg-red-500/10','bg-yellow-500/10','bg-purple-500/10','hover:bg-blue-500/20','hover:bg-red-500/20','hover:bg-yellow-500/20','hover:bg-purple-500/20','border-blue-500/60','border-red-500/60','border-yellow-500/60','border-purple-500/60');
+                            this.classList.add('hover:bg-surface-700/60','border-transparent','opacity-70');
+                            const badge = this.querySelector('.text-blue-400');
+                            if (badge && badge.textContent === 'NEW') badge.remove();
+                            const summary = this.querySelector('.text-text-100');
+                            if (summary) { summary.classList.remove('text-text-100'); summary.classList.add('text-text-400'); }
+                            if (!document.querySelector('.log-item:not([data-seen="true"])')) {
+                                notifDot.classList.add('hidden');
+                                bellBtn.classList.remove('animate-pulse');
+                            }
+                        }
+                    }).catch(err => console.error('Error:', err));
+                });
+            });
+        }
+
+        function markAllAsSeen() {
+            const unseenItems = document.querySelectorAll('.log-item:not([data-seen="true"])');
+            if (!unseenItems.length) return;
+            const typesNeeded = new Set();
+            unseenItems.forEach(item => typesNeeded.add(item.dataset.type));
+            markAllBtn.textContent = 'Processing…';
+            markAllBtn.disabled = true;
+            const promises = Array.from(typesNeeded).map(type => fetch('/mark-all-logs-seen', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}' },
+                body: JSON.stringify({ type })
+            }).then(r => r.json()).then(data => ({ type, success: !!data.success })).catch(() => ({ type, success: false })));
+            Promise.all(promises).then(results => {
+                markAllBtn.textContent = 'Mark All as Seen';
+                markAllBtn.disabled = false;
+                if (results.every(r => r.success)) {
+                    unseenItems.forEach(item => {
+                        item.dataset.seen = 'true';
+                        item.classList.remove('bg-blue-500/10','bg-red-500/10','bg-yellow-500/10','bg-purple-500/10','hover:bg-blue-500/20','hover:bg-red-500/20','hover:bg-yellow-500/20','hover:bg-purple-500/20','border-blue-500/60','border-red-500/60','border-yellow-500/60','border-purple-500/60');
+                        item.classList.add('hover:bg-surface-700/60','border-transparent','opacity-70');
+                        const badge = item.querySelector('.text-blue-400');
+                        if (badge && badge.textContent === 'NEW') badge.remove();
+                        const summary = item.querySelector('.text-text-100');
+                        if (summary) { summary.classList.remove('text-text-100'); summary.classList.add('text-text-400'); }
+                    });
+                    notifDot.classList.add('hidden');
+                    bellBtn.classList.remove('animate-pulse');
+                }
+            }).catch(() => { markAllBtn.textContent = 'Mark All as Seen'; markAllBtn.disabled = false; });
+        }
+
+        if (bellBtn && bellDropdown) {
+            bellBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isOpen = !bellDropdown.classList.contains('hidden');
+                closeAllDropdowns('notification');
+                bellDropdown.classList.toggle('hidden');
+                this.setAttribute('aria-expanded', String(!isOpen));
+                if (!isOpen) {
+                    notifList.innerHTML = `<div class="px-4 py-6 text-sm text-text-400 text-center">Loading…</div>`;
+                    const seenParam = getSeenIds().join(',');
+                    fetch(`{{ route('recent-logs') }}?seen=${encodeURIComponent(seenParam)}`)
+                        .then(r => r.json()).then(renderLogs)
+                        .catch(() => { notifList.innerHTML = `<div class="px-4 py-6 text-sm text-red-400 text-center">Failed to load logs</div>`; });
+                }
+            });
+        }
+        if (markAllBtn) markAllBtn.addEventListener('click', e => { e.preventDefault(); markAllAsSeen(); });
+
+        // ========== CHANGE PASSWORD MODAL ==========
+        const modal = document.getElementById('change-password-modal');
+        const openModalBtns = document.querySelectorAll('#change-password-btn, #mobile-change-password-btn');
+        const closeModalBtns = document.querySelectorAll('#close-modal, #cancel-modal');
+        const backdrop = document.getElementById('modal-backdrop');
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+            const form = document.getElementById('change-password-form');
+            if (form) form.reset();
+            document.querySelectorAll('.text-munti-red-400').forEach(el => el.remove());
+        }
+
+        openModalBtns.forEach(btn => {
+            if (btn) btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                closeAllDropdowns();
+            });
         });
-    }
-    if (markAllBtn) markAllBtn.addEventListener('click', e => { e.preventDefault(); markAllAsSeen(); });
-
-    // ========== CHANGE PASSWORD MODAL ==========
-    const modal = document.getElementById('change-password-modal');
-    const openModalBtns = document.querySelectorAll('#change-password-btn, #mobile-change-password-btn');
-    const closeModalBtns = document.querySelectorAll('#close-modal, #cancel-modal');
-    const backdrop = document.getElementById('modal-backdrop');
-
-    function closeModal() {
-        modal.classList.add('hidden');
-        document.body.style.overflow = '';
-        const form = document.getElementById('change-password-form');
-        if (form) form.reset();
-        document.querySelectorAll('.text-munti-red-400').forEach(el => el.remove());
-    }
-
-    openModalBtns.forEach(btn => {
-        if (btn) btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            modal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-            closeAllDropdowns();
+        closeModalBtns.forEach(btn => { if (btn) btn.addEventListener('click', closeModal); });
+        if (backdrop) backdrop.addEventListener('click', closeModal);
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
         });
-    });
-    closeModalBtns.forEach(btn => { if (btn) btn.addEventListener('click', closeModal); });
-    if (backdrop) backdrop.addEventListener('click', closeModal);
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
-    });
 
-    // ========== PASSWORD TOGGLE ==========
-    document.querySelectorAll('.password-toggle').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const input = this.closest('.relative').querySelector('input');
-            const icon = this.querySelector('.eye-icon');
-            if (input && icon) {
-                const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
-                input.setAttribute('type', type);
-                icon.innerHTML = type === 'text' 
-                    ? `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>`
-                    : `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>`;
-            }
+        // ========== PASSWORD TOGGLE ==========
+        document.querySelectorAll('.password-toggle').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const input = this.closest('.relative').querySelector('input');
+                const icon = this.querySelector('.eye-icon');
+                if (input && icon) {
+                    const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+                    input.setAttribute('type', type);
+                    icon.innerHTML = type === 'text' 
+                        ? `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>`
+                        : `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>`;
+                }
+            });
         });
-    });
 
-    // ========== CLICK OUTSIDE ==========
-    document.addEventListener('click', function(e) {
-        const isInside = e.target.closest('#inventory-dropdown-desktop') || e.target.closest('#maintenance-dropdown-desktop') ||
-                         e.target.closest('#settings-gear-container') || e.target.closest('#avatar-dropdown') ||
-                         e.target.closest('#notification-container');
-        if (!isInside) closeAllDropdowns();
-    });
+        // ========== CLICK OUTSIDE ==========
+        document.addEventListener('click', function(e) {
+            const isInside = e.target.closest('#inventory-dropdown-desktop') || e.target.closest('#maintenance-dropdown-desktop') ||
+                            e.target.closest('#settings-gear-container') || e.target.closest('#avatar-dropdown') ||
+                            e.target.closest('#notification-container');
+            if (!isInside) closeAllDropdowns();
+        });
 
-    // Initial notification check
-    (function updateDot() {
-        const seenParam = getSeenIds().join(',');
-        fetch(`{{ route('recent-logs.count') }}?seen=${encodeURIComponent(seenParam)}`)
-            .then(r => r.json()).then(data => {
-                if (data.count > 0) { notifDot.classList.remove('hidden'); bellBtn.classList.add('animate-pulse'); } 
-                else { notifDot.classList.add('hidden'); bellBtn.classList.remove('animate-pulse'); }
-            }).catch(() => { notifDot.classList.add('hidden'); bellBtn.classList.remove('animate-pulse'); });
-    })();
-});
+        // Initial notification check
+        (function updateDot() {
+            const seenParam = getSeenIds().join(',');
+            fetch(`{{ route('recent-logs.count') }}?seen=${encodeURIComponent(seenParam)}`)
+                .then(r => r.json()).then(data => {
+                    if (data.count > 0) { notifDot.classList.remove('hidden'); bellBtn.classList.add('animate-pulse'); } 
+                    else { notifDot.classList.add('hidden'); bellBtn.classList.remove('animate-pulse'); }
+                }).catch(() => { notifDot.classList.add('hidden'); bellBtn.classList.remove('animate-pulse'); });
+        })();
+    });
 </script>
 
 <style>
