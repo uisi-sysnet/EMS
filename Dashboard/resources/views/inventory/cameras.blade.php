@@ -680,8 +680,12 @@
 function editCamera(cameraId) {
     const modal = document.getElementById('editModal');
     modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
 
-    // Fetch camera data
+    const submitBtn = document.querySelector('#editForm button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = 'Loading...';
+
     fetch(`/inventory/cameras/${cameraId}/edit`)
         .then(response => {
             if (!response.ok) {
@@ -695,26 +699,38 @@ function editCamera(cameraId) {
             document.getElementById('edit_ip_address').value = data.ip_address || '';
             document.getElementById('edit_onvif_port').value = data.onvif_port || 80;
             document.getElementById('edit_username').value = data.username || '';
+            document.getElementById('edit_password').value = '';
             document.getElementById('edit_location').value = data.location || '';
             document.getElementById('edit_device_type').value = data.device_type || '';
             document.getElementById('edit_serial_number').value = data.serial_number || '';
             document.getElementById('edit_latitude').value = data.latitude || '';
             document.getElementById('edit_longitude').value = data.longitude || '';
-            document.getElementById('edit_enabled').checked = data.enabled === true;
-            document.getElementById('edit_slug_preview').value = data.slug || '';
             document.getElementById('edit_slug').value = data.slug || '';
 
-            // Set form action
             document.getElementById('editForm').action = `/inventory/cameras/${cameraId}`;
+            
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Update Camera';
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to load camera data. Please refresh and try again.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Update Camera';
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to load camera data. Please refresh and try again.',
+                background: '#1f2937',
+                color: '#f3f4f6',
+                iconColor: '#ef4444'
+            });
         });
 }
 
 function closeEditModal() {
     document.getElementById('editModal').style.display = 'none';
+    document.body.style.overflow = '';
 }
 
 // Delete Camera
