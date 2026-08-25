@@ -308,36 +308,35 @@
                                     <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
-                            
-                            {{-- Action & Note Row using Grid --}}
-                            <div class="mt-4 grid grid-cols-1 sm:grid-cols-5 gap-3">
-                                {{-- Note - 80% (4 out of 5 columns) --}}
-                                <div class="sm:col-span-4">
-                                    <div class="h-full p-3 bg-surface-700/30 rounded-lg border border-border-600 flex items-center">
-                                        <p class="text-xs text-text-400">
-                                            <span class="text-munti-red-400">*</span> Note:
-                                            <span class="text-text-300">Slug and Serial Number must be unique across all records.</span>
-                                            <span class="text-text-300 ml-2">The slug is auto-generated from the camera name.</span>
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {{-- Action Button - 20% (1 out of 5 columns) --}}
-                                <div class="sm:col-span-1">
-                                    <div class="flex flex-col h-full">
-                                        <label class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                            Action
-                                        </label>
-                                        <button type="submit" class="w-full h-8 px-3 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 text-xs font-semibold rounded-md transition border border-munti-green-500/30 flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                            </svg>
-                                            Add Camera
-                                        </button>
-                                    </div>
+                        </div>
+                        
+                        {{-- Action & Note Row using Grid --}}
+                        <div class="mt-4 grid grid-cols-1 sm:grid-cols-5 gap-3">
+                            {{-- Note - 80% (4 out of 5 columns) --}}
+                            <div class="sm:col-span-4">
+                                <div class="h-full p-3 bg-surface-700/30 rounded-lg border border-border-600 flex items-center">
+                                    <p class="text-xs text-text-400">
+                                        <span class="text-munti-red-400">*</span> Note:
+                                        <span class="text-text-300">Slug and Serial Number must be unique across all records.</span>
+                                        <span class="text-text-300 ml-2">The slug is auto-generated from the camera name.</span>
+                                    </p>
                                 </div>
                             </div>
 
+                            {{-- Action Button - 20% (1 out of 5 columns) --}}
+                            <div class="sm:col-span-1">
+                                <div class="flex flex-col h-full">
+                                    <label class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
+                                        Action
+                                    </label>
+                                    <button type="submit" class="w-full h-8 px-3 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 text-xs font-semibold rounded-md transition border border-munti-green-500/30 flex items-center justify-center gap-1.5 whitespace-nowrap">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                        </svg>
+                                        Add Camera
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </form>
                 </div>
