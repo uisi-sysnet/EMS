@@ -129,9 +129,9 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::get('/inventory/cameras', [CameraController::class, 'index'])->name('inventory.cameras.index');
     Route::get('/inventory/cameras/live', [CameraController::class, 'live'])->name('inventory.cameras.live');
     Route::post('/inventory/cameras', [CameraController::class, 'store'])->name('inventory.cameras.store');
-    Route::put('/inventory/cameras/{id}', [CameraController::class, 'update'])->name('inventory.cameras.update');
-    Route::get('/inventory/cameras/{id}/edit', [CameraController::class, 'edit'])->name('inventory.cameras.edit');
-    Route::delete('/inventory/cameras/{id}', [CameraController::class, 'destroy'])->name('inventory.cameras.destroy');
+    Route::put('/inventory/cameras/{camera}', [CameraController::class, 'update'])->name('inventory.cameras.update');
+    Route::get('/inventory/cameras/{camera}/edit', [CameraController::class, 'edit'])->name('inventory.cameras.edit');
+    Route::delete('/inventory/cameras/{camera}', [CameraController::class, 'destroy'])->name('inventory.cameras.destroy');
     /* Route::get('/inventory/cameras/export', [CameraController::class, 'export'])->name('inventory.cameras.export');
     Route::get('/inventory/cameras/download-format', [CameraController::class, 'downloadFormat'])->name('cameras.download-format');
     Route::post('/inventory/cameras/import', [CameraController::class, 'import'])->name('inventory.cameras.import');
