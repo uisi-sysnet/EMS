@@ -309,11 +309,11 @@
                                 @enderror
                             </div>
                         </div>
-                        
-                        {{-- Action & Note Row using Grid --}}
-                        <div class="mt-4 grid grid-cols-1 sm:grid-cols-5 gap-3">
-                            {{-- Note - 80% (4 out of 5 columns) --}}
-                            <div class="sm:col-span-4">
+
+                        {{-- Action & Note Row --}}
+                        <div class="mt-4 flex flex-col sm:flex-row gap-3 items-stretch">
+                            {{-- Note - 80% width --}}
+                            <div class="flex-1 w-full sm:w-[80%]">
                                 <div class="h-full p-3 bg-surface-700/30 rounded-lg border border-border-600 flex items-center">
                                     <p class="text-xs text-text-400">
                                         <span class="text-munti-red-400">*</span> Note:
@@ -323,8 +323,8 @@
                                 </div>
                             </div>
 
-                            {{-- Action Button - 20% (1 out of 5 columns) --}}
-                            <div class="sm:col-span-1">
+                            {{-- Action Button - 20% width --}}
+                            <div class="w-full sm:w-[20%] min-w-[120px]">
                                 <div class="flex flex-col h-full">
                                     <label class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
                                         Action
@@ -338,6 +338,7 @@
                                 </div>
                             </div>
                         </div>
+                        
                     </form>
                 </div>
 
