@@ -125,5 +125,5 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::put('/settings/telegram', [TelegramSettingsController::class, 'update'])->name('settings.telegram.update');
     Route::post('/settings/telegram/test', [TelegramSettingsController::class, 'test'])->name('settings.telegram.test');
     
-
+    Route::get('/inventory/cameras', [CameraController::class, 'index'])->name('inventory.cameras.index');
 });
