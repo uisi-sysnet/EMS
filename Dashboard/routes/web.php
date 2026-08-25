@@ -20,6 +20,7 @@ use App\Http\Controllers\SeismicStationController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\TerminalAuthController;
 use App\Http\Controllers\TelegramSettingsController;
+use App\Http\Controllers\CameraController;
 
 Route::get('/register', [LoginController::class, 'showRegisterForm'])->name('register');
 Route::post('/register', [LoginController::class, 'register']);
@@ -113,6 +114,12 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::post('/maintenance/services/{service}/action', [ServicesController::class, 'action'])->name('services.action');
     Route::post('/maintenance/terminal/token', [TerminalAuthController::class, 'issue'])->name('terminal.token');
     Route::get('/maintenance/terminal', [ServicesController::class, 'terminal'])->name('services.terminal');
+
+    Route::get('/maintenance/cameras', [CameraController::class, 'index'])->name('cameras.index');
+    Route::post('/maintenance/cameras', [CameraController::class, 'store'])->name('cameras.store');
+    Route::put('/maintenance/cameras/{camera}', [CameraController::class, 'update'])->name('cameras.update');
+    Route::delete('/maintenance/cameras/{camera}', [CameraController::class, 'destroy'])->name('cameras.destroy');
+    Route::post('/maintenance/cameras/{camera}/refresh', [CameraController::class, 'refresh'])->name('cameras.refresh');
     
     Route::get('/dashboard/report/image', [DashboardController::class, 'generateImageReport'])
     ->name('dashboard.report.image');

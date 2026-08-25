@@ -17,6 +17,12 @@ return [
     'terminal_secret' => env('TERMINAL_SHARED_SECRET'),
     'terminal_ws_url' => env('TERMINAL_WS_URL', 'wss://your-domain.example/pty'),
 
+    'mediamtx' => [
+        'api_url' => env('MEDIAMTX_API_URL', 'http://127.0.0.1:9997'),
+        'read_user' => env('MEDIAMTX_READ_USER'),
+        'read_pass' => env('MEDIAMTX_READ_PASS'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
