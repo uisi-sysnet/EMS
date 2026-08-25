@@ -69,24 +69,19 @@ class CameraController extends Controller
      * Show the form for editing the specified camera.
      * Returns JSON for modal or View for full page.
      */
-    public function edit(Camera $camera)
+    public function edit($id): JsonResponse
     {
-        // If the request wants JSON (from the modal), return JSON
-        if (request()->wantsJson()) {
-            return response()->json($camera);
-        }
-        
-        // Otherwise return the full edit view (if you still need it)
-        return view('inventory.cameras.edit', [
-            'camera' => $camera,
-        ]);
+        $camera = Camera::findOrFail($id);
+        return response()->json($camera);
     }
 
     /**
      * Update the specified camera in storage.
      */
-    public function update(Request $request, Camera $camera): RedirectResponse
+    public function update(Request $request, $id): RedirectResponse
     {
+        $camera = Camera::findOrFail($id);
+
         $validated = $request->validate([
             'channel' => 'required|string|max:50',
             'name' => 'required|string|max:255',
@@ -123,8 +118,10 @@ class CameraController extends Controller
     /**
      * Remove the specified camera from storage.
      */
-    public function destroy(Camera $camera): RedirectResponse
+    public function destroy($id): RedirectResponse
     {
+        $camera = Camera::findOrFail($id);
+
         $name = $camera->name;
         
         $camera->delete();
