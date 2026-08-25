@@ -3,12 +3,19 @@
 namespace App\Http\Controllers;
 
 use Illuminate\View\View;
+use App\Models\Camera;
 
 class CameraController extends Controller
 {
     public function index(): View
     {
-        return view('inventory.cameras');
+        $cameras = Camera::orderBy('name')->get();
+
+        return view('inventory.cameras', [
+            'cameras'          => $cameras,
+            'mediamtxReadUser' => config('services.mediamtx.read_user'),
+            'mediamtxReadPass' => config('services.mediamtx.read_pass'),
+        ]);
     }
 
     public function live()
