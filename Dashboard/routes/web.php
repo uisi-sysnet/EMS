@@ -20,6 +20,7 @@ use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\TerminalAuthController;
 use App\Http\Controllers\TelegramSettingsController;
 use App\Http\Controllers\CameraController;
+use App\Models\Camera;
 
 Route::get('/register', [LoginController::class, 'showRegisterForm'])->name('register');
 Route::post('/register', [LoginController::class, 'register']);
@@ -127,8 +128,12 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     
     Route::get('/inventory/cameras', [CameraController::class, 'index'])->name('inventory.cameras.index');
     Route::get('/inventory/cameras/live', [CameraController::class, 'live'])->name('inventory.cameras.live');
-    Route::get('/inventory/cameras/export', [CameraController::class, 'export'])->name('inventory.cameras.export');
+        Route::post('/inventory/cameras', [CameraController::class, 'store'])->name('inventory.cameras.store');
+    Route::put('/inventory/cameras/{id}', [CameraController::class, 'update'])->name('inventory.cameras.update');
+    Route::get('/inventory/cameras/{id}/edit', [CameraController::class, 'edit'])->name('inventory.cameras.edit');
+    Route::delete('/inventory/cameras/{id}', [CameraController::class, 'destroy'])->name('inventory.cameras.destroy');
+    /* Route::get('/inventory/cameras/export', [CameraController::class, 'export'])->name('inventory.cameras.export');
     Route::get('/inventory/cameras/download-format', [CameraController::class, 'downloadFormat'])->name('cameras.download-format');
     Route::post('/inventory/cameras/import', [CameraController::class, 'import'])->name('inventory.cameras.import');
-    Route::patch('/inventory/cameras/{id}/restore', [CameraController::class, 'restore'])->name('inventory.cameras.restore');
+    Route::patch('/inventory/cameras/{id}/restore', [CameraController::class, 'restore'])->name('inventory.cameras.restore'); */
 });
