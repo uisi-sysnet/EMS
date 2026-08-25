@@ -447,6 +447,22 @@
     document.addEventListener('DOMContentLoaded', function () {
         // ========== Helper: close everything ==========
         function closeAllDropdowns(except = null) {
+
+            // Desktop Inventory
+            const inventoryMenu = document.querySelector('#inventory-dropdown-desktop .inventory-dropdown-menu');
+            const inventoryToggle = document.querySelector('#inventory-dropdown-desktop .inventory-dropdown-toggle');
+
+            if (inventoryMenu && except !== 'inventory') {
+                inventoryMenu.classList.add('hidden');
+
+                if (inventoryToggle) {
+                    inventoryToggle.setAttribute('aria-expanded', 'false');
+
+                    const chevron = inventoryToggle.querySelector('svg');
+                    if (chevron) chevron.classList.remove('rotate-180');
+                }
+            }
+                
             // Desktop Maintenance
             const maintMenu = document.querySelector('#maintenance-dropdown-desktop .maintenance-dropdown-menu');
             const maintToggle = document.querySelector('#maintenance-dropdown-desktop .maintenance-dropdown-toggle');
