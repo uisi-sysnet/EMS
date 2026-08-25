@@ -31,13 +31,25 @@
 
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
 
-                <!-- Form Section -->
-                <div class="p-5 border-b border-border-700">
-                    <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <!-- Form Section -->
+            <div class="p-5 border-b border-border-700">
+                <!-- Toggle Button -->
+                <button type="button" 
+                        onclick="toggleStationForm()" 
+                        class="w-full flex items-center justify-between text-left group">
+                    <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider flex items-center gap-2">
                         <span class="w-1.5 h-1.5 rounded-full bg-radar-400"></span>
                         Add New Station
                     </h3>
+                    <span id="toggleIcon" class="text-text-400 transition-transform duration-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </span>
+                </button>
 
+                <!-- Collapsible Form -->
+                <div id="stationForm" class="mt-4 hidden">
                     <form action="{{ route('stations.store') }}" method="POST">
                         @csrf
 
@@ -770,6 +782,15 @@ document.getElementById('deletedModal').addEventListener('click', function(event
         closeDeletedModal();
     }
 });
+
+function toggleStationForm() {
+    const form = document.getElementById('stationForm');
+    const icon = document.getElementById('toggleIcon');
+    
+    form.classList.toggle('hidden');
+    icon.classList.toggle('rotate-180');
+}
+
 </script>
 
 @include('layouts.footer')
