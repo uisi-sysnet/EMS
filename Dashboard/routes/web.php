@@ -20,7 +20,6 @@ use App\Http\Controllers\SeismicStationController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\TerminalAuthController;
 use App\Http\Controllers\TelegramSettingsController;
-use App\Http\Controllers\CameraController;
 
 Route::get('/register', [LoginController::class, 'showRegisterForm'])->name('register');
 Route::post('/register', [LoginController::class, 'register']);
