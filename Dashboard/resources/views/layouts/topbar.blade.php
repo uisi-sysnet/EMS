@@ -83,12 +83,12 @@
                             <svg class="h-4 w-4 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                         </button>
                         <div id="inventory-menu" class="dropdown-menu absolute left-0 mt-2 w-52 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-20 overflow-hidden">
-                            <a href="{{ route('inventory.stations.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Stations</a>
-                            <a href="#" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">CCTV</a>
+                            <a href="{{ route('stations.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Stations</a>
+                            <a href="{{ route('cameras.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">CCTV</a>
                         </div>
                     </div>
 
-                    <a href="{{ route('cctv.live') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Live View</a>
+                    <a href="{{ route('cameras.live') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Live View</a>
 
                     <a href="{{ route('sms.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">SMS</a>
 
@@ -224,12 +224,12 @@
                         </svg>
                     </button>
                     <div id="inventory-mobile-submenu" class="mobile-submenu hidden pl-4 space-y-1 mt-1">
-                        <a href="{{ route('inventory.stations.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Stations</a>
-                        <a href="{{ route('inventory.cameras.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">CCTV</a>
+                        <a href="{{ route('stations.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Stations</a>
+                        <a href="{{ route('cameras.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">CCTV</a>
                     </div>
                 </div> 
                               
-                <a href="{{ route('cctv.live') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">Live View</a>
+                <a href="{{ route('cameras.live') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">Live View</a>
 
                 <a href="{{ route('sms.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">SMS</a>
 
