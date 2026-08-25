@@ -474,11 +474,11 @@
 
                 <!-- Table Section -->
                 <div class="flex-1 flex flex-col min-h-0">
-                    <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
-                    <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider flex items-center gap-2">
-                        <span class="w-1.5 h-1.5 rounded-full bg-radar-400"></span>
-                        Add New Station
-                    </h3>
+                    <div class="py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-radar-400"></span>
+                            Existing Stations
+                        </h3>
                         <div class="flex items-center gap-3">
                             <span class="text-xs text-text-500">{{ $stations->count() }} Station(s)</span>
                             
