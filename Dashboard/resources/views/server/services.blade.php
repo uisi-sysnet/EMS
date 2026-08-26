@@ -27,6 +27,7 @@
 
         {{-- ========== SERVICE STATUS CARDS ========== --}}
         <div id="service-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {{-- Inside the service card loop --}}
             @foreach ($services as $svc)
                 <div class="service-card bg-surface-800 border border-border-700 rounded-xl p-4" data-unit="{{ $svc['unit'] }}">
                     <div class="flex items-start justify-between gap-2">
@@ -35,13 +36,33 @@
                             <p class="text-xs text-text-500 truncate">{{ $svc['unit'] }}</p>
                         </div>
                         <span class="status-pill shrink-0 inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full
-                            {{ $svc['running']
+                            {{ $svc['isSms'] && $svc['smsEnabled'] === true 
                                 ? 'bg-munti-green-700/20 text-munti-green-400 border border-munti-green-600/30'
-                                : ($svc['active'] === 'failed'
-                                    ? 'bg-munti-red-700/20 text-munti-red-400 border border-munti-red-600/30'
-                                    : 'bg-surface-700 text-text-400 border border-border-600') }}">
-                            <span class="w-1.5 h-1.5 rounded-full {{ $svc['running'] ? 'bg-munti-green-400' : ($svc['active'] === 'failed' ? 'bg-munti-red-400' : 'bg-text-500') }}"></span>
-                            <span class="status-label">{{ ucfirst($svc['active']) }}</span>
+                                : ($svc['isSms'] && $svc['smsEnabled'] === false
+                                    ? 'bg-surface-700 text-text-400 border border-border-600'
+                                    : ($svc['running']
+                                        ? 'bg-munti-green-700/20 text-munti-green-400 border border-munti-green-600/30'
+                                        : ($svc['active'] === 'failed'
+                                            ? 'bg-munti-red-700/20 text-munti-red-400 border border-munti-red-600/30'
+                                            : 'bg-surface-700 text-text-400 border border-border-600'))) }}">
+                            <span class="w-1.5 h-1.5 rounded-full 
+                                {{ $svc['isSms'] && $svc['smsEnabled'] === true 
+                                    ? 'bg-munti-green-400'
+                                    : ($svc['isSms'] && $svc['smsEnabled'] === false
+                                        ? 'bg-text-500'
+                                        : ($svc['running'] 
+                                            ? 'bg-munti-green-400' 
+                                            : ($svc['active'] === 'failed' 
+                                                ? 'bg-munti-red-400' 
+                                                : 'bg-text-500'))) }}">
+                            </span>
+                            <span class="status-label">
+                                @if($svc['isSms'])
+                                    {{ $svc['smsEnabled'] ? 'Active' : 'Inactive' }}
+                                @else
+                                    {{ ucfirst($svc['active']) }}
+                                @endif
+                            </span>
                         </span>
                     </div>
 
@@ -51,17 +72,19 @@
                         {{-- SMS-specific enable/disable buttons --}}
                         <div class="flex gap-2 mt-4">
                             <button type="button" 
-                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
+                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed {{ $svc['smsEnabled'] ? 'opacity-40 cursor-not-allowed' : '' }}" 
                                     data-action="enable"
                                     data-unit="{{ $svc['unit'] }}"
-                                    data-label="{{ $svc['label'] }}">
+                                    data-label="{{ $svc['label'] }}"
+                                    @if($svc['smsEnabled']) disabled @endif>
                                 Enable
                             </button>
                             <button type="button" 
-                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
+                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed {{ !$svc['smsEnabled'] ? 'opacity-40 cursor-not-allowed' : '' }}" 
                                     data-action="disable"
                                     data-unit="{{ $svc['unit'] }}"
-                                    data-label="{{ $svc['label'] }}">
+                                    data-label="{{ $svc['label'] }}"
+                                    @if(!$svc['smsEnabled']) disabled @endif>
                                 Disable
                             </button>
                         </div>
@@ -158,11 +181,58 @@ document.addEventListener('DOMContentLoaded', function () {
         const dot = card.querySelector('.status-pill span');
         const label = card.querySelector('.status-label');
         const enabled = card.querySelector('.enabled-label');
-        const cls = pillClasses(svc);
-
-        pill.className = 'status-pill shrink-0 inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full ' + cls.pill;
-        dot.className = 'w-1.5 h-1.5 rounded-full ' + cls.dot;
-        label.textContent = svc.active.charAt(0).toUpperCase() + svc.active.slice(1);
+        
+        // Determine if this is an SMS service
+        const isSms = svc.isSms || false;
+        
+        // Determine status classes based on SMS or regular service
+        let statusClass, dotClass, statusText;
+        
+        if (isSms) {
+            // SMS service - use smsEnabled flag
+            if (svc.smsEnabled === true) {
+                statusClass = 'bg-munti-green-700/20 text-munti-green-400 border border-munti-green-600/30';
+                dotClass = 'bg-munti-green-400';
+                statusText = 'Active';
+            } else {
+                statusClass = 'bg-surface-700 text-text-400 border border-border-600';
+                dotClass = 'bg-text-500';
+                statusText = 'Inactive';
+            }
+            
+            // Update button states
+            const enableBtn = card.querySelector('.btn-sms-toggle[data-action="enable"]');
+            const disableBtn = card.querySelector('.btn-sms-toggle[data-action="disable"]');
+            if (enableBtn) {
+                enableBtn.disabled = svc.smsEnabled === true;
+                if (svc.smsEnabled === true) enableBtn.classList.add('opacity-40', 'cursor-not-allowed');
+                else enableBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+            }
+            if (disableBtn) {
+                disableBtn.disabled = svc.smsEnabled === false;
+                if (svc.smsEnabled === false) disableBtn.classList.add('opacity-40', 'cursor-not-allowed');
+                else disableBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+            }
+        } else {
+            // Regular service
+            if (svc.running) {
+                statusClass = 'bg-munti-green-700/20 text-munti-green-400 border border-munti-green-600/30';
+                dotClass = 'bg-munti-green-400';
+                statusText = svc.active.charAt(0).toUpperCase() + svc.active.slice(1);
+            } else if (svc.active === 'failed') {
+                statusClass = 'bg-munti-red-700/20 text-munti-red-400 border border-munti-red-600/30';
+                dotClass = 'bg-munti-red-400';
+                statusText = 'Failed';
+            } else {
+                statusClass = 'bg-surface-700 text-text-400 border border-border-600';
+                dotClass = 'bg-text-500';
+                statusText = svc.active.charAt(0).toUpperCase() + svc.active.slice(1);
+            }
+        }
+        
+        pill.className = 'status-pill shrink-0 inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full ' + statusClass;
+        dot.className = 'w-1.5 h-1.5 rounded-full ' + dotClass;
+        label.textContent = statusText;
         enabled.textContent = svc.enabled.charAt(0).toUpperCase() + svc.enabled.slice(1);
     }
 
