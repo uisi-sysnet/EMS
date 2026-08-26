@@ -54,12 +54,12 @@ class CamerasFormatExport implements FromArray, WithHeadings, WithStyles
             'serial_number',
             'latitude',
             'longitude',
-            'enabled',
+            /* 'enabled',
             'last_synced_at',
             'last_status',
-            'last_error',
+            'last_error', */
             'notes',
-            'deleted_at'
+            /* 'deleted_at' */
         ];
     }
 
