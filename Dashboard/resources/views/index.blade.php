@@ -551,6 +551,83 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">Camera Devices Status</span>
+                            </h3>
+                        </div>
+
+                        <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-[minmax(0,30%)_minmax(0,40%)_minmax(0,30%)] gap-5 sm:gap-6 items-center w-full min-w-0">
+                            <!-- Column 1: Donut Chart -->
+                            <div class="flex justify-center min-w-0">
+                                <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
+                                    <canvas id="cameraStatusChart"></canvas>
+                                    <div id="camera-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                        @if($cameraTotal > 0)
+                                            <span class="text-lg font-bold text-text-100 leading-none">
+                                                {{ round(($cameraOnline / $cameraTotal) * 100) }}%
+                                            </span>
+                                            <span class="text-[10px] text-text-400 uppercase tracking-wide mt-0.5">Online</span>
+                                        @else
+                                            <span class="text-lg font-bold text-amber-400 leading-none">—</span>
+                                            <span class="text-[10px] text-amber-400 uppercase tracking-wide mt-0.5">No Cameras</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Column 2: Status Counts -->
+                            <div class="flex flex-col gap-2.5 min-w-0">
+                                <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                    <span class="flex items-center gap-4 min-w-0">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)] shrink-0"></span>
+                                        <span class="text-sm text-text-300 truncate">Online</span>
+                                    </span>
+                                    <span id="camera-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                        {{ $cameraCounts['online'] }}
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                    <span class="flex items-center gap-4 min-w-0">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)] shrink-0"></span>
+                                        <span class="text-sm text-text-300 truncate">Idle</span>
+                                    </span>
+                                    <span id="camera-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                        {{ $cameraCounts['idle'] }}
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                    <span class="flex items-center gap-4 min-w-0">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)] shrink-0"></span>
+                                        <span class="text-sm text-text-300 truncate">Offline</span>
+                                    </span>
+                                    <span id="camera-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                        {{ $cameraCounts['offline'] }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Column 3: Summary Badge -->
+                            <div class="flex justify-center min-w-0">
+                                <div class="inline-flex flex-col items-center gap-1">
+                                    <span id="camera-online-badge"
+                                        class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
+                                                bg-munti-green-700/20 px-4 py-2.5 rounded-full
+                                                border border-munti-green-600/30 shadow-sm whitespace-nowrap">
+                                        {{ $cameraOnline }}/{{ $cameraTotal }} Online
+                                    </span>
+                                    <span class="text-[10px] text-text-500 uppercase tracking-wider whitespace-nowrap">
+                                        Camera Status
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
                 <!-- LEFT COLUMN: Air Quality -->
                 <div class="flex flex-col gap-4">
