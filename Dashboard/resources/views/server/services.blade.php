@@ -25,73 +25,73 @@
         {{-- Scrollable body --}}
         <div class="flex-1 min-h-0 overflow-y-auto thin-scrollbar px-4 sm:px-6 py-4 sm:py-6 space-y-6">
 
-            {{-- ========== SERVICE STATUS CARDS ========== --}}
-            <div id="service-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                @foreach ($services as $svc)
-                    <div class="service-card bg-surface-800 border border-border-700 rounded-xl p-4" data-unit="{{ $svc['unit'] }}">
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="min-w-0">
-                                <p class="text-sm font-semibold text-text-100 truncate">{{ $svc['label'] }}</p>
-                                <p class="text-xs text-text-500 truncate">{{ $svc['unit'] }}</p>
-                            </div>
-                            <span class="status-pill shrink-0 inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full
-                                {{ $svc['running']
-                                    ? 'bg-munti-green-700/20 text-munti-green-400 border border-munti-green-600/30'
-                                    : ($svc['active'] === 'failed'
-                                        ? 'bg-munti-red-700/20 text-munti-red-400 border border-munti-red-600/30'
-                                        : 'bg-surface-700 text-text-400 border border-border-600') }}">
-                                <span class="w-1.5 h-1.5 rounded-full {{ $svc['running'] ? 'bg-munti-green-400' : ($svc['active'] === 'failed' ? 'bg-munti-red-400' : 'bg-text-500') }}"></span>
-                                <span class="status-label">{{ ucfirst($svc['active']) }}</span>
-                            </span>
+        {{-- ========== SERVICE STATUS CARDS ========== --}}
+        <div id="service-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            @foreach ($services as $svc)
+                <div class="service-card bg-surface-800 border border-border-700 rounded-xl p-4" data-unit="{{ $svc['unit'] }}">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-text-100 truncate">{{ $svc['label'] }}</p>
+                            <p class="text-xs text-text-500 truncate">{{ $svc['unit'] }}</p>
                         </div>
-
-                        <p class="text-xs text-text-500 mt-2">Boot: <span class="enabled-label">{{ ucfirst($svc['enabled']) }}</span></p>
-
-                        @if($svc['isSms'] ?? false)
-                            {{-- SMS-specific enable/disable buttons --}}
-                            <div class="flex gap-2 mt-4">
-                                <button type="button" 
-                                        class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
-                                        data-action="enable"
-                                        data-unit="{{ $svc['unit'] }}"
-                                        data-label="{{ $svc['label'] }}">
-                                    Enable
-                                </button>
-                                <button type="button" 
-                                        class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
-                                        data-action="disable"
-                                        data-unit="{{ $svc['unit'] }}"
-                                        data-label="{{ $svc['label'] }}">
-                                    Disable
-                                </button>
-                            </div>
-                        @else
-                            {{-- Regular start/stop/restart buttons --}}
-                            <div class="flex gap-2 mt-4">
-                                <button type="button"
-                                        class="btn-action flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                                        data-action="start">Start</button>
-                                <button type="button"
-                                        class="btn-action flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                                        data-action="stop">Stop</button>
-                                <button type="button"
-                                        class="btn-action flex-1 text-xs font-semibold py-2 rounded-lg border border-border-600 text-text-300 hover:bg-surface-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                                        data-action="restart">Restart</button>
-                            </div>
-                        @endif
-
-                        @if($svc['hasConfig'] ?? false)
-                            <button type="button"
-                                    class="btn-edit-config w-full mt-2 text-xs font-semibold py-2 rounded-lg border border-border-600 text-text-300 hover:bg-surface-700 transition inline-flex items-center justify-center gap-1.5">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                </svg>
-                                Edit Config
-                            </button>
-                        @endif
+                        <span class="status-pill shrink-0 inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full
+                            {{ $svc['running']
+                                ? 'bg-munti-green-700/20 text-munti-green-400 border border-munti-green-600/30'
+                                : ($svc['active'] === 'failed'
+                                    ? 'bg-munti-red-700/20 text-munti-red-400 border border-munti-red-600/30'
+                                    : 'bg-surface-700 text-text-400 border border-border-600') }}">
+                            <span class="w-1.5 h-1.5 rounded-full {{ $svc['running'] ? 'bg-munti-green-400' : ($svc['active'] === 'failed' ? 'bg-munti-red-400' : 'bg-text-500') }}"></span>
+                            <span class="status-label">{{ ucfirst($svc['active']) }}</span>
+                        </span>
                     </div>
-                @endforeach
-            </div>
+
+                    <p class="text-xs text-text-500 mt-2">Boot: <span class="enabled-label">{{ ucfirst($svc['enabled']) }}</span></p>
+
+                    @if($svc['isSms'] ?? false)
+                        {{-- SMS-specific enable/disable buttons --}}
+                        <div class="flex gap-2 mt-4">
+                            <button type="button" 
+                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
+                                    data-action="enable"
+                                    data-unit="{{ $svc['unit'] }}"
+                                    data-label="{{ $svc['label'] }}">
+                                Enable
+                            </button>
+                            <button type="button" 
+                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
+                                    data-action="disable"
+                                    data-unit="{{ $svc['unit'] }}"
+                                    data-label="{{ $svc['label'] }}">
+                                Disable
+                            </button>
+                        </div>
+                    @else
+                        {{-- Regular start/stop/restart buttons --}}
+                        <div class="flex gap-2 mt-4">
+                            <button type="button"
+                                    class="btn-action flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                    data-action="start">Start</button>
+                            <button type="button"
+                                    class="btn-action flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                    data-action="stop">Stop</button>
+                            <button type="button"
+                                    class="btn-action flex-1 text-xs font-semibold py-2 rounded-lg border border-border-600 text-text-300 hover:bg-surface-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                    data-action="restart">Restart</button>
+                        </div>
+                    @endif
+
+                    @if($svc['hasConfig'] ?? false)
+                        <button type="button"
+                                class="btn-edit-config w-full mt-2 text-xs font-semibold py-2 rounded-lg border border-border-600 text-text-300 hover:bg-surface-700 transition inline-flex items-center justify-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            Edit Config
+                        </button>
+                    @endif
+                </div>
+            @endforeach
+        </div>
 
     {{-- ========== CONFIG EDIT MODAL ========== --}}
     <div id="configModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
