@@ -950,8 +950,6 @@
          * scrollHeight against that moving target is more trouble than
          * it's worth for a collapse toggle.
          */
-        const collapseStates = {};
-
         function initCollapsible(toggleId, bodyId, chevronId, storageKey) {
             const toggle = document.getElementById(toggleId);
             const body = document.getElementById(bodyId);
@@ -962,26 +960,14 @@
                 body.classList.toggle('hidden', collapsed);
                 toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
                 if (chevron) chevron.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
-                try { 
-                    localStorage.setItem(storageKey, collapsed ? '1' : '0');
-                    // Also store in memory for refresh protection
-                    collapseStates[storageKey] = collapsed;
-                } catch (e) { /* private mode etc. */ }
+                try { localStorage.setItem(storageKey, collapsed ? '1' : '0'); } catch (e) { /* private mode etc. */ }
             }
 
-            // Check memory first, then localStorage
             let startCollapsed = false;
-            if (collapseStates[storageKey] !== undefined) {
-                startCollapsed = collapseStates[storageKey];
-            } else {
-                try { startCollapsed = localStorage.getItem(storageKey) === '1'; } catch (e) { /* private mode etc. */ }
-            }
+            try { startCollapsed = localStorage.getItem(storageKey) === '1'; } catch (e) { /* private mode etc. */ }
             setCollapsed(startCollapsed);
 
             toggle.addEventListener('click', () => setCollapsed(!body.classList.contains('hidden')));
-            
-            // Return the body element for potential future reference
-            return body;
         }
 
         function updateSystemHealth(health) {
@@ -1116,14 +1102,8 @@
                 if (!res.ok) return;
                 const data = await res.json();
 
-                // Store current scroll position
-                const container = document.querySelector('.overflow-y-auto');
-                const scrollPos = container ? container.scrollTop : 0;
-
-                // Update tables without replacing the entire structure
-                updateTableContent('aq-table-body', data.airQualityData, 'No air quality data available');
-                updateTableContent('seismic-table-body', data.seismicData, 'No seismic data available');
-                
+                renderTable('aq-table-body', data.airQualityData, 'No air quality data available');
+                renderTable('seismic-table-body', data.seismicData, 'No seismic data available');
                 updateTotalBadges('aq', data.airQualityData.length);
                 updateTotalBadges('seismic', data.seismicData.length);
 
@@ -1149,53 +1129,9 @@
 
                 const lastUpdated = document.getElementById('last-updated');
                 if (lastUpdated) lastUpdated.textContent = `Last updated: ${data.generatedAt}`;
-
-                // Restore scroll position
-                if (container) container.scrollTop = scrollPos;
-                
-                // Ensure toggle states are preserved by reapplying them
-                // (some elements might have been replaced)
-                Object.keys(collapseStates).forEach(key => {
-                    const state = collapseStates[key];
-                    // Find the toggle and body for this key
-                    const toggleMap = {
-                        'dashboard.system-health.collapsed': { toggle: 'system-health-toggle', body: 'system-health-body', chevron: 'system-health-chevron' },
-                        'dashboard.system-summary.collapsed': { toggle: 'system-summary-toggle', body: 'system-summary-body', chevron: 'system-summary-chevron' }
-                    };
-                    const mapping = toggleMap[key];
-                    if (mapping) {
-                        const body = document.getElementById(mapping.body);
-                        const chevron = document.getElementById(mapping.chevron);
-                        const toggle = document.getElementById(mapping.toggle);
-                        if (body) {
-                            body.classList.toggle('hidden', state);
-                            if (toggle) toggle.setAttribute('aria-expanded', state ? 'false' : 'true');
-                            if (chevron) chevron.style.transform = state ? 'rotate(-90deg)' : 'rotate(0deg)';
-                        }
-                    }
-                });
-                
             } catch (e) {
                 console.error('Dashboard refresh failed:', e);
             }
-        }
-
-        // Helper function to update table content without replacing the entire structure
-        function updateTableContent(tbodyId, collection, emptyLabel) {
-            const tbody = document.getElementById(tbodyId);
-            if (!tbody) return;
-            
-            // Store current scroll position within the table container
-            const scrollContainer = tbody.closest('.overflow-x-auto');
-            const scrollLeft = scrollContainer ? scrollContainer.scrollLeft : 0;
-            
-            if (!collection.length) {
-                tbody.innerHTML = `<tr><td colspan="7" class="px-2 py-4 text-center text-text-400">${emptyLabel}</td></tr>`;
-                if (scrollContainer) scrollContainer.scrollLeft = scrollLeft;
-                return;
-            }
-            tbody.innerHTML = collection.map((item, i) => rowHtml(item, i + 1)).join('');
-            if (scrollContainer) scrollContainer.scrollLeft = scrollLeft;
         }
 
         initCollapsible('system-health-toggle', 'system-health-body', 'system-health-chevron', 'dashboard.system-health.collapsed');
