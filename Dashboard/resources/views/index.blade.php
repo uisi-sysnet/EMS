@@ -205,10 +205,10 @@
 
         <!-- Body – scrollable -->
         <div class="flex-1 p-3 sm:p-4 overflow-y-auto thin-scrollbar min-h-0 bg-background-900">
-            <div class="grid grid-cols-1 gap-4">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
                 <!-- SYSTEM STATUS BANNER -->
-                <div id="system-status-banner" class="rounded-xl border {{ $systemStatusMeta['border'] }} {{ $systemStatusMeta['bg'] }} overflow-hidden">
+                <div id="system-status-banner" class="lg:col-span-2 rounded-xl border {{ $systemStatusMeta['border'] }} {{ $systemStatusMeta['bg'] }} overflow-hidden">
                     <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
                             <span class="relative flex h-2.5 w-2.5">
@@ -228,7 +228,7 @@
                 </div>
 
                 <!-- SYSTEM HEALTH: CPU / Memory / Storage / Uptime -->
-                <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                <div class="lg:col-span-2 bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
                     <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
                         <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
                             <span class="truncate">System Health</span>
@@ -309,7 +309,7 @@
                 </div>
 
                 <!-- SYSTEM SUMMARY: Device / CPU / OS / Memory / Storage / Network identity -->
-                <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                <div class="lg:col-span-2 bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
                     <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
                         <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
                             <span class="truncate">System Summary</span>
@@ -397,19 +397,17 @@
                     </div>
                 </div>
 
-                <!-- THREE STATUS CARDS IN ONE ROW -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full min-w-0">
-                    
-                    <!-- Card 1: Air Quality Station Status -->
-                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
-                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
-                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
-                                <span class="truncate">Air Quality Station Status</span>
-                            </h3>
-                        </div>
+                <!-- Air Quality Station Status -->
+                <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                    <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                        <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                            <span class="truncate">Air Quality Station Status</span>
+                        </h3>
+                    </div>
 
-                        <div class="p-4 sm:p-5 flex flex-col items-center gap-4 w-full min-w-0">
-                            <!-- Donut Chart -->
+                    <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-[minmax(0,30%)_minmax(0,40%)_minmax(0,30%)] gap-5 sm:gap-6 items-center w-full min-w-0">
+                        <!-- Column 1: Donut Chart -->
+                        <div class="flex justify-center min-w-0">
                             <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
                                 <canvas id="airQualityStatusChart"></canvas>
                                 <div id="aq-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -424,42 +422,44 @@
                                     @endif
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- Status Counts -->
-                            <div class="flex flex-col gap-2 w-full">
-                                <div class="flex items-center justify-between gap-4 px-3 py-1">
-                                    <span class="flex items-center gap-4 min-w-0">
-                                        <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)] shrink-0"></span>
-                                        <span class="text-sm text-text-300 truncate">Online</span>
-                                    </span>
-                                    <span id="aq-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        {{ $airQualityCounts['online'] }}
-                                    </span>
-                                </div>
-
-                                <div class="flex items-center justify-between gap-4 px-3 py-1">
-                                    <span class="flex items-center gap-4 min-w-0">
-                                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)] shrink-0"></span>
-                                        <span class="text-sm text-text-300 truncate">Idle</span>
-                                    </span>
-                                    <span id="aq-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        {{ $airQualityCounts['idle'] }}
-                                    </span>
-                                </div>
-
-                                <div class="flex items-center justify-between gap-4 px-3 py-1">
-                                    <span class="flex items-center gap-4 min-w-0">
-                                        <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)] shrink-0"></span>
-                                        <span class="text-sm text-text-300 truncate">Offline</span>
-                                    </span>
-                                    <span id="aq-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        {{ $airQualityCounts['offline'] }}
-                                    </span>
-                                </div>
+                        <!-- Column 2: Status Counts -->
+                        <div class="flex flex-col gap-2.5 min-w-0">
+                            <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Online</span>
+                                </span>
+                                <span id="aq-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                    {{ $airQualityCounts['online'] }}
+                                </span>
                             </div>
 
-                            <!-- Summary Badge -->
-                            <div class="inline-flex flex-col items-center gap-1 mt-1">
+                            <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Idle</span>
+                                </span>
+                                <span id="aq-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                    {{ $airQualityCounts['idle'] }}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Offline</span>
+                                </span>
+                                <span id="aq-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                    {{ $airQualityCounts['offline'] }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Column 3: Summary Badge -->
+                        <div class="flex justify-center min-w-0">
+                            <div class="inline-flex flex-col items-center gap-1">
                                 <span id="aq-online-badge"
                                     class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
                                             bg-munti-green-700/20 px-4 py-2.5 rounded-full
@@ -472,17 +472,19 @@
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Card 2: Seismic Station Status -->
-                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
-                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
-                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
-                                <span class="truncate">Seismic Station Status</span>
-                            </h3>
-                        </div>
+                <!-- Seismic Station Status -->
+                <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                    <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                        <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                            <span class="truncate">Seismic Station Status</span>
+                        </h3>
+                    </div>
 
-                        <div class="p-4 sm:p-5 flex flex-col items-center gap-4 w-full min-w-0">
-                            <!-- Donut Chart -->
+                    <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-[minmax(0,30%)_minmax(0,40%)_minmax(0,30%)] gap-5 sm:gap-6 items-center w-full min-w-0">
+                        <!-- Column 1: Donut Chart -->
+                        <div class="flex justify-center min-w-0">
                             <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
                                 <canvas id="seismicStatusChart"></canvas>
                                 <div id="seismic-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -497,42 +499,44 @@
                                     @endif
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- Status Counts -->
-                            <div class="flex flex-col gap-2 w-full">
-                                <div class="flex items-center justify-between gap-4 px-3 py-1">
-                                    <span class="flex items-center gap-4 min-w-0">
-                                        <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)] shrink-0"></span>
-                                        <span class="text-sm text-text-300 truncate">Online</span>
-                                    </span>
-                                    <span id="seismic-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        {{ $seismicCounts['online'] }}
-                                    </span>
-                                </div>
-
-                                <div class="flex items-center justify-between gap-4 px-3 py-1">
-                                    <span class="flex items-center gap-4 min-w-0">
-                                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)] shrink-0"></span>
-                                        <span class="text-sm text-text-300 truncate">Idle</span>
-                                    </span>
-                                    <span id="seismic-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        {{ $seismicCounts['idle'] }}
-                                    </span>
-                                </div>
-
-                                <div class="flex items-center justify-between gap-4 px-3 py-1">
-                                    <span class="flex items-center gap-4 min-w-0">
-                                        <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)] shrink-0"></span>
-                                        <span class="text-sm text-text-300 truncate">Offline</span>
-                                    </span>
-                                    <span id="seismic-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        {{ $seismicCounts['offline'] }}
-                                    </span>
-                                </div>
+                        <!-- Column 2: Status Counts -->
+                        <div class="flex flex-col gap-2.5 min-w-0">
+                            <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Online</span>
+                                </span>
+                                <span id="seismic-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                    {{ $seismicCounts['online'] }}
+                                </span>
                             </div>
 
-                            <!-- Summary Badge -->
-                            <div class="inline-flex flex-col items-center gap-1 mt-1">
+                            <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Idle</span>
+                                </span>
+                                <span id="seismic-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                    {{ $seismicCounts['idle'] }}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                <span class="flex items-center gap-4 min-w-0">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)] shrink-0"></span>
+                                    <span class="text-sm text-text-300 truncate">Offline</span>
+                                </span>
+                                <span id="seismic-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                    {{ $seismicCounts['offline'] }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Column 3: Summary Badge -->
+                        <div class="flex justify-center min-w-0">
+                            <div class="inline-flex flex-col items-center gap-1">
                                 <span id="seismic-online-badge"
                                     class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
                                             bg-munti-green-700/20 px-4 py-2.5 rounded-full
@@ -545,222 +549,148 @@
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Card 3: Camera Devices Status -->
+                <!-- LEFT COLUMN: Air Quality -->
+                <div class="flex flex-col gap-4">
+                    <!-- Graph Card -->
                     <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
                         <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
                             <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
-                                <span class="truncate">Camera Devices Status</span>
+                                <span class="truncate">Air Quality – Total per Station</span>
                             </h3>
+                            <span id="aq-chart-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
+                                {{ count($airQualityData ?? []) }} total
+                            </span>
                         </div>
+                        <div class="px-2 sm:px-3 pt-3 pb-1 h-[220px] sm:h-[260px] lg:h-[300px]">
+                            <canvas id="airQualityChart"></canvas>
+                        </div>
+                    </div>
 
-                        <div class="p-4 sm:p-5 flex flex-col items-center gap-4 w-full min-w-0">
-                            <!-- Donut Chart -->
-                            <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
-                                <canvas id="cameraStatusChart"></canvas>
-                                <div id="camera-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    <!-- Demo data - replace with actual values -->
-                                    <span class="text-lg font-bold text-text-100 leading-none">
-                                        75%
-                                    </span>
-                                    <span class="text-[10px] text-text-400 uppercase tracking-wide mt-0.5">Online</span>
-                                </div>
-                            </div>
-
-                            <!-- Status Counts -->
-                            <div class="flex flex-col gap-2 w-full">
-                                <div class="flex items-center justify-between gap-4 px-3 py-1">
-                                    <span class="flex items-center gap-4 min-w-0">
-                                        <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)] shrink-0"></span>
-                                        <span class="text-sm text-text-300 truncate">Online</span>
-                                    </span>
-                                    <span id="camera-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        6
-                                    </span>
-                                </div>
-
-                                <div class="flex items-center justify-between gap-4 px-3 py-1">
-                                    <span class="flex items-center gap-4 min-w-0">
-                                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)] shrink-0"></span>
-                                        <span class="text-sm text-text-300 truncate">Idle</span>
-                                    </span>
-                                    <span id="camera-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        1
-                                    </span>
-                                </div>
-
-                                <div class="flex items-center justify-between gap-4 px-3 py-1">
-                                    <span class="flex items-center gap-4 min-w-0">
-                                        <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)] shrink-0"></span>
-                                        <span class="text-sm text-text-300 truncate">Offline</span>
-                                    </span>
-                                    <span id="camera-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        1
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- Summary Badge -->
-                            <div class="inline-flex flex-col items-center gap-1 mt-1">
-                                <span id="camera-online-badge"
-                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
-                                            bg-munti-green-700/20 px-4 py-2.5 rounded-full
-                                            border border-munti-green-600/30 shadow-sm whitespace-nowrap">
-                                    6/8 Online
-                                </span>
-                                <span class="text-[10px] text-text-500 uppercase tracking-wider whitespace-nowrap">
-                                    Camera Status
-                                </span>
-                            </div>
+                    <!-- Table Card -->
+                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden flex flex-col">
+                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">Air Quality Stations</span>
+                            </h3>
+                            <span id="aq-table-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
+                                {{ count($airQualityData ?? []) }} total
+                            </span>
+                        </div>
+                        <div class="overflow-x-auto max-h-[220px] sm:max-h-[250px] thin-scrollbar">
+                            <table class="min-w-full divide-y divide-border-700 text-xs">
+                                <thead class="bg-surface-900 sticky top-0">
+                                    <tr class="h-10">
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">No.</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Station</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">IP Address</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Installation</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Latest</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Total</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="aq-table-body" class="bg-surface-800 divide-y divide-border-800">
+                                    @forelse ($airQualityData as $item)
+                                    <tr class="hover:bg-surface-700 transition h-10">
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip ?? '—' }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-400">
+                                            {{ $item->installed_at ? \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') : '—' }}
+                                        </td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-400">
+                                            {{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d h:i A') : '—' }}
+                                        </td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap">
+                                            @php($meta = $statusBadgeMeta[$item->status])
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium {{ $meta['text'] }} {{ $meta['bg'] }} border {{ $meta['border'] }} px-1.5 py-0.5 rounded-full">
+                                                <span class="w-1.5 h-1.5 rounded-full {{ $meta['dot'] }}"></span> {{ $meta['label'] }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="7" class="px-2 py-4 text-center text-text-400">No air quality data available</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
 
-                <!-- CHARTS AND TABLES SECTION -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-                    <!-- LEFT COLUMN: Air Quality -->
-                    <div class="flex flex-col gap-4">
-                        <!-- Graph Card -->
-                        <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
-                            <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
-                                <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
-                                    <span class="truncate">Air Quality – Total per Station</span>
-                                </h3>
-                                <span id="aq-chart-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
-                                    {{ count($airQualityData ?? []) }} total
-                                </span>
-                            </div>
-                            <div class="px-2 sm:px-3 pt-3 pb-1 h-[220px] sm:h-[260px] lg:h-[300px]">
-                                <canvas id="airQualityChart"></canvas>
-                            </div>
+                <!-- RIGHT COLUMN: Seismic -->
+                <div class="flex flex-col gap-4">
+                    <!-- Graph Card -->
+                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">Seismic – Total per Station</span>
+                            </h3>
+                            <span id="seismic-chart-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
+                                {{ count($seismicData ?? []) }} total
+                            </span>
                         </div>
-
-                        <!-- Table Card -->
-                        <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden flex flex-col">
-                            <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
-                                <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
-                                    <span class="truncate">Air Quality Stations</span>
-                                </h3>
-                                <span id="aq-table-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
-                                    {{ count($airQualityData ?? []) }} total
-                                </span>
-                            </div>
-                            <div class="overflow-x-auto max-h-[220px] sm:max-h-[250px] thin-scrollbar">
-                                <table class="min-w-full divide-y divide-border-700 text-xs">
-                                    <thead class="bg-surface-900 sticky top-0">
-                                        <tr class="h-10">
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">No.</th>
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Station</th>
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">IP Address</th>
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Installation</th>
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Latest</th>
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Total</th>
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="aq-table-body" class="bg-surface-800 divide-y divide-border-800">
-                                        @forelse ($airQualityData as $item)
-                                        <tr class="hover:bg-surface-700 transition h-10">
-                                            <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
-                                            <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
-                                            <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip ?? '—' }}</td>
-                                            <td class="px-2 py-0 whitespace-nowrap text-text-400">
-                                                {{ $item->installed_at ? \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') : '—' }}
-                                            </td>
-                                            <td class="px-2 py-0 whitespace-nowrap text-text-400">
-                                                {{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d h:i A') : '—' }}
-                                            </td>
-                                            <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
-                                            <td class="px-2 py-0 whitespace-nowrap">
-                                                @php($meta = $statusBadgeMeta[$item->status])
-                                                <span class="inline-flex items-center gap-1 text-[10px] font-medium {{ $meta['text'] }} {{ $meta['bg'] }} border {{ $meta['border'] }} px-1.5 py-0.5 rounded-full">
-                                                    <span class="w-1.5 h-1.5 rounded-full {{ $meta['dot'] }}"></span> {{ $meta['label'] }}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        @empty
-                                        <tr>
-                                            <td colspan="7" class="px-2 py-4 text-center text-text-400">No air quality data available</td>
-                                        </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="px-2 sm:px-3 pt-3 pb-1 h-[220px] sm:h-[260px] lg:h-[300px]">
+                            <canvas id="seismicChart"></canvas>
                         </div>
                     </div>
 
-                    <!-- RIGHT COLUMN: Seismic -->
-                    <div class="flex flex-col gap-4">
-                        <!-- Graph Card -->
-                        <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
-                            <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
-                                <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
-                                    <span class="truncate">Seismic – Total per Station</span>
-                                </h3>
-                                <span id="seismic-chart-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
-                                    {{ count($seismicData ?? []) }} total
-                                </span>
-                            </div>
-                            <div class="px-2 sm:px-3 pt-3 pb-1 h-[220px] sm:h-[260px] lg:h-[300px]">
-                                <canvas id="seismicChart"></canvas>
-                            </div>
+                    <!-- Table Card -->
+                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden flex flex-col">
+                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">Seismic Stations</span>
+                            </h3>
+                            <span id="seismic-table-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
+                                {{ count($seismicData ?? []) }} total
+                            </span>
                         </div>
-
-                        <!-- Table Card -->
-                        <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden flex flex-col">
-                            <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
-                                <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
-                                    <span class="truncate">Seismic Stations</span>
-                                </h3>
-                                <span id="seismic-table-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
-                                    {{ count($seismicData ?? []) }} total
-                                </span>
-                            </div>
-                            <div class="overflow-x-auto max-h-[220px] sm:max-h-[250px] thin-scrollbar">
-                                <table class="min-w-full divide-y divide-border-700 text-xs">
-                                    <thead class="bg-surface-900 sticky top-0">
-                                        <tr class="h-10">
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">No.</th>
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Station</th>
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Station ID</th>
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Installation</th>
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Latest</th>
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Total</th>
-                                            <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="seismic-table-body" class="bg-surface-800 divide-y divide-border-800">
-                                        @forelse ($seismicData as $item)
-                                        <tr class="hover:bg-surface-700 transition h-10">
-                                            <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
-                                            <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
-                                            <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip ?? '—' }}</td>
-                                            <td class="px-2 py-0 whitespace-nowrap text-text-400">
-                                                {{ $item->installed_at ? \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') : '—' }}
-                                            </td>
-                                            <td class="px-2 py-0 whitespace-nowrap text-text-400">
-                                                {{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d h:i A') : '—' }}
-                                            </td>
-                                            <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
-                                            <td class="px-2 py-0 whitespace-nowrap">
-                                                @php($meta = $statusBadgeMeta[$item->status])
-                                                <span class="inline-flex items-center gap-1 text-[10px] font-medium {{ $meta['text'] }} {{ $meta['bg'] }} border {{ $meta['border'] }} px-1.5 py-0.5 rounded-full">
-                                                    <span class="w-1.5 h-1.5 rounded-full {{ $meta['dot'] }}"></span> {{ $meta['label'] }}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        @empty
-                                        <tr>
-                                            <td colspan="7" class="px-2 py-4 text-center text-text-400">No seismic data available</td>
-                                        </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="overflow-x-auto max-h-[220px] sm:max-h-[250px] thin-scrollbar">
+                            <table class="min-w-full divide-y divide-border-700 text-xs">
+                                <thead class="bg-surface-900 sticky top-0">
+                                    <tr class="h-10">
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">No.</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Station</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Station ID</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Installation</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Latest</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Total</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="seismic-table-body" class="bg-surface-800 divide-y divide-border-800">
+                                    @forelse ($seismicData as $item)
+                                    <tr class="hover:bg-surface-700 transition h-10">
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip ?? '—' }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-400">
+                                            {{ $item->installed_at ? \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') : '—' }}
+                                        </td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-400">
+                                            {{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d h:i A') : '—' }}
+                                        </td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap">
+                                            @php($meta = $statusBadgeMeta[$item->status])
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium {{ $meta['text'] }} {{ $meta['bg'] }} border {{ $meta['border'] }} px-1.5 py-0.5 rounded-full">
+                                                <span class="w-1.5 h-1.5 rounded-full {{ $meta['dot'] }}"></span> {{ $meta['label'] }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="7" class="px-2 py-4 text-center text-text-400">No seismic data available</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-
                 </div>
 
             </div>
