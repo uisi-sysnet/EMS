@@ -3,12 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Camera;
+use App\Services\Mediamtx\MediaMtxClient;
+use App\Services\Onvif\OnvifClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
-use App\Exports\CamerasFormatExport;
-use Maatwebsite\Excel\Facades\Excel;
+use Throwable;
 
 class CameraController extends Controller
 {
@@ -62,6 +63,8 @@ class CameraController extends Controller
 
         $camera = Camera::create($validated);
 
+        $this->syncOnvifStream($camera);
+
         return redirect()
             ->route('inventory.cameras.index')
             ->with('success', "Camera '{$camera->name}' created successfully.");
@@ -112,6 +115,8 @@ class CameraController extends Controller
 
         $camera->update($validated);
 
+        $this->syncOnvifStream($camera);
+
         return redirect()
             ->route('inventory.cameras.index')
             ->with('success', "Camera '{$camera->name}' updated successfully.");
@@ -125,9 +130,18 @@ class CameraController extends Controller
         $camera = Camera::findOrFail($id);
 
         $name = $camera->name;
-        
+        $slug = $camera->slug;
+
         $camera->delete();
-        
+
+        try {
+            app(MediaMtxClient::class)->deletePath($slug);
+        } catch (Throwable $e) {
+            // Non-fatal: the camera row is already gone. Worst case a stale
+            // mediamtx path lingers until the next refresh/edit overwrites it.
+            report($e);
+        }
+
         return redirect()
             ->route('inventory.cameras.index')
             ->with('success', "Camera '{$name}' deleted successfully.");
@@ -144,6 +158,70 @@ class CameraController extends Controller
         return redirect()
             ->route('inventory.cameras.index')
             ->with('success', "Camera '{$camera->name}' restored successfully.");
+    }
+
+    /**
+     * Re-resolve a camera's ONVIF stream URI and push it to mediamtx.
+     * Bound to the "Refresh" button on the cameras grid.
+     */
+    public function refresh($id): RedirectResponse
+    {
+        $camera = Camera::findOrFail($id);
+
+        $this->syncOnvifStream($camera);
+        $camera->refresh();
+
+        return $camera->last_status === 'error'
+            ? redirect()->route('inventory.cameras.index')
+                ->with('error', "Camera '{$camera->name}': {$camera->last_error}")
+            : redirect()->route('inventory.cameras.index')
+                ->with('success', "Camera '{$camera->name}' refreshed.");
+    }
+
+    /**
+     * Talks to the camera over ONVIF to resolve its media profile and RTSP
+     * stream URI, saves that onto the camera row, and pushes it to mediamtx
+     * as a WebRTC-egress source path (keyed by the camera's slug — the same
+     * slug the WHEP endpoint /cctv-stream/{slug}/whep is served under).
+     *
+     * Called from store()/update()/refresh() rather than left for the
+     * frontend to trigger, since without this step mediamtx never has a
+     * path to serve and every viewer request 404s/fails silently.
+     */
+    private function syncOnvifStream(Camera $camera): void
+    {
+        try {
+            $onvif = new OnvifClient(
+                host: $camera->ip_address,
+                port: $camera->onvif_port,
+                username: $camera->username,
+                password: $camera->password,
+            );
+
+            $token = $camera->onvif_profile_token;
+            if (! $token) {
+                $profiles = $onvif->getProfiles();
+                $token = $profiles[0]['token'];
+            }
+
+            $streamUri = $onvif->getStreamUri($token);
+
+            $camera->forceFill([
+                'onvif_profile_token' => $token,
+                'rtsp_uri' => $streamUri,
+                'last_status' => 'online',
+                'last_error' => null,
+            ])->save();
+
+            app(MediaMtxClient::class)->upsertPath($camera->slug, $streamUri);
+        } catch (Throwable $e) {
+            $camera->forceFill([
+                'last_status' => 'error',
+                'last_error' => $e->getMessage(),
+            ])->save();
+
+            report($e);
+        }
     }
 
     /**
@@ -175,13 +253,9 @@ class CameraController extends Controller
      */
     public function downloadFormat()
     {
-        try {
-            return Excel::download(new CamerasFormatExport(), 'cameras_import_format.xlsx');
-        } catch (\Exception $e) {
-            return redirect()
-                ->route('inventory.cameras.index')
-                ->with('error', 'Failed to download format: ' . $e->getMessage());
-        }
+        return redirect()
+            ->route('inventory.cameras.index')
+            ->with('error', 'Download format functionality is coming soon.');
     }
 
     /**
