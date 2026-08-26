@@ -32,6 +32,7 @@ class ServicesController extends Controller
 
     /** Actions allowed via the control buttons. */
     private const ALLOWED_ACTIONS = ['start', 'stop', 'restart'];
+    private const SMS_ALLOWED_ACTIONS = ['enable', 'disable'];
 
     /**
      * Whitelist of config files that can be viewed/edited from the UI,
@@ -87,6 +88,17 @@ class ServicesController extends Controller
         }
 
         $action = $validated['action'];
+
+        // After the whitelist check
+        if ($service === 'sms.service') {
+            if (!in_array($action, self::SMS_ALLOWED_ACTIONS)) {
+                return response()->json(['message' => 'Invalid action for SMS service.'], 422);
+            }
+        } else {
+            if (!in_array($action, self::ALLOWED_ACTIONS)) {
+                return response()->json(['message' => 'Invalid action.'], 422);
+            }
+        }
 
         // Symfony Process with an array of args — no shell string is ever
         // built, so there is no injection surface here regardless of what
@@ -271,6 +283,7 @@ class ServicesController extends Controller
             'enabled'   => $enabled ?: 'unknown',
             'running'   => $active === 'active',
             'hasConfig' => array_key_exists($unit, self::CONFIG_FILES),
+            'isSms' => $unit === 'sms.service',
         ];
     }
 
