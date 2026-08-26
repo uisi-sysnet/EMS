@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Throwable;
 use App\Exports\CamerasFormatExport;
+use App\Imports\CamerasImport;
 use Maatwebsite\Excel\Facades\Excel;
 
 class CameraController extends Controller
@@ -387,12 +388,54 @@ class CameraController extends Controller
      */
     public function import(Request $request): RedirectResponse
     {
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls,csv|max:5120',
-        ]);
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:xlsx,xls,csv|max:5120',
+            ]);
 
-        return redirect()
-            ->route('inventory.cameras.index')
-            ->with('success', 'Import functionality is coming soon.');
+            $import = new CamerasImport();
+            Excel::import($import, $request->file('file'));
+
+            $imported = $import->getImportedCount();
+            $errors = $import->getErrors();
+
+            // Build success message
+            $message = "Successfully imported {$imported} cameras.";
+            if ($imported === 0) {
+                $message = "No cameras were imported. Please check your file format.";
+            }
+
+            // If there were errors, add them to the message
+            if (!empty($errors)) {
+                $errorMessage = " Errors: " . implode('; ', array_slice($errors, 0, 5));
+                if (count($errors) > 5) {
+                    $errorMessage .= " and " . (count($errors) - 5) . " more errors.";
+                }
+                
+                return redirect()
+                    ->route('inventory.cameras.index')
+                    ->with('warning', $message . $errorMessage);
+            }
+
+            return redirect()
+                ->route('inventory.cameras.index')
+                ->with('success', $message);
+
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            $failures = $e->failures();
+            $errorMessages = [];
+            foreach ($failures as $failure) {
+                $errorMessages[] = "Row {$failure->row()}: " . implode(', ', $failure->errors());
+            }
+            
+            return redirect()
+                ->route('inventory.cameras.index')
+                ->with('error', 'Import failed: ' . implode('; ', array_slice($errorMessages, 0, 3)));
+                
+        } catch (\Exception $e) {
+            return redirect()
+                ->route('inventory.cameras.index')
+                ->with('error', 'Import failed: ' . $e->getMessage());
+        }
     }
 }
