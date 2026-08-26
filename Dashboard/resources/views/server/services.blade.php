@@ -51,6 +51,7 @@
                         {{-- SMS-specific enable/disable buttons --}}
                         <div class="flex gap-2 mt-4">
                             @if($svc['smsEnabled'] ?? false)
+                                {{-- SMS is ENABLED - show only Disable button --}}
                                 <button type="button" 
                                         class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
                                         data-action="disable"
@@ -59,6 +60,7 @@
                                     Disable
                                 </button>
                             @else
+                                {{-- SMS is DISABLED - show only Enable button --}}
                                 <button type="button" 
                                         class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
                                         data-action="enable"
@@ -178,6 +180,7 @@ document.addEventListener('DOMContentLoaded', function () {
             buttonContainer.innerHTML = '';
             
             if (svc.smsEnabled) {
+                // SMS is ENABLED - show Disable button only
                 const disableBtn = document.createElement('button');
                 disableBtn.type = 'button';
                 disableBtn.className = 'btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed';
@@ -187,6 +190,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 disableBtn.textContent = 'Disable';
                 buttonContainer.appendChild(disableBtn);
             } else {
+                // SMS is DISABLED - show Enable button only
                 const enableBtn = document.createElement('button');
                 enableBtn.type = 'button';
                 enableBtn.className = 'btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed';
