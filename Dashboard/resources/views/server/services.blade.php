@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const smsStatusSpan = card.querySelector('.sms-status-text');
             if (smsStatusSpan) {
                 smsStatusSpan.textContent = svc.running ? 'True' : 'False';
-                smsStatusSpan.className = 'font-semibold ' + (svc.running ? 'text-munti-green-400' : 'text-munti-red-400');
+                smsStatusSpan.className = 'font-semibold ' + (svc.running);
             }
             
             // Update SMS button states
