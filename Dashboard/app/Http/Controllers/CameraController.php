@@ -367,7 +367,7 @@ class CameraController extends Controller
     {
         return redirect()
             ->route('inventory.cameras.index')
-            ->with('error', 'Download format functionality is coming soon.');
+            ->with('error', 'Unable to download format.');
     }
 
     /**
