@@ -7,6 +7,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
+use App\Exports\CamerasFormatExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CameraController extends Controller
 {
@@ -173,9 +175,13 @@ class CameraController extends Controller
      */
     public function downloadFormat()
     {
-        return redirect()
-            ->route('inventory.cameras.index')
-            ->with('error', 'Download format functionality is coming soon.');
+        try {
+            return Excel::download(new CamerasFormatExport(), 'cameras_import_format.xlsx');
+        } catch (\Exception $e) {
+            return redirect()
+                ->route('inventory.cameras.index')
+                ->with('error', 'Failed to download format: ' . $e->getMessage());
+        }
     }
 
     /**
