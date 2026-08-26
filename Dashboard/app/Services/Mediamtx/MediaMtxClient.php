@@ -30,9 +30,11 @@ class MediaMtxClient
 
         $response = Http::timeout(5)->post("{$this->baseUrl}/v3/config/paths/add/{$name}", $payload);
 
-        // Path already exists — /add rejects it, /edit updates in place.
+        // Path already exists — /add rejects it, /replace updates it in
+        // place with a full config replacement (there is no /edit endpoint
+        // in mediamtx's v3 API; that was a bug — it 404s).
         if ($response->status() === 400) {
-            $response = Http::timeout(5)->post("{$this->baseUrl}/v3/config/paths/edit/{$name}", $payload);
+            $response = Http::timeout(5)->post("{$this->baseUrl}/v3/config/paths/replace/{$name}", $payload);
         }
 
         if ($response->failed()) {
