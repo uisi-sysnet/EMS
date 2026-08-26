@@ -5,8 +5,8 @@
 <div id="main-content" class="pt-20 pb-0 px-0 w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
     <div class="flex flex-col lg:flex-row flex-1 min-h-0">
 
-        {{-- LEFT: Camera list (30%) --}}
-        <div class="w-full lg:w-[30%] lg:min-w-[280px] border-b lg:border-b-0 lg:border-r border-border-800 bg-surface-900/50 lg:overflow-y-auto thin-scrollbar shrink-0">
+        {{-- LEFT: Camera list (20%) --}}
+        <div class="w-full lg:w-[20%] lg:min-w-[220px] border-b lg:border-b-0 lg:border-r border-border-800 bg-surface-900/50 lg:overflow-y-auto thin-scrollbar shrink-0">
             <div class="px-4 py-3 border-b border-border-800">
                 <h2 class="text-sm font-semibold text-text-100 uppercase tracking-wide">Cameras</h2>
                 <p class="text-xs text-text-400 mt-0.5">{{ $cameras->count() }} connected</p>
@@ -32,8 +32,8 @@
                 @endforelse
             </div>
 
-            {{-- PTZ controls — shown only when the selected camera is device_type "PTZ" --}}
-            <div id="ptz-panel" class="hidden px-4 py-3 border-t border-border-800">
+            {{-- PTZ controls — always shown below the camera list --}}
+            <div id="ptz-panel" class="px-4 py-3 border-t border-border-800">
                 <h3 class="text-xs font-semibold text-text-300 uppercase tracking-wide mb-2">PTZ Control</h3>
                 <div class="grid grid-cols-3 gap-1 w-36 mx-auto">
                     <button type="button" class="ptz-btn aspect-square flex items-center justify-center rounded border border-border-700 bg-surface-800 text-text-200 hover:bg-surface-700 active:bg-surface-600 select-none" data-pan="-1" data-tilt="1" aria-label="Up-left">↖</button>
@@ -53,8 +53,8 @@
             </div>
         </div>
 
-        {{-- RIGHT: Viewer (70%) --}}
-        <div class="w-full lg:w-[70%] flex-1 flex flex-col bg-black min-h-[50vh] lg:min-h-0">
+        {{-- RIGHT: Viewer (80%) --}}
+        <div class="w-full lg:w-[80%] flex-1 flex flex-col bg-black min-h-[50vh] lg:min-h-0">
             <div class="px-4 py-3 border-b border-border-800 bg-surface-900/50 flex items-center justify-between shrink-0">
                 <div>
                     <div id="viewer-name" class="text-sm font-semibold text-text-100">Select a camera</div>
@@ -63,7 +63,7 @@
                 <span id="viewer-status" class="text-xs px-2 py-0.5 rounded-full border border-border-600 text-text-400">Idle</span>
             </div>
             <div class="flex-1 relative flex items-center justify-center">
-                <video id="cctv-player" class="w-full h-full object-contain hidden" autoplay playsinline muted controls></video>
+                <video id="cctv-player" class="w-full h-full object-contain hidden" autoplay playsinline muted></video>
                 <div id="viewer-placeholder" class="text-text-500 text-sm px-4 text-center">Choose a camera from the list to start streaming</div>
             </div>
         </div>
@@ -83,7 +83,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // ('auth' + 'role:administrator').
     const mediamtxAuth = btoa('{{ $mediamtxReadUser }}:{{ $mediamtxReadPass }}');
 
-    const ptzPanel = document.getElementById('ptz-panel');
     let pc = null;
     let currentSlug = null;
     let ptzHoldActive = false;
@@ -160,7 +159,6 @@ document.addEventListener('DOMContentLoaded', function () {
     async function playCamera(slug, name, location, deviceType) {
         ptzStop();
         currentSlug = slug;
-        ptzPanel.classList.toggle('hidden', deviceType !== 'PTZ');
 
         if (pc) { try { pc.close(); } catch (e) {} pc = null; }
         video.classList.add('hidden');
