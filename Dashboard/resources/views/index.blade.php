@@ -396,6 +396,7 @@
                         </div>
                     </div>
                 </div>
+            </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full min-w-0">
                     <!-- Air Quality Station Status -->
