@@ -883,28 +883,12 @@
             const colors = total > 0 ? ['#2DD4BF', '#FBBF24', '#F87171'] : ['#FBBF24'];
             return new Chart(el.getContext('2d'), {
                 type: 'doughnut',
-                data: { 
-                    labels: labels, 
-                    datasets: [{ 
-                        data: data, 
-                        backgroundColor: colors, 
-                        borderColor: '#1E293B', 
-                        borderWidth: 2 
-                    }] 
-                },
+                data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderColor: '#1E293B', borderWidth: 2 }] },
                 options: {
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    cutout: '72%',
+                    responsive: true, maintainAspectRatio: false, cutout: '72%',
                     plugins: {
                         legend: { display: false },
-                        tooltip: { 
-                            backgroundColor: '#1A1A1A', 
-                            titleColor: '#F3F4F6', 
-                            bodyColor: '#E5E7EB', 
-                            borderColor: '#374151', 
-                            borderWidth: 1 
-                        }
+                        tooltip: { backgroundColor: '#1A1A1A', titleColor: '#F3F4F6', bodyColor: '#E5E7EB', borderColor: '#374151', borderWidth: 1 }
                     }
                 }
             });
@@ -1111,7 +1095,7 @@
             const label = document.getElementById('system-status-label');
             const count = document.getElementById('system-status-count');
 
-            if (banner) banner.className = `rounded-xl border ${meta.border} ${meta.bg} overflow-hidden`;
+            if (banner) banner.className = `lg:col-span-2 rounded-xl border ${meta.border} ${meta.bg} overflow-hidden`;
             if (ping) { ping.className = `animate-ping absolute inline-flex h-full w-full rounded-full ${meta.dot} opacity-60`; ping.style.display = status === 'good' ? 'none' : ''; }
             if (dot) dot.className = `relative inline-flex rounded-full h-2.5 w-2.5 ${meta.dot}`;
             if (label) { label.textContent = meta.label; label.className = `text-sm font-semibold ${meta.text}`; }
@@ -1183,8 +1167,13 @@
                 // Update all three donut charts
                 updateStatusChart(airStatusChart, data.airQualityCounts.online, data.airQualityCounts.idle, data.airQualityCounts.offline);
                 updateStatusChart(seismicStatusChart, data.seismicCounts.online, data.seismicCounts.idle, data.seismicCounts.offline);
-                // Camera chart - static for now (can be made dynamic when backend provides camera data)
-                // updateStatusChart(cameraStatusChart, data.cameraCounts.online, data.cameraCounts.idle, data.cameraCounts.offline);
+                
+                // Update camera chart if data is available from backend
+                // If your backend provides camera data, uncomment and use:
+                // if (data.cameraCounts) {
+                //     updateStatusChart(cameraStatusChart, data.cameraCounts.online, data.cameraCounts.idle, data.cameraCounts.offline);
+                //     updateDonutCard('camera', data.cameraCounts);
+                // }
                 
                 updateDonutCard('aq', data.airQualityCounts);
                 updateDonutCard('seismic', data.seismicCounts);
