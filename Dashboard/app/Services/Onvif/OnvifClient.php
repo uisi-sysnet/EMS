@@ -210,7 +210,9 @@ class OnvifClient
             ->post($url);
 
         if ($response->failed()) {
-            throw new RuntimeException("ONVIF {$action} failed: HTTP {$response->status()}");
+            throw new RuntimeException(
+                "ONVIF {$action} failed: HTTP {$response->status()} " . substr($response->body(), 0, 500)
+            );
         }
 
         $xml = @simplexml_load_string($response->body());

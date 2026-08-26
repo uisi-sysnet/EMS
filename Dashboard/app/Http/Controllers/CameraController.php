@@ -180,17 +180,23 @@ class CameraController extends Controller
 
     /**
      * Builds Dahua's documented native RTSP path directly
-     * (rtsp://user:pass@host:554/cam/realmonitor?channel=1&subtype=0)
+     * (rtsp://user:pass@host:554/cam/realmonitor?channel=N&subtype=0)
      * rather than trusting ONVIF's GetStreamUri for it. Dahua's ONVIF
      * stream-URI response is known to be unreliable across firmware
      * versions (wrong path/missing query params), while this native
      * pattern is stable and documented by the vendor — used here since
      * the fleet is single-vendor (Dahua). subtype=0 is the main/high
      * quality stream; subtype=1 is the lower-quality sub stream.
+     *
+     * Uses $camera->channel (not a hardcoded 1) — cameras sharing an
+     * NVR/multi-input unit are distinguished by this field, and every
+     * camera silently requesting channel 1 was why only one of two
+     * added cameras ever actually connected.
      */
-    private function dahuaRtspUri(Camera $camera, int $channel = 1, int $subtype = 0): string
+    private function dahuaRtspUri(Camera $camera, int $subtype = 0): string
     {
         $auth = rawurlencode($camera->username) . ':' . rawurlencode($camera->password);
+        $channel = (int) ($camera->channel ?: 1);
 
         return "rtsp://{$auth}@{$camera->ip_address}:554/cam/realmonitor?channel={$channel}&subtype={$subtype}";
     }
@@ -205,7 +211,7 @@ class CameraController extends Controller
      * frontend to trigger, since without this step mediamtx never has a
      * path to serve and every viewer request 404s/fails silently.
      */
-    private function syncOnvifStream(Camera $camera): void
+    public function syncOnvifStream(Camera $camera): void
     {
         try {
             // Force decryption to happen here, inside the try/catch, so a
@@ -252,7 +258,7 @@ class CameraController extends Controller
             // Bare (no-credentials) URI kept for display/debugging only —
             // this is what ONVIF reports, even though the actual mediamtx
             // source uses the native Dahua URL below.
-            $bareStreamUri = "rtsp://{$camera->ip_address}:554/cam/realmonitor?channel=1&subtype=0";
+            $bareStreamUri = "rtsp://{$camera->ip_address}:554/cam/realmonitor?channel={$camera->channel}&subtype=0";
 
             $camera->forceFill([
                 'onvif_profile_token' => $token,
