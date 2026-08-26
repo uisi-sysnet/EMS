@@ -179,26 +179,20 @@ class CameraController extends Controller
     }
 
     /**
-     * Builds the RTSP URL mediamtx will actually connect to, with the
-     * camera's credentials embedded (rtsp://user:pass@host:port/path).
-     * Falls back to the unmodified URI if it can't be parsed rather than
-     * risk mangling a working URL.
+     * Builds Dahua's documented native RTSP path directly
+     * (rtsp://user:pass@host:554/cam/realmonitor?channel=1&subtype=0)
+     * rather than trusting ONVIF's GetStreamUri for it. Dahua's ONVIF
+     * stream-URI response is known to be unreliable across firmware
+     * versions (wrong path/missing query params), while this native
+     * pattern is stable and documented by the vendor — used here since
+     * the fleet is single-vendor (Dahua). subtype=0 is the main/high
+     * quality stream; subtype=1 is the lower-quality sub stream.
      */
-    private function withRtspCredentials(string $uri, string $username, string $password): string
+    private function dahuaRtspUri(Camera $camera, int $channel = 1, int $subtype = 0): string
     {
-        $parts = parse_url($uri);
-        if ($parts === false || ! isset($parts['scheme'], $parts['host'])) {
-            return $uri;
-        }
+        $auth = rawurlencode($camera->username) . ':' . rawurlencode($camera->password);
 
-        $authority = rawurlencode($username) . ':' . rawurlencode($password) . '@' . $parts['host'];
-        if (isset($parts['port'])) {
-            $authority .= ':' . $parts['port'];
-        }
-
-        return $parts['scheme'] . '://' . $authority
-            . ($parts['path'] ?? '')
-            . (isset($parts['query']) ? '?' . $parts['query'] : '');
+        return "rtsp://{$auth}@{$camera->ip_address}:554/cam/realmonitor?channel={$channel}&subtype={$subtype}";
     }
 
     /**
@@ -221,29 +215,29 @@ class CameraController extends Controller
                 password: $camera->password,
             );
 
+            // Still resolve the profile token via ONVIF (useful for
+            // confirming the camera is actually reachable/authenticated,
+            // and for any future PTZ/profile-specific work) — just don't
+            // trust the stream URI it returns.
             $token = $camera->onvif_profile_token;
             if (! $token) {
                 $profiles = $onvif->getProfiles();
                 $token = $profiles[0]['token'];
             }
 
-            $streamUri = $onvif->getStreamUri($token);
+            // Bare (no-credentials) URI kept for display/debugging only —
+            // this is what ONVIF reports, even though the actual mediamtx
+            // source uses the native Dahua URL below.
+            $bareStreamUri = "rtsp://{$camera->ip_address}:554/cam/realmonitor?channel=1&subtype=0";
 
             $camera->forceFill([
                 'onvif_profile_token' => $token,
-                'rtsp_uri' => $streamUri,
+                'rtsp_uri' => $bareStreamUri,
                 'last_status' => 'online',
                 'last_error' => null,
             ])->save();
 
-            // ONVIF's GetStreamUri deliberately returns a bare RTSP URL —
-            // SOAP auth and RTSP-stream auth are separate per spec — but
-            // the camera still expects RTSP-level Basic/Digest auth using
-            // the same credentials. Without this, mediamtx connects with
-            // no credentials at all and every pull attempt gets a 401.
-            // Injected only here (not persisted) so the plaintext password
-            // never lands in the rtsp_uri column or the edit() JSON payload.
-            $authedUri = $this->withRtspCredentials($streamUri, $camera->username, $camera->password);
+            $authedUri = $this->dahuaRtspUri($camera);
 
             app(MediaMtxClient::class)->upsertPath($camera->slug, $authedUri);
         } catch (Throwable $e) {
