@@ -27,12 +27,12 @@ class CamerasFormatExport implements FromArray, WithHeadings, WithStyles
                 'SN-2024-001',
                 '14.5995',
                 '120.9842',
-                '1',
+                /* '1',
                 '2024-01-01 00:00:00',
                 'online',
-                '',
+                '', */
                 'Sample camera notes',
-                '0'
+                /* '0' */
             ]
         ];
     }
@@ -54,12 +54,12 @@ class CamerasFormatExport implements FromArray, WithHeadings, WithStyles
             'serial_number',
             'latitude',
             'longitude',
-            'enabled',
+            /* 'enabled',
             'last_synced_at',
             'last_status',
-            'last_error',
+            'last_error', */
             'notes',
-            'deleted_at'
+            /* 'deleted_at' */
         ];
     }
 
