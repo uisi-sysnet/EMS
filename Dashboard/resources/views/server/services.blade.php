@@ -50,25 +50,20 @@
                     @if($svc['isSms'] ?? false)
                         {{-- SMS-specific enable/disable buttons --}}
                         <div class="flex gap-2 mt-4">
-                            @if($svc['smsEnabled'] ?? false)
-                                {{-- SMS is ENABLED - show only Disable button --}}
-                                <button type="button" 
-                                        class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
-                                        data-action="disable"
-                                        data-unit="{{ $svc['unit'] }}"
-                                        data-label="{{ $svc['label'] }}">
-                                    Disable
-                                </button>
-                            @else
-                                {{-- SMS is DISABLED - show only Enable button --}}
-                                <button type="button" 
-                                        class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
-                                        data-action="enable"
-                                        data-unit="{{ $svc['unit'] }}"
-                                        data-label="{{ $svc['label'] }}">
-                                    Enable
-                                </button>
-                            @endif
+                            <button type="button" 
+                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
+                                    data-action="enable"
+                                    data-unit="{{ $svc['unit'] }}"
+                                    data-label="{{ $svc['label'] }}">
+                                Enable
+                            </button>
+                            <button type="button" 
+                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
+                                    data-action="disable"
+                                    data-unit="{{ $svc['unit'] }}"
+                                    data-label="{{ $svc['label'] }}">
+                                Disable
+                            </button>
                         </div>
                     @else
                         {{-- Regular start/stop/restart buttons --}}
@@ -169,38 +164,6 @@ document.addEventListener('DOMContentLoaded', function () {
         dot.className = 'w-1.5 h-1.5 rounded-full ' + cls.dot;
         label.textContent = svc.active.charAt(0).toUpperCase() + svc.active.slice(1);
         enabled.textContent = svc.enabled.charAt(0).toUpperCase() + svc.enabled.slice(1);
-
-        // Handle SMS buttons
-        const smsButtons = card.querySelectorAll('.btn-sms-toggle');
-        if (smsButtons.length > 0) {
-            const buttonContainer = smsButtons[0].parentElement;
-            const unit = card.dataset.unit;
-            const labelText = card.querySelector('.text-text-100')?.textContent?.trim() || unit;
-            
-            buttonContainer.innerHTML = '';
-            
-            if (svc.smsEnabled) {
-                // SMS is ENABLED - show Disable button only
-                const disableBtn = document.createElement('button');
-                disableBtn.type = 'button';
-                disableBtn.className = 'btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed';
-                disableBtn.dataset.action = 'disable';
-                disableBtn.dataset.unit = unit;
-                disableBtn.dataset.label = labelText;
-                disableBtn.textContent = 'Disable';
-                buttonContainer.appendChild(disableBtn);
-            } else {
-                // SMS is DISABLED - show Enable button only
-                const enableBtn = document.createElement('button');
-                enableBtn.type = 'button';
-                enableBtn.className = 'btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed';
-                enableBtn.dataset.action = 'enable';
-                enableBtn.dataset.unit = unit;
-                enableBtn.dataset.label = labelText;
-                enableBtn.textContent = 'Enable';
-                buttonContainer.appendChild(enableBtn);
-            }
-        }
     }
 
     async function refreshStatuses() {
