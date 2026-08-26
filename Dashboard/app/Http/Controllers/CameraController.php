@@ -179,29 +179,6 @@ class CameraController extends Controller
     }
 
     /**
-     * Builds the RTSP URL mediamtx will actually connect to, with the
-     * camera's credentials embedded (rtsp://user:pass@host:port/path).
-     * Falls back to the unmodified URI if it can't be parsed rather than
-     * risk mangling a working URL.
-     */
-    private function withRtspCredentials(string $uri, string $username, string $password): string
-    {
-        $parts = parse_url($uri);
-        if ($parts === false || ! isset($parts['scheme'], $parts['host'])) {
-            return $uri;
-        }
-
-        $authority = rawurlencode($username) . ':' . rawurlencode($password) . '@' . $parts['host'];
-        if (isset($parts['port'])) {
-            $authority .= ':' . $parts['port'];
-        }
-
-        return $parts['scheme'] . '://' . $authority
-            . ($parts['path'] ?? '')
-            . (isset($parts['query']) ? '?' . $parts['query'] : '');
-    }
-
-    /**
      * Talks to the camera over ONVIF to resolve its media profile and RTSP
      * stream URI, saves that onto the camera row, and pushes it to mediamtx
      * as a WebRTC-egress source path (keyed by the camera's slug — the same
@@ -236,16 +213,7 @@ class CameraController extends Controller
                 'last_error' => null,
             ])->save();
 
-            // ONVIF's GetStreamUri deliberately returns a bare RTSP URL —
-            // SOAP auth and RTSP-stream auth are separate per spec — but
-            // the camera still expects RTSP-level Basic/Digest auth using
-            // the same credentials. Without this, mediamtx connects with
-            // no credentials at all and every pull attempt gets a 401.
-            // Injected only here (not persisted) so the plaintext password
-            // never lands in the rtsp_uri column or the edit() JSON payload.
-            $authedUri = $this->withRtspCredentials($streamUri, $camera->username, $camera->password);
-
-            app(MediaMtxClient::class)->upsertPath($camera->slug, $authedUri);
+            app(MediaMtxClient::class)->upsertPath($camera->slug, $streamUri);
         } catch (Throwable $e) {
             $camera->forceFill([
                 'last_status' => 'error',
