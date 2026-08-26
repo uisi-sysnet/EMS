@@ -80,7 +80,7 @@ class ServicesController extends Controller
     public function action(Request $request, string $service): JsonResponse
     {
         $validated = $request->validate([
-            'action' => 'required|string|in:' . implode(',', self::ALLOWED_ACTIONS),
+            'action' => 'required|string|in:' . implode(',', array_merge(self::ALLOWED_ACTIONS, self::SMS_ALLOWED_ACTIONS)),
         ]);
 
         if (!array_key_exists($service, self::MANAGED_SERVICES)) {
