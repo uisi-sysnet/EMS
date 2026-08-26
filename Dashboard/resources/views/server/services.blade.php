@@ -46,7 +46,7 @@
                     </div>
 
                     @if($svc['isSms'] ?? false)
-                        <p class="text-xs text-text-500 mt-2">SMS Ingestion: <span class="font-semibold {{ $svc['running'] }}">{{ $svc['running'] ? 'True' : 'False' }}</span></p>
+                        <p class="text-xs text-text-500 mt-2">SMS Ingestion: <span class="sms-status-text font-semibold {{ $svc['running'] ? 'text-munti-green-400' : 'text-munti-red-400' }}">{{ $svc['running'] ? 'True' : 'False' }}</span></p>
                         {{-- SMS-specific enable/disable buttons --}}
                         <div class="flex gap-2 mt-4">
                             <button type="button" 
@@ -161,30 +161,39 @@ document.addEventListener('DOMContentLoaded', function () {
         const pill = card.querySelector('.status-pill');
         const dot = card.querySelector('.status-pill span');
         const label = card.querySelector('.status-label');
-        const enabled = card.querySelector('.enabled-label');
         const cls = pillClasses(svc);
 
         pill.className = 'status-pill shrink-0 inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full ' + cls.pill;
         dot.className = 'w-1.5 h-1.5 rounded-full ' + cls.dot;
         label.textContent = svc.active.charAt(0).toUpperCase() + svc.active.slice(1);
-        enabled.textContent = svc.enabled.charAt(0).toUpperCase() + svc.enabled.slice(1);
         
-        // Update SMS status display if it exists
-        const smsStatusSpan = card.querySelector('.sms-status-text');
-        if (smsStatusSpan) {
-            smsStatusSpan.textContent = svc.running ? 'ACTIVE' : 'INACTIVE';
-            smsStatusSpan.className = 'text-xs font-semibold ' + (svc.running ? 'text-munti-green-400' : 'text-munti-red-400');
-        }
+        // Check if this is an SMS card
+        const isSms = svc.isSms || card.dataset.unit === 'sms.service';
         
-        // Update SMS button states
-        const enableBtn = card.querySelector('.btn-sms-toggle[data-action="enable"]');
-        const disableBtn = card.querySelector('.btn-sms-toggle[data-action="disable"]');
-        if (enableBtn && disableBtn) {
-            enableBtn.disabled = svc.running;
-            disableBtn.disabled = !svc.running;
-            // Update visual states
-            enableBtn.className = enableBtn.className.replace(/bg-\w+-\d+\/\d+/g, '').trim() + (svc.running ? ' bg-munti-green-700/10' : '');
-            disableBtn.className = disableBtn.className.replace(/bg-\w+-\d+\/\d+/g, '').trim() + (!svc.running ? ' bg-munti-red-700/10' : '');
+        if (isSms) {
+            // Update SMS ingestion status
+            const smsStatusSpan = card.querySelector('.sms-status-text');
+            if (smsStatusSpan) {
+                smsStatusSpan.textContent = svc.running ? 'True' : 'False';
+                smsStatusSpan.className = 'font-semibold ' + (svc.running ? 'text-munti-green-400' : 'text-munti-red-400');
+            }
+            
+            // Update SMS button states
+            const enableBtn = card.querySelector('.btn-sms-toggle[data-action="enable"]');
+            const disableBtn = card.querySelector('.btn-sms-toggle[data-action="disable"]');
+            if (enableBtn && disableBtn) {
+                enableBtn.disabled = svc.running;
+                disableBtn.disabled = !svc.running;
+                // Update visual states
+                enableBtn.className = enableBtn.className.replace(/bg-\w+-\d+\/\d+/g, '').trim() + (svc.running ? ' bg-munti-green-700/10' : '');
+                disableBtn.className = disableBtn.className.replace(/bg-\w+-\d+\/\d+/g, '').trim() + (!svc.running ? ' bg-munti-red-700/10' : '');
+            }
+        } else {
+            // Update non-SMS cards
+            const enabled = card.querySelector('.enabled-label');
+            if (enabled) {
+                enabled.textContent = svc.enabled.charAt(0).toUpperCase() + svc.enabled.slice(1);
+            }
         }
     }
 
