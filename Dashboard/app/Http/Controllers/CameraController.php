@@ -208,21 +208,45 @@ class CameraController extends Controller
     private function syncOnvifStream(Camera $camera): void
     {
         try {
-            $onvif = new OnvifClient(
-                host: $camera->ip_address,
-                port: $camera->onvif_port,
-                username: $camera->username,
-                password: $camera->password,
-            );
+            // Force decryption to happen here, inside the try/catch, so a
+            // stale/rotated APP_KEY produces a clear "couldn't decrypt the
+            // stored password" error instead of masquerading as an ONVIF
+            // auth failure lower down.
+            try {
+                $password = $camera->password;
+            } catch (Throwable $e) {
+                throw new \RuntimeException(
+                    "Could not decrypt stored password (APP_KEY changed since it was saved?): {$e->getMessage()}",
+                    previous: $e,
+                );
+            }
 
             // Still resolve the profile token via ONVIF (useful for
             // confirming the camera is actually reachable/authenticated,
             // and for any future PTZ/profile-specific work) — just don't
             // trust the stream URI it returns.
-            $token = $camera->onvif_profile_token;
-            if (! $token) {
-                $profiles = $onvif->getProfiles();
-                $token = $profiles[0]['token'];
+            try {
+                $onvif = new OnvifClient(
+                    host: $camera->ip_address,
+                    port: $camera->onvif_port,
+                    username: $camera->username,
+                    password: $password,
+                );
+
+                $token = $camera->onvif_profile_token;
+                if (! $token) {
+                    $profiles = $onvif->getProfiles();
+                    $token = $profiles[0]['token'] ?? null;
+
+                    if (! $token) {
+                        throw new \RuntimeException('ONVIF GetProfiles() returned no profiles.');
+                    }
+                }
+            } catch (Throwable $e) {
+                throw new \RuntimeException(
+                    "ONVIF handshake with {$camera->ip_address}:{$camera->onvif_port} failed: {$e->getMessage()}",
+                    previous: $e,
+                );
             }
 
             // Bare (no-credentials) URI kept for display/debugging only —
@@ -239,7 +263,19 @@ class CameraController extends Controller
 
             $authedUri = $this->dahuaRtspUri($camera);
 
-            app(MediaMtxClient::class)->upsertPath($camera->slug, $authedUri);
+            // This is the step that actually keeps mediamtx's source
+            // current. If it throws, the camera row above has already been
+            // marked 'online', so explicitly flag it back to 'error' below
+            // rather than leaving a misleadingly-healthy status on a path
+            // mediamtx never got.
+            try {
+                app(MediaMtxClient::class)->upsertPath($camera->slug, $authedUri);
+            } catch (Throwable $e) {
+                throw new \RuntimeException(
+                    "mediamtx upsertPath('{$camera->slug}') failed: {$e->getMessage()}",
+                    previous: $e,
+                );
+            }
         } catch (Throwable $e) {
             $camera->forceFill([
                 'last_status' => 'error',
