@@ -8,35 +8,16 @@ use Illuminate\Support\Str;
 class Camera extends Model
 {
     protected $fillable = [
-        'channel',
-        'name', 
-        'slug',
-        'location',
-        'ip_address', 
-        'onvif_port', 
-        'username', 
-        'password',
-        'onvif_profile_token', 
-        'rtsp_uri',
-        'device_type',
-        'serial_number',
-        'latitude',
-        'longitude',
-        'enabled', 
-        'last_synced_at',
-        'last_status',
-        'last_error',
-        'notes',
-        'deleted_at', // boolean flag
+        'name', 'location', 'channel',
+        'ip_address', 'onvif_port', 'username', 'password',
+        'onvif_profile_token', 'rtsp_uri',
+        'enabled', 'notes',
     ];
 
     protected $casts = [
         'password' => 'encrypted',
         'enabled' => 'boolean',
-        'deleted_at' => 'boolean',
         'last_synced_at' => 'datetime',
-        'created_at' => 'datetime', // Explicit cast (optional, Laravel does this automatically)
-        'updated_at' => 'datetime', // Explicit cast (optional, Laravel does this automatically)
     ];
 
     // Never let the password leak into array/JSON output (API responses, logs).
@@ -45,6 +26,13 @@ class Camera extends Model
     protected static function booted(): void
     {
         static::creating(function (Camera $camera) {
+            // 'channel' is NOT NULL with no DB default on this table — until
+            // there's a real per-channel UI, default every camera to "1"
+            // rather than let inserts fail.
+            if (empty($camera->channel)) {
+                $camera->channel = '1';
+            }
+
             if (empty($camera->slug)) {
                 $base = Str::slug($camera->name) ?: 'camera';
                 $slug = $base;
@@ -81,5 +69,4 @@ class Camera extends Model
 
         return "rtsp://{$userinfo}@{$parts['host']}{$port}{$path}{$query}";
     }
-
 }
