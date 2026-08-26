@@ -70,59 +70,6 @@ class ServicesController extends Controller
         return response()->json($this->collectStatuses());
     }
 
-
-    /**
-     * Get SMS ingestion status from .env file
-     */
-    private function getSmsStatus(): bool
-    {
-        $envPath = '/home/system/EMS/scripts/.env';
-        
-        if (!file_exists($envPath)) {
-            return false;
-        }
-        
-        $envContent = file_get_contents($envPath);
-        
-        // Look for SMS_INGESTION_ENABLED line
-        if (preg_match('/^SMS_INGESTION_ENABLED\s*=\s*(.+)$/m', $envContent, $matches)) {
-            $value = trim($matches[1]);
-            // Handle various true/false representations
-            return in_array(strtolower($value), ['true', '1', 'yes', 'on']);
-        }
-        
-        return false; // Default to false if not found
-    }
-
-    private function statusFor(string $unit): array
-    {
-        $label = self::MANAGED_SERVICES[$unit] ?? $unit;
-
-        $active = $this->runQuiet(['systemctl', 'is-active', $unit]);
-        $enabled = $this->runQuiet(['systemctl', 'is-enabled', $unit]);
-
-        $isSms = $unit === 'sms.service';
-        $smsEnabled = false;
-        
-        if ($isSms) {
-            $smsEnabled = $this->getSmsStatus();
-            // Override the active status to reflect the .env setting
-            // Use the systemd status for the actual service status
-            // but also include the SMS config status
-        }
-
-        return [
-            'unit'      => $unit,
-            'label'     => $label,
-            'active'    => $active ?: 'unknown',
-            'enabled'   => $enabled ?: 'unknown',
-            'running'   => $active === 'active',
-            'hasConfig' => array_key_exists($unit, self::CONFIG_FILES),
-            'isSms'     => $isSms,
-            'smsEnabled' => $isSms ? $smsEnabled : null, // Add SMS status
-        ];
-    }
-
     /**
      * POST /maintenance/services/{service}/action  { action: start|stop|restart }
      *
