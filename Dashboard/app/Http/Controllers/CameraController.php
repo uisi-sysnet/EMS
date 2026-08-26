@@ -289,14 +289,6 @@ class CameraController extends Controller
     /**
      * Relay a PTZ continuous-move or stop command from the live view to
      * the camera over ONVIF. Bound to POST /cctv-stream/{slug}/ptz.
-     *
-     * NOTE: continuousMove()/stop() below are assumed OnvifClient methods
-     * — I haven't seen OnvifClient.php, so these signatures are a
-     * best guess at a standard ONVIF PTZ interface (profile token, then
-     * normalized pan/tilt/zoom speeds in [-1, 1]). Verify these against
-     * the real class before relying on this — if OnvifClient doesn't have
-     * PTZ support yet, this method will need those methods added there
-     * first (ONVIF PTZ ContinuousMove/Stop SOAP calls).
      */
     public function ptz(Request $request, string $slug): JsonResponse
     {
