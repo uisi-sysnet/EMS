@@ -80,7 +80,7 @@ class ServicesController extends Controller
     public function action(Request $request, string $service): JsonResponse
     {
         $validated = $request->validate([
-            'action' => 'required|string|in:' . implode(',', self::ALLOWED_ACTIONS),
+            'action' => 'required|string|in:' . implode(',', array_merge(self::ALLOWED_ACTIONS, self::SMS_ALLOWED_ACTIONS)),
         ]);
 
         if (!array_key_exists($service, self::MANAGED_SERVICES)) {
@@ -89,14 +89,31 @@ class ServicesController extends Controller
 
         $action = $validated['action'];
 
-        // After the whitelist check
+        // Define .env file path (adjust if needed)
+        $envPath = '/home/system/EMS/Dashboard/.env'; // Or use base_path('.env') if using Laravel's path
+
+        // If SMS service, also update .env file
         if ($service === 'sms.service') {
-            if (!in_array($action, self::SMS_ALLOWED_ACTIONS)) {
-                return response()->json(['message' => 'Invalid action for SMS service.'], 422);
+            if (!file_exists($envPath)) {
+                return response()->json(['message' => '.env file not found.'], 500);
             }
-        } else {
-            if (!in_array($action, self::ALLOWED_ACTIONS)) {
-                return response()->json(['message' => 'Invalid action.'], 422);
+            
+            // Read current .env content
+            $envContent = file_get_contents($envPath);
+            
+            // Set the new value
+            $newValue = $action === 'enable' ? 'true' : 'false';
+            $envContent = preg_replace(
+                '/^SMS_INGESTION_ENABLED=.*$/m',
+                'SMS_INGESTION_ENABLED=' . $newValue,
+                $envContent
+            );
+            
+            // Write back to .env
+            if (file_put_contents($envPath, $envContent) === false) {
+                return response()->json([
+                    'message' => 'Failed to update .env file.',
+                ], 500);
             }
         }
 
