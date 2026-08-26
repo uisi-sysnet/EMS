@@ -775,6 +775,7 @@
 </div>
 
 @include('layouts.footer')
+
 <!-- Chart.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -870,10 +871,6 @@
             options: chartDefaults
         });
 
-        // ============================================================
-        // DONUT CHARTS for Status Cards (Air Quality, Seismic, Camera)
-        // ============================================================
-
         function makeStatusChart(canvasId, online, idle, offline) {
             const el = document.getElementById(canvasId);
             if (!el) return null;
@@ -903,26 +900,8 @@
             chart.update();
         }
 
-        // Initialize all three donut charts
-        let airStatusChart = makeStatusChart('airQualityStatusChart', 
-            {{ $airQualityCounts['online'] }}, 
-            {{ $airQualityCounts['idle'] }}, 
-            {{ $airQualityCounts['offline'] }}
-        );
-
-        let seismicStatusChart = makeStatusChart('seismicStatusChart', 
-            {{ $seismicCounts['online'] }}, 
-            {{ $seismicCounts['idle'] }}, 
-            {{ $seismicCounts['offline'] }}
-        );
-
-        // Camera chart - using static demo data (75% online)
-        // Note: Replace with dynamic data when $cameraCounts is available from backend
-        let cameraStatusChart = makeStatusChart('cameraStatusChart', 6, 1, 1);
-
-        // ============================================================
-        // TABLE RENDER FUNCTIONS
-        // ============================================================
+        let airStatusChart = makeStatusChart('airQualityStatusChart', {{ $airQualityCounts['online'] }}, {{ $airQualityCounts['idle'] }}, {{ $airQualityCounts['offline'] }});
+        let seismicStatusChart = makeStatusChart('seismicStatusChart', {{ $seismicCounts['online'] }}, {{ $seismicCounts['idle'] }}, {{ $seismicCounts['offline'] }});
 
         function rowHtml(item, no) {
             const meta = statusBadgeMeta[item.status] || statusBadgeMeta.offline;
@@ -971,6 +950,8 @@
          * scrollHeight against that moving target is more trouble than
          * it's worth for a collapse toggle.
          */
+        const collapseStates = {};
+
         function initCollapsible(toggleId, bodyId, chevronId, storageKey) {
             const toggle = document.getElementById(toggleId);
             const body = document.getElementById(bodyId);
@@ -981,19 +962,27 @@
                 body.classList.toggle('hidden', collapsed);
                 toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
                 if (chevron) chevron.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
-                try { localStorage.setItem(storageKey, collapsed ? '1' : '0'); } catch (e) { /* private mode etc. */ }
+                try { 
+                    localStorage.setItem(storageKey, collapsed ? '1' : '0');
+                    // Also store in memory for refresh protection
+                    collapseStates[storageKey] = collapsed;
+                } catch (e) { /* private mode etc. */ }
             }
 
+            // Check memory first, then localStorage
             let startCollapsed = false;
-            try { startCollapsed = localStorage.getItem(storageKey) === '1'; } catch (e) { /* private mode etc. */ }
+            if (collapseStates[storageKey] !== undefined) {
+                startCollapsed = collapseStates[storageKey];
+            } else {
+                try { startCollapsed = localStorage.getItem(storageKey) === '1'; } catch (e) { /* private mode etc. */ }
+            }
             setCollapsed(startCollapsed);
 
             toggle.addEventListener('click', () => setCollapsed(!body.classList.contains('hidden')));
+            
+            // Return the body element for potential future reference
+            return body;
         }
-
-        // ============================================================
-        // SYSTEM HEALTH UPDATE
-        // ============================================================
 
         function updateSystemHealth(health) {
             if (!health) return;
@@ -1012,10 +1001,6 @@
             const uptimeEl = document.getElementById('uptime-text');
             if (uptimeEl) uptimeEl.textContent = `${health.uptime.days}d ${health.uptime.hours}h ${health.uptime.minutes}m`;
         }
-
-        // ============================================================
-        // SYSTEM SUMMARY UPDATE
-        // ============================================================
 
         function networkPortIconSvg(active) {
             return active
@@ -1066,10 +1051,6 @@
             }
         }
 
-        // ============================================================
-        // STATUS BANNER UPDATE
-        // ============================================================
-
         function updateStatusBanner(airCounts, seismicCounts) {
             const totalOnline = airCounts.online + seismicCounts.online;
             const totalStations = airCounts.online + airCounts.idle + airCounts.offline
@@ -1102,10 +1083,6 @@
             if (count) count.textContent = totalStations === 0 ? 'No stations added yet' : `${totalOnline}/${totalStations} stations online (${percent}%)`;
         }
 
-        // ============================================================
-        // DONUT CARD UPDATE (Air Quality & Seismic)
-        // ============================================================
-
         function updateDonutCard(prefix, counts) {
             const total = counts.online + counts.idle + counts.offline;
             const center = document.getElementById(prefix + '-donut-center');
@@ -1124,20 +1101,12 @@
             if (offlineEl) offlineEl.textContent = counts.offline;
         }
 
-        // ============================================================
-        // TOTAL BADGES UPDATE
-        // ============================================================
-
         function updateTotalBadges(prefix, count) {
             const chartBadge = document.getElementById(prefix + '-chart-total-badge');
             const tableBadge = document.getElementById(prefix + '-table-total-badge');
             if (chartBadge) chartBadge.textContent = `${count} total`;
             if (tableBadge) tableBadge.textContent = `${count} total`;
         }
-
-        // ============================================================
-        // REFRESH DASHBOARD (every 20 seconds)
-        // ============================================================
 
         async function refreshDashboard() {
             const url = document.getElementById('main-content')?.dataset.refreshUrl;
@@ -1147,8 +1116,14 @@
                 if (!res.ok) return;
                 const data = await res.json();
 
-                renderTable('aq-table-body', data.airQualityData, 'No air quality data available');
-                renderTable('seismic-table-body', data.seismicData, 'No seismic data available');
+                // Store current scroll position
+                const container = document.querySelector('.overflow-y-auto');
+                const scrollPos = container ? container.scrollTop : 0;
+
+                // Update tables without replacing the entire structure
+                updateTableContent('aq-table-body', data.airQualityData, 'No air quality data available');
+                updateTableContent('seismic-table-body', data.seismicData, 'No seismic data available');
+                
                 updateTotalBadges('aq', data.airQualityData.length);
                 updateTotalBadges('seismic', data.seismicData.length);
 
@@ -1164,17 +1139,8 @@
                 seismicChart.data.datasets[0].backgroundColor = barColors.slice(0, seismicChartData2.labels.length || 1);
                 seismicChart.update();
 
-                // Update all three donut charts
                 updateStatusChart(airStatusChart, data.airQualityCounts.online, data.airQualityCounts.idle, data.airQualityCounts.offline);
                 updateStatusChart(seismicStatusChart, data.seismicCounts.online, data.seismicCounts.idle, data.seismicCounts.offline);
-                
-                // Update camera chart if data is available from backend
-                // If your backend provides camera data, uncomment and use:
-                // if (data.cameraCounts) {
-                //     updateStatusChart(cameraStatusChart, data.cameraCounts.online, data.cameraCounts.idle, data.cameraCounts.offline);
-                //     updateDonutCard('camera', data.cameraCounts);
-                // }
-                
                 updateDonutCard('aq', data.airQualityCounts);
                 updateDonutCard('seismic', data.seismicCounts);
                 updateStatusBanner(data.airQualityCounts, data.seismicCounts);
@@ -1183,14 +1149,54 @@
 
                 const lastUpdated = document.getElementById('last-updated');
                 if (lastUpdated) lastUpdated.textContent = `Last updated: ${data.generatedAt}`;
+
+                // Restore scroll position
+                if (container) container.scrollTop = scrollPos;
+                
+                // Ensure toggle states are preserved by reapplying them
+                // (some elements might have been replaced)
+                Object.keys(collapseStates).forEach(key => {
+                    const state = collapseStates[key];
+                    // Find the toggle and body for this key
+                    const toggleMap = {
+                        'dashboard.system-health.collapsed': { toggle: 'system-health-toggle', body: 'system-health-body', chevron: 'system-health-chevron' },
+                        'dashboard.system-summary.collapsed': { toggle: 'system-summary-toggle', body: 'system-summary-body', chevron: 'system-summary-chevron' }
+                    };
+                    const mapping = toggleMap[key];
+                    if (mapping) {
+                        const body = document.getElementById(mapping.body);
+                        const chevron = document.getElementById(mapping.chevron);
+                        const toggle = document.getElementById(mapping.toggle);
+                        if (body) {
+                            body.classList.toggle('hidden', state);
+                            if (toggle) toggle.setAttribute('aria-expanded', state ? 'false' : 'true');
+                            if (chevron) chevron.style.transform = state ? 'rotate(-90deg)' : 'rotate(0deg)';
+                        }
+                    }
+                });
+                
             } catch (e) {
                 console.error('Dashboard refresh failed:', e);
             }
         }
 
-        // ============================================================
-        // INIT COLLAPSIBLES & START AUTO-REFRESH
-        // ============================================================
+        // Helper function to update table content without replacing the entire structure
+        function updateTableContent(tbodyId, collection, emptyLabel) {
+            const tbody = document.getElementById(tbodyId);
+            if (!tbody) return;
+            
+            // Store current scroll position within the table container
+            const scrollContainer = tbody.closest('.overflow-x-auto');
+            const scrollLeft = scrollContainer ? scrollContainer.scrollLeft : 0;
+            
+            if (!collection.length) {
+                tbody.innerHTML = `<tr><td colspan="7" class="px-2 py-4 text-center text-text-400">${emptyLabel}</td></tr>`;
+                if (scrollContainer) scrollContainer.scrollLeft = scrollLeft;
+                return;
+            }
+            tbody.innerHTML = collection.map((item, i) => rowHtml(item, i + 1)).join('');
+            if (scrollContainer) scrollContainer.scrollLeft = scrollLeft;
+        }
 
         initCollapsible('system-health-toggle', 'system-health-body', 'system-health-chevron', 'dashboard.system-health.collapsed');
         initCollapsible('system-summary-toggle', 'system-summary-body', 'system-summary-chevron', 'dashboard.system-summary.collapsed');
