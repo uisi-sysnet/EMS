@@ -124,6 +124,7 @@ class ServicesController extends Controller
         $process->setTimeout(20);
         $process->run();
 
+        
         $success = $process->isSuccessful();
 
         Log::channel('services')->info('Service action', [
