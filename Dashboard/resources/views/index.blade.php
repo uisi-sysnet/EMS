@@ -551,8 +551,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
 
                     <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
                         <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
@@ -625,8 +623,8 @@
                             </div>
                         </div>
                     </div>
-
                 </div>
+
                 <!-- LEFT COLUMN: Air Quality -->
                 <div class="flex flex-col gap-4">
                     <!-- Graph Card -->
