@@ -50,7 +50,7 @@
                     @if($svc['isSms'] ?? false)
                         
                         {{-- SMS-specific enable/disable buttons --}}
-                        <div class="flex gap-2 mt-1">
+                        <div class="flex gap-2 mt-4">
                             <button type="button" 
                                     class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed 
                                         {{ $svc['running'] ? 'bg-munti-green-700/10' : '' }}"
