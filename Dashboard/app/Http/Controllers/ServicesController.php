@@ -90,7 +90,7 @@ class ServicesController extends Controller
         $action = $validated['action'];
 
         // Define .env file path (adjust if needed)
-        $envPath = '/home/system/EMS/Dashboard/.env'; // Or use base_path('.env') if using Laravel's path
+        $envPath = '/home/system/EMS/scripts/.env'; // Or use base_path('.env') if using Laravel's path
 
         // If SMS service, also update .env file
         if ($service === 'sms.service') {
