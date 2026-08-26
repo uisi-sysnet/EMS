@@ -184,39 +184,7 @@ class ServicesController extends Controller
         
         return false;
     }
-
-    private function statusFor(string $unit): array
-    {
-        $label = self::MANAGED_SERVICES[$unit] ?? $unit;
-
-        // For SMS service, override active status with .env value
-        if ($unit === 'sms.service') {
-            $smsEnabled = $this->getSmsStatus();
-            
-            return [
-                'unit'      => $unit,
-                'label'     => $label,
-                'active'    => $smsEnabled ? 'active' : 'inactive',
-                'enabled'   => $smsEnabled ? 'enabled' : 'disabled',
-                'running'   => $smsEnabled,
-                'hasConfig' => array_key_exists($unit, self::CONFIG_FILES),
-                'isSms'     => true,
-            ];
-        }
-
-        $active = $this->runQuiet(['systemctl', 'is-active', $unit]);
-        $enabled = $this->runQuiet(['systemctl', 'is-enabled', $unit]);
-
-        return [
-            'unit'      => $unit,
-            'label'     => $label,
-            'active'    => $active ?: 'unknown',
-            'enabled'   => $enabled ?: 'unknown',
-            'running'   => $active === 'active',
-            'hasConfig' => array_key_exists($unit, self::CONFIG_FILES),
-            'isSms'     => $unit === 'sms.service',
-        ];
-    }
+    
 
 
     /**
@@ -362,8 +330,23 @@ class ServicesController extends Controller
     {
         $label = self::MANAGED_SERVICES[$unit] ?? $unit;
 
-        $active = $this->runQuiet(['systemctl', 'is-active', $unit]);   // active | inactive | failed | activating...
-        $enabled = $this->runQuiet(['systemctl', 'is-enabled', $unit]); // enabled | disabled | static...
+        // For SMS service, override active status with .env value
+        if ($unit === 'sms.service') {
+            $smsEnabled = $this->getSmsStatus();
+            
+            return [
+                'unit'      => $unit,
+                'label'     => $label,
+                'active'    => $smsEnabled ? 'active' : 'inactive',
+                'enabled'   => $smsEnabled ? 'enabled' : 'disabled',
+                'running'   => $smsEnabled,
+                'hasConfig' => array_key_exists($unit, self::CONFIG_FILES),
+                'isSms'     => true,
+            ];
+        }
+
+        $active = $this->runQuiet(['systemctl', 'is-active', $unit]);
+        $enabled = $this->runQuiet(['systemctl', 'is-enabled', $unit]);
 
         return [
             'unit'      => $unit,
@@ -372,7 +355,7 @@ class ServicesController extends Controller
             'enabled'   => $enabled ?: 'unknown',
             'running'   => $active === 'active',
             'hasConfig' => array_key_exists($unit, self::CONFIG_FILES),
-            'isSms' => $unit === 'sms.service',
+            'isSms'     => $unit === 'sms.service',
         ];
     }
 
