@@ -120,11 +120,10 @@ class ServicesController extends Controller
         // Symfony Process with an array of args — no shell string is ever
         // built, so there is no injection surface here regardless of what
         // $service/$action contain (and they're whitelisted anyway).
-        $process = new Process(['sudo', '/usr/bin/systemctl', '--user', $action, $service]);
+        $process = new Process(['sudo', '/usr/bin/systemctl', $action, $service]);
         $process->setTimeout(20);
         $process->run();
 
-        
         $success = $process->isSuccessful();
 
         Log::channel('services')->info('Service action', [
