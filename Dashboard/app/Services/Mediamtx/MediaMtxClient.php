@@ -21,11 +21,14 @@ class MediaMtxClient
 
     public function upsertPath(string $name, string $sourceRtspUrl): void
     {
+        // Read auth is handled globally via authInternalUsers in
+        // mediamtx.yml (matching MEDIAMTX_READ_USER/READ_PASS) — mediamtx
+        // rejects any path config that also sets legacy readUser/readPass
+        // once authInternalUsers is in play, so those are intentionally
+        // left out here.
         $payload = [
             'source' => $sourceRtspUrl,
             'sourceOnDemand' => true,
-            'readUser' => config('services.mediamtx.read_user'),
-            'readPass' => config('services.mediamtx.read_pass'),
         ];
 
         $response = Http::timeout(5)->post("{$this->baseUrl}/v3/config/paths/add/{$name}", $payload);
