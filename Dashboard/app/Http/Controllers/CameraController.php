@@ -287,6 +287,64 @@ class CameraController extends Controller
     }
 
     /**
+     * Relay a PTZ continuous-move or stop command from the live view to
+     * the camera over ONVIF. Bound to POST /cctv-stream/{slug}/ptz.
+     *
+     * NOTE: continuousMove()/stop() below are assumed OnvifClient methods
+     * — I haven't seen OnvifClient.php, so these signatures are a
+     * best guess at a standard ONVIF PTZ interface (profile token, then
+     * normalized pan/tilt/zoom speeds in [-1, 1]). Verify these against
+     * the real class before relying on this — if OnvifClient doesn't have
+     * PTZ support yet, this method will need those methods added there
+     * first (ONVIF PTZ ContinuousMove/Stop SOAP calls).
+     */
+    public function ptz(Request $request, string $slug): JsonResponse
+    {
+        $camera = Camera::where('slug', $slug)->firstOrFail();
+
+        if ($camera->device_type !== 'PTZ') {
+            return response()->json(['error' => 'Camera is not PTZ-capable.'], 422);
+        }
+
+        if (! $camera->onvif_profile_token) {
+            return response()->json(['error' => 'Camera has no ONVIF profile token yet — refresh it first.'], 422);
+        }
+
+        $validated = $request->validate([
+            'pan' => 'required_without:stop|numeric|between:-1,1',
+            'tilt' => 'required_without:stop|numeric|between:-1,1',
+            'zoom' => 'nullable|numeric|between:-1,1',
+            'stop' => 'sometimes|boolean',
+        ]);
+
+        try {
+            $onvif = new OnvifClient(
+                host: $camera->ip_address,
+                port: $camera->onvif_port,
+                username: $camera->username,
+                password: $camera->password,
+            );
+
+            if ($request->boolean('stop')) {
+                $onvif->stop($camera->onvif_profile_token);
+            } else {
+                $onvif->continuousMove(
+                    $camera->onvif_profile_token,
+                    (float) ($validated['pan'] ?? 0),
+                    (float) ($validated['tilt'] ?? 0),
+                    (float) ($validated['zoom'] ?? 0),
+                );
+            }
+
+            return response()->json(['ok' => true]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json(['error' => $e->getMessage()], 502);
+        }
+    }
+
+    /**
      * Display the live view for cameras.
      */
     public function live()

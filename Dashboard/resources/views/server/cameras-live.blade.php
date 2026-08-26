@@ -17,7 +17,8 @@
                         class="camera-item w-full text-left px-4 py-3 hover:bg-surface-800 transition flex items-center justify-between gap-2"
                         data-slug="{{ $cam->slug }}"
                         data-name="{{ $cam->name }}"
-                        data-location="{{ $cam->location }}">
+                        data-location="{{ $cam->location }}"
+                        data-device-type="{{ $cam->device_type }}">
                         <div class="min-w-0">
                             <div class="text-sm font-medium text-text-100 truncate">{{ $cam->name }}</div>
                             @if ($cam->location)
@@ -29,6 +30,26 @@
                 @empty
                     <div class="px-4 py-8 text-sm text-text-500 text-center">No cameras added yet.</div>
                 @endforelse
+            </div>
+
+            {{-- PTZ controls — shown only when the selected camera is device_type "PTZ" --}}
+            <div id="ptz-panel" class="hidden px-4 py-3 border-t border-border-800">
+                <h3 class="text-xs font-semibold text-text-300 uppercase tracking-wide mb-2">PTZ Control</h3>
+                <div class="grid grid-cols-3 gap-1 w-36 mx-auto">
+                    <button type="button" class="ptz-btn aspect-square flex items-center justify-center rounded border border-border-700 bg-surface-800 text-text-200 hover:bg-surface-700 active:bg-surface-600 select-none" data-pan="-1" data-tilt="1" aria-label="Up-left">↖</button>
+                    <button type="button" class="ptz-btn aspect-square flex items-center justify-center rounded border border-border-700 bg-surface-800 text-text-200 hover:bg-surface-700 active:bg-surface-600 select-none" data-pan="0" data-tilt="1" aria-label="Up">↑</button>
+                    <button type="button" class="ptz-btn aspect-square flex items-center justify-center rounded border border-border-700 bg-surface-800 text-text-200 hover:bg-surface-700 active:bg-surface-600 select-none" data-pan="1" data-tilt="1" aria-label="Up-right">↗</button>
+                    <button type="button" class="ptz-btn aspect-square flex items-center justify-center rounded border border-border-700 bg-surface-800 text-text-200 hover:bg-surface-700 active:bg-surface-600 select-none" data-pan="-1" data-tilt="0" aria-label="Left">←</button>
+                    <span class="aspect-square flex items-center justify-center text-text-600">•</span>
+                    <button type="button" class="ptz-btn aspect-square flex items-center justify-center rounded border border-border-700 bg-surface-800 text-text-200 hover:bg-surface-700 active:bg-surface-600 select-none" data-pan="1" data-tilt="0" aria-label="Right">→</button>
+                    <button type="button" class="ptz-btn aspect-square flex items-center justify-center rounded border border-border-700 bg-surface-800 text-text-200 hover:bg-surface-700 active:bg-surface-600 select-none" data-pan="-1" data-tilt="-1" aria-label="Down-left">↙</button>
+                    <button type="button" class="ptz-btn aspect-square flex items-center justify-center rounded border border-border-700 bg-surface-800 text-text-200 hover:bg-surface-700 active:bg-surface-600 select-none" data-pan="0" data-tilt="-1" aria-label="Down">↓</button>
+                    <button type="button" class="ptz-btn aspect-square flex items-center justify-center rounded border border-border-700 bg-surface-800 text-text-200 hover:bg-surface-700 active:bg-surface-600 select-none" data-pan="1" data-tilt="-1" aria-label="Down-right">↘</button>
+                </div>
+                <div class="flex items-center justify-center gap-2 mt-2">
+                    <button type="button" class="ptz-zoom-btn text-xs px-3 py-1 rounded border border-border-700 bg-surface-800 text-text-200 hover:bg-surface-700 active:bg-surface-600 select-none" data-zoom="-1">Zoom −</button>
+                    <button type="button" class="ptz-zoom-btn text-xs px-3 py-1 rounded border border-border-700 bg-surface-800 text-text-200 hover:bg-surface-700 active:bg-surface-600 select-none" data-zoom="1">Zoom +</button>
+                </div>
             </div>
         </div>
 
@@ -62,7 +83,60 @@ document.addEventListener('DOMContentLoaded', function () {
     // ('auth' + 'role:administrator').
     const mediamtxAuth = btoa('{{ $mediamtxReadUser }}:{{ $mediamtxReadPass }}');
 
+    const ptzPanel = document.getElementById('ptz-panel');
     let pc = null;
+    let currentSlug = null;
+    let ptzHoldActive = false;
+
+    // POSTs to a Laravel route (not mediamtx directly) that's expected to
+    // relay the command to the camera over ONVIF PTZ. If your CSRF
+    // middleware doesn't already exempt /cctv-stream/* the way it must for
+    // the WHEP POST above to work, this will 419 — add it there, or send
+    // an X-CSRF-TOKEN header here instead.
+    function ptzSend(slug, body) {
+        return fetch(`/cctv-stream/${slug}/ptz`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        }).catch((err) => console.error('PTZ request failed:', err));
+    }
+
+    function ptzStop() {
+        if (!currentSlug || !ptzHoldActive) return;
+        ptzHoldActive = false;
+        ptzSend(currentSlug, { stop: true });
+    }
+
+    function setupPtzControls() {
+        document.querySelectorAll('.ptz-btn').forEach((btn) => {
+            const pan = parseFloat(btn.dataset.pan);
+            const tilt = parseFloat(btn.dataset.tilt);
+            const start = (e) => {
+                e.preventDefault();
+                if (!currentSlug) return;
+                ptzHoldActive = true;
+                ptzSend(currentSlug, { pan, tilt, zoom: 0 });
+            };
+            btn.addEventListener('pointerdown', start);
+            btn.addEventListener('pointerup', ptzStop);
+            btn.addEventListener('pointerleave', ptzStop);
+            btn.addEventListener('pointercancel', ptzStop);
+        });
+
+        document.querySelectorAll('.ptz-zoom-btn').forEach((btn) => {
+            const zoom = parseFloat(btn.dataset.zoom);
+            const start = (e) => {
+                e.preventDefault();
+                if (!currentSlug) return;
+                ptzHoldActive = true;
+                ptzSend(currentSlug, { pan: 0, tilt: 0, zoom });
+            };
+            btn.addEventListener('pointerdown', start);
+            btn.addEventListener('pointerup', ptzStop);
+            btn.addEventListener('pointerleave', ptzStop);
+            btn.addEventListener('pointercancel', ptzStop);
+        });
+    }
 
     function setStatus(text, colorClass) {
         statusEl.textContent = text;
@@ -83,7 +157,11 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    async function playCamera(slug, name, location) {
+    async function playCamera(slug, name, location, deviceType) {
+        ptzStop();
+        currentSlug = slug;
+        ptzPanel.classList.toggle('hidden', deviceType !== 'PTZ');
+
         if (pc) { try { pc.close(); } catch (e) {} pc = null; }
         video.classList.add('hidden');
         video.srcObject = null;
@@ -142,11 +220,14 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', function () {
             document.querySelectorAll('.camera-item').forEach((b) => b.classList.remove('bg-surface-800'));
             this.classList.add('bg-surface-800');
-            playCamera(this.dataset.slug, this.dataset.name, this.dataset.location);
+            playCamera(this.dataset.slug, this.dataset.name, this.dataset.location, this.dataset.deviceType);
         });
     });
 
+    setupPtzControls();
+
     window.addEventListener('beforeunload', () => {
+        ptzStop();
         if (pc) { try { pc.close(); } catch (e) {} }
     });
 });
