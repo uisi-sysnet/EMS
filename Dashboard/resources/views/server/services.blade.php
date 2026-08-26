@@ -46,7 +46,7 @@
                     </div>
 
                     @if($svc['isSms'] ?? false)
-                        <p class="text-xs text-text-500 mt-2">SMS Ingestion: <span class="font-semibold {{ $svc['running'] ? 'text-munti-green-400' : 'text-munti-red-400' }}">{{ $svc['running'] ? 'True' : 'False' }}</span></p>
+                        <p class="text-xs text-text-500 mt-2">SMS Ingestion: <span class="font-semibold {{ $svc['running'] }}">{{ $svc['running'] ? 'True' : 'False' }}</span></p>
                     @else
                         <p class="text-xs text-text-500 mt-2">Boot: <span class="enabled-label">{{ ucfirst($svc['enabled']) }}</span></p>
                     @endif
