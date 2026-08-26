@@ -27,12 +27,12 @@ class CamerasFormatExport implements FromArray, WithHeadings, WithStyles
                 'SN-2024-001',
                 '14.5995',
                 '120.9842',
-                '1',
+                /* '1',
                 '2024-01-01 00:00:00',
                 'online',
-                '',
+                '', */
                 'Sample camera notes',
-                '0'
+                /* '0' */
             ]
         ];
     }
