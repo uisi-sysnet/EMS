@@ -1,3 +1,17 @@
+@php
+    $envPath = '/home/system/EMS/scripts/.env';
+    $smsEnabled = false;
+    
+    if (file_exists($envPath)) {
+        $envContent = file_get_contents($envPath);
+        preg_match('/^SMS_INGESTION_ENABLED=(.*)$/m', $envContent, $matches);
+        if (isset($matches[1])) {
+            $value = trim($matches[1]);
+            $smsEnabled = ($value === 'true' || $value === '1');
+        }
+    }
+@endphp
+
 {{-- ========== CHANGE PASSWORD MODAL ========== --}}
 <div id="change-password-modal" class="fixed inset-0 z-50 hidden">
     <div class="flex items-center justify-center min-h-screen px-4">
@@ -90,7 +104,9 @@
                     </div>
 
 
-                    <a href="{{ route('sms.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">SMS</a>
+                    @if($smsEnabled)
+                        <a href="{{ route('sms.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">SMS</a>
+                    @endif
 
                     <div class="relative" id="maintenance-dropdown-desktop">
                         <button type="button" class="dropdown-toggle flex items-center gap-x-1 text-text-400 hover:text-text-100 transition-colors py-1 focus:outline-none" data-target="maintenance-menu" aria-expanded="false">
@@ -230,7 +246,9 @@
                     </div>
                 </div> 
                               
-                <a href="{{ route('sms.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">SMS</a>
+                @if($smsEnabled)
+                    <a href="{{ route('sms.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">SMS</a>
+                @endif
 
                 <div class="relative">
                     <button type="button" class="mobile-submenu-toggle w-full flex items-center justify-between px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition" data-target="maintenance-mobile-submenu" aria-expanded="false">
