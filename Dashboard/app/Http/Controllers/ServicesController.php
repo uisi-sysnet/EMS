@@ -89,11 +89,10 @@ class ServicesController extends Controller
 
         $action = $validated['action'];
 
-        // Define .env file path (adjust if needed)
-        $envPath = '/home/system/EMS/scripts/.env'; // Or use base_path('.env') if using Laravel's path
+        // Define .env file path
+        $envPath = '/home/system/EMS/scripts/.env';
 
-        
-        // If SMS service, also update .env file
+        // If SMS service, update .env file only
         if ($service === 'sms.service') {
             if (!file_exists($envPath)) {
                 return response()->json(['message' => '.env file not found.'], 500);
@@ -116,6 +115,20 @@ class ServicesController extends Controller
                     'message' => 'Failed to update .env file.',
                 ], 500);
             }
+
+            // Log the action for SMS
+            Log::channel('services')->info('SMS ingestion action', [
+                'user'    => Auth::user()->username ?? session('username'),
+                'service' => $service,
+                'action'  => $action,
+                'success' => true,
+                'output'  => "SMS_INGESTION_ENABLED set to {$newValue}",
+            ]);
+
+            return response()->json([
+                'message' => ucfirst($action) . " SMS ingestion.",
+                'service' => $this->statusFor($service),
+            ]);
         }
 
         // Symfony Process with an array of args — no shell string is ever
