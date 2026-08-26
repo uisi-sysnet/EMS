@@ -11,6 +11,7 @@ class Camera extends Model
         'name', 'location', 'channel',
         'ip_address', 'onvif_port', 'username', 'password',
         'onvif_profile_token', 'rtsp_uri',
+        'device_type', 'serial_number', 'latitude', 'longitude',
         'enabled', 'notes',
     ];
 
