@@ -775,6 +775,7 @@
 </div>
 
 @include('layouts.footer')
+
 <!-- Chart.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -870,10 +871,6 @@
             options: chartDefaults
         });
 
-        // ============================================================
-        // DONUT CHARTS for Status Cards (Air Quality, Seismic, Camera)
-        // ============================================================
-
         function makeStatusChart(canvasId, online, idle, offline) {
             const el = document.getElementById(canvasId);
             if (!el) return null;
@@ -903,26 +900,8 @@
             chart.update();
         }
 
-        // Initialize all three donut charts
-        let airStatusChart = makeStatusChart('airQualityStatusChart', 
-            {{ $airQualityCounts['online'] }}, 
-            {{ $airQualityCounts['idle'] }}, 
-            {{ $airQualityCounts['offline'] }}
-        );
-
-        let seismicStatusChart = makeStatusChart('seismicStatusChart', 
-            {{ $seismicCounts['online'] }}, 
-            {{ $seismicCounts['idle'] }}, 
-            {{ $seismicCounts['offline'] }}
-        );
-
-        // Camera chart - using static demo data (75% online)
-        // Note: Replace with dynamic data when $cameraCounts is available from backend
-        let cameraStatusChart = makeStatusChart('cameraStatusChart', 6, 1, 1);
-
-        // ============================================================
-        // TABLE RENDER FUNCTIONS
-        // ============================================================
+        let airStatusChart = makeStatusChart('airQualityStatusChart', {{ $airQualityCounts['online'] }}, {{ $airQualityCounts['idle'] }}, {{ $airQualityCounts['offline'] }});
+        let seismicStatusChart = makeStatusChart('seismicStatusChart', {{ $seismicCounts['online'] }}, {{ $seismicCounts['idle'] }}, {{ $seismicCounts['offline'] }});
 
         function rowHtml(item, no) {
             const meta = statusBadgeMeta[item.status] || statusBadgeMeta.offline;
@@ -991,10 +970,6 @@
             toggle.addEventListener('click', () => setCollapsed(!body.classList.contains('hidden')));
         }
 
-        // ============================================================
-        // SYSTEM HEALTH UPDATE
-        // ============================================================
-
         function updateSystemHealth(health) {
             if (!health) return;
             setBarTile('cpu', health.cpu);
@@ -1012,10 +987,6 @@
             const uptimeEl = document.getElementById('uptime-text');
             if (uptimeEl) uptimeEl.textContent = `${health.uptime.days}d ${health.uptime.hours}h ${health.uptime.minutes}m`;
         }
-
-        // ============================================================
-        // SYSTEM SUMMARY UPDATE
-        // ============================================================
 
         function networkPortIconSvg(active) {
             return active
@@ -1066,10 +1037,6 @@
             }
         }
 
-        // ============================================================
-        // STATUS BANNER UPDATE
-        // ============================================================
-
         function updateStatusBanner(airCounts, seismicCounts) {
             const totalOnline = airCounts.online + seismicCounts.online;
             const totalStations = airCounts.online + airCounts.idle + airCounts.offline
@@ -1102,10 +1069,6 @@
             if (count) count.textContent = totalStations === 0 ? 'No stations added yet' : `${totalOnline}/${totalStations} stations online (${percent}%)`;
         }
 
-        // ============================================================
-        // DONUT CARD UPDATE (Air Quality & Seismic)
-        // ============================================================
-
         function updateDonutCard(prefix, counts) {
             const total = counts.online + counts.idle + counts.offline;
             const center = document.getElementById(prefix + '-donut-center');
@@ -1124,20 +1087,12 @@
             if (offlineEl) offlineEl.textContent = counts.offline;
         }
 
-        // ============================================================
-        // TOTAL BADGES UPDATE
-        // ============================================================
-
         function updateTotalBadges(prefix, count) {
             const chartBadge = document.getElementById(prefix + '-chart-total-badge');
             const tableBadge = document.getElementById(prefix + '-table-total-badge');
             if (chartBadge) chartBadge.textContent = `${count} total`;
             if (tableBadge) tableBadge.textContent = `${count} total`;
         }
-
-        // ============================================================
-        // REFRESH DASHBOARD (every 20 seconds)
-        // ============================================================
 
         async function refreshDashboard() {
             const url = document.getElementById('main-content')?.dataset.refreshUrl;
@@ -1164,17 +1119,8 @@
                 seismicChart.data.datasets[0].backgroundColor = barColors.slice(0, seismicChartData2.labels.length || 1);
                 seismicChart.update();
 
-                // Update all three donut charts
                 updateStatusChart(airStatusChart, data.airQualityCounts.online, data.airQualityCounts.idle, data.airQualityCounts.offline);
                 updateStatusChart(seismicStatusChart, data.seismicCounts.online, data.seismicCounts.idle, data.seismicCounts.offline);
-                
-                // Update camera chart if data is available from backend
-                // If your backend provides camera data, uncomment and use:
-                // if (data.cameraCounts) {
-                //     updateStatusChart(cameraStatusChart, data.cameraCounts.online, data.cameraCounts.idle, data.cameraCounts.offline);
-                //     updateDonutCard('camera', data.cameraCounts);
-                // }
-                
                 updateDonutCard('aq', data.airQualityCounts);
                 updateDonutCard('seismic', data.seismicCounts);
                 updateStatusBanner(data.airQualityCounts, data.seismicCounts);
@@ -1187,10 +1133,6 @@
                 console.error('Dashboard refresh failed:', e);
             }
         }
-
-        // ============================================================
-        // INIT COLLAPSIBLES & START AUTO-REFRESH
-        // ============================================================
 
         initCollapsible('system-health-toggle', 'system-health-body', 'system-health-chevron', 'dashboard.system-health.collapsed');
         initCollapsible('system-summary-toggle', 'system-summary-body', 'system-summary-chevron', 'dashboard.system-summary.collapsed');
