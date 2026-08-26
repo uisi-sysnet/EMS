@@ -565,15 +565,11 @@
                                 <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
                                     <canvas id="cameraStatusChart"></canvas>
                                     <div id="camera-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                        @if($cameraTotal > 0)
-                                            <span class="text-lg font-bold text-text-100 leading-none">
-                                                {{ round(($cameraOnline / $cameraTotal) * 100) }}%
-                                            </span>
-                                            <span class="text-[10px] text-text-400 uppercase tracking-wide mt-0.5">Online</span>
-                                        @else
-                                            <span class="text-lg font-bold text-amber-400 leading-none">—</span>
-                                            <span class="text-[10px] text-amber-400 uppercase tracking-wide mt-0.5">No Cameras</span>
-                                        @endif
+                                        <!-- Demo data - replace with actual values -->
+                                        <span class="text-lg font-bold text-text-100 leading-none">
+                                            75%
+                                        </span>
+                                        <span class="text-[10px] text-text-400 uppercase tracking-wide mt-0.5">Online</span>
                                     </div>
                                 </div>
                             </div>
@@ -586,7 +582,7 @@
                                         <span class="text-sm text-text-300 truncate">Online</span>
                                     </span>
                                     <span id="camera-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        {{ $cameraCounts['online'] }}
+                                        6
                                     </span>
                                 </div>
 
@@ -596,7 +592,7 @@
                                         <span class="text-sm text-text-300 truncate">Idle</span>
                                     </span>
                                     <span id="camera-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        {{ $cameraCounts['idle'] }}
+                                        1
                                     </span>
                                 </div>
 
@@ -606,7 +602,7 @@
                                         <span class="text-sm text-text-300 truncate">Offline</span>
                                     </span>
                                     <span id="camera-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        {{ $cameraCounts['offline'] }}
+                                        1
                                     </span>
                                 </div>
                             </div>
@@ -618,7 +614,7 @@
                                         class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
                                                 bg-munti-green-700/20 px-4 py-2.5 rounded-full
                                                 border border-munti-green-600/30 shadow-sm whitespace-nowrap">
-                                        {{ $cameraOnline }}/{{ $cameraTotal }} Online
+                                        6/8 Online
                                     </span>
                                     <span class="text-[10px] text-text-500 uppercase tracking-wider whitespace-nowrap">
                                         Camera Status
