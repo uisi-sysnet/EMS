@@ -48,13 +48,6 @@
                     <p class="text-xs text-text-500 mt-2">Boot: <span class="enabled-label">{{ ucfirst($svc['enabled']) }}</span></p>
 
                     @if($svc['isSms'] ?? false)
-                        {{-- SMS-specific status display --}}
-                        <div class="mt-2 mb-1 flex items-center justify-between">
-                            <span class="text-xs text-text-400">SMS Ingestion:</span>
-                            <span class="sms-status-text text-xs font-semibold {{ $svc['running'] ? 'text-munti-green-400' : 'text-munti-red-400' }}">
-                                {{ $svc['running'] ? 'ACTIVE' : 'INACTIVE' }}
-                            </span>
-                        </div>
                         
                         {{-- SMS-specific enable/disable buttons --}}
                         <div class="flex gap-2 mt-1">
