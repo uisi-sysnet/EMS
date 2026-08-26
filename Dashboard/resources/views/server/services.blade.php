@@ -46,10 +46,9 @@
                     </div>
 
                     @if($svc['isSms'] ?? false)
-                        
+                        <p class="text-xs text-text-500 mt-2">SMS Ingestion: <span class="font-semibold {{ $svc['running'] }}">{{ $svc['running'] ? 'True' : 'False' }}</span></p>
                         {{-- SMS-specific enable/disable buttons --}}
                         <div class="flex gap-2 mt-4">
-                            <p class="text-xs text-text-500 mt-2">SMS Ingestion: <span class="font-semibold {{ $svc['running'] }}">{{ $svc['running'] ? 'True' : 'False' }}</span></p>
                             <button type="button" 
                                     class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed 
                                         {{ $svc['running'] ? 'bg-munti-green-700/10' : '' }}"
@@ -70,9 +69,9 @@
                             </button>
                         </div>
                     @else
+                        <p class="text-xs text-text-500 mt-2">Boot: <span class="enabled-label">{{ ucfirst($svc['enabled']) }}</span></p>
                         {{-- Regular start/stop/restart buttons --}}
                         <div class="flex gap-2 mt-4">
-                            <p class="text-xs text-text-500 mt-2">Boot: <span class="enabled-label">{{ ucfirst($svc['enabled']) }}</span></p>
                             <button type="button"
                                     class="btn-action flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
                                     data-action="start">Start</button>
