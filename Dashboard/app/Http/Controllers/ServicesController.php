@@ -27,6 +27,7 @@ class ServicesController extends Controller
         'postgresql.service'      => 'PostgreSQL',
         'nginx.service'           => 'Nginx',
         'ntpsec.service'          => 'NTP Daemon (ntpsec)',
+        'sms.service'          => 'SMS', 
     ];
 
     /** Actions allowed via the control buttons. */
