@@ -50,20 +50,23 @@
                     @if($svc['isSms'] ?? false)
                         {{-- SMS-specific enable/disable buttons --}}
                         <div class="flex gap-2 mt-4">
-                            <button type="button" 
-                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
-                                    data-action="enable"
-                                    data-unit="{{ $svc['unit'] }}"
-                                    data-label="{{ $svc['label'] }}">
-                                Enable
-                            </button>
-                            <button type="button" 
-                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
-                                    data-action="disable"
-                                    data-unit="{{ $svc['unit'] }}"
-                                    data-label="{{ $svc['label'] }}">
-                                Disable
-                            </button>
+                            @if($svc['smsEnabled'] ?? false)
+                                <button type="button" 
+                                        class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
+                                        data-action="disable"
+                                        data-unit="{{ $svc['unit'] }}"
+                                        data-label="{{ $svc['label'] }}">
+                                    Disable
+                                </button>
+                            @else
+                                <button type="button" 
+                                        class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
+                                        data-action="enable"
+                                        data-unit="{{ $svc['unit'] }}"
+                                        data-label="{{ $svc['label'] }}">
+                                    Enable
+                                </button>
+                            @endif
                         </div>
                     @else
                         {{-- Regular start/stop/restart buttons --}}
