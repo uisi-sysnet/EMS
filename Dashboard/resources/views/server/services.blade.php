@@ -48,20 +48,32 @@
                     <p class="text-xs text-text-500 mt-2">Boot: <span class="enabled-label">{{ ucfirst($svc['enabled']) }}</span></p>
 
                     @if($svc['isSms'] ?? false)
+                        {{-- SMS-specific status display --}}
+                        <div class="mt-2 mb-1 flex items-center justify-between">
+                            <span class="text-xs text-text-400">SMS Ingestion:</span>
+                            <span class="sms-status-text text-xs font-semibold {{ $svc['running'] ? 'text-munti-green-400' : 'text-munti-red-400' }}">
+                                {{ $svc['running'] ? 'ACTIVE' : 'INACTIVE' }}
+                            </span>
+                        </div>
+                        
                         {{-- SMS-specific enable/disable buttons --}}
-                        <div class="flex gap-2 mt-4">
+                        <div class="flex gap-2 mt-1">
                             <button type="button" 
-                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
+                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed 
+                                        {{ $svc['running'] ? 'bg-munti-green-700/10' : '' }}"
                                     data-action="enable"
                                     data-unit="{{ $svc['unit'] }}"
-                                    data-label="{{ $svc['label'] }}">
+                                    data-label="{{ $svc['label'] }}"
+                                    {{ $svc['running'] ? 'disabled' : '' }}>
                                 Enable
                             </button>
                             <button type="button" 
-                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" 
+                                    class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed
+                                        {{ !$svc['running'] ? 'bg-munti-red-700/10' : '' }}"
                                     data-action="disable"
                                     data-unit="{{ $svc['unit'] }}"
-                                    data-label="{{ $svc['label'] }}">
+                                    data-label="{{ $svc['label'] }}"
+                                    {{ !$svc['running'] ? 'disabled' : '' }}>
                                 Disable
                             </button>
                         </div>
@@ -164,6 +176,24 @@ document.addEventListener('DOMContentLoaded', function () {
         dot.className = 'w-1.5 h-1.5 rounded-full ' + cls.dot;
         label.textContent = svc.active.charAt(0).toUpperCase() + svc.active.slice(1);
         enabled.textContent = svc.enabled.charAt(0).toUpperCase() + svc.enabled.slice(1);
+        
+        // Update SMS status display if it exists
+        const smsStatusSpan = card.querySelector('.sms-status-text');
+        if (smsStatusSpan) {
+            smsStatusSpan.textContent = svc.running ? 'ACTIVE' : 'INACTIVE';
+            smsStatusSpan.className = 'text-xs font-semibold ' + (svc.running ? 'text-munti-green-400' : 'text-munti-red-400');
+        }
+        
+        // Update SMS button states
+        const enableBtn = card.querySelector('.btn-sms-toggle[data-action="enable"]');
+        const disableBtn = card.querySelector('.btn-sms-toggle[data-action="disable"]');
+        if (enableBtn && disableBtn) {
+            enableBtn.disabled = svc.running;
+            disableBtn.disabled = !svc.running;
+            // Update visual states
+            enableBtn.className = enableBtn.className.replace(/bg-\w+-\d+\/\d+/g, '').trim() + (svc.running ? ' bg-munti-green-700/10' : '');
+            disableBtn.className = disableBtn.className.replace(/bg-\w+-\d+\/\d+/g, '').trim() + (!svc.running ? ' bg-munti-red-700/10' : '');
+        }
     }
 
     async function refreshStatuses() {

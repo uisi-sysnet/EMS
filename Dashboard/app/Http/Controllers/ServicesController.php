@@ -162,6 +162,64 @@ class ServicesController extends Controller
     }
 
     /**
+     * Get SMS status from .env file
+     */
+    private function getSmsStatus(): bool
+    {
+        $envPath = '/home/system/EMS/scripts/.env';
+        
+        if (!file_exists($envPath)) {
+            return false;
+        }
+        
+        $envContent = file_get_contents($envPath);
+        
+        // Find the SMS_INGESTION_ENABLED line
+        preg_match('/^SMS_INGESTION_ENABLED=(.*)$/m', $envContent, $matches);
+        
+        if (isset($matches[1])) {
+            $value = trim($matches[1]);
+            return $value === 'true' || $value === '1';
+        }
+        
+        return false;
+    }
+
+    private function statusFor(string $unit): array
+    {
+        $label = self::MANAGED_SERVICES[$unit] ?? $unit;
+
+        // For SMS service, override active status with .env value
+        if ($unit === 'sms.service') {
+            $smsEnabled = $this->getSmsStatus();
+            
+            return [
+                'unit'      => $unit,
+                'label'     => $label,
+                'active'    => $smsEnabled ? 'active' : 'inactive',
+                'enabled'   => $smsEnabled ? 'enabled' : 'disabled',
+                'running'   => $smsEnabled,
+                'hasConfig' => array_key_exists($unit, self::CONFIG_FILES),
+                'isSms'     => true,
+            ];
+        }
+
+        $active = $this->runQuiet(['systemctl', 'is-active', $unit]);
+        $enabled = $this->runQuiet(['systemctl', 'is-enabled', $unit]);
+
+        return [
+            'unit'      => $unit,
+            'label'     => $label,
+            'active'    => $active ?: 'unknown',
+            'enabled'   => $enabled ?: 'unknown',
+            'running'   => $active === 'active',
+            'hasConfig' => array_key_exists($unit, self::CONFIG_FILES),
+            'isSms'     => $unit === 'sms.service',
+        ];
+    }
+
+
+    /**
      * GET /maintenance/services/{service}/config
      * Returns the raw contents of the whitelisted config file for $service.
      */
