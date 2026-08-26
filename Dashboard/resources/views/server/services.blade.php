@@ -47,6 +47,21 @@
 
                 <p class="text-xs text-text-500 mt-2">Boot: <span class="enabled-label">{{ ucfirst($svc['enabled']) }}</span></p>
 
+                @if($svc['unit'] === 'sms.service')
+                    {{-- SMS-specific buttons --}}
+                    <div class="flex gap-2 mt-4">
+                        <button type="button" class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" data-action="enable">Enable</button>
+                        <button type="button" class="btn-sms-toggle flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" data-action="disable">Disable</button>
+                    </div>
+                @else
+                    {{-- Regular start/stop/restart buttons --}}
+                    <div class="flex gap-2 mt-4">
+                        <button type="button" class="btn-action flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" data-action="start">Start</button>
+                        <button type="button" class="btn-action flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-red-600/40 text-munti-red-400 hover:bg-munti-red-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed" data-action="stop">Stop</button>
+                        <button type="button" class="btn-action flex-1 text-xs font-semibold py-2 rounded-lg border border-border-600 text-text-300 hover:bg-surface-700 transition disabled:opacity-40 disabled:cursor-not-allowed" data-action="restart">Restart</button>
+                    </div>
+                @endif
+
                 <div class="flex gap-2 mt-4">
                     <button type="button"
                             class="btn-action flex-1 text-xs font-semibold py-2 rounded-lg border border-munti-green-600/40 text-munti-green-400 hover:bg-munti-green-700/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
@@ -252,6 +267,106 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         } finally {
             buttons.forEach(b => b.disabled = false);
+        }
+    });
+
+    // ---------- SMS Enable/Disable ----------
+    const SMS_ACTION_META = {
+        enable: { 
+            verb: 'Enable', 
+            desc: 'This will enable the SMS service to start automatically on boot.', 
+            confirmColor: '#16a34a',
+            icon: 'question'
+        },
+        disable: { 
+            verb: 'Disable', 
+            desc: 'This will prevent the SMS service from starting automatically on boot.', 
+            confirmColor: '#dc2626',
+            icon: 'warning'
+        },
+    };
+
+    cardsRoot.addEventListener('click', async function (e) {
+        const btn = e.target.closest('.btn-sms-toggle');
+        if (!btn) return;
+        
+        const unit = btn.dataset.unit || btn.closest('.service-card')?.dataset.unit;
+        const label = btn.dataset.label || 'SMS Service';
+        const action = btn.dataset.action; // 'enable' or 'disable'
+        const meta = SMS_ACTION_META[action];
+        
+        // Confirmation dialog
+        const result = await Swal.fire({
+            title: `${meta.verb} "${label}"?`,
+            html: `<span style="color:#9ca3af;">${meta.desc}</span>`,
+            icon: meta.icon,
+            showCancelButton: true,
+            confirmButtonColor: meta.confirmColor,
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: `Yes, ${meta.verb.toLowerCase()} it`,
+            cancelButtonText: 'Cancel',
+            background: '#1f2937',
+            color: '#f3f4f6',
+            iconColor: meta.icon === 'warning' ? '#f59e0b' : '#38bdf8',
+        });
+        
+        if (!result.isConfirmed) return;
+        
+        // Disable both SMS toggle buttons during request
+        const card = btn.closest('.service-card');
+        const smsButtons = card.querySelectorAll('.btn-sms-toggle');
+        smsButtons.forEach(b => b.disabled = true);
+        
+        try {
+            const res = await fetch(`/maintenance/services/${encodeURIComponent(unit)}/action`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({ action }),
+            });
+            const data = await res.json();
+            
+            if (!res.ok) {
+                await Swal.fire({
+                    title: 'Action Failed',
+                    html: `<span style="color:#9ca3af;">${data.message || 'The action could not be completed.'}</span>`
+                        + (data.detail ? `<pre style="text-align:left; white-space:pre-wrap; background:#111827; border:1px solid #374151; border-radius:8px; padding:10px; margin-top:12px; font-size:12px; color:#f87171; max-height:180px; overflow-y:auto;">${data.detail}</pre>` : ''),
+                    icon: 'error',
+                    confirmButtonColor: '#dc2626',
+                    confirmButtonText: 'OK',
+                    background: '#1f2937',
+                    color: '#f3f4f6',
+                    iconColor: '#ef4444',
+                });
+            } else {
+                if (data.service) applyStatus(card, data.service);
+                Swal.fire({
+                    title: data.message || `${meta.verb} action completed.`,
+                    icon: 'success',
+                    background: '#1f2937',
+                    color: '#f3f4f6',
+                    iconColor: '#22c55e',
+                    timer: 2200,
+                    timerProgressBar: true,
+                    showConfirmButton: false,
+                });
+            }
+        } catch (e) {
+            Swal.fire({
+                title: 'Network Error',
+                text: 'Could not reach the server while sending the action.',
+                icon: 'error',
+                confirmButtonColor: '#dc2626',
+                confirmButtonText: 'OK',
+                background: '#1f2937',
+                color: '#f3f4f6',
+                iconColor: '#ef4444',
+            });
+        } finally {
+            smsButtons.forEach(b => b.disabled = false);
         }
     });
 
