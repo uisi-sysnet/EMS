@@ -83,32 +83,36 @@
                     </select>
                 </div>
 
-                <!-- Latitude -->
+                <!-- Latitude & Longitude - Combined Row with Separate Labels -->
                 <div class="flex flex-col">
-                    <label for="modal_latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Latitude
-                    </label>
-                    <input type="number"
-                        step="any"
-                        min="4.5"
-                        max="21.5"
-                        id="modal_latitude"
-                        name="latitude"
-                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
-                </div>
-
-                <!-- Longitude -->
-                <div class="flex flex-col">
-                    <label for="modal_longitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Longitude
-                    </label>
-                    <input type="number"
-                        step="any"
-                        min="116.0"
-                        max="127.0"
-                        id="modal_longitude"
-                        name="longitude"
-                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <label for="modal_latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Latitude
+                            </label>
+                            <input type="number"
+                                step="any"
+                                min="4.5"
+                                max="21.5"
+                                id="modal_latitude"
+                                name="latitude"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                                placeholder="14.5995">
+                        </div>
+                        <div class="flex-1">
+                            <label for="modal_longitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Longitude
+                            </label>
+                            <input type="number"
+                                step="any"
+                                min="116.0"
+                                max="127.0"
+                                id="modal_longitude"
+                                name="longitude"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                                placeholder="120.9842">
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Lead IP -->
@@ -137,17 +141,31 @@
                         ">
                 </div>
 
+                <!-- Lead Port & Slave - Combined Row with Separate Labels -->
                 <div class="flex flex-col">
-                    <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Port &amp; Slave
-                    </label>
                     <div class="flex gap-3">
                         <div class="flex-1">
-                            <input type="number" id="modal_lead_port" name="lead_port" value="8899"
+                            <label for="modal_lead_port" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Port
+                            </label>
+                            <input type="number" 
+                                id="modal_lead_port" 
+                                name="lead_port" 
+                                value="8899"
+                                min="1"
+                                max="65535"
                                 class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                         </div>
                         <div class="flex-1">
-                            <input type="number" id="modal_lead_slave" name="lead_slave" value="1"
+                            <label for="modal_lead_slave" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Slave
+                            </label>
+                            <input type="number" 
+                                id="modal_lead_slave" 
+                                name="lead_slave" 
+                                value="1"
+                                min="1"
+                                max="255"
                                 class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                         </div>
                     </div>
