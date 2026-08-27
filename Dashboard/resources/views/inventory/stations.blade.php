@@ -29,7 +29,7 @@
         <form action="{{ route('inventory.stations.store') }}" method="POST" class="p-6">
             @csrf
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
                 <!-- Station MN -->
                 <div class="flex flex-col">
                     <label for="modal_station_mn" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
@@ -61,7 +61,7 @@
 
                 <!-- Enabled (Hidden - Default: true) -->
                 <input type="hidden" name="enabled" value="1">
-                
+
                 <!-- Latitude -->
                 <div class="flex flex-col">
                     <label for="modal_latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
