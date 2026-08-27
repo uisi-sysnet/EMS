@@ -123,11 +123,11 @@
                     <div class="flex gap-3">
                         <div class="flex-1">
                             <input type="number" id="modal_lead_port" name="lead_port" value="8899"
-                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                         </div>
                         <div class="flex-1">
                             <input type="number" id="modal_lead_slave" name="lead_slave" value="1"
-                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                         </div>
                     </div>
                 </div>
@@ -263,11 +263,11 @@
                     <div class="flex gap-3">
                         <div class="flex-1">
                             <input type="number" id="edit_lead_port" name="lead_port" value="8899"
-                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                         </div>
                         <div class="flex-1">
                             <input type="number" id="edit_lead_slave" name="lead_slave" value="1"
-                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                         </div>
                     </div>
                 </div>
