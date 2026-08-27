@@ -533,15 +533,17 @@
 
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
 
-                {{-- Add New Camera Form --}}
-                <div class="p-5 border-b border-border-700">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider flex items-center gap-2">
-                            <span class="w-1.5 h-1.5 rounded-full bg-radar-400"></span>
-                            Add New Camera
-                        </h3>
-                        
-                        {{-- Action Buttons --}}
+                {{-- Cameras Table --}}
+                <div class="flex-1 flex flex-col min-h-0">
+                    <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
+                        <h4 class="text-xs font-semibold text-text-400 uppercase tracking-wider flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span>
+                            Existing Cameras
+                        </h4>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-text-500">{{ $cameras->count() }} Camera(s)</span>
+                        </div>
+                                            {{-- Action Buttons --}}
                         <div class="flex items-center gap-1.5">
 
                             {{-- Download Format --}}
@@ -607,19 +609,6 @@
                                     onchange="this.form.submit()">
                             </form>
 
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Cameras Table --}}
-                <div class="flex-1 flex flex-col min-h-0">
-                    <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
-                        <h4 class="text-xs font-semibold text-text-400 uppercase tracking-wider flex items-center gap-2">
-                            <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span>
-                            Existing Cameras
-                        </h4>
-                        <div class="flex items-center gap-3">
-                            <span class="text-xs text-text-500">{{ $cameras->count() }} Camera(s)</span>
                         </div>
                     </div>
 
