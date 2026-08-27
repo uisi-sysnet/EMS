@@ -481,6 +481,19 @@
                             Existing Stations
                         </h3>
                         <div class="flex items-center gap-3">
+                            <!-- NEW: Add Station Button (Green) -->
+                            <button type="button" 
+                                    onclick="toggleStationForm()"
+                                    class="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold rounded-lg
+                                        bg-munti-green-600 hover:bg-munti-green-500 text-text-100
+                                        border border-munti-green-500/30 transition shadow-sm hover:shadow-md
+                                        focus:ring-2 focus:ring-munti-green-500/40 focus:outline-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                Add Station
+                            </button>
+                            
                             <span class="text-xs text-text-500">{{ $stations->count() }} Station(s)</span>
                             
                             @if($deletedStations->count() > 0)
@@ -503,7 +516,7 @@
                             <table class="min-w-full divide-y divide-border-700">
                                 <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500 sticky top-0 z-10">
                                     <tr>
-                                        <th scope="col" class="px-4 py-3 text-left font-medium">MN</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Station MN</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Name</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Enabled</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Data Status</th>
