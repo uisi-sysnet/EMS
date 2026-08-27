@@ -29,7 +29,7 @@
         <form action="{{ route('inventory.cameras.store') }}" method="POST" class="p-6">
             @csrf
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <!-- Channel -->
                 <div class="flex flex-col">
                     <label for="modal_channel" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
