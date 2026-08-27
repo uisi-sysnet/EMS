@@ -9,489 +9,247 @@
 .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
 </style>
 
-<div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
-    <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex flex-col min-h-0">
-
-        {{-- Header --}}
-        <div class="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-            <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2.5">
-                <span class="leading-tight uppercase tracking-wide">Manage Cameras</span>
-            </h2>
-            <span class="text-xs sm:text-sm text-text-400">Create and manage your camera devices</span>
+<!-- Add Camera Modal -->
+<div id="addModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="display: none;">
+    <div class="bg-surface-800 rounded-2xl border border-border-700 shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto thin-scrollbar">
+        <div class="sticky top-0 bg-surface-800/95 backdrop-blur-sm px-6 py-4 border-b border-border-700 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-text-100 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-munti-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Add New Camera
+            </h3>
+            <button type="button" onclick="closeAddModal()" class="p-2 rounded-lg hover:bg-surface-700 text-text-400 hover:text-text-100 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
         </div>
+        
+        <form action="{{ route('inventory.cameras.store') }}" method="POST" class="p-6">
+            @csrf
 
-        {{-- Content --}}
-        <div class="flex-1 overflow-y-auto thin-scrollbar min-h-0 bg-background-900 py-6 px-5 sm:px-8">
-
-            {{-- Success Message --}}
-            @if(session('success'))
-                <div class="mb-6 px-4 py-3 rounded-lg border border-munti-green-600/30 bg-munti-green-700/15 text-munti-green-400 text-sm font-medium">
-                    {{ session('success') }}
-                </div>
-            @endif
-
-            {{-- Error Message --}}
-            @if(session('error'))
-                <div class="mb-6 px-4 py-3 rounded-lg border border-munti-red-600/30 bg-munti-red-700/15 text-munti-red-400 text-sm font-medium">
-                    {{ session('error') }}
-                </div>
-            @endif
-
-            <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
-
-                {{-- Add New Camera Form --}}
-                <div class="p-5 border-b border-border-700">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider flex items-center gap-2">
-                            <span class="w-1.5 h-1.5 rounded-full bg-radar-400"></span>
-                            Add New Camera
-                        </h3>
-                        
-                        {{-- Action Buttons --}}
-                        <div class="flex items-center gap-1.5">
-
-                            {{-- Download Format --}}
-                            <a href="{{ route('cameras.download-format') }}"
-                                class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-text-200 bg-surface-700/40 border border-border-600/30 rounded-md hover:bg-surface-700/60 transition whitespace-nowrap">
-                                <svg xmlns="http://www.w3.org/2000/svg"
-                                    class="w-3.5 h-3.5 shrink-0"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor">
-                                    <path stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                Download Format
-                            </a>
-
-                            {{-- Export --}}
-                            <a href="{{-- {{ route('inventory.cameras.export') }} --}}"
-                                class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 rounded-md hover:bg-munti-green-700/30 transition whitespace-nowrap">
-                                <svg xmlns="http://www.w3.org/2000/svg"
-                                    class="w-3.5 h-3.5 shrink-0"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor">
-                                    <path stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                Export
-                            </a>
-
-                            {{-- Import --}}
-                            <form id="importForm"
-                                action="{{-- {{ route('inventory.cameras.import') }} --}}"
-                                method="POST"
-                                enctype="multipart/form-data"
-                                class="m-0">
-                                @csrf
-
-                                <label for="importFile"
-                                    class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-yellow-400 bg-munti-yellow-300/10 border border-munti-yellow-600/30 rounded-md hover:bg-munti-yellow-700/30 transition whitespace-nowrap cursor-pointer">
-                                    <svg xmlns="http://www.w3.org/2000/svg"
-                                        class="w-3.5 h-3.5 shrink-0"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor">
-                                        <path stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                    </svg>
-                                    Import
-                                </label>
-
-                                <input type="file"
-                                    id="importFile"
-                                    name="file"
-                                    accept=".xlsx,.xls,.csv"
-                                    class="hidden"
-                                    onchange="this.form.submit()">
-                            </form>
-
-                        </div>
-                    </div>
-
-                    <form action="{{ route('inventory.cameras.store') }}" method="POST">
-                        @csrf
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                            {{-- Channel --}}
-                            <div class="flex flex-col">
-                                <label for="channel" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    Channel <span class="text-munti-red-400">*</span>
-                                </label>
-
-                                <input type="text"
-                                    id="channel"
-                                    name="channel"
-                                    value="{{ old('channel') }}"
-                                    required
-                                    maxlength="14"
-                                    pattern="[A-Za-z0-9]{1,14}"
-                                    oninput="this.value = this.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 14)"
-                                    class="w-full min-w-0 h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('channel') border-munti-red-500 @enderror"
-                                    placeholder="Channel 1">
-
-                                @error('channel')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            {{-- Camera Name --}}
-                            <div class="flex flex-col">
-                                <label for="name" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    Camera Name <span class="text-munti-red-400">*</span>
-                                </label>
-
-                                <input type="text"
-                                    id="name"
-                                    name="name"
-                                    value="{{ old('name') }}"
-                                    required
-                                    maxlength="30"
-                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('name') border-munti-red-500 @enderror"
-                                    placeholder="Front Gate Camera"
-                                    oninput="this.value=this.value.slice(0,30); document.getElementById('slug_preview').value=this.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')">
-
-                                @error('name')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            {{-- IP Address --}}
-                            <div class="flex flex-col">
-                                <label for="ip_address" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    IP Address <span class="text-munti-red-400">*</span>
-                                </label>
-
-                                <input type="text"
-                                    id="ip_address"
-                                    name="ip_address"
-                                    value="{{ old('ip_address') }}"
-                                    required
-                                    maxlength="15"
-                                    pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-                                    inputmode="decimal"
-                                    autocomplete="off"
-                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('ip_address') border-munti-red-500 @enderror"
-                                    placeholder="e.g. 192.168.1.10"
-                                    oninput="
-                                        let v = this.value.replace(/[^0-9.]/g, '');
-                                        const parts = v.split('.');
-                                        if (parts.length > 4) {
-                                            v = parts.slice(0, 4).join('.');
-                                        }
-                                        v = parts.slice(0, 4).map(p => p.slice(0, 3)).join('.');
-                                        this.value = v;
-                                    ">
-
-                                @error('ip_address')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            {{-- ONVIF Port --}}
-                            <div class="flex flex-col">
-                                <label for="onvif_port" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    ONVIF Port <span class="text-munti-red-400">*</span>
-                                </label>
-
-                                <input type="number"
-                                    id="onvif_port"
-                                    name="onvif_port"
-                                    value="{{ old('onvif_port', 80) }}"
-                                    required
-                                    min="1"
-                                    max="65535"
-                                    maxlength="4"
-                                    oninput="this.value=this.value.slice(0,4)"
-                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('onvif_port') border-munti-red-500 @enderror"
-                                    placeholder="80">
-
-                                @error('onvif_port')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            {{-- Username --}}
-                            <div class="flex flex-col">
-                                <label for="username" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    Username <span class="text-munti-red-400">*</span>
-                                </label>
-
-                                <input type="text"
-                                    id="username"
-                                    name="username"
-                                    value="{{ old('username') }}"
-                                    required
-                                    maxlength="30"
-                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('username') border-munti-red-500 @enderror"
-                                    placeholder="admin">
-
-                                @error('username')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            {{-- Password --}}
-                            <div class="flex flex-col">
-                                <label for="password" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    Password <span class="text-munti-red-400">*</span>
-                                </label>
-
-                                <input type="password"
-                                    id="password"
-                                    name="password"
-                                    required
-                                    maxlength="30"
-                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('password') border-munti-red-500 @enderror"
-                                    placeholder="••••••••">
-
-                                @error('password')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            {{-- Location --}}
-                            <div class="flex flex-col">
-                                <label for="location" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    Location
-                                </label>
-                                <input type="text" id="location" name="location" value="{{ old('location') }}" maxlength="255" 
-                                       class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('location') border-munti-red-500 @enderror" 
-                                       placeholder="Building A, Floor 2">
-                                @error('location')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            {{-- Device Type --}}
-                            <div class="flex flex-col">
-                                <label for="device_type" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    Device Type
-                                </label>
-
-                                <select id="device_type"
-                                        name="device_type"
-                                        class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('device_type') border-munti-red-500 @enderror">
-                                    <option value="">Select Device Type</option>
-                                    <option value="PTZ" {{ old('device_type') == 'PTZ' ? 'selected' : '' }}>PTZ</option>
-                                    <option value="Bullet" {{ old('device_type') == 'Bullet' ? 'selected' : '' }}>Bullet</option>
-                                    <option value="Dome" {{ old('device_type') == 'Dome' ? 'selected' : '' }}>Dome</option>
-                                </select>
-
-                                @error('device_type')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            {{-- Serial Number --}}
-                            <div class="flex flex-col">
-                                <label for="serial_number" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    Serial Number
-                                </label>
-
-                                <input type="text"
-                                    id="serial_number"
-                                    name="serial_number"
-                                    value="{{ old('serial_number') }}"
-                                    maxlength="30"
-                                    pattern="[A-Za-z0-9]{1,30}"
-                                    inputmode="text"
-                                    autocomplete="off"
-                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('serial_number') border-munti-red-500 @enderror"
-                                    placeholder="SN2024001"
-                                    oninput="this.value=this.value.replace(/[^A-Za-z0-9]/g,'').slice(0,30)">
-
-                                @error('serial_number')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            {{-- Latitude --}}
-                            <div class="flex flex-col">
-                                <label for="latitude" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    Latitude
-                                </label>
-
-                                <input type="number"
-                                    step="any"
-                                    min="4.5"
-                                    max="21.5"
-                                    id="latitude"
-                                    name="latitude"
-                                    value="{{ old('latitude') }}"
-                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('latitude') border-munti-red-500 @enderror"
-                                    placeholder="14.5995">
-
-                                @error('latitude')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            {{-- Longitude --}}
-                            <div class="flex flex-col">
-                                <label for="longitude" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    Longitude
-                                </label>
-
-                                <input type="number"
-                                    step="any"
-                                    min="116.0"
-                                    max="127.0"
-                                    id="longitude"
-                                    name="longitude"
-                                    value="{{ old('longitude') }}"
-                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('longitude') border-munti-red-500 @enderror"
-                                    placeholder="120.9842">
-
-                                @error('longitude')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            {{-- Status --}}
-                            <input type="hidden" name="enabled" value="1">
-
-                            {{-- Slug (auto) --}}
-                            <div class="flex flex-col">
-                                <label for="slug" class="block text-xs font-medium text-text-400 mb-1 uppercase tracking-wide">
-                                    Slug
-                                </label>
-
-                                <input type="text"
-                                    id="slug"
-                                    name="slug"
-                                    value="{{ old('slug') }}"
-                                    maxlength="30"
-                                    class="w-full h-8 px-2.5 border border-border-600 rounded-md bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-xs transition @error('slug') border-munti-red-500 @enderror"
-                                    placeholder="Enter slug">
-
-                                @error('slug')
-                                    <p class="mt-1 text-xs text-munti-red-400">{{ $message }}</p>
-                                @enderror
-                            </div>
-                        </div>
-                        
-                        {{-- Note & Action Grid Row --}}
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-                            {{-- Note - occupies 3 columns --}}
-                            <div class="lg:col-span-3 md:col-span-2 col-span-1">
-                                <div class="h-full px-3 bg-surface-700/30 rounded-lg border border-border-600 flex items-center">
-                                    <p class="text-xs text-text-400">
-                                        <span class="text-munti-red-400">*</span> Note:
-                                        <span class="text-text-300">Slug and Serial Number must be unique across all records.</span>
-                                        <span class="text-text-300 ml-2">The slug is auto-generated from the camera name.</span>
-                                    </p>
-                                </div>
-                            </div>
-
-                            {{-- Action Button - occupies 1 column --}}
-                            <div class="lg:col-span-1 md:col-span-1 col-span-1">
-                                <div class="flex flex-col h-full">
-                                    <button type="submit" class="w-full h-8 px-3 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 text-xs font-semibold rounded-md transition border border-munti-green-500/30 flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                        </svg>
-                                        Add Camera
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                    </form>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Channel -->
+                <div class="flex flex-col">
+                    <label for="modal_channel" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Channel <span class="text-munti-red-400">*</span>
+                    </label>
+                    <input type="text"
+                        id="modal_channel"
+                        name="channel"
+                        required
+                        maxlength="14"
+                        pattern="[A-Za-z0-9]{1,14}"
+                        oninput="this.value = this.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 14)"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="Channel 1">
                 </div>
 
-                {{-- Cameras Table --}}
-                <div class="flex-1 flex flex-col min-h-0">
-                    <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
-                        <h4 class="text-xs font-semibold text-text-400 uppercase tracking-wider flex items-center gap-2">
-                            <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span>
-                            Existing Cameras
-                        </h4>
-                        <div class="flex items-center gap-3">
-                            <span class="text-xs text-text-500">{{ $cameras->count() }} Camera(s)</span>
-                        </div>
-                    </div>
+                <!-- Camera Name -->
+                <div class="flex flex-col">
+                    <label for="modal_name" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Camera Name <span class="text-munti-red-400">*</span>
+                    </label>
+                    <input type="text" 
+                           id="modal_name" 
+                           name="name" 
+                           required
+                           maxlength="30" 
+                           class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                           placeholder="Front Gate Camera"
+                           oninput="this.value=this.value.slice(0,30); document.getElementById('modal_slug_preview').value=this.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')">
+                </div>
 
-                    <div class="overflow-x-auto thin-scrollbar flex-1">
-                        @if($cameras->count())
-                            <table class="min-w-full divide-y divide-border-700">
-                                <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500 sticky top-0 z-10">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left font-medium">ID</th>
-                                        <th class="px-4 py-3 text-left font-medium">Channel</th>
-                                        <th class="px-4 py-3 text-left font-medium">Name</th>
-                                        <th class="px-4 py-3 text-left font-medium">Slug</th>
-                                        <th class="px-4 py-3 text-left font-medium">IP Address</th>
-                                        <th class="px-4 py-3 text-left font-medium">Location</th>
-                                        <th class="px-4 py-3 text-left font-medium">Device Type</th>
-                                        <th class="px-4 py-3 text-left font-medium">Status</th>
-                                        <th class="px-4 py-3 text-left font-medium">Serial #</th>
-                                        <th class="px-4 py-3 text-left font-medium">Last Sync</th>
-                                        <th class="px-4 py-3 text-center font-medium">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-border-800">
-                                    @foreach($cameras as $camera)
-                                        <tr class="hover:bg-surface-700/50 transition" data-camera-id="{{ $camera->id }}">
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $camera->id }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->channel }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">{{ $camera->name }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">{{ $camera->slug }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-text-300">{{ $camera->ip_address }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->location ?? '-' }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->device_type ?? '-' }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap">
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{ $camera->enabled ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30' : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
-                                                    {{ $camera->enabled ? 'Active' : 'Inactive' }}
-                                                </span>
-                                            </td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->serial_number ?? '-' }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $camera->last_synced_at ? $camera->last_synced_at->format('Y-m-d H:i') : '-' }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-center">
-                                                <div class="flex items-center justify-center gap-1.5">
-                                                    {{-- Edit Button --}}
-                                                    <button type="button" 
-                                                            onclick="editCamera('{{ $camera->id }}')" 
-                                                            class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group" 
-                                                            title="Edit Camera">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                        </svg>
-                                                    </button>
+                <!-- IP Address -->
+                <div class="flex flex-col">
+                    <label for="modal_ip_address" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        IP Address <span class="text-munti-red-400">*</span>
+                    </label>
+                    <input type="text"
+                        id="modal_ip_address"
+                        name="ip_address"
+                        required
+                        maxlength="15"
+                        pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                        inputmode="decimal"
+                        autocomplete="off"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="e.g. 192.168.1.10"
+                        oninput="
+                            let v = this.value.replace(/[^0-9.]/g, '');
+                            const parts = v.split('.');
+                            if (parts.length > 4) {
+                                v = parts.slice(0, 4).join('.');
+                            }
+                            v = parts.slice(0, 4).map(p => p.slice(0, 3)).join('.');
+                            this.value = v;
+                        ">
+                </div>
 
-                                                    {{-- Delete Button --}}
-                                                    <button type="button" 
-                                                            onclick="deleteCamera('{{ $camera->id }}', '{{ $camera->name }}')" 
-                                                            class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group" 
-                                                            title="Delete Camera">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
-                                                            <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        @else
-                            <div class="flex items-center justify-center h-32 text-sm text-text-500">
-                                No cameras found. Add one!
-                            </div>
-                        @endif
-                    </div>
+                <!-- ONVIF Port -->
+                <div class="flex flex-col">
+                    <label for="modal_onvif_port" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        ONVIF Port <span class="text-munti-red-400">*</span>
+                    </label>
+                    <input type="number"
+                        id="modal_onvif_port"
+                        name="onvif_port"
+                        required
+                        min="1"
+                        max="65535"
+                        maxlength="4"
+                        oninput="this.value=this.value.slice(0,4)"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="80">
+                </div>
+
+                <!-- Username -->
+                <div class="flex flex-col">
+                    <label for="modal_username" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Username <span class="text-munti-red-400">*</span>
+                    </label>
+                    <input type="text"
+                        id="modal_username"
+                        name="username"
+                        required
+                        maxlength="30"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="admin">
+                </div>
+
+                <!-- Password -->
+                <div class="flex flex-col">
+                    <label for="modal_password" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Password <span class="text-munti-red-400">*</span>
+                    </label>
+                    <input type="password"
+                        id="modal_password"
+                        name="password"
+                        required
+                        maxlength="30"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="••••••••">
+                </div>
+
+                <!-- Location -->
+                <div class="flex flex-col">
+                    <label for="modal_location" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Location
+                    </label>
+                    <input type="text" 
+                           id="modal_location" 
+                           name="location" 
+                           maxlength="255" 
+                           class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                           placeholder="Building A, Floor 2">
+                </div>
+
+                <!-- Device Type -->
+                <div class="flex flex-col">
+                    <label for="modal_device_type" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Device Type
+                    </label>
+                    <select id="modal_device_type"
+                            name="device_type"
+                            class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        <option value="">Select Device Type</option>
+                        <option value="PTZ">PTZ</option>
+                        <option value="Bullet">Bullet</option>
+                        <option value="Dome">Dome</option>
+                    </select>
+                </div>
+
+                <!-- Serial Number -->
+                <div class="flex flex-col">
+                    <label for="modal_serial_number" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Serial Number
+                    </label>
+                    <input type="text"
+                        id="modal_serial_number"
+                        name="serial_number"
+                        maxlength="30"
+                        pattern="[A-Za-z0-9]{1,30}"
+                        inputmode="text"
+                        autocomplete="off"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="SN2024001"
+                        oninput="this.value=this.value.replace(/[^A-Za-z0-9]/g,'').slice(0,30)">
+                </div>
+
+                <!-- Latitude -->
+                <div class="flex flex-col">
+                    <label for="modal_latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Latitude
+                    </label>
+                    <input type="number"
+                        step="any"
+                        min="4.5"
+                        max="21.5"
+                        id="modal_latitude"
+                        name="latitude"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="14.5995">
+                </div>
+
+                <!-- Longitude -->
+                <div class="flex flex-col">
+                    <label for="modal_longitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Longitude
+                    </label>
+                    <input type="number"
+                        step="any"
+                        min="116.0"
+                        max="127.0"
+                        id="modal_longitude"
+                        name="longitude"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="120.9842">
+                </div>
+
+                <!-- Enabled (Hidden - Default: true) -->
+                <input type="hidden" name="enabled" value="1">
+
+                <!-- Slug -->
+                <div class="flex flex-col">
+                    <label for="modal_slug" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Slug
+                    </label>
+                    <input type="text"
+                        id="modal_slug"
+                        name="slug"
+                        maxlength="30"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="Enter slug">
                 </div>
             </div>
-        </div>
+
+            <!-- Note about uniqueness -->
+            <div class="mt-4 p-3 bg-surface-700/30 rounded-lg border border-border-600">
+                <p class="text-xs text-text-400">
+                    <span class="text-munti-red-400">*</span> Note: 
+                    <span class="text-text-300">Slug and Serial Number must be unique across all records.</span>
+                    <span class="text-text-300 ml-2">The slug is auto-generated from the camera name.</span>
+                </p>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-border-700 flex justify-end gap-3">
+                <button type="button" onclick="closeAddModal()"
+                        class="px-4 py-2.5 text-sm font-medium text-text-300 hover:text-text-100 bg-surface-700 hover:bg-surface-600 rounded-lg transition border border-border-600">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-6 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Create Camera
+                </button>
+            </div>
+        </form>
     </div>
 </div>
+
 
 {{-- Edit Camera Modal --}}
 <div id="editModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="display: none;">
@@ -742,6 +500,122 @@
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
+    <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex flex-col min-h-0">
+
+        {{-- Header --}}
+        <div class="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+            <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2.5">
+                <span class="leading-tight uppercase tracking-wide">Manage Cameras</span>
+            </h2>
+            <span class="text-xs sm:text-sm text-text-400">Create and manage your camera devices</span>
+        </div>
+
+        {{-- Content --}}
+        <div class="flex-1 overflow-y-auto thin-scrollbar min-h-0 bg-background-900 py-6 px-5 sm:px-8">
+
+            {{-- Success Message --}}
+            @if(session('success'))
+                <div class="mb-6 px-4 py-3 rounded-lg border border-munti-green-600/30 bg-munti-green-700/15 text-munti-green-400 text-sm font-medium">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            {{-- Error Message --}}
+            @if(session('error'))
+                <div class="mb-6 px-4 py-3 rounded-lg border border-munti-red-600/30 bg-munti-red-700/15 text-munti-red-400 text-sm font-medium">
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
+
+                {{-- Cameras Table --}}
+                <div class="flex-1 flex flex-col min-h-0">
+                    <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
+                        <h4 class="text-xs font-semibold text-text-400 uppercase tracking-wider flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span>
+                            Existing Cameras
+                        </h4>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-text-500">{{ $cameras->count() }} Camera(s)</span>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto thin-scrollbar flex-1">
+                        @if($cameras->count())
+                            <table class="min-w-full divide-y divide-border-700">
+                                <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500 sticky top-0 z-10">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-medium">ID</th>
+                                        <th class="px-4 py-3 text-left font-medium">Channel</th>
+                                        <th class="px-4 py-3 text-left font-medium">Name</th>
+                                        <th class="px-4 py-3 text-left font-medium">Slug</th>
+                                        <th class="px-4 py-3 text-left font-medium">IP Address</th>
+                                        <th class="px-4 py-3 text-left font-medium">Location</th>
+                                        <th class="px-4 py-3 text-left font-medium">Device Type</th>
+                                        <th class="px-4 py-3 text-left font-medium">Status</th>
+                                        <th class="px-4 py-3 text-left font-medium">Serial #</th>
+                                        <th class="px-4 py-3 text-left font-medium">Last Sync</th>
+                                        <th class="px-4 py-3 text-center font-medium">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-border-800">
+                                    @foreach($cameras as $camera)
+                                        <tr class="hover:bg-surface-700/50 transition" data-camera-id="{{ $camera->id }}">
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $camera->id }}</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->channel }}</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">{{ $camera->name }}</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">{{ $camera->slug }}</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-text-300">{{ $camera->ip_address }}</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->location ?? '-' }}</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->device_type ?? '-' }}</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{ $camera->enabled ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30' : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
+                                                    {{ $camera->enabled ? 'Active' : 'Inactive' }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->serial_number ?? '-' }}</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $camera->last_synced_at ? $camera->last_synced_at->format('Y-m-d H:i') : '-' }}</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-center">
+                                                <div class="flex items-center justify-center gap-1.5">
+                                                    {{-- Edit Button --}}
+                                                    <button type="button" 
+                                                            onclick="editCamera('{{ $camera->id }}')" 
+                                                            class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group" 
+                                                            title="Edit Camera">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                        </svg>
+                                                    </button>
+
+                                                    {{-- Delete Button --}}
+                                                    <button type="button" 
+                                                            onclick="deleteCamera('{{ $camera->id }}', '{{ $camera->name }}')" 
+                                                            class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group" 
+                                                            title="Delete Camera">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
+                                                            <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        @else
+                            <div class="flex items-center justify-center h-32 text-sm text-text-500">
+                                No cameras found. Add one!
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
