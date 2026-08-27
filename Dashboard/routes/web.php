@@ -118,6 +118,7 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::delete('/maintenance/cameras/{camera}', [CameraController::class, 'destroy'])->name('cameras.destroy');
     Route::post('/maintenance/cameras/{camera}/refresh', [CameraController::class, 'refresh'])->name('cameras.refresh');
     Route::get('/maintenance/cameras/live', [CameraController::class, 'live'])->name('cameras.live');
+    Route::post('/cctv-stream/{slug}/ptz', [CameraController::class, 'ptz'])->name('cameras.ptz');
     
     Route::get('/dashboard/report/image', [DashboardController::class, 'generateImageReport'])
     ->name('dashboard.report.image');

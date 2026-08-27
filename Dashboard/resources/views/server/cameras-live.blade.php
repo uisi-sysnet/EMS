@@ -6,12 +6,12 @@
     <div class="flex flex-col lg:flex-row flex-1 min-h-0">
 
         {{-- LEFT: Camera list (20%) --}}
-        <div class="w-full lg:w-[20%] lg:min-w-[220px] border-b lg:border-b-0 lg:border-r border-border-800 bg-surface-900/50 lg:overflow-y-auto thin-scrollbar shrink-0">
-            <div class="px-4 py-3 border-b border-border-800">
+        <div class="w-full lg:w-[20%] lg:min-w-[220px] border-b lg:border-b-0 lg:border-r border-border-800 bg-surface-900/50 shrink-0 flex flex-col lg:h-full lg:min-h-0">
+            <div class="px-4 py-3 border-b border-border-800 shrink-0">
                 <h2 class="text-sm font-semibold text-text-100 uppercase tracking-wide">Cameras</h2>
                 <p class="text-xs text-text-400 mt-0.5">{{ $cameras->count() }} connected</p>
             </div>
-            <div id="camera-list" class="divide-y divide-border-800 max-h-64 lg:max-h-none overflow-y-auto lg:overflow-visible thin-scrollbar">
+            <div id="camera-list" class="divide-y divide-border-800 max-h-64 lg:max-h-none lg:flex-1 lg:min-h-0 overflow-y-auto thin-scrollbar">
                 @forelse ($cameras as $cam)
                     <button type="button"
                         class="camera-item w-full text-left px-4 py-3 hover:bg-surface-800 transition flex items-center justify-between gap-2"
@@ -32,8 +32,8 @@
                 @endforelse
             </div>
 
-            {{-- PTZ controls — always shown below the camera list --}}
-            <div id="ptz-panel" class="px-4 py-3 border-t border-border-800">
+            {{-- PTZ controls — always shown, pinned below the scrollable camera list --}}
+            <div id="ptz-panel" class="px-4 py-3 border-t border-border-800 shrink-0">
                 <h3 class="text-xs font-semibold text-text-300 uppercase tracking-wide mb-2">PTZ Control</h3>
                 <div class="grid grid-cols-3 gap-1 w-36 mx-auto">
                     <button type="button" class="ptz-btn aspect-square flex items-center justify-center rounded border border-border-700 bg-surface-800 text-text-200 hover:bg-surface-700 active:bg-surface-600 select-none" data-pan="-1" data-tilt="1" aria-label="Up-left">↖</button>
@@ -87,15 +87,20 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentSlug = null;
     let ptzHoldActive = false;
 
-    // POSTs to a Laravel route (not mediamtx directly) that's expected to
-    // relay the command to the camera over ONVIF PTZ. If your CSRF
-    // middleware doesn't already exempt /cctv-stream/* the way it must for
-    // the WHEP POST above to work, this will 419 — add it there, or send
-    // an X-CSRF-TOKEN header here instead.
+    // Laravel route (unlike the WHEP POST below, which nginx proxies
+    // straight to mediamtx and never touches Laravel's CSRF middleware
+    // at all) — this one does, so it needs the token. Relies on
+    // layouts.header having <meta name="csrf-token" content="{{ csrf_token() }}">,
+    // which is Laravel's default starter layout convention.
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
     function ptzSend(slug, body) {
         return fetch(`/cctv-stream/${slug}/ptz`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+            },
             body: JSON.stringify(body),
         }).catch((err) => console.error('PTZ request failed:', err));
     }
