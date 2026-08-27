@@ -495,14 +495,19 @@
                                 </button>
                             @endif
 
-                            <!-- Add Station Button (Green - same design as Deleted) -->
+                            <!-- Add Station Button (matching Export button design) -->
                             <button type="button" 
                                     onclick="toggleStationForm()"
-                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
-                                        bg-munti-green-600 hover:bg-munti-green-500 text-text-100
-                                        border border-munti-green-500/30 transition">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                    class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 rounded-md hover:bg-munti-green-700/30 transition whitespace-nowrap">
+                                <svg xmlns="http://www.w3.org/2000/svg" 
+                                    class="w-3.5 h-3.5 shrink-0" 
+                                    fill="none" 
+                                    viewBox="0 0 24 24" 
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" 
+                                        stroke-linejoin="round" 
+                                        stroke-width="2" 
+                                        d="M12 4v16m8-8H4"/>
                                 </svg>
                                 Add Station
                             </button>
