@@ -179,7 +179,7 @@
             @csrf
             @method('PUT')
             
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
                 <!-- Station MN -->
                 <div class="flex flex-col">
                     <label for="edit_station_mn" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
@@ -202,18 +202,8 @@
                     <input type="text" id="edit_station_name" name="station_name"
                         maxlength="32" class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                 </div>
-                <!-- Enabled -->
-                <div class="flex flex-col">
-                    <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Enabled
-                    </label>
-                    <div class="flex items-center h-11 px-3.5">
-                        <input type="hidden" name="enabled" value="0">
-                        <input type="checkbox" id="edit_enabled" name="enabled" value="1"
-                            class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
-                        <label for="edit_enabled" class="ml-2 text-sm text-text-300">Enable this station</label>
-                    </div>
-                </div>
+                <!-- Enabled (Hidden - Default: true) -->
+                <input type="hidden" name="enabled" value="1">
                 <!-- Latitude -->
                 <div class="flex flex-col">
                     <label for="edit_latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
@@ -265,23 +255,21 @@
                             this.value = v;
                         ">
                 </div>
-                <!-- Lead Port - Auto-filled with 8899 -->
+                <!-- Lead Port & Slave - Combined Row -->
                 <div class="flex flex-col">
-                    <label for="edit_lead_port" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Port <span class="text-text-500">(Auto: 8899)</span>
+                    <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Port &amp; Slave
                     </label>
-                    <input type="number" id="edit_lead_port" name="lead_port" value="8899"
-                        readonly
-                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
-                </div>
-                <!-- Lead Slave - Auto-filled with 1 -->
-                <div class="flex flex-col">
-                    <label for="edit_lead_slave" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Slave <span class="text-text-500">(Auto: 1)</span>
-                    </label>
-                    <input type="number" id="edit_lead_slave" name="lead_slave" value="1"
-                        readonly
-                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <input type="number" id="edit_lead_port" name="lead_port" value="8899"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                        </div>
+                        <div class="flex-1">
+                            <input type="number" id="edit_lead_slave" name="lead_slave" value="1"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="mt-6 pt-4 border-t border-border-700 flex justify-end gap-3">
