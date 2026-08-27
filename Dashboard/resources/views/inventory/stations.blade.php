@@ -62,6 +62,20 @@
                 <!-- Enabled (Hidden - Default: true) -->
                 <input type="hidden" name="enabled" value="1">
 
+                <!-- Location -->
+                <div class="flex flex-col">
+                    <label for="modal_location" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Location
+                    </label>
+                    <select id="modal_location" 
+                            name="location"
+                            class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        <option value="">Select Location</option>
+                        <option value="Brgy 1">Brgy 1</option>
+                        <option value="Brgy 2">Brgy 2</option>
+                    </select>
+                </div>
+
                 <!-- Latitude -->
                 <div class="flex flex-col">
                     <label for="modal_latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
@@ -204,6 +218,19 @@
                 </div>
                 <!-- Enabled (Hidden - Default: true) -->
                 <input type="hidden" name="enabled" value="1">
+                <!-- Location -->
+                <div class="flex flex-col">
+                    <label for="edit_location" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Location
+                    </label>
+                    <select id="edit_location" 
+                            name="location"
+                            class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        <option value="">Select Location</option>
+                        <option value="Brgy 1">Brgy 1</option>
+                        <option value="Brgy 2">Brgy 2</option>
+                    </select>
+                </div>
                 <!-- Latitude -->
                 <div class="flex flex-col">
                     <label for="edit_latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">

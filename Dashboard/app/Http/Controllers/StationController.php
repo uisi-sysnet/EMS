@@ -86,6 +86,7 @@ class StationController extends Controller
             'enabled'      => 'sometimes|boolean',
             'latitude'     => 'nullable|numeric|between:-90,90',
             'longitude'    => 'nullable|numeric|between:-180,180',
+            'location' => 'nullable|string|max:255',
             'lead_ip'      => [
                 'nullable',
                 'string',
@@ -157,6 +158,7 @@ class StationController extends Controller
             'enabled'      => 'sometimes|boolean',
             'latitude'     => 'nullable|numeric|between:-90,90',
             'longitude'    => 'nullable|numeric|between:-180,180',
+            'location' => 'nullable|string|max:255',
             'lead_ip'      => [
                 'nullable',
                 'string',

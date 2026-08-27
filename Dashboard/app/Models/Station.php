@@ -19,7 +19,7 @@ class Station extends Model
     public $timestamps = false; 
 
     protected $fillable = [
-        'station_mn', 'station_name', 'enabled', 'deleted', 'latitude', 'longitude',
+        'station_mn', 'station_name', 'enabled', 'deleted', 'latitude', 'longitude', 'location',
         'lead_ip', 'lead_port', 'lead_slave', 'updated_at'
     ];
 
