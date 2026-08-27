@@ -961,6 +961,31 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+
+// Add Camera Modal
+function openAddModal() {
+    document.getElementById('addModal').style.display = 'flex';
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').style.display = 'none';
+}
+
+// Close modal on ESC key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeEditModal();
+        closeAddModal(); // Add this line
+    }
+});
+
+// Close add modal on backdrop click
+document.getElementById('addModal').addEventListener('click', function(event) {
+    if (event.target === this) {
+        closeAddModal();
+    }
+});
+
 // Edit Camera
 function editCamera(cameraId) {
     const modal = document.getElementById('editModal');
