@@ -540,11 +540,13 @@
                             <span class="w-1.5 h-1.5 rounded-full bg-munti-green-400"></span>
                             Existing Cameras
                         </h4>
-                        <div class="flex items-center gap-3">
-                            <span class="text-xs text-text-500">{{ $cameras->count() }} Camera(s)</span>
-                        </div>
-                                            {{-- Action Buttons --}}
+                        
+                        {{-- Action Buttons --}}
                         <div class="flex items-center gap-1.5">
+
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-text-500">{{ $cameras->count() }} Camera(s)</span>
+                            </div>
 
                             {{-- Download Format --}}
                             <a href="{{ route('cameras.download-format') }}"
