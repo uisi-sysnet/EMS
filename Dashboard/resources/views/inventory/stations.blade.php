@@ -620,7 +620,11 @@ function editStation(stationMn) {
             document.getElementById('edit_lead_ip').value = data.lead_ip || '';
             document.getElementById('edit_lead_port').value = data.lead_port || '';
             document.getElementById('edit_lead_slave').value = data.lead_slave || '';
-            document.getElementById('edit_enabled').checked = data.enabled === true;
+            
+            const enabledHidden = document.querySelector('input[name="enabled"]');
+            if (enabledHidden) {
+                enabledHidden.value = data.enabled === true ? '1' : '0';
+            }
             
             // Set form action
             document.getElementById('editForm').action = `/inventory/stations/${stationMn}`;
