@@ -59,19 +59,9 @@
                            placeholder="Enter unique station name">
                 </div>
 
-                <!-- Enabled -->
-                <div class="flex flex-col">
-                    <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Enabled
-                    </label>
-                    <div class="flex items-center h-11 px-3.5">
-                        <input type="hidden" name="enabled" value="0">
-                        <input type="checkbox" id="modal_enabled" name="enabled" value="1" checked
-                            class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
-                        <label for="modal_enabled" class="ml-2 text-sm text-text-300">Enable this station</label>
-                    </div>
-                </div>
-
+                <!-- Enabled (Hidden - Default: true) -->
+                <input type="hidden" name="enabled" value="1">
+                
                 <!-- Latitude -->
                 <div class="flex flex-col">
                     <label for="modal_latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
