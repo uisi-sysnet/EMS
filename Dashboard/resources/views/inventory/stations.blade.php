@@ -116,24 +116,24 @@
                         ">
                 </div>
 
-                <!-- Lead Port - Auto-filled with 8899 -->
                 <div class="flex flex-col">
-                    <label for="modal_lead_port" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Port <span class="text-text-500">(Auto: 8899)</span>
+                    <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Port &amp; Slave
                     </label>
-                    <input type="number" id="modal_lead_port" name="lead_port" value="8899"
-                        readonly
-                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
-                </div>
-
-                <!-- Lead Slave - Auto-filled with 1 -->
-                <div class="flex flex-col">
-                    <label for="modal_lead_slave" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Slave <span class="text-text-500">(Auto: 1)</span>
-                    </label>
-                    <input type="number" id="modal_lead_slave" name="lead_slave" value="1"
-                        readonly
-                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <input type="number" id="modal_lead_port" name="lead_port" value="8899"
+                                readonly
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                            <span class="text-[10px] text-text-500">Port (Auto: 8899)</span>
+                        </div>
+                        <div class="flex-1">
+                            <input type="number" id="modal_lead_slave" name="lead_slave" value="1"
+                                readonly
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                            <span class="text-[10px] text-text-500">Slave (Auto: 1)</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
