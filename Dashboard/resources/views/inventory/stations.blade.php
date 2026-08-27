@@ -478,7 +478,7 @@
                                         <th scope="col" class="px-4 py-3 text-left font-medium">IP Address</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Port</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Slave</th>
-                                        <th scope="col" class="px-4 py-3 text-left font-medium">Updated At</th>
+                                        {{-- <th scope="col" class="px-4 py-3 text-left font-medium">Updated At</th> --}}
                                         <th scope="col" class="px-4 py-3 text-center font-medium">Actions</th>
                                     </tr>
                                 </thead>
@@ -531,9 +531,9 @@
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
                                                 {{ $station->lead_slave ?? '-' }}
                                             </td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
+                                            {{-- <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
                                                 {{ $station->updated_at ? $station->updated_at->format('Y-m-d H:i') : '-' }}
-                                            </td>
+                                            </td> --}}
                                             <td class="px-4 py-2.5 whitespace-nowrap text-center">
                                                 <div class="flex items-center justify-center gap-1.5">
                                                     <!-- Edit Button -->
