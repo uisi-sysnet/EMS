@@ -533,6 +533,84 @@
 
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
 
+                {{-- Add New Camera Form --}}
+                <div class="p-5 border-b border-border-700">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-radar-400"></span>
+                            Add New Camera
+                        </h3>
+                        
+                        {{-- Action Buttons --}}
+                        <div class="flex items-center gap-1.5">
+
+                            {{-- Download Format --}}
+                            <a href="{{ route('cameras.download-format') }}"
+                                class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-text-200 bg-surface-700/40 border border-border-600/30 rounded-md hover:bg-surface-700/60 transition whitespace-nowrap">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="w-3.5 h-3.5 shrink-0"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Download Format
+                            </a>
+
+                            {{-- Export --}}
+                            <a href="{{-- {{ route('inventory.cameras.export') }} --}}"
+                                class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 rounded-md hover:bg-munti-green-700/30 transition whitespace-nowrap">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="w-3.5 h-3.5 shrink-0"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Export
+                            </a>
+
+                            {{-- Import --}}
+                            <form id="importForm"
+                                action="{{-- {{ route('inventory.cameras.import') }} --}}"
+                                method="POST"
+                                enctype="multipart/form-data"
+                                class="m-0">
+                                @csrf
+
+                                <label for="importFile"
+                                    class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-yellow-400 bg-munti-yellow-300/10 border border-munti-yellow-600/30 rounded-md hover:bg-munti-yellow-700/30 transition whitespace-nowrap cursor-pointer">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="w-3.5 h-3.5 shrink-0"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                    Import
+                                </label>
+
+                                <input type="file"
+                                    id="importFile"
+                                    name="file"
+                                    accept=".xlsx,.xls,.csv"
+                                    class="hidden"
+                                    onchange="this.form.submit()">
+                            </form>
+
+                        </div>
+                    </div>
+                </div>
+
                 {{-- Cameras Table --}}
                 <div class="flex-1 flex flex-col min-h-0">
                     <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
@@ -616,6 +694,258 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+{{-- Edit Camera Modal --}}
+<div id="editModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="display: none;">
+    <div class="bg-surface-800 rounded-2xl border border-border-700 shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto thin-scrollbar">
+        <div class="sticky top-0 bg-surface-800/95 backdrop-blur-sm px-6 py-4 border-b border-border-700 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-text-100 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-radar-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+                Edit Camera
+            </h3>
+            <button type="button" onclick="closeEditModal()" class="p-2 rounded-lg hover:bg-surface-700 text-text-400 hover:text-text-100 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <form id="editForm" method="POST" class="p-6">
+            @csrf
+            @method('PUT')
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {{-- Edit Channel --}}
+                <div class="flex flex-col">
+                    <label for="edit_channel" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Channel <span class="text-munti-red-400">*</span>
+                    </label>
+
+                    <input type="text"
+                        id="edit_channel"
+                        name="channel"
+                        required
+                        maxlength="14"
+                        pattern="[A-Za-z0-9]{1,14}"
+                        oninput="this.value = this.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 14)"
+                        class="w-full min-w-0 h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('channel') border-munti-red-500 @enderror"
+                        placeholder="Channel 1">
+                </div>
+
+                {{-- Edit Camera Name --}}
+                <div class="flex flex-col">
+                    <label for="edit_name" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Camera Name <span class="text-munti-red-400">*</span>
+                    </label>
+
+                    <input type="text"
+                        id="edit_name"
+                        name="name"
+                        required
+                        maxlength="30"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('name') border-munti-red-500 @enderror"
+                        placeholder="Front Gate Camera"
+                        oninput="this.value=this.value.slice(0,30); document.getElementById('edit_slug_preview').value=this.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')">
+                </div>
+
+                {{-- Edit IP Address --}}
+                <div class="flex flex-col">
+                    <label for="edit_ip_address" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        IP Address <span class="text-munti-red-400">*</span>
+                    </label>
+
+                    <input type="text"
+                        id="edit_ip_address"
+                        name="ip_address"
+                        required
+                        maxlength="15"
+                        pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                        inputmode="decimal"
+                        autocomplete="off"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('ip_address') border-munti-red-500 @enderror"
+                        placeholder="e.g. 192.168.1.10"
+                        oninput="
+                            let v = this.value.replace(/[^0-9.]/g, '');
+                            const parts = v.split('.');
+                            if (parts.length > 4) {
+                                v = parts.slice(0, 4).join('.');
+                            }
+                            v = parts.slice(0, 4).map(p => p.slice(0, 3)).join('.');
+                            this.value = v;
+                        ">
+
+                </div>
+
+                {{-- Edit ONVIF Port --}}
+                <div class="flex flex-col">
+                    <label for="edit_onvif_port" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        ONVIF Port <span class="text-munti-red-400">*</span>
+                    </label>
+
+                    <input type="number"
+                        id="edit_onvif_port"
+                        name="onvif_port"
+                        required
+                        min="1"
+                        max="65535"
+                        maxlength="4"
+                        oninput="this.value=this.value.slice(0,4)"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('onvif_port') border-munti-red-500 @enderror"
+                        placeholder="80">
+                </div>
+
+                {{-- Edit Username --}}
+                <div class="flex flex-col">
+                    <label for="edit_username" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Username <span class="text-munti-red-400">*</span>
+                    </label>
+
+                    <input type="text"
+                        id="edit_username"
+                        name="username"
+                        required
+                        maxlength="30"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('username') border-munti-red-500 @enderror"
+                        placeholder="admin">
+                </div>
+
+                {{-- Edit Password --}}
+                <div class="flex flex-col">
+                    <label for="edit_password" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Password <span class="text-text-500">(leave blank to keep current)</span>
+                    </label>
+
+                    <input type="password"
+                        id="edit_password"
+                        name="password"
+                        maxlength="30"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('password') border-munti-red-500 @enderror"
+                        placeholder="Leave blank to keep current password">
+                </div>
+
+                {{-- Edit Location --}}
+                <div class="flex flex-col">
+                    <label for="edit_location" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Location
+                    </label>
+                    <input type="text" id="edit_location" name="location" maxlength="255" 
+                           class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('location') border-munti-red-500 @enderror" 
+                           placeholder="Building A, Floor 2">
+                </div>
+
+                {{-- Edit Device Type --}}
+                <div class="flex flex-col">
+                    <label for="edit_device_type" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Device Type
+                    </label>
+
+                    <select id="edit_device_type"
+                            name="device_type"
+                            class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('device_type') border-munti-red-500 @enderror">
+                        <option value="">Select Device Type</option>
+                        <option value="PTZ">PTZ</option>
+                        <option value="Bullet">Bullet</option>
+                        <option value="Dome">Dome</option>
+                    </select>
+                </div>
+
+                {{-- Edit Serial Number --}}
+                <div class="flex flex-col">
+                    <label for="edit_serial_number" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Serial Number
+                    </label>
+
+                    <input type="text"
+                        id="edit_serial_number"
+                        name="serial_number"
+                        maxlength="30"
+                        pattern="[A-Za-z0-9]{1,30}"
+                        inputmode="text"
+                        autocomplete="off"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('serial_number') border-munti-red-500 @enderror"
+                        placeholder="SN2024001"
+                        oninput="this.value=this.value.replace(/[^A-Za-z0-9]/g,'').slice(0,30)">
+                </div>
+
+                {{-- Edit Latitude --}}
+                <div class="flex flex-col">
+                    <label for="edit_latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Latitude
+                    </label>
+
+                    <input type="number"
+                        step="any"
+                        min="4.5"
+                        max="21.5"
+                        id="edit_latitude"
+                        name="latitude"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('latitude') border-munti-red-500 @enderror"
+                        placeholder="14.5995">
+                </div>
+
+                {{-- Edit Longitude --}}
+                <div class="flex flex-col">
+                    <label for="edit_longitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Longitude
+                    </label>
+
+                    <input type="number"
+                        step="any"
+                        min="116.0"
+                        max="127.0"
+                        id="edit_longitude"
+                        name="longitude"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('longitude') border-munti-red-500 @enderror"
+                        placeholder="120.9842">
+                </div>
+
+                {{-- Edit Status --}}
+                {{-- <div class="flex flex-col">
+                    <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Status
+                    </label>
+                    <div class="flex items-center h-10 px-3 border border-border-600 rounded-lg bg-surface-900">
+                        <input type="hidden" name="enabled" value="0">
+                        <input type="checkbox" id="edit_enabled" name="enabled" value="1" 
+                               class="h-3.5 w-3.5 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
+                        <label for="edit_enabled" class="ml-1.5 text-sm text-text-300">Active</label>
+                    </div>
+                </div> --}}
+                <input type="hidden" name="enabled" value="1">
+
+                {{-- Edit Slug --}}
+                <div class="flex flex-col">
+                    <label for="edit_slug" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Slug
+                    </label>
+
+                    <input type="text"
+                        id="edit_slug"
+                        name="slug"
+                        maxlength="30"
+                        class="w-full h-9 px-3 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition @error('slug') border-munti-red-500 @enderror"
+                        placeholder="Enter slug">
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-border-700 flex justify-end gap-3">
+                <button type="button" onclick="closeEditModal()" 
+                        class="px-4 py-2.5 text-sm font-medium text-text-300 hover:text-text-100 bg-surface-700 hover:bg-surface-600 rounded-lg transition border border-border-600">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        class="px-6 py-2.5 bg-radar-500 hover:bg-radar-400 text-text-100 font-semibold rounded-lg transition border border-radar-400/30 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Update Camera
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
