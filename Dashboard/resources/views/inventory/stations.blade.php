@@ -9,6 +9,169 @@
     .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
 </style>
 
+<!-- Add Station Modal -->
+<div id="addModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="display: none;">
+    <div class="bg-surface-800 rounded-2xl border border-border-700 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto thin-scrollbar">
+        <div class="sticky top-0 bg-surface-800/95 backdrop-blur-sm px-6 py-4 border-b border-border-700 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-text-100 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-munti-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Add New Station
+            </h3>
+            <button type="button" onclick="closeAddModal()" class="p-2 rounded-lg hover:bg-surface-700 text-text-400 hover:text-text-100 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        
+        <form action="{{ route('inventory.stations.store') }}" method="POST" class="p-6">
+            @csrf
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Station MN -->
+                <div class="flex flex-col">
+                    <label for="modal_station_mn" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Station MN <span class="text-munti-red-400">*</span>
+                    </label>
+                    <input type="text"
+                        id="modal_station_mn"
+                        name="station_mn"
+                        required
+                        maxlength="14"
+                        autocomplete="off"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="Enter Station MN">
+                </div>
+
+                <!-- Station Name -->
+                <div class="flex flex-col">
+                    <label for="modal_station_name" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Station Name <span class="text-munti-red-400">*</span>
+                    </label>
+                    <input type="text" 
+                           id="modal_station_name" 
+                           name="station_name" 
+                           required
+                           maxlength="32" 
+                           class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                           placeholder="Enter unique station name">
+                </div>
+
+                <!-- Enabled -->
+                <div class="flex flex-col">
+                    <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Enabled
+                    </label>
+                    <div class="flex items-center h-11 px-3.5">
+                        <input type="hidden" name="enabled" value="0">
+                        <input type="checkbox" id="modal_enabled" name="enabled" value="1" checked
+                            class="h-4 w-4 rounded border-border-600 bg-surface-900 text-munti-green-600 focus:ring-munti-green-500 focus:ring-offset-0">
+                        <label for="modal_enabled" class="ml-2 text-sm text-text-300">Enable this station</label>
+                    </div>
+                </div>
+
+                <!-- Latitude -->
+                <div class="flex flex-col">
+                    <label for="modal_latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Latitude
+                    </label>
+                    <input type="number"
+                        step="any"
+                        min="4.5"
+                        max="21.5"
+                        id="modal_latitude"
+                        name="latitude"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                </div>
+
+                <!-- Longitude -->
+                <div class="flex flex-col">
+                    <label for="modal_longitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Longitude
+                    </label>
+                    <input type="number"
+                        step="any"
+                        min="116.0"
+                        max="127.0"
+                        id="modal_longitude"
+                        name="longitude"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                </div>
+
+                <!-- Lead IP -->
+                <div class="flex flex-col">
+                    <label for="modal_lead_ip" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        IP Address <span class="text-munti-red-400">*</span>
+                    </label>
+                    <input type="text"
+                        id="modal_lead_ip"
+                        name="lead_ip"
+                        required
+                        maxlength="15"
+                        pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                        inputmode="decimal"
+                        autocomplete="off"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="e.g. 192.168.1.10"
+                        oninput="
+                            let v = this.value.replace(/[^0-9.]/g, '');
+                            const parts = v.split('.');
+                            if (parts.length > 4) {
+                                v = parts.slice(0, 4).join('.');
+                            }
+                            v = parts.slice(0, 4).map(p => p.slice(0, 3)).join('.');
+                            this.value = v;
+                        ">
+                </div>
+
+                <!-- Lead Port - Auto-filled with 8899 -->
+                <div class="flex flex-col">
+                    <label for="modal_lead_port" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Port <span class="text-text-500">(Auto: 8899)</span>
+                    </label>
+                    <input type="number" id="modal_lead_port" name="lead_port" value="8899"
+                        readonly
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                </div>
+
+                <!-- Lead Slave - Auto-filled with 1 -->
+                <div class="flex flex-col">
+                    <label for="modal_lead_slave" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Slave <span class="text-text-500">(Auto: 1)</span>
+                    </label>
+                    <input type="number" id="modal_lead_slave" name="lead_slave" value="1"
+                        readonly
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 text-sm transition cursor-not-allowed opacity-75">
+                </div>
+            </div>
+
+            <!-- Note about uniqueness -->
+            <div class="mt-4 p-3 bg-surface-700/30 rounded-lg border border-border-600">
+                <p class="text-xs text-text-400">
+                    <span class="text-munti-red-400">*</span> Note: 
+                    <span class="text-text-300">Station MN, Station Name, and IP Address must be unique across all records (including deleted stations).</span>
+                </p>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-border-700 flex justify-end gap-3">
+                <button type="button" onclick="closeAddModal()"
+                        class="px-4 py-2.5 text-sm font-medium text-text-300 hover:text-text-100 bg-surface-700 hover:bg-surface-600 rounded-lg transition border border-border-600">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-6 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Create Station
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Edit Station Modal -->
 <div id="editModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="display: none;">
     <div class="bg-surface-800 rounded-2xl border border-border-700 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto thin-scrollbar">
@@ -495,9 +658,9 @@
                                 </button>
                             @endif
 
-                            <!-- Add Station Button (matching Export button design) -->
+                            <!-- Add Station Button (opens modal) -->
                             <button type="button" 
-                                    onclick="toggleStationForm()"
+                                    onclick="openAddModal()"
                                     class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 rounded-md hover:bg-munti-green-700/30 transition whitespace-nowrap">
                                 <svg xmlns="http://www.w3.org/2000/svg" 
                                     class="w-3.5 h-3.5 shrink-0" 
@@ -623,6 +786,32 @@
     </div>
 </div>
 <script>
+
+// Add Station Modal
+function openAddModal() {
+    document.getElementById('addModal').style.display = 'flex';
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').style.display = 'none';
+}
+
+// Close add modal on ESC key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeEditModal();
+        closeDeletedModal();
+        closeAddModal();
+    }
+});
+
+// Close add modal on backdrop click
+document.getElementById('addModal').addEventListener('click', function(event) {
+    if (event.target === this) {
+        closeAddModal();
+    }
+});
+
 // Edit Station
 function editStation(stationMn) {
     const modal = document.getElementById('editModal');
