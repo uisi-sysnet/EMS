@@ -234,8 +234,14 @@
                             name="location"
                             class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                         <option value="">Select Location</option>
-                        <option value="Brgy 1">Brgy 1</option>
-                        <option value="Brgy 2">Brgy 2</option>
+                        <option value="Brgy. Alabang, Muntinlupa City">Brgy. Alabang, Muntinlupa City</option>
+                        <option value="Brgy. Bayanan, Muntinlupa City">Brgy. Bayanan, Muntinlupa City</option>
+                        <option value="Brgy. Buli, Muntinlupa City">Brgy. Buli, Muntinlupa City</option>
+                        <option value="Brgy. Cupang, Muntinlupa City">Brgy. Cupang, Muntinlupa City</option>
+                        <option value="Brgy. Poblacion, Muntinlupa City">Brgy. Poblacion, Muntinlupa City</option>
+                        <option value="Brgy. Putatan, Muntinlupa City">Brgy. Putatan, Muntinlupa City</option>
+                        <option value="Brgy. Sucat, Muntinlupa City">Brgy. Sucat, Muntinlupa City</option>
+                        <option value="Brgy. Tunasan, Muntinlupa City">Brgy. Tunasan, Muntinlupa City</option>
                     </select>
                 </div>
                 <!-- Latitude -->
