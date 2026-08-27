@@ -61,6 +61,38 @@
                            oninput="this.value=this.value.slice(0,30); document.getElementById('modal_slug_preview').value=this.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')">
                 </div>
 
+                <!-- Device Type -->
+                <div class="flex flex-col">
+                    <label for="modal_device_type" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Device Type
+                    </label>
+                    <select id="modal_device_type"
+                            name="device_type"
+                            class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        <option value="">Select Device Type</option>
+                        <option value="PTZ">PTZ</option>
+                        <option value="Bullet">Bullet</option>
+                        <option value="Dome">Dome</option>
+                    </select>
+                </div>
+
+                <!-- Serial Number -->
+                <div class="flex flex-col">
+                    <label for="modal_serial_number" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Serial Number
+                    </label>
+                    <input type="text"
+                        id="modal_serial_number"
+                        name="serial_number"
+                        maxlength="30"
+                        pattern="[A-Za-z0-9]{1,30}"
+                        inputmode="text"
+                        autocomplete="off"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="SN2024001"
+                        oninput="this.value=this.value.replace(/[^A-Za-z0-9]/g,'').slice(0,30)">
+                </div>
+
                 <!-- IP Address -->
                 <div class="flex flex-col">
                     <label for="modal_ip_address" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
@@ -143,38 +175,6 @@
                            maxlength="255" 
                            class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
                            placeholder="Building A, Floor 2">
-                </div>
-
-                <!-- Device Type -->
-                <div class="flex flex-col">
-                    <label for="modal_device_type" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Device Type
-                    </label>
-                    <select id="modal_device_type"
-                            name="device_type"
-                            class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
-                        <option value="">Select Device Type</option>
-                        <option value="PTZ">PTZ</option>
-                        <option value="Bullet">Bullet</option>
-                        <option value="Dome">Dome</option>
-                    </select>
-                </div>
-
-                <!-- Serial Number -->
-                <div class="flex flex-col">
-                    <label for="modal_serial_number" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Serial Number
-                    </label>
-                    <input type="text"
-                        id="modal_serial_number"
-                        name="serial_number"
-                        maxlength="30"
-                        pattern="[A-Za-z0-9]{1,30}"
-                        inputmode="text"
-                        autocomplete="off"
-                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
-                        placeholder="SN2024001"
-                        oninput="this.value=this.value.replace(/[^A-Za-z0-9]/g,'').slice(0,30)">
                 </div>
 
                 <!-- Latitude -->
