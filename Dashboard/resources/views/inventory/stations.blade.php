@@ -507,6 +507,7 @@
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Name</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Enabled</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Data Status</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Location</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Latitude</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Longitude</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">IP Address</th>
@@ -549,6 +550,9 @@
                                                         NO DATA
                                                     </span>
                                                 @endif
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
+                                                {{ $station->location ?? '-' }}
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
                                                 {{ $station->latitude ?? '-' }}
@@ -649,6 +653,7 @@ function editStation(stationMn) {
         .then(data => {
             document.getElementById('edit_station_mn').value = data.station_mn || '';
             document.getElementById('edit_station_name').value = data.station_name || '';
+            document.getElementById('edit_location').value = data.location || '';
             document.getElementById('edit_latitude').value = data.latitude || '';
             document.getElementById('edit_longitude').value = data.longitude || '';
             document.getElementById('edit_lead_ip').value = data.lead_ip || '';
