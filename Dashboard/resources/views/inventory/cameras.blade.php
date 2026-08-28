@@ -180,36 +180,6 @@
                     </select>
                 </div>
 
-                <!-- Latitude -->
-                <div class="flex flex-col">
-                    <label for="modal_latitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Latitude
-                    </label>
-                    <input type="number"
-                        step="any"
-                        min="4.5"
-                        max="21.5"
-                        id="modal_latitude"
-                        name="latitude"
-                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
-                        placeholder="14.5995">
-                </div>
-
-                <!-- Longitude -->
-                <div class="flex flex-col">
-                    <label for="modal_longitude" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Longitude
-                    </label>
-                    <input type="number"
-                        step="any"
-                        min="116.0"
-                        max="127.0"
-                        id="modal_longitude"
-                        name="longitude"
-                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
-                        placeholder="120.9842">
-                </div>
-
                 <!-- Enabled (Hidden - Default: true) -->
                 <input type="hidden" name="enabled" value="1">
 
