@@ -17,7 +17,7 @@ class CamerasExport implements FromCollection, WithHeadings, WithMapping, WithSt
     /**
      * @return \Illuminate\Support\Collection
      */
-    public function collection()
+    public function collection(): Collection
     {
         return Camera::orderBy('name', 'asc')->get();
     }
