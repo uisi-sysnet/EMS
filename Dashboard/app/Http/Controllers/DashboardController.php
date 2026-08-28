@@ -93,7 +93,7 @@ class DashboardController extends Controller
      */
     private function getCameraStatusCounts(): array
     {
-        $cameras = Camera::all();
+        $cameras = \App\Models\Camera::all();
         
         $counts = ['online' => 0, 'idle' => 0, 'offline' => 0];
         
