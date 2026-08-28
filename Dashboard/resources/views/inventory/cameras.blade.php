@@ -64,10 +64,11 @@
                 <!-- Device Type -->
                 <div class="flex flex-col">
                     <label for="modal_device_type" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Device Type
+                        Device Type <span class="text-munti-red-400">*</span>
                     </label>
                     <select id="modal_device_type"
                             name="device_type"
+                            required
                             class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                         <option value="">Select Device Type</option>
                         <option value="PTZ">PTZ</option>
