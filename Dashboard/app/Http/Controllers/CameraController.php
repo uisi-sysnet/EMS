@@ -345,6 +345,18 @@ class CameraController extends Controller
         }
     }
 
+    public function getLocations()
+    {
+        $locations = Station::where('deleted', false)
+            ->whereNotNull('location')
+            ->distinct()
+            ->pluck('location')
+            ->sort()
+            ->values();
+        
+        return response()->json($locations);
+    }
+
     /**
      * Display the live view for cameras.
      */
