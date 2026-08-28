@@ -12,7 +12,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Color;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\DataValidation;
+use PhpOffice\PhpSpreadsheet\Style\Protection;
 
 class CamerasFormatExport implements FromArray, WithHeadings, WithStyles, WithEvents
 {
@@ -213,74 +213,58 @@ class CamerasFormatExport implements FromArray, WithHeadings, WithStyles, WithEv
                 }
 
                 // --- DATA VALIDATION: Device Type (Column K) ---
+                // Using fully qualified namespace for DataValidation
                 $deviceTypes = ['PTZ', 'Bullet', 'Dome'];
-                $validation = $sheet->getDataValidation('K2:K1000');
-                $validation->setType(DataValidation::TYPE_LIST);
-                $validation->setErrorStyle(DataValidation::STYLE_STOP);
-                $validation->setAllowBlank(false);
-                $validation->setShowInputMessage(true);
-                $validation->setShowErrorMessage(true);
-                $validation->setShowDropDown(true);
-                $validation->setErrorTitle('Invalid Device Type');
-                $validation->setError('Please select from the dropdown list: PTZ, Bullet, or Dome.');
-                $validation->setPromptTitle('Select Device Type');
-                $validation->setPrompt('Choose a device type from the dropdown.');
-                $validation->setFormula1('"' . implode(',', $deviceTypes) . '"');
+                for ($row = 2; $row <= $highestRow; $row++) {
+                    $cell = 'K' . $row;
+                    $validation = $sheet->getCell($cell)->getDataValidation();
+                    $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST);
+                    $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_STOP);
+                    $validation->setAllowBlank(false);
+                    $validation->setShowInputMessage(true);
+                    $validation->setShowErrorMessage(true);
+                    $validation->setShowDropDown(true);
+                    $validation->setErrorTitle('Invalid Device Type');
+                    $validation->setError('Please select from the dropdown list: PTZ, Bullet, or Dome.');
+                    $validation->setPromptTitle('Select Device Type');
+                    $validation->setPrompt('Choose a device type from the dropdown.');
+                    $validation->setFormula1('"' . implode(',', $deviceTypes) . '"');
+                }
 
                 // --- DATA VALIDATION: ONVIF Port (Column F) ---
-                $portValidation = $sheet->getDataValidation('F2:F1000');
-                $portValidation->setType(DataValidation::TYPE_WHOLE);
-                $portValidation->setErrorStyle(DataValidation::STYLE_STOP);
-                $portValidation->setAllowBlank(false);
-                $portValidation->setShowInputMessage(true);
-                $portValidation->setShowErrorMessage(true);
-                $portValidation->setErrorTitle('Invalid Port Number');
-                $portValidation->setError('Port must be between 1 and 65535.');
-                $portValidation->setPromptTitle('ONVIF Port');
-                $portValidation->setPrompt('Enter a valid port number (1-65535).');
-                $portValidation->setFormula1('1');
-                $portValidation->setFormula2('65535');
+                for ($row = 2; $row <= $highestRow; $row++) {
+                    $cell = 'F' . $row;
+                    $validation = $sheet->getCell($cell)->getDataValidation();
+                    $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_WHOLE);
+                    $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_STOP);
+                    $validation->setAllowBlank(false);
+                    $validation->setShowInputMessage(true);
+                    $validation->setShowErrorMessage(true);
+                    $validation->setErrorTitle('Invalid Port Number');
+                    $validation->setError('Port must be between 1 and 65535.');
+                    $validation->setPromptTitle('ONVIF Port');
+                    $validation->setPrompt('Enter a valid port number (1-65535).');
+                    $validation->setFormula1('1');
+                    $validation->setFormula2('65535');
+                }
 
-                // --- DATA VALIDATION: IP Address (Column E) ---
-                $ipValidation = $sheet->getDataValidation('E2:E1000');
-                $ipValidation->setType(DataValidation::TYPE_CUSTOM);
-                $ipValidation->setErrorStyle(DataValidation::STYLE_STOP);
-                $ipValidation->setAllowBlank(false);
-                $ipValidation->setShowInputMessage(true);
-                $ipValidation->setShowErrorMessage(true);
-                $ipValidation->setErrorTitle('Invalid IP Address');
-                $ipValidation->setError('Please enter a valid IP address (e.g., 192.168.1.100).');
-                $ipValidation->setPromptTitle('IP Address');
-                $ipValidation->setPrompt('Enter a valid IPv4 address.');
-                $ipValidation->setFormula1('=ISNUMBER(SEARCH(".", E2))');
+                // --- DATA VALIDATION: Channel (Column A) - Alphanumeric only ---
+                for ($row = 2; $row <= $highestRow; $row++) {
+                    $cell = 'A' . $row;
+                    $validation = $sheet->getCell($cell)->getDataValidation();
+                    $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_CUSTOM);
+                    $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_STOP);
+                    $validation->setAllowBlank(false);
+                    $validation->setShowInputMessage(true);
+                    $validation->setShowErrorMessage(true);
+                    $validation->setErrorTitle('Invalid Channel');
+                    $validation->setError('Channel must be alphanumeric (letters and numbers only).');
+                    $validation->setPromptTitle('Channel');
+                    $validation->setPrompt('Enter a channel identifier (alphanumeric).');
+                    $validation->setFormula1('=ISNUMBER(SEARCH("^[A-Za-z0-9]+$", A' . $row . '))');
+                }
 
-                // --- DATA VALIDATION: Channel (Column A) ---
-                $channelValidation = $sheet->getDataValidation('A2:A1000');
-                $channelValidation->setType(DataValidation::TYPE_CUSTOM);
-                $channelValidation->setErrorStyle(DataValidation::STYLE_STOP);
-                $channelValidation->setAllowBlank(false);
-                $channelValidation->setShowInputMessage(true);
-                $channelValidation->setShowErrorMessage(true);
-                $channelValidation->setErrorTitle('Invalid Channel');
-                $channelValidation->setError('Channel must be alphanumeric (letters and numbers only).');
-                $channelValidation->setPromptTitle('Channel');
-                $channelValidation->setPrompt('Enter a channel identifier (alphanumeric).');
-                $channelValidation->setFormula1('=ISNUMBER(SEARCH("^[A-Za-z0-9]+$", A2))');
-
-                // --- DATA VALIDATION: Name (Column B) ---
-                $nameValidation = $sheet->getDataValidation('B2:B1000');
-                $nameValidation->setType(DataValidation::TYPE_CUSTOM);
-                $nameValidation->setErrorStyle(DataValidation::STYLE_STOP);
-                $nameValidation->setAllowBlank(false);
-                $nameValidation->setShowInputMessage(true);
-                $nameValidation->setShowErrorMessage(true);
-                $nameValidation->setErrorTitle('Invalid Name');
-                $nameValidation->setError('Name cannot be empty.');
-                $nameValidation->setPromptTitle('Camera Name');
-                $nameValidation->setPrompt('Enter the camera name.');
-                $nameValidation->setFormula1('=LEN(TRIM(B2))>0');
-
-                // --- COLOR CODE: Required Columns (Light Red Background) ---
+                // --- COLOR CODE: Required Columns (Gold asterisk) ---
                 $requiredColumnsRange = ['A', 'B', 'D', 'E', 'F', 'G', 'H', 'K'];
                 foreach ($requiredColumnsRange as $col) {
                     $sheet->getStyle($col . '1')->applyFromArray([
@@ -295,19 +279,6 @@ class CamerasFormatExport implements FromArray, WithHeadings, WithStyles, WithEv
 
                 // --- SET PRINT AREA ---
                 $sheet->getPageSetup()->setPrintArea('A1:' . $highestColumn . $highestRow);
-
-                // --- ADD INSTRUCTIONS SHEET (Optional) ---
-                // You could add a second sheet with instructions
-                // $event->sheet->getDelegate()->getParent()->createSheet();
-                // $instructionSheet = $event->sheet->getDelegate()->getParent()->setActiveSheetIndex(1);
-                // $instructionSheet->setTitle('Instructions');
-                // ... add instructions
-
-                // --- PROTECT CELLS (Optional) ---
-                // Protect the slug column (C) from editing
-                // $sheet->getProtection()->setPassword('password');
-                // $sheet->getProtection()->setSheet(true);
-                // $sheet->getStyle('C2:C1000')->getProtection()->setLocked(\PhpOffice\PhpSpreadsheet\Style\Protection::PROTECTION_PROTECTED);
 
                 // --- ALTERNATE ROW COLORS for better readability ---
                 for ($row = 2; $row <= $highestRow; $row++) {
