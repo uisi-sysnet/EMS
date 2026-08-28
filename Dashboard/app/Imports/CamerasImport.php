@@ -15,7 +15,6 @@ use Illuminate\Support\Str;
 use Throwable;
 use Illuminate\Support\Facades\Log;
 
-
 class CamerasImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnFailure
 {
     use SkipsFailures;
@@ -28,7 +27,7 @@ class CamerasImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnF
      * @param array $row
      * @return \Illuminate\Database\Eloquent\Model|null
      */
-    public function model(array $row): ?\Illuminate\Database\Eloquent\Model  // ← Add this return type
+    public function model(array $row): ?\Illuminate\Database\Eloquent\Model
     {
         $this->rowCount++;
 
@@ -82,7 +81,7 @@ class CamerasImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnF
             $this->syncCamera($camera);
         } catch (Throwable $e) {
             // Keep the camera with default values, just log the error
-            \Log::warning("Camera '{$camera->name}' imported but ONVIF sync failed: " . $e->getMessage());
+            Log::warning("Camera '{$camera->name}' imported but ONVIF sync failed: " . $e->getMessage());
             $camera->last_status = 'error';
             $camera->last_error = 'Import: ' . $e->getMessage();
         }
@@ -90,7 +89,7 @@ class CamerasImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnF
         $this->importedCount++;
         return $camera;
     }
-    
+
     public function rules(): array
     {
         return [
@@ -155,7 +154,7 @@ class CamerasImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnF
                 );
             } catch (Throwable $e) {
                 // MediaMtx sync failed but camera is online
-                \Log::warning("MediaMtx sync failed for camera '{$camera->name}': " . $e->getMessage());
+                Log::warning("MediaMtx sync failed for camera '{$camera->name}': " . $e->getMessage());
             }
 
         } catch (Throwable $e) {
@@ -189,7 +188,11 @@ class CamerasImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnF
         return $this->errors;
     }
 
-    public function onFailure(Failure ...$failures)
+    /**
+     * @param Failure ...$failures
+     * @return void
+     */
+    public function onFailure(Failure ...$failures): void  // ← FIXED: Added return type :void
     {
         foreach ($failures as $failure) {
             $this->errors[] = "Row {$failure->row()}: " . implode(', ', $failure->errors());
