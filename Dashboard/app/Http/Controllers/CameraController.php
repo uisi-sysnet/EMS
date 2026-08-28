@@ -385,9 +385,13 @@ class CameraController extends Controller
      */
     public function export()
     {
-        return redirect()
-            ->route('inventory.cameras.index')
-            ->with('error', 'Export functionality is coming soon.');
+        try {
+            return Excel::download(new CamerasExport(), 'cameras_export_' . date('Y-m-d_Hi') . '.xlsx');
+        } catch (\Exception $e) {
+            return redirect()
+                ->route('inventory.cameras.index')
+                ->with('error', 'Export failed: ' . $e->getMessage());
+        }
     }
 
     /**

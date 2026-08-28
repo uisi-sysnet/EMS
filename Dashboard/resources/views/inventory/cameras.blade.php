@@ -225,7 +225,6 @@
     </div>
 </div>
 
-
 {{-- Edit Camera Modal --}}
 <div id="editModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="display: none;">
     <div class="bg-surface-800 rounded-2xl border border-border-700 shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto thin-scrollbar">
@@ -534,7 +533,7 @@
                             </a>
 
                             {{-- Export --}}
-                            <a href="{{-- {{ route('inventory.cameras.export') }} --}}"
+                            <a href="{{ route('inventory.cameras.export') }}"
                                 class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 rounded-md hover:bg-munti-green-700/30 transition whitespace-nowrap">
                                 <svg xmlns="http://www.w3.org/2000/svg"
                                     class="w-3.5 h-3.5 shrink-0"
