@@ -84,37 +84,34 @@ class DashboardController extends Controller
         ];
     }
 
-    // Add this method to DashboardController.php
+    /**
+     * Get camera status counts based on last_status from the database
+     * - last_status = 'online' -> Online
+     * - last_status = 'error' -> Offline
+     * - enabled = false -> Offline
+     * - no last_status set and enabled = true -> Online (default)
+     */
     private function getCameraStatusCounts(): array
     {
-        $cameras = \App\Models\Camera::all();
-        
-        // Define what "online" means for cameras - similar to station logic
-        // You could use last_synced_at if you have that, or just count enabled cameras
-        // For now, let's use enabled + a threshold similar to stations
-        $idleThresholdMinutes = 2; // Camera hasn't synced in 2+ min = idle
-        $offlineThresholdMinutes = 5; // Camera hasn't synced in 5+ min = offline
+        $cameras = Camera::all();
         
         $counts = ['online' => 0, 'idle' => 0, 'offline' => 0];
         
         foreach ($cameras as $camera) {
+            // Disabled cameras are always offline
             if (!$camera->enabled) {
                 $counts['offline']++;
                 continue;
             }
             
-            // If you have last_synced_at, use it for status
-            if ($camera->last_synced_at) {
-                $minutesAgo = $camera->last_synced_at->diffInMinutes(now());
-                if ($minutesAgo <= $idleThresholdMinutes) {
-                    $counts['online']++;
-                } elseif ($minutesAgo <= $offlineThresholdMinutes) {
-                    $counts['idle']++;
-                } else {
-                    $counts['offline']++;
-                }
+            // Use the last_status from the database
+            if ($camera->last_status === 'online') {
+                $counts['online']++;
+            } elseif ($camera->last_status === 'error') {
+                $counts['offline']++;
             } else {
-                // If no sync data, consider enabled cameras as online
+                // If no status set but enabled, consider it online
+                // (or you could default to offline if you prefer)
                 $counts['online']++;
             }
         }
@@ -136,6 +133,7 @@ class DashboardController extends Controller
 
         $airQualityCounts = $this->annotateStatus($airQualityData, $idleThresholdMinutes, $offlineThresholdMinutes);
         $seismicCounts    = $this->annotateStatus($seismicData, $idleThresholdMinutes, $offlineThresholdMinutes);
+        $cameraCounts     = $this->getCameraStatusCounts();
 
         return response()->json([
             'airQualityData'   => $airQualityData,
