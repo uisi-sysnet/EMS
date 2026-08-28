@@ -368,7 +368,7 @@ IP_ALLOWLIST_REFRESH_INTERVAL_SEC = int(os.getenv("IP_ALLOWLIST_REFRESH_INTERVAL
 # multiple worker processes, these counters would need to move to Redis or
 # the DB too, since each process would otherwise keep its own separate count
 # and the real per-token rate would be RATE_LIMIT_REQUESTS × worker count.
-RATE_LIMIT_REQUESTS = int(os.getenv("API_RATE_LIMIT_REQUESTS", 6))
+RATE_LIMIT_REQUESTS = int(os.getenv("API_RATE_LIMIT_REQUESTS", 9999))  # APIrateLimitMiddleware below is a no-op if this is set to 0
 RATE_LIMIT_WINDOW_SEC = int(os.getenv("API_RATE_LIMIT_WINDOW_SEC", 60))
 # Paths exempt from rate limiting — /api/system/status is the public,
 # no-API-key health check (see its endpoint below) and is meant to be
