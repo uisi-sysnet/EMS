@@ -22,7 +22,11 @@ class CamerasImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnF
     private $errors = [];
     private $importedCount = 0;
 
-    public function model(array $row)
+    /**
+     * @param array $row
+     * @return \Illuminate\Database\Eloquent\Model|null
+     */
+    public function model(array $row): ?\Illuminate\Database\Eloquent\Model  // ← Add this return type
     {
         $this->rowCount++;
 
@@ -84,7 +88,6 @@ class CamerasImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnF
         $this->importedCount++;
         return $camera;
     }
-
     public function rules(): array
     {
         return [
