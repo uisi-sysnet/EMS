@@ -1163,9 +1163,11 @@
                     data.cameraCounts.idle, 
                     data.cameraCounts.offline
                 );
+
                 updateCameraDonut(data.cameraCounts);
                 updateDonutCard('aq', data.airQualityCounts);
                 updateDonutCard('seismic', data.seismicCounts);
+                updateDonutCard('camera', data.cameraCounts); 
                 updateStatusBanner(data.airQualityCounts, data.seismicCounts);
                 updateSystemHealth(data.systemHealth);
                 updateSystemSummary(data.systemSummary);
