@@ -87,7 +87,7 @@ class DashboardController extends Controller
     // Add this method to DashboardController.php
     private function getCameraStatusCounts(): array
     {
-        $cameras = Camera::all();
+        $cameras = \App\Models\Camera::all();
         
         // Define what "online" means for cameras - similar to station logic
         // You could use last_synced_at if you have that, or just count enabled cameras
