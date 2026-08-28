@@ -115,6 +115,12 @@
     $airQualityTotal   = count($airQualityData);
     $seismicTotal      = count($seismicData);
 
+    $cameraCounts = $cameraCounts ?? ['online' => 0, 'idle' => 0, 'offline' => 0];
+    $cameraOnline = $cameraCounts['online'];
+    $cameraIdle = $cameraCounts['idle'];
+    $cameraOffline = $cameraCounts['offline'];
+    $cameraTotal = $cameraOnline + $cameraIdle + $cameraOffline;
+
     $totalStations = $airQualityTotal + $seismicTotal;
     $totalOnline   = $airQualityOnline + $seismicOnline;
     // Percentage used for the system status banner counts strictly-Online
@@ -559,11 +565,15 @@
                             <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
                                 <canvas id="cameraStatusChart"></canvas>
                                 <div id="camera-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    <!-- Demo data - replace with actual values -->
-                                    <span class="text-lg font-bold text-text-100 leading-none">
-                                        75%
-                                    </span>
-                                    <span class="text-[10px] text-text-400 uppercase tracking-wide mt-0.5">Online</span>
+                                    @if($cameraTotal > 0)
+                                        <span class="text-lg font-bold text-text-100 leading-none">
+                                            {{ $cameraTotal > 0 ? round(($cameraOnline / $cameraTotal) * 100) : 0 }}%
+                                        </span>
+                                        <span class="text-[10px] text-text-400 uppercase tracking-wide mt-0.5">Online</span>
+                                    @else
+                                        <span class="text-lg font-bold text-amber-400 leading-none">—</span>
+                                        <span class="text-[10px] text-amber-400 uppercase tracking-wide mt-0.5">No Cameras</span>
+                                    @endif
                                 </div>
                             </div>
 
@@ -575,7 +585,7 @@
                                         <span class="text-sm text-text-300 truncate">Online</span>
                                     </span>
                                     <span id="camera-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        6
+                                        {{ $cameraOnline }}
                                     </span>
                                 </div>
 
@@ -585,7 +595,7 @@
                                         <span class="text-sm text-text-300 truncate">Idle</span>
                                     </span>
                                     <span id="camera-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        1
+                                        {{ $cameraIdle }}
                                     </span>
                                 </div>
 
@@ -595,7 +605,7 @@
                                         <span class="text-sm text-text-300 truncate">Offline</span>
                                     </span>
                                     <span id="camera-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
-                                        1
+                                        {{ $cameraOffline }}
                                     </span>
                                 </div>
                             </div>
@@ -606,7 +616,7 @@
                                     class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
                                             bg-munti-green-700/20 px-4 py-2.5 rounded-full
                                             border border-munti-green-600/30 shadow-sm whitespace-nowrap">
-                                    6/8 Online
+                                    {{ $cameraOnline }}/{{ $cameraTotal }} Online
                                 </span>
                                 <span class="text-[10px] text-text-500 uppercase tracking-wider whitespace-nowrap">
                                     Camera Status
@@ -903,6 +913,32 @@
         let airStatusChart = makeStatusChart('airQualityStatusChart', {{ $airQualityCounts['online'] }}, {{ $airQualityCounts['idle'] }}, {{ $airQualityCounts['offline'] }});
         let seismicStatusChart = makeStatusChart('seismicStatusChart', {{ $seismicCounts['online'] }}, {{ $seismicCounts['idle'] }}, {{ $seismicCounts['offline'] }});
 
+        // After the airStatusChart and seismicStatusChart initialization:
+        let cameraStatusChart = makeStatusChart('cameraStatusChart', 
+            {{ $cameraOnline }}, 
+            {{ $cameraIdle }}, 
+            {{ $cameraOffline }}
+        );
+
+        // Add update function for camera donut
+        function updateCameraDonut(counts) {
+            const total = counts.online + counts.idle + counts.offline;
+            const center = document.getElementById('camera-donut-center');
+            if (center) {
+                center.innerHTML = total > 0
+                    ? `<span class="text-sm sm:text-base font-bold text-text-100">${Math.round((counts.online / total) * 100)}%</span><span class="text-[9px] text-text-400 uppercase">Online</span>`
+                    : `<span class="text-sm sm:text-base font-bold text-amber-400">—</span><span class="text-[9px] text-amber-400 uppercase">No Cameras</span>`;
+            }
+            const badge = document.getElementById('camera-online-badge');
+            if (badge) badge.textContent = `${counts.online}/${total} online`;
+            const onlineEl = document.getElementById('camera-online-count');
+            const idleEl = document.getElementById('camera-idle-count');
+            const offlineEl = document.getElementById('camera-offline-count');
+            if (onlineEl) onlineEl.textContent = counts.online;
+            if (idleEl) idleEl.textContent = counts.idle;
+            if (offlineEl) offlineEl.textContent = counts.offline;
+        }
+
         function rowHtml(item, no) {
             const meta = statusBadgeMeta[item.status] || statusBadgeMeta.offline;
             return `<tr class="hover:bg-surface-700 transition h-10">
@@ -1121,6 +1157,12 @@
 
                 updateStatusChart(airStatusChart, data.airQualityCounts.online, data.airQualityCounts.idle, data.airQualityCounts.offline);
                 updateStatusChart(seismicStatusChart, data.seismicCounts.online, data.seismicCounts.idle, data.seismicCounts.offline);
+                updateStatusChart(cameraStatusChart, 
+                    data.cameraCounts.online, 
+                    data.cameraCounts.idle, 
+                    data.cameraCounts.offline
+                );
+                updateCameraDonut(data.cameraCounts);
                 updateDonutCard('aq', data.airQualityCounts);
                 updateDonutCard('seismic', data.seismicCounts);
                 updateStatusBanner(data.airQualityCounts, data.seismicCounts);

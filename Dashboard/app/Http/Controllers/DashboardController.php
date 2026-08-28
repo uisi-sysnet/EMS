@@ -27,7 +27,7 @@ class DashboardController extends Controller
         [$airQualityData, $seismicData] = $this->buildDashboardData();
         $systemSummary = $this->buildSystemSummary();
 
-        return view('index', compact('airQualityData', 'seismicData', 'systemSummary'));
+        return view('index', compact('airQualityData', 'seismicData', 'systemSummary', 'cameraCounts'));
     }
 
     /**
@@ -50,6 +50,7 @@ class DashboardController extends Controller
 
         $airQualityCounts = $this->annotateStatus($airQualityData, $idleThresholdMinutes, $offlineThresholdMinutes);
         $seismicCounts    = $this->annotateStatus($seismicData, $idleThresholdMinutes, $offlineThresholdMinutes);
+        $cameraCounts     = $this->getCameraStatusCounts();
 
         $health = $this->buildSystemHealth();
 
@@ -63,6 +64,7 @@ class DashboardController extends Controller
             'seismicData'      => $seismicData,
             'airQualityCounts' => $airQualityCounts, // ['online'=>n,'idle'=>n,'offline'=>n]
             'seismicCounts'    => $seismicCounts,
+            'cameraCounts'     => $cameraCounts, 
             'health' => [
                 'cpu' => [
                     'percent' => $health['cpu']['percent'],
@@ -79,6 +81,44 @@ class DashboardController extends Controller
             ],
             'generatedAt' => now()->timezone('Asia/Manila')->format('M j, Y g:i A'),
         ];
+    }
+
+    // Add this method to DashboardController.php
+    private function getCameraStatusCounts(): array
+    {
+        $cameras = Camera::all();
+        
+        // Define what "online" means for cameras - similar to station logic
+        // You could use last_synced_at if you have that, or just count enabled cameras
+        // For now, let's use enabled + a threshold similar to stations
+        $idleThresholdMinutes = 2; // Camera hasn't synced in 2+ min = idle
+        $offlineThresholdMinutes = 5; // Camera hasn't synced in 5+ min = offline
+        
+        $counts = ['online' => 0, 'idle' => 0, 'offline' => 0];
+        
+        foreach ($cameras as $camera) {
+            if (!$camera->enabled) {
+                $counts['offline']++;
+                continue;
+            }
+            
+            // If you have last_synced_at, use it for status
+            if ($camera->last_synced_at) {
+                $minutesAgo = $camera->last_synced_at->diffInMinutes(now());
+                if ($minutesAgo <= $idleThresholdMinutes) {
+                    $counts['online']++;
+                } elseif ($minutesAgo <= $offlineThresholdMinutes) {
+                    $counts['idle']++;
+                } else {
+                    $counts['offline']++;
+                }
+            } else {
+                // If no sync data, consider enabled cameras as online
+                $counts['online']++;
+            }
+        }
+        
+        return $counts;
     }
 
     /**
@@ -101,6 +141,7 @@ class DashboardController extends Controller
             'seismicData'      => $seismicData,
             'airQualityCounts' => $airQualityCounts,
             'seismicCounts'    => $seismicCounts,
+            'cameraCounts'     => $cameraCounts,
             'systemHealth'     => $this->buildSystemHealth(),
             'systemSummary'    => $this->buildSystemSummary(),
             'generatedAt'      => now()->timezone('Asia/Manila')->format('Y-m-d h:i A'),
