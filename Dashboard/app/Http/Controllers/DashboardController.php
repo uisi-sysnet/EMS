@@ -26,6 +26,7 @@ class DashboardController extends Controller
     {
         [$airQualityData, $seismicData] = $this->buildDashboardData();
         $systemSummary = $this->buildSystemSummary();
+        $cameraCounts = $this->getCameraStatusCounts(); 
 
         return view('index', compact('airQualityData', 'seismicData', 'systemSummary', 'cameraCounts'));
     }
