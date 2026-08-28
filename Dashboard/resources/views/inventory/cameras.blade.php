@@ -185,11 +185,19 @@
                 <!-- Enabled (Hidden - Default: true) -->
                 <input type="hidden" name="enabled" value="1">
 
-                <!-- Slug (Hidden) -->
-                <input type="hidden"
-                    id="modal_slug"
-                    name="slug"
-                    value="">
+                <!-- Slug -->
+                <div class="flex flex-col">
+                    <label for="modal_slug" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Slug <span class="text-text-500">(auto-generated)</span>
+                    </label>
+                    <input type="text"
+                        id="modal_slug"
+                        name="slug"
+                        maxlength="30"
+                        readonly
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition cursor-not-allowed"
+                        placeholder="Auto-generated from name">
+                </div>
             </div>
 
             <!-- Note about uniqueness -->
