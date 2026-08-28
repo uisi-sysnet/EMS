@@ -731,7 +731,11 @@ function editCamera(cameraId) {
             document.getElementById('edit_serial_number').value = data.serial_number || '';
             document.getElementById('edit_latitude').value = data.latitude || '';
             document.getElementById('edit_longitude').value = data.longitude || '';
-            document.getElementById('edit_slug').value = data.slug || '';
+
+            const slugInput = document.getElementById('edit_slug');
+            if (slugInput) {
+                slugInput.value = data.slug || '';
+            }
 
             document.getElementById('editForm').action = `/inventory/cameras/${cameraId}`;
             
@@ -761,20 +765,19 @@ function closeEditModal() {
 
 // Auto-generate slug from name for Edit Modal
 function generateEditSlugFromName(name) {
-    const slug = name
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
-        .trim()
-        .replace(/\s+/g, '-') // Replace spaces with hyphens
-        .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-        .slice(0, 30); // Limit to 30 characters
-    
     const slugInput = document.getElementById('edit_slug');
     if (slugInput) {
+        const slug = name
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+            .trim()
+            .replace(/\s+/g, '-') // Replace spaces with hyphens
+            .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+            .slice(0, 30); // Limit to 30 characters
+        
         slugInput.value = slug;
     }
 }
-
 // Delete Camera
 function deleteCamera(cameraId, cameraName) {
     Swal.fire({
