@@ -19,13 +19,21 @@ class CameraController extends Controller
     /**
      * Display a listing of cameras.
      */
-    public function index(): View
+    public function index()
     {
-        $cameras = Camera::orderBy('name')->get();
-
-        return view('inventory.cameras', [
-            'cameras' => $cameras,
-        ]);
+        $cameras = Camera::orderBy('name', 'asc')->get();
+        
+        // Fetch unique locations from stations table
+        $locations = Station::where('deleted', false)
+            ->whereNotNull('location')
+            ->where('location', '!=', '')
+            ->distinct()
+            ->pluck('location')
+            ->sort()
+            ->values()
+            ->toArray();
+        
+        return view('inventory.cameras', compact('cameras', 'locations'));
     }
 
     /**
