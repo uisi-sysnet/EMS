@@ -13,6 +13,8 @@ use Maatwebsite\Excel\Concerns\SkipsFailures;
 use Maatwebsite\Excel\Validators\Failure;
 use Illuminate\Support\Str;
 use Throwable;
+use Illuminate\Support\Facades\Log;
+
 
 class CamerasImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnFailure
 {
@@ -88,6 +90,7 @@ class CamerasImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnF
         $this->importedCount++;
         return $camera;
     }
+    
     public function rules(): array
     {
         return [

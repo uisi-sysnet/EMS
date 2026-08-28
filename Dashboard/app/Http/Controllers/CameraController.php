@@ -421,26 +421,30 @@ class CameraController extends Controller
             $errors = $import->getErrors();
 
             // Build success message
-            $message = "Successfully imported {$imported} cameras.";
-            if ($imported === 0) {
-                $message = "No cameras were imported. Please check your file format.";
-            }
-
-            // If there were errors, add them to the message
-            if (!empty($errors)) {
-                $errorMessage = " Errors: " . implode('; ', array_slice($errors, 0, 5));
-                if (count($errors) > 5) {
-                    $errorMessage .= " and " . (count($errors) - 5) . " more errors.";
+            if ($imported > 0) {
+                $message = "Successfully imported {$imported} camera(s).";
+                
+                if (!empty($errors)) {
+                    $errorMessage = " Errors: " . implode('; ', array_slice($errors, 0, 5));
+                    if (count($errors) > 5) {
+                        $errorMessage .= " and " . (count($errors) - 5) . " more errors.";
+                    }
+                    
+                    return redirect()
+                        ->route('inventory.cameras.index')
+                        ->with('warning', $message . $errorMessage);
                 }
+
+                return redirect()
+                    ->route('inventory.cameras.index')
+                    ->with('success', $message);
+            } else {
+                $errorMsg = "No cameras were imported. " . (!empty($errors) ? implode('; ', array_slice($errors, 0, 3)) : "Please check your file format.");
                 
                 return redirect()
                     ->route('inventory.cameras.index')
-                    ->with('warning', $message . $errorMessage);
+                    ->with('error', $errorMsg);
             }
-
-            return redirect()
-                ->route('inventory.cameras.index')
-                ->with('success', $message);
 
         } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
             $failures = $e->failures();

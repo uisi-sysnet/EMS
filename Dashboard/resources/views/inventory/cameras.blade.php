@@ -556,7 +556,6 @@
                                 enctype="multipart/form-data"
                                 class="m-0">
                                 @csrf
-
                                 <label for="importFile"
                                     class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-yellow-400 bg-munti-yellow-300/10 border border-munti-yellow-600/30 rounded-md hover:bg-munti-yellow-700/30 transition whitespace-nowrap cursor-pointer">
                                     <svg xmlns="http://www.w3.org/2000/svg"
@@ -571,7 +570,6 @@
                                     </svg>
                                     Import
                                 </label>
-
                                 <input type="file"
                                     id="importFile"
                                     name="file"
