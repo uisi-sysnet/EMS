@@ -1086,6 +1086,13 @@
             if (count) count.textContent = totalStations === 0 ? 'No stations added yet' : `${totalOnline}/${totalStations} stations online (${percent}%)`;
         }
 
+        function updateTotalBadges(prefix, count) {
+            const chartBadge = document.getElementById(prefix + '-chart-total-badge');
+            const tableBadge = document.getElementById(prefix + '-table-total-badge');
+            if (chartBadge) chartBadge.textContent = `${count} total`;
+            if (tableBadge) tableBadge.textContent = `${count} total`;
+        }
+        
         function updateDonutCard(prefix, counts) {
             const total = counts.online + counts.idle + counts.offline;
             const center = document.getElementById(prefix + '-donut-center');
@@ -1106,13 +1113,6 @@
             if (onlineEl) onlineEl.textContent = counts.online;
             if (idleEl) idleEl.textContent = counts.idle;
             if (offlineEl) offlineEl.textContent = counts.offline;
-        }
-
-        function updateTotalBadges(prefix, count) {
-            const chartBadge = document.getElementById(prefix + '-chart-total-badge');
-            const tableBadge = document.getElementById(prefix + '-table-total-badge');
-            if (chartBadge) chartBadge.textContent = `${count} total`;
-            if (tableBadge) tableBadge.textContent = `${count} total`;
         }
 
         async function refreshDashboard() {
