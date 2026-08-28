@@ -135,6 +135,6 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::delete('/inventory/cameras/{id}', [CameraController::class, 'destroy'])->name('inventory.cameras.destroy');
     /* Route::get('/inventory/cameras/export', [CameraController::class, 'export'])->name('inventory.cameras.export'); */
     Route::get('/inventory/cameras/download-format', [CameraController::class, 'downloadFormat'])->name('cameras.download-format');
-    /* Route::post('/inventory/cameras/import', [CameraController::class, 'import'])->name('inventory.cameras.import');
-    Route::patch('/inventory/cameras/{id}/restore', [CameraController::class, 'restore'])->name('inventory.cameras.restore'); */
+    Route::post('/inventory/cameras/import', [CameraController::class, 'import'])->name('inventory.cameras.import');
+    /* Route::patch('/inventory/cameras/{id}/restore', [CameraController::class, 'restore'])->name('inventory.cameras.restore'); */
 });
