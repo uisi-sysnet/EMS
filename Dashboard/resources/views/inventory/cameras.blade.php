@@ -185,19 +185,11 @@
                 <!-- Enabled (Hidden - Default: true) -->
                 <input type="hidden" name="enabled" value="1">
 
-                <!-- Slug -->
-                <div class="flex flex-col">
-                    <label for="modal_slug" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Slug <span class="text-text-500">(auto-generated)</span>
-                    </label>
-                    <input type="text"
-                        id="modal_slug"
-                        name="slug"
-                        maxlength="30"
-                        readonly
-                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition cursor-not-allowed"
-                        placeholder="Auto-generated from name">
-                </div>
+                <!-- Slug (Hidden) -->
+                <input type="hidden"
+                    id="modal_slug"
+                    name="slug"
+                    value="">
             </div>
 
             <!-- Note about uniqueness -->
@@ -431,19 +423,11 @@
                 {{-- Edit Enabled (Hidden) --}}
                 <input type="hidden" name="enabled" value="1">
 
-                {{-- Edit Slug --}}
-                <div class="flex flex-col">
-                    <label for="edit_slug" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        Slug <span class="text-text-500">(auto-generated)</span>
-                    </label>
-                    <input type="text"
-                        id="edit_slug"
-                        name="slug"
-                        maxlength="30"
-                        readonly
-                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-800 text-text-400 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition cursor-not-allowed"
-                        placeholder="Auto-generated from name">
-                </div>
+                <!-- Edit Slug (Hidden) -->
+                <input type="hidden"
+                    id="edit_slug"
+                    name="slug"
+                    value="">
             </div>
 
             {{-- Note about uniqueness --}}
@@ -702,7 +686,7 @@ document.getElementById('addModal').addEventListener('click', function(event) {
 });
 
 function generateSlugFromName(name) {
-    // Get the slug input field
+    // Get the hidden slug input field
     const slugInput = document.getElementById('modal_slug');
     
     // Generate slug: lowercase, replace spaces with hyphens, remove special chars
@@ -711,7 +695,8 @@ function generateSlugFromName(name) {
         .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
         .trim()
         .replace(/\s+/g, '-') // Replace spaces with hyphens
-        .replace(/-+/g, '-'); // Replace multiple hyphens with single hyphen
+        .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+        .slice(0, 30); // Limit to 30 characters
     
     // Set the slug value
     slugInput.value = slug;
