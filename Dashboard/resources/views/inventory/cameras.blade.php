@@ -551,7 +551,7 @@
 
                             {{-- Import --}}
                             <form id="importForm"
-                                action="{{-- {{ route('inventory.cameras.import') }} --}}"
+                                action="{{ route('inventory.cameras.import') }}"
                                 method="POST"
                                 enctype="multipart/form-data"
                                 class="m-0">
