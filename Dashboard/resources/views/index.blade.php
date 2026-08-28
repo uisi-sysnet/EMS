@@ -1109,9 +1109,10 @@
             const total = counts.online + counts.idle + counts.offline;
             const center = document.getElementById(prefix + '-donut-center');
             if (center) {
+                const label = prefix === 'camera' ? 'No Cameras' : 'No Stations';
                 center.innerHTML = total > 0
                     ? `<span class="text-sm sm:text-base font-bold text-text-100">${Math.round((counts.online / total) * 100)}%</span><span class="text-[9px] text-text-400 uppercase">Online</span>`
-                    : `<span class="text-sm sm:text-base font-bold text-amber-400">—</span><span class="text-[9px] text-amber-400 uppercase">No Stations</span>`;
+                    : `<span class="text-sm sm:text-base font-bold text-amber-400">—</span><span class="text-[9px] text-amber-400 uppercase">${label}</span>`;
             }
             const badge = document.getElementById(prefix + '-online-badge');
             if (badge) badge.textContent = `${counts.online}/${total} online`;
