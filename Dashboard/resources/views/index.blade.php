@@ -920,25 +920,6 @@
             {{ $cameraOffline }}
         );
 
-        // Add update function for camera donut
-        function updateCameraDonut(counts) {
-            const total = counts.online + counts.idle + counts.offline;
-            const center = document.getElementById('camera-donut-center');
-            if (center) {
-                center.innerHTML = total > 0
-                    ? `<span class="text-sm sm:text-base font-bold text-text-100">${Math.round((counts.online / total) * 100)}%</span><span class="text-[9px] text-text-400 uppercase">Online</span>`
-                    : `<span class="text-sm sm:text-base font-bold text-amber-400">—</span><span class="text-[9px] text-amber-400 uppercase">No Cameras</span>`;
-            }
-            const badge = document.getElementById('camera-online-badge');
-            if (badge) badge.textContent = `${counts.online}/${total} online`;
-            const onlineEl = document.getElementById('camera-online-count');
-            const idleEl = document.getElementById('camera-idle-count');
-            const offlineEl = document.getElementById('camera-offline-count');
-            if (onlineEl) onlineEl.textContent = counts.online;
-            if (idleEl) idleEl.textContent = counts.idle;
-            if (offlineEl) offlineEl.textContent = counts.offline;
-        }
-
         function rowHtml(item, no) {
             const meta = statusBadgeMeta[item.status] || statusBadgeMeta.offline;
             return `<tr class="hover:bg-surface-700 transition h-10">
@@ -1109,7 +1090,10 @@
             const total = counts.online + counts.idle + counts.offline;
             const center = document.getElementById(prefix + '-donut-center');
             if (center) {
-                const label = prefix === 'camera' ? 'No Cameras' : 'No Stations';
+                let label = 'No Stations';
+                if (prefix === 'camera') {
+                    label = 'No Cameras';
+                }
                 center.innerHTML = total > 0
                     ? `<span class="text-sm sm:text-base font-bold text-text-100">${Math.round((counts.online / total) * 100)}%</span><span class="text-[9px] text-text-400 uppercase">Online</span>`
                     : `<span class="text-sm sm:text-base font-bold text-amber-400">—</span><span class="text-[9px] text-amber-400 uppercase">${label}</span>`;
@@ -1164,7 +1148,6 @@
                     data.cameraCounts.offline
                 );
 
-                updateCameraDonut(data.cameraCounts);
                 updateDonutCard('aq', data.airQualityCounts);
                 updateDonutCard('seismic', data.seismicCounts);
                 updateDonutCard('camera', data.cameraCounts); 
