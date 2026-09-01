@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Camera;
+use App\Models\Station; 
 use App\Services\Mediamtx\MediaMtxClient;
 use App\Services\Onvif\OnvifClient;
 use Illuminate\Http\RedirectResponse;
@@ -12,6 +13,7 @@ use Illuminate\View\View;
 use Throwable;
 use App\Exports\CamerasFormatExport;
 use App\Imports\CamerasImport;
+use App\Exports\CamerasExport;   
 use Maatwebsite\Excel\Facades\Excel;
 
 class CameraController extends Controller
@@ -19,13 +21,21 @@ class CameraController extends Controller
     /**
      * Display a listing of cameras.
      */
-    public function index(): View
+    public function index()
     {
-        $cameras = Camera::orderBy('name')->get();
-
-        return view('inventory.cameras', [
-            'cameras' => $cameras,
-        ]);
+        $cameras = Camera::orderBy('name', 'asc')->get();
+        
+        // Fetch unique locations from stations table
+        $locations = Station::where('deleted', false)
+            ->whereNotNull('location')
+            ->where('location', '!=', '')
+            ->distinct()
+            ->pluck('location')
+            ->sort()
+            ->values()
+            ->toArray();
+        
+        return view('inventory.cameras', compact('cameras', 'locations'));
     }
 
     /**
@@ -345,6 +355,18 @@ class CameraController extends Controller
         }
     }
 
+    public function getLocations()
+    {
+        $locations = Station::where('deleted', false)
+            ->whereNotNull('location')
+            ->distinct()
+            ->pluck('location')
+            ->sort()
+            ->values();
+        
+        return response()->json($locations);
+    }
+
     /**
      * Display the live view for cameras.
      */
@@ -364,9 +386,13 @@ class CameraController extends Controller
      */
     public function export()
     {
-        return redirect()
-            ->route('inventory.cameras.index')
-            ->with('error', 'Export functionality is coming soon.');
+        try {
+            return Excel::download(new CamerasExport(), 'cameras_export_' . date('Y-m-d_Hi') . '.xlsx');
+        } catch (\Exception $e) {
+            return redirect()
+                ->route('inventory.cameras.index')
+                ->with('error', 'Export failed: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -400,26 +426,30 @@ class CameraController extends Controller
             $errors = $import->getErrors();
 
             // Build success message
-            $message = "Successfully imported {$imported} cameras.";
-            if ($imported === 0) {
-                $message = "No cameras were imported. Please check your file format.";
-            }
-
-            // If there were errors, add them to the message
-            if (!empty($errors)) {
-                $errorMessage = " Errors: " . implode('; ', array_slice($errors, 0, 5));
-                if (count($errors) > 5) {
-                    $errorMessage .= " and " . (count($errors) - 5) . " more errors.";
+            if ($imported > 0) {
+                $message = "Successfully imported {$imported} camera(s).";
+                
+                if (!empty($errors)) {
+                    $errorMessage = " Errors: " . implode('; ', array_slice($errors, 0, 5));
+                    if (count($errors) > 5) {
+                        $errorMessage .= " and " . (count($errors) - 5) . " more errors.";
+                    }
+                    
+                    return redirect()
+                        ->route('inventory.cameras.index')
+                        ->with('warning', $message . $errorMessage);
                 }
+
+                return redirect()
+                    ->route('inventory.cameras.index')
+                    ->with('success', $message);
+            } else {
+                $errorMsg = "No cameras were imported. " . (!empty($errors) ? implode('; ', array_slice($errors, 0, 3)) : "Please check your file format.");
                 
                 return redirect()
                     ->route('inventory.cameras.index')
-                    ->with('warning', $message . $errorMessage);
+                    ->with('error', $errorMsg);
             }
-
-            return redirect()
-                ->route('inventory.cameras.index')
-                ->with('success', $message);
 
         } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
             $failures = $e->failures();

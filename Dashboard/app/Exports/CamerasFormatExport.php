@@ -25,14 +25,7 @@ class CamerasFormatExport implements FromArray, WithHeadings, WithStyles
                 'rtsp://192.168.1.100:554/stream',
                 'IP Camera',
                 'SN-2024-001',
-                '14.5995',
-                '120.9842',
-                /* '1',
-                '2024-01-01 00:00:00',
-                'online',
-                '', */
                 'Sample camera notes',
-                /* '0' */
             ]
         ];
     }
@@ -52,14 +45,7 @@ class CamerasFormatExport implements FromArray, WithHeadings, WithStyles
             'rtsp_uri',
             'device_type',
             'serial_number',
-            'latitude',
-            'longitude',
-            /* 'enabled',
-            'last_synced_at',
-            'last_status',
-            'last_error', */
             'notes',
-            /* 'deleted_at' */
         ];
     }
 

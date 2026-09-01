@@ -26,8 +26,9 @@ class DashboardController extends Controller
     {
         [$airQualityData, $seismicData] = $this->buildDashboardData();
         $systemSummary = $this->buildSystemSummary();
+        $cameraCounts = $this->getCameraStatusCounts(); 
 
-        return view('index', compact('airQualityData', 'seismicData', 'systemSummary'));
+        return view('index', compact('airQualityData', 'seismicData', 'systemSummary', 'cameraCounts'));
     }
 
     /**
@@ -50,6 +51,7 @@ class DashboardController extends Controller
 
         $airQualityCounts = $this->annotateStatus($airQualityData, $idleThresholdMinutes, $offlineThresholdMinutes);
         $seismicCounts    = $this->annotateStatus($seismicData, $idleThresholdMinutes, $offlineThresholdMinutes);
+        $cameraCounts     = $this->getCameraStatusCounts();
 
         $health = $this->buildSystemHealth();
 
@@ -63,6 +65,7 @@ class DashboardController extends Controller
             'seismicData'      => $seismicData,
             'airQualityCounts' => $airQualityCounts, // ['online'=>n,'idle'=>n,'offline'=>n]
             'seismicCounts'    => $seismicCounts,
+            'cameraCounts'     => $cameraCounts, 
             'health' => [
                 'cpu' => [
                     'percent' => $health['cpu']['percent'],
@@ -82,6 +85,41 @@ class DashboardController extends Controller
     }
 
     /**
+     * Get camera status counts based on last_status from the database
+     * - last_status = 'online' -> Online
+     * - last_status = 'error' -> Offline
+     * - enabled = false -> Offline
+     * - no last_status set and enabled = true -> Online (default)
+     */
+    private function getCameraStatusCounts(): array
+    {
+        $cameras = \App\Models\Camera::all();
+        
+        $counts = ['online' => 0, 'idle' => 0, 'offline' => 0];
+        
+        foreach ($cameras as $camera) {
+            // Disabled cameras are always offline
+            if (!$camera->enabled) {
+                $counts['offline']++;
+                continue;
+            }
+            
+            // Use the last_status from the database
+            if ($camera->last_status === 'online') {
+                $counts['online']++;
+            } elseif ($camera->last_status === 'error') {
+                $counts['offline']++;
+            } else {
+                // If no status set but enabled, consider it online
+                // (or you could default to offline if you prefer)
+                $counts['online']++;
+            }
+        }
+        
+        return $counts;
+    }
+
+    /**
      * JSON endpoint used by the dashboard's AJAX polling (see index.blade.php).
      * Returns everything the view needs to refresh in place: station tables,
      * status counts, and system health tiles — without a full page reload.
@@ -95,12 +133,14 @@ class DashboardController extends Controller
 
         $airQualityCounts = $this->annotateStatus($airQualityData, $idleThresholdMinutes, $offlineThresholdMinutes);
         $seismicCounts    = $this->annotateStatus($seismicData, $idleThresholdMinutes, $offlineThresholdMinutes);
+        $cameraCounts     = $this->getCameraStatusCounts();
 
         return response()->json([
             'airQualityData'   => $airQualityData,
             'seismicData'      => $seismicData,
             'airQualityCounts' => $airQualityCounts,
             'seismicCounts'    => $seismicCounts,
+            'cameraCounts'     => $cameraCounts,
             'systemHealth'     => $this->buildSystemHealth(),
             'systemSummary'    => $this->buildSystemSummary(),
             'generatedAt'      => now()->timezone('Asia/Manila')->format('Y-m-d h:i A'),

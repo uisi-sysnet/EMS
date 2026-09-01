@@ -15,13 +15,13 @@ class StationController extends Controller
     {
         $stations = Station::withCount('sensorData')
             ->where('deleted', false)
-            ->orderBy('station_mn')
+            ->orderBy('station_name')
             ->get();
 
         // Also load deleted stations for the modal
         $deletedStations = Station::withCount('sensorData')
             ->where('deleted', true)
-            ->orderBy('station_mn')
+            ->orderBy('station_name')
             ->get();
             
         return view('inventory.stations', compact('stations', 'deletedStations'));
