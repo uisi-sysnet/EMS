@@ -1213,8 +1213,10 @@ def _apply_temporary_fallback(conn, row):
     already has real values, or the source has none / only stale ones."""
     if row.get("station_mn") != FALLBACK_TARGET_MN:
         return False
+
     if all(not _needs_fallback(row.get(f)) for f in FALLBACK_FIELDS):
-        return False  # .007 already has real readings for all 4 — leave as-is
+        logger.info(f"[fallback] {FALLBACK_TARGET_MN}: all 4 fields already have real values — skipping.")
+        return False
 
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(f"""
@@ -1225,6 +1227,7 @@ def _apply_temporary_fallback(conn, row):
     """, (FALLBACK_SOURCE_MN,))
     source = cur.fetchone()
     if not source or not source["data_time"]:
+        logger.warning(f"[fallback] {FALLBACK_TARGET_MN}: source {FALLBACK_SOURCE_MN} has no sensor_data rows at all — skipping.")
         return False
 
     # data_time is naive Manila local time (see map_aq_station_row_to_json) —
@@ -1233,13 +1236,24 @@ def _apply_temporary_fallback(conn, row):
     source_time_utc = source["data_time"].replace(tzinfo=manila_tz).astimezone(timezone.utc)
     age_sec = (datetime.now(timezone.utc) - source_time_utc).total_seconds()
     if age_sec > FALLBACK_MAX_SOURCE_AGE_SEC:
+        logger.warning(
+            f"[fallback] {FALLBACK_TARGET_MN}: source {FALLBACK_SOURCE_MN}'s latest reading is "
+            f"{age_sec:.0f}s old (max {FALLBACK_MAX_SOURCE_AGE_SEC}s) — skipping rather than "
+            f"serving a stale value under a fresh timestamp."
+        )
         return False
 
     filled_any = False
+    filled_fields = []
     for field in FALLBACK_FIELDS:
         if _needs_fallback(row.get(field)) and not _needs_fallback(source.get(field)):
             row[field] = _jitter(source[field])
             filled_any = True
+            filled_fields.append(field)
+    logger.info(
+        f"[fallback] {FALLBACK_TARGET_MN}: filled {filled_fields or '(none — source also missing those fields)'} "
+        f"from {FALLBACK_SOURCE_MN} (source age {age_sec:.0f}s)."
+    )
     return filled_any
 
 
