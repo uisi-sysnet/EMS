@@ -1196,15 +1196,24 @@ def _jitter(value):
     return round(value * factor, 2)
 
 
+def _needs_fallback(value):
+    """True if a stored pollutant value should be treated as 'missing' and
+    eligible for the temporary fallback — either NULL, or the legacy 0
+    some older ingest rows used in place of NULL (see _zero_fill_measurements
+    above). A real PM2.5/PM10/TSP/NO2 reading of exactly 0.0 doesn't happen
+    in practice, so treating stored 0 as missing here is safe."""
+    return value is None or value == 0
+
+
 def _apply_temporary_fallback(conn, row):
-    """Mutates `row` in place, filling any NULL FALLBACK_FIELDS on the
+    """Mutates `row` in place, filling any missing FALLBACK_FIELDS on the
     fallback target station from the source station's latest reading.
     Returns True if a fallback value was actually applied (so the caller
     can flag the response), False otherwise — including when the row
     already has real values, or the source has none / only stale ones."""
     if row.get("station_mn") != FALLBACK_TARGET_MN:
         return False
-    if all(row.get(f) is not None for f in FALLBACK_FIELDS):
+    if all(not _needs_fallback(row.get(f)) for f in FALLBACK_FIELDS):
         return False  # .007 already has real readings for all 4 — leave as-is
 
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -1228,7 +1237,7 @@ def _apply_temporary_fallback(conn, row):
 
     filled_any = False
     for field in FALLBACK_FIELDS:
-        if row.get(field) is None and source.get(field) is not None:
+        if _needs_fallback(row.get(field)) and not _needs_fallback(source.get(field)):
             row[field] = _jitter(source[field])
             filled_any = True
     return filled_any
