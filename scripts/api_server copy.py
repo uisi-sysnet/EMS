@@ -10,7 +10,6 @@ import logging
 import os
 import hashlib
 import ipaddress
-import random
 import threading
 import time
 from collections import deque
@@ -140,16 +139,6 @@ class AQPollutants(BaseModel):
     o3: Optional[float] = Field(None, examples=[38.9])
     pb: Optional[float] = Field(None, examples=[0.02])
     pb_temp: Optional[float] = Field(None, examples=[27.8])
-    estimated: bool = Field(
-        False,
-        description="TEMPORARY: true if pm2_5/pm10/tsp/no2 were backfilled from another "
-                    "station (see estimated_source) because this station has no live reading, "
-                    "rather than measured by this station's own sensors.",
-    )
-    estimated_source: Optional[str] = Field(
-        None, examples=["4101025U122011"],
-        description="station_mn the estimated values were derived from, when estimated=true.",
-    )
 
 class AQStation(BaseModel):
     station_mn: str = Field(..., examples=["4101025U122041"])
@@ -1166,97 +1155,6 @@ def _zero_fill_measurements(row):
     return row
 
 
-# ==========================================================
-# TEMPORARY: fallback fill for station 4101025U122007
-# ----------------------------------------------------------
-# 4101025U122007 has no PM2.5/PM10/TSP/NO2 sensor deployed yet. Until it
-# does, whenever its own reading for those 4 values is NULL, this backfills
-# them from 4101025U122011's latest reading with independent +/-5% jitter
-# (so the 4 values aren't identical to .011's), and flags the response via
-# pollutants.estimated / estimated_source so nothing downstream — this API's
-# consumers included — mistakes it for a real .007 sensor reading.
-#
-# DELETE THIS BLOCK, its two call sites below (in aq_latest_all and
-# aq_latest_station), and the estimated/estimated_source fields on
-# AQPollutants once .007 has a real sensor reporting.
-# ==========================================================
-FALLBACK_TARGET_MN = "4101025U122007"
-FALLBACK_SOURCE_MN = "4101025U122011"
-FALLBACK_JITTER_FRACTION = 0.05
-# How stale the source station's latest reading can be before we skip the
-# fallback entirely, rather than serving an old value under .007's name.
-FALLBACK_MAX_SOURCE_AGE_SEC = int(os.getenv("AQ_FALLBACK_MAX_SOURCE_AGE_SEC", 600))
-FALLBACK_FIELDS = ["pm25", "pm10", "tsp", "nitrogen_dioxide"]
-
-
-def _jitter(value):
-    if value is None:
-        return None
-    factor = 1 + random.uniform(-FALLBACK_JITTER_FRACTION, FALLBACK_JITTER_FRACTION)
-    return round(value * factor, 2)
-
-
-def _needs_fallback(value):
-    """True if a stored pollutant value should be treated as 'missing' and
-    eligible for the temporary fallback — either NULL, or the legacy 0
-    some older ingest rows used in place of NULL (see _zero_fill_measurements
-    above). A real PM2.5/PM10/TSP/NO2 reading of exactly 0.0 doesn't happen
-    in practice, so treating stored 0 as missing here is safe."""
-    return value is None or value == 0
-
-
-def _apply_temporary_fallback(conn, row):
-    """Mutates `row` in place, filling any missing FALLBACK_FIELDS on the
-    fallback target station from the source station's latest reading.
-    Returns True if a fallback value was actually applied (so the caller
-    can flag the response), False otherwise — including when the row
-    already has real values, or the source has none / only stale ones."""
-    if row.get("station_mn") != FALLBACK_TARGET_MN:
-        return False
-
-    if all(not _needs_fallback(row.get(f)) for f in FALLBACK_FIELDS):
-        logger.info(f"[fallback] {FALLBACK_TARGET_MN}: all 4 fields already have real values — skipping.")
-        return False
-
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute(f"""
-        SELECT data_time, {', '.join(FALLBACK_FIELDS)}
-        FROM sensor_data
-        WHERE station_mn = %s
-        ORDER BY data_time DESC LIMIT 1;
-    """, (FALLBACK_SOURCE_MN,))
-    source = cur.fetchone()
-    if not source or not source["data_time"]:
-        logger.warning(f"[fallback] {FALLBACK_TARGET_MN}: source {FALLBACK_SOURCE_MN} has no sensor_data rows at all — skipping.")
-        return False
-
-    # data_time is naive Manila local time (see map_aq_station_row_to_json) —
-    # tag it before comparing against a tz-aware UTC "now".
-    manila_tz = ZoneInfo("Asia/Manila")
-    source_time_utc = source["data_time"].replace(tzinfo=manila_tz).astimezone(timezone.utc)
-    age_sec = (datetime.now(timezone.utc) - source_time_utc).total_seconds()
-    if age_sec > FALLBACK_MAX_SOURCE_AGE_SEC:
-        logger.warning(
-            f"[fallback] {FALLBACK_TARGET_MN}: source {FALLBACK_SOURCE_MN}'s latest reading is "
-            f"{age_sec:.0f}s old (max {FALLBACK_MAX_SOURCE_AGE_SEC}s) — skipping rather than "
-            f"serving a stale value under a fresh timestamp."
-        )
-        return False
-
-    filled_any = False
-    filled_fields = []
-    for field in FALLBACK_FIELDS:
-        if _needs_fallback(row.get(field)) and not _needs_fallback(source.get(field)):
-            row[field] = _jitter(source[field])
-            filled_any = True
-            filled_fields.append(field)
-    logger.info(
-        f"[fallback] {FALLBACK_TARGET_MN}: filled {filled_fields or '(none — source also missing those fields)'} "
-        f"from {FALLBACK_SOURCE_MN} (source age {age_sec:.0f}s)."
-    )
-    return filled_any
-
-
 def map_aq_station_row_to_json(row, now):
     _zero_fill_measurements(row)
     status = "offline"
@@ -1324,15 +1222,8 @@ def aq_latest_all(api_key: str = Depends(verify_api_key)):
             ORDER BY st.station_mn, s.data_time DESC NULLS LAST;
         """)
         rows = cur.fetchall()
-        # TEMPORARY: see _apply_temporary_fallback definition above.
-        fallback_applied = {r["station_mn"]: _apply_temporary_fallback(conn, r) for r in rows}
-
         now = datetime.now(timezone.utc)
         stations_list = [map_aq_station_row_to_json(r, now) for r in rows]
-        for s in stations_list:
-            if fallback_applied.get(s["station_mn"]):
-                s["pollutants"]["estimated"] = True
-                s["pollutants"]["estimated_source"] = FALLBACK_SOURCE_MN
 
         # Top-level "timestamp" = the actual latest saved reading across all
         # stations (max data_time), not the moment this request was handled.
@@ -1381,15 +1272,8 @@ def aq_latest_station(
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Station Identifier not found in database records.")
-
-        # TEMPORARY: see _apply_temporary_fallback definition above.
-        fallback_applied = _apply_temporary_fallback(conn, row)
-
         now = datetime.now(timezone.utc)
         station_json = map_aq_station_row_to_json(row, now)
-        if fallback_applied:
-            station_json["pollutants"]["estimated"] = True
-            station_json["pollutants"]["estimated_source"] = FALLBACK_SOURCE_MN
         response_timestamp = station_json["last_update"] or format_api_datetime(now)
         return {"timestamp": response_timestamp, "station": station_json}
     except HTTPException:
