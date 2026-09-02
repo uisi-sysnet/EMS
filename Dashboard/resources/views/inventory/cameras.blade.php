@@ -176,8 +176,8 @@
                             required
                             class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                         <option value="">Select Location</option>
-                        @foreach($locations as $location)
-                            <option value="{{ $location }}">{{ $location }}</option>
+                        @foreach($station_names as $station_name)
+                            <option value="{{ $station_name }}">{{ $station_name }}</option>
                         @endforeach
                     </select>
                 </div>

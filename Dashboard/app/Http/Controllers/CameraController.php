@@ -26,16 +26,16 @@ class CameraController extends Controller
         $cameras = Camera::orderBy('name', 'asc')->get();
         
         // Fetch unique locations from stations table
-        $locations = Station::where('deleted', false)
-            ->whereNotNull('location')
-            ->where('location', '!=', '')
+        $station_names = Station::where('deleted', false)
+            ->whereNotNull('station_name')
+            ->where('station_name', '!=', '')
             ->distinct()
-            ->pluck('location')
+            ->pluck('station_name')
             ->sort()
             ->values()
             ->toArray();
         
-        return view('inventory.cameras', compact('cameras', 'locations'));
+        return view('inventory.cameras', compact('cameras', 'station_names'));
     }
 
     /**
