@@ -19,7 +19,7 @@ class DashboardController extends Controller
     private const IMAGE_WIDTH          = 1240;
     private const IMAGE_HEIGHT         = 1754;
     private const IMAGE_MARGIN         = 48;
-    private const IMAGE_MAX_TABLE_ROWS = 999;  // deliberately high so the PDF and live dashboard can show the full list, while the JPEG is capped to IMAGE_MAX_PORT_ROWS below
+    private const IMAGE_MAX_TABLE_ROWS = 8;
     private const IMAGE_MAX_PORT_ROWS  = 5;
 
     public function index()
@@ -1588,10 +1588,6 @@ class DashboardController extends Controller
      */
     private function imgTruncate(string $text, float $maxWidth, float $size, bool $bold = false): string
     {
-
-        mb_internal_encoding('UTF-8');
-        mb_http_output('UTF-8');
-
         if ($maxWidth <= 0 || $this->imgTextWidth($text, $size, $bold) <= $maxWidth) {
             return $text;
         }
