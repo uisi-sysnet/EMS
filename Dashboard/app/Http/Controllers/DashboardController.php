@@ -1315,42 +1315,84 @@ class DashboardController extends Controller
         return $y;
     }
 
-    private function drawImgStationTable($image, string $title, $data, array $counts, int $x, int $y, int $width): void
+    private function drawImgStationTable(&$image, string $title, $data, array $counts, int $x, int $y, int $width, array &$pages, &$page): int
     {
         $heading = $title . ' (' . $counts['online'] . ' online / ' . $data->count() . ' total)';
-        $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
+        $rowHeight = 24;
+        $headerHeight = 26; // from drawImgTable header row
+        $totalRows = $data->count();
 
+        if ($totalRows === 0) {
+            // Draw a single placeholder row
+            $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
+            $placeholderRows = [
+                ['—', 'No stations available', '', '', ['badge' => true, 'label' => 'N/A', 'status' => 'unknown']]
+            ];
+            $y = $this->drawImgTable($image, $x, $y, $width, $this->stationTableColumns($width), $placeholderRows, $rowHeight);
+            return $y;
+        }
+
+        // We'll paginate the data. Start with current page.
+        $start = 0;
+        // We'll reuse the same page reference, but may start new pages.
+        while ($start < $totalRows) {
+            // Ensure we have at least room for header + one row + some padding
+            $needed = $headerHeight + $rowHeight + 10;
+            $y = $this->ensureSpace($pages, $page, $y, $needed);
+            $image = $page; // update image reference to current page
+
+            // Draw the section title (only on the first page of this table or on continuation pages)
+            $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
+
+            // Calculate how many rows fit on this page
+            $available = self::IMAGE_HEIGHT - self::IMAGE_MARGIN - $y - 30; // leave room for footer
+            $rowsPerPage = max(1, intdiv($available, $rowHeight + 2));
+
+            // Slice the data
+            $chunk = $data->slice($start, $rowsPerPage);
+            $rows = [];
+            foreach ($chunk as $i => $item) {
+                $rows[] = [
+                    $start + $i + 1,
+                    (string) $item->station,
+                    number_format($item->total),
+                    $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d H:i') : '—',
+                    ['badge' => true, 'label' => ucfirst($item->status), 'status' => $item->status],
+                ];
+            }
+
+            // Draw the table for this chunk
+            $y = $this->drawImgTable($image, $x, $y, $width, $this->stationTableColumns($width), $rows, $rowHeight);
+
+            // Move to next chunk
+            $start += $rowsPerPage;
+
+            // If there are more rows, add a small gap before the next page
+            if ($start < $totalRows) {
+                $y += 20;
+            }
+        }
+
+        // Optionally add an "All Stations" summary row at the end (if you want)
+        // You can add it as a separate text line below the last table.
+        // I'll leave it out for brevity; you can add it if needed.
+
+        return $y;
+    }
+
+    /**
+     * Helper to define station table columns (used by both drawImgStationTable and potentially other places)
+     */
+    private function stationTableColumns(int $width): array
+    {
         [$noW, $stationW, $totalW, $latestW, $statusW] = $this->imgColumnWidths($width, [0.06, 0.36, 0.16, 0.24, 0.18]);
-        $columns = [
+        return [
             ['label' => 'No.',     'width' => $noW, 'align' => 'center'],
             ['label' => 'Station', 'width' => $stationW],
             ['label' => 'Total',   'width' => $totalW, 'align' => 'right'],
             ['label' => 'Latest',  'width' => $latestW],
             ['label' => 'Status',  'width' => $statusW],
         ];
-
-        $shown = $data->take(self::IMAGE_MAX_TABLE_ROWS);
-        $rows  = [];
-        foreach ($shown as $i => $item) {
-            $rows[] = [
-                $i + 1,
-                (string) $item->station,
-                number_format($item->total),
-                $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d H:i') : '—',
-                ['badge' => true, 'label' => ucfirst($item->status), 'status' => $item->status],
-            ];
-        }
-
-        if ($rows === []) {
-            $rows[] = ['—', 'No stations available', '', '', ['badge' => true, 'label' => 'N/A', 'status' => 'unknown']];
-        }
-
-        $y = $this->drawImgTable($image, $x, $y, $width, $columns, $rows, 24);
-
-        if ($data->count() > self::IMAGE_MAX_TABLE_ROWS) {
-            $note = '+' . ($data->count() - self::IMAGE_MAX_TABLE_ROWS) . ' more not shown in this snapshot — see the PDF report for the full list.';
-            $this->imgText($image, $note, $x, $y + 16, 11, [136, 136, 136]);
-        }
     }
 
     private function drawImgFooter($image, int $x, int $width, int $baselineBottom, $generatedAt): void
