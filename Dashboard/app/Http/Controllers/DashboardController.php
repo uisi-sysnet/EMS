@@ -1104,8 +1104,6 @@ class DashboardController extends Controller
             ]
         );
 
-        $y = $this->ensureSpace($pages, $page, $y, self::IMAGE_HEIGHT);
-
         // ---- Station tables (side-by-side on first page, continue on next pages if needed) ----
         // Air Quality table – full width
         $y = $this->ensureSpace($pages, $page, $y, 80);
