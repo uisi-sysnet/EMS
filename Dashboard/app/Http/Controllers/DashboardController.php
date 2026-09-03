@@ -1406,7 +1406,7 @@ class DashboardController extends Controller
             ['label' => 'Station', 'width' => $stationW],
             ['label' => 'Total',   'width' => $totalW, 'align' => 'right'],
             ['label' => 'Latest',  'width' => $latestW],
-            ['label' => 'Status',  'width' => $statusW],
+            ['label' => 'Status',  'width' => $statusW,  'align' => 'center'], 
         ];
     }
 
