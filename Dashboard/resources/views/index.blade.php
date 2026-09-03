@@ -790,7 +790,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const statusBadgeMeta = {
             online:  { label: 'Online',  text: 'text-munti-green-400', bg: 'bg-munti-green-700/20', border: 'border-munti-green-600/30', dot: 'bg-munti-green-400' },
             idle:    { label: 'Idle',    text: 'text-amber-400',       bg: 'bg-amber-700/20',       border: 'border-amber-600/30',       dot: 'bg-amber-400' },
@@ -798,8 +798,9 @@
         };
 
         function getChartData(collection) {
-            let labels = collection.map(item => item.station);
-            let totals = collection.map(item => parseInt(String(item.total).replace(/,/g, '')) || 0);
+            if (!Array.isArray(collection)) return { labels: [], totals: [] };
+            const labels = collection.map(item => item.station ?? '—');
+            const totals = collection.map(item => parseInt(String(item.total ?? 0).replace(/,/g, '')) || 0);
             return { labels, totals };
         }
 
@@ -811,20 +812,10 @@
 
         function fmtDate(str) {
             if (!str) return '—';
-            // Extract YYYY-MM-DD directly instead of round-tripping through
-            // the native Date object — new Date() is strict about format
-            // (timezone suffix, fractional-second precision, separators)
-            // and can silently fail to Invalid Date on strings Carbon::parse
-            // (used for the server-rendered first load) handles fine. Since
-            // we only ever display Y-m-d anyway, we don't need a Date object.
             const match = String(str).match(/^(\d{4}-\d{2}-\d{2})/);
             return match ? match[1] : '—';
         }
 
-        // Same regex-extraction approach as fmtDate, but keeps the time
-        // portion too and formats it to match the server-rendered
-        // 'Y-m-d h:i A' style (12-hour, leading zero, AM/PM) used for the
-        // Latest column and the "generatedAt" tile elsewhere on this page.
         function fmtDateTime(str) {
             if (!str) return '—';
             const match = String(str).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
@@ -836,7 +827,6 @@
             return `${datePart} ${String(hour).padStart(2, '0')}:${mm} ${ampm}`;
         }
 
-        // Color palette (dynamically sized)
         const barColors = ['#14B8A6', '#0F766E', '#5EEAD4', '#0B4F3A', '#2DD4BF', '#115E59'];
 
         const chartDefaults = {
@@ -858,6 +848,7 @@
             }
         };
 
+        // Initial data from Blade
         const airData = @json($airQualityData ?? []);
         const seismicDataInit = @json($seismicData ?? []);
         const airChartData = getChartData(airData);
@@ -867,7 +858,12 @@
             type: 'bar',
             data: {
                 labels: airChartData.labels,
-                datasets: [{ label: 'Total Records', data: airChartData.totals, backgroundColor: barColors.slice(0, airChartData.labels.length || 1), borderRadius: 6 }]
+                datasets: [{
+                    label: 'Total Records',
+                    data: airChartData.totals,
+                    backgroundColor: barColors.slice(0, airChartData.labels.length || 1),
+                    borderRadius: 6
+                }]
             },
             options: chartDefaults
         });
@@ -876,7 +872,12 @@
             type: 'bar',
             data: {
                 labels: seismicChartData.labels,
-                datasets: [{ label: 'Total Records', data: seismicChartData.totals, backgroundColor: barColors.slice(0, seismicChartData.labels.length || 1), borderRadius: 6 }]
+                datasets: [{
+                    label: 'Total Records',
+                    data: seismicChartData.totals,
+                    backgroundColor: barColors.slice(0, seismicChartData.labels.length || 1),
+                    borderRadius: 6
+                }]
             },
             options: chartDefaults
         });
@@ -884,18 +885,29 @@
         function makeStatusChart(canvasId, online, idle, offline) {
             const el = document.getElementById(canvasId);
             if (!el) return null;
-            const total = online + idle + offline;
+            const total = (online || 0) + (idle || 0) + (offline || 0);
             const labels = total > 0 ? ['Online', 'Idle', 'Offline'] : ['No Stations'];
-            const data = total > 0 ? [online, idle, offline] : [1];
+            const data = total > 0 ? [online || 0, idle || 0, offline || 0] : [1];
             const colors = total > 0 ? ['#2DD4BF', '#FBBF24', '#F87171'] : ['#FBBF24'];
             return new Chart(el.getContext('2d'), {
                 type: 'doughnut',
-                data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderColor: '#1E293B', borderWidth: 2 }] },
+                data: {
+                    labels,
+                    datasets: [{ data, backgroundColor: colors, borderColor: '#1E293B', borderWidth: 2 }]
+                },
                 options: {
-                    responsive: true, maintainAspectRatio: false, cutout: '72%',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '72%',
                     plugins: {
                         legend: { display: false },
-                        tooltip: { backgroundColor: '#1A1A1A', titleColor: '#F3F4F6', bodyColor: '#E5E7EB', borderColor: '#374151', borderWidth: 1 }
+                        tooltip: {
+                            backgroundColor: '#1A1A1A',
+                            titleColor: '#F3F4F6',
+                            bodyColor: '#E5E7EB',
+                            borderColor: '#374151',
+                            borderWidth: 1
+                        }
                     }
                 }
             });
@@ -903,21 +915,31 @@
 
         function updateStatusChart(chart, online, idle, offline) {
             if (!chart) return;
-            const total = online + idle + offline;
+            const o = online || 0, i = idle || 0, f = offline || 0;
+            const total = o + i + f;
             chart.data.labels = total > 0 ? ['Online', 'Idle', 'Offline'] : ['No Stations'];
-            chart.data.datasets[0].data = total > 0 ? [online, idle, offline] : [1];
+            chart.data.datasets[0].data = total > 0 ? [o, i, f] : [1];
             chart.data.datasets[0].backgroundColor = total > 0 ? ['#2DD4BF', '#FBBF24', '#F87171'] : ['#FBBF24'];
             chart.update();
         }
 
-        let airStatusChart = makeStatusChart('airQualityStatusChart', {{ $airQualityCounts['online'] }}, {{ $airQualityCounts['idle'] }}, {{ $airQualityCounts['offline'] }});
-        let seismicStatusChart = makeStatusChart('seismicStatusChart', {{ $seismicCounts['online'] }}, {{ $seismicCounts['idle'] }}, {{ $seismicCounts['offline'] }});
-
-        // After the airStatusChart and seismicStatusChart initialization:
-        let cameraStatusChart = makeStatusChart('cameraStatusChart', 
-            {{ $cameraOnline }}, 
-            {{ $cameraIdle }}, 
-            {{ $cameraOffline }}
+        let airStatusChart = makeStatusChart(
+            'airQualityStatusChart',
+            {{ $airQualityCounts['online'] ?? 0 }},
+            {{ $airQualityCounts['idle'] ?? 0 }},
+            {{ $airQualityCounts['offline'] ?? 0 }}
+        );
+        let seismicStatusChart = makeStatusChart(
+            'seismicStatusChart',
+            {{ $seismicCounts['online'] ?? 0 }},
+            {{ $seismicCounts['idle'] ?? 0 }},
+            {{ $seismicCounts['offline'] ?? 0 }}
+        );
+        let cameraStatusChart = makeStatusChart(
+            'cameraStatusChart',
+            {{ $cameraOnline ?? 0 }},
+            {{ $cameraIdle ?? 0 }},
+            {{ $cameraOffline ?? 0 }}
         );
 
         function rowHtml(item, no) {
@@ -940,7 +962,7 @@
         function renderTable(tbodyId, collection, emptyLabel) {
             const tbody = document.getElementById(tbodyId);
             if (!tbody) return;
-            if (!collection.length) {
+            if (!Array.isArray(collection) || !collection.length) {
                 tbody.innerHTML = `<tr><td colspan="7" class="px-2 py-4 text-center text-text-400">${emptyLabel}</td></tr>`;
                 return;
             }
@@ -948,25 +970,18 @@
         }
 
         function setBarTile(prefix, tileData) {
+            if (!tileData) return;
             const percentEl = document.getElementById(prefix + '-percent');
             const barEl = document.getElementById(prefix + '-bar');
-            if (!percentEl || !barEl || !tileData) return;
-            percentEl.textContent = tileData.percent + '%';
-            percentEl.className = 'text-xs font-semibold ' + tileData.colors.text;
-            barEl.style.width = Math.min(tileData.percent, 100) + '%';
-            barEl.className = 'h-full rounded-full ' + tileData.colors.bar;
+            if (!percentEl || !barEl) return;
+
+            const pct = Number(tileData.percent) || 0;
+            percentEl.textContent = pct + '%';
+            percentEl.className = 'text-xs font-semibold ' + (tileData.colors?.text || 'text-text-300');
+            barEl.style.width = Math.min(pct, 100) + '%';
+            barEl.className = 'h-full rounded-full ' + (tileData.colors?.bar || 'bg-surface-600');
         }
 
-        /**
-         * Wires up a card's header toggle button to show/hide its body
-         * and persist the collapsed state in localStorage (per card, via
-         * storageKey) so it survives a page reload. Deliberately an
-         * instant show/hide (Tailwind's `hidden` class) rather than an
-         * animated height transition — the body's contents get replaced
-         * wholesale by refreshDashboard() every 20s, and measuring
-         * scrollHeight against that moving target is more trouble than
-         * it's worth for a collapse toggle.
-         */
         function initCollapsible(toggleId, bodyId, chevronId, storageKey) {
             const toggle = document.getElementById(toggleId);
             const body = document.getElementById(bodyId);
@@ -977,11 +992,11 @@
                 body.classList.toggle('hidden', collapsed);
                 toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
                 if (chevron) chevron.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
-                try { localStorage.setItem(storageKey, collapsed ? '1' : '0'); } catch (e) { /* private mode etc. */ }
+                try { localStorage.setItem(storageKey, collapsed ? '1' : '0'); } catch (e) {}
             }
 
             let startCollapsed = false;
-            try { startCollapsed = localStorage.getItem(storageKey) === '1'; } catch (e) { /* private mode etc. */ }
+            try { startCollapsed = localStorage.getItem(storageKey) === '1'; } catch (e) {}
             setCollapsed(startCollapsed);
 
             toggle.addEventListener('click', () => setCollapsed(!body.classList.contains('hidden')));
@@ -989,25 +1004,39 @@
 
         function updateSystemHealth(health) {
             if (!health) return;
-            setBarTile('cpu', health.cpu);
-            const cpuMeta = document.getElementById('cpu-meta');
-            if (cpuMeta) cpuMeta.textContent = `${health.cpu.cores} core${health.cpu.cores > 1 ? 's' : ''} · load ${health.cpu.load}`;
 
-            setBarTile('mem', health.memory);
-            const memMeta = document.getElementById('mem-meta');
-            if (memMeta) memMeta.textContent = `${health.memory.used} / ${health.memory.total}`;
+            if (health.cpu) {
+                setBarTile('cpu', health.cpu);
+                const cpuMeta = document.getElementById('cpu-meta');
+                if (cpuMeta) {
+                    const cores = health.cpu.cores ?? 1;
+                    cpuMeta.textContent = `${cores} core${cores > 1 ? 's' : ''} · load ${health.cpu.load ?? '0.00'}`;
+                }
+            }
 
-            setBarTile('disk', health.disk);
-            const diskMeta = document.getElementById('disk-meta');
-            if (diskMeta) diskMeta.textContent = `${health.disk.used} / ${health.disk.total}`;
+            if (health.memory) {
+                setBarTile('mem', health.memory);
+                const memMeta = document.getElementById('mem-meta');
+                if (memMeta) memMeta.textContent = `${health.memory.used ?? '—'} / ${health.memory.total ?? '—'}`;
+            }
 
-            const uptimeEl = document.getElementById('uptime-text');
-            if (uptimeEl) uptimeEl.textContent = `${health.uptime.days}d ${health.uptime.hours}h ${health.uptime.minutes}m`;
+            if (health.disk) {
+                setBarTile('disk', health.disk);
+                const diskMeta = document.getElementById('disk-meta');
+                if (diskMeta) diskMeta.textContent = `${health.disk.used ?? '—'} / ${health.disk.total ?? '—'}`;
+            }
+
+            if (health.uptime) {
+                const uptimeEl = document.getElementById('uptime-text');
+                if (uptimeEl) {
+                    uptimeEl.textContent = `${health.uptime.days ?? 0}d ${health.uptime.hours ?? 0}h ${health.uptime.minutes ?? 0}m`;
+                }
+            }
         }
 
         function networkPortIconSvg(active) {
             return active
-                ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>'
+                ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>'
                 : '<svg class="w-4 h-4 text-text-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>';
         }
 
@@ -1015,49 +1044,53 @@
             if (!summary) return;
 
             const deviceEl = document.getElementById('summary-device');
-            if (deviceEl) deviceEl.textContent = summary.device_model;
+            if (deviceEl) deviceEl.textContent = summary.device_model ?? '—';
 
             const cpuEl = document.getElementById('summary-cpu');
-            if (cpuEl) cpuEl.textContent = summary.cpu_model;
+            if (cpuEl) cpuEl.textContent = summary.cpu_model ?? '—';
 
             const osEl = document.getElementById('summary-os');
-            if (osEl) osEl.textContent = summary.os_version;
+            if (osEl) osEl.textContent = summary.os_version ?? '—';
 
             const memEl = document.getElementById('summary-memory');
-            if (memEl) {
+            if (memEl && summary.memory) {
                 memEl.textContent = summary.memory.available
-                    ? `${summary.memory.slots_used}/${summary.memory.slots_total} DIMMs · ${summary.memory.total_label}`
-                    : `${summary.memory.total_label} (DIMM count needs sudo)`;
+                    ? `${summary.memory.slots_used ?? 0}/${summary.memory.slots_total ?? 0} DIMMs · ${summary.memory.total_label ?? '—'}`
+                    : `${summary.memory.total_label ?? '—'} (DIMM count needs sudo)`;
             }
 
             const storageEl = document.getElementById('summary-storage');
-            if (storageEl) storageEl.textContent = summary.storage;
+            if (storageEl) storageEl.textContent = summary.storage ?? '—';
 
-            const usedEl = document.getElementById('summary-network-used');
-            if (usedEl) {
-                usedEl.innerHTML = `Used <span class="text-amber-400">${summary.network.used}</span>/${summary.network.total}`;
-            }
-
+            // Network ports – keep original structure & classes so layout doesn’t break
             const portsEl = document.getElementById('summary-network-ports');
             if (portsEl) {
-                portsEl.innerHTML = summary.network.ports.length
-                    ? summary.network.ports.map(p => `
-                        <div class="flex flex-col items-center gap-1 shrink-0">
-                            <span class="text-[10px] uppercase tracking-wider text-text-400 shrink-0" title="${esc(p.name)}">${esc(p.name)}</span>
-                            <div class="w-9 h-9 rounded-lg flex items-center justify-center ${p.colors.bg}">
-                                ${networkPortIconSvg(p.active)}
+                const ports = summary.network?.ports;
+                if (Array.isArray(ports) && ports.length) {
+                    portsEl.innerHTML = ports.map(p => `
+                        <div class="flex flex-col items-center w-[90px] gap-1.5 shrink-0">
+                            <span class="text-[9px] text-text-500 uppercase tracking-wide w-[90px] text-center"
+                                title="${esc(p.name)}">${esc(p.name)}</span>
+                            <div class="w-9 h-9 rounded-lg flex items-center justify-center ${p.colors?.bg || 'bg-surface-700'}">
+                                ${networkPortIconSvg(!!p.active)}
                             </div>
-                            <span class="text-[9px] text-text-500 w-[90px] text-center leading-none" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
+                            <span class="text-[9px] text-text-500 w-[90px] text-center leading-none"
+                                title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
                         </div>
-                    `).join('')
-                    : '<span class="text-xs text-text-500">No network interfaces detected</span>';
+                    `).join('');
+                } else {
+                    portsEl.innerHTML = '<span class="text-xs text-text-500">No network interfaces detected</span>';
+                }
             }
         }
 
         function updateStatusBanner(airCounts, seismicCounts) {
-            const totalOnline = airCounts.online + seismicCounts.online;
-            const totalStations = airCounts.online + airCounts.idle + airCounts.offline
-                + seismicCounts.online + seismicCounts.idle + seismicCounts.offline;
+            const a = airCounts || { online: 0, idle: 0, offline: 0 };
+            const s = seismicCounts || { online: 0, idle: 0, offline: 0 };
+
+            const totalOnline = (a.online || 0) + (s.online || 0);
+            const totalStations = (a.online || 0) + (a.idle || 0) + (a.offline || 0)
+                                + (s.online || 0) + (s.idle || 0) + (s.offline || 0);
             const percent = totalStations > 0 ? Math.round((totalOnline / totalStations) * 1000) / 10 : 100;
 
             let status = 'idle';
@@ -1074,97 +1107,131 @@
             }[status];
 
             const banner = document.getElementById('system-status-banner');
-            const ping = document.getElementById('system-status-ping');
-            const dot = document.getElementById('system-status-dot');
-            const label = document.getElementById('system-status-label');
-            const count = document.getElementById('system-status-count');
+            const ping   = document.getElementById('system-status-ping');
+            const dot    = document.getElementById('system-status-dot');
+            const label  = document.getElementById('system-status-label');
+            const count  = document.getElementById('system-status-count');
 
-            if (banner) banner.className = `lg:col-span-2 rounded-xl border ${meta.border} ${meta.bg} overflow-hidden`;
-            if (ping) { ping.className = `animate-ping absolute inline-flex h-full w-full rounded-full ${meta.dot} opacity-60`; ping.style.display = status === 'good' ? 'none' : ''; }
-            if (dot) dot.className = `relative inline-flex rounded-full h-2.5 w-2.5 ${meta.dot}`;
-            if (label) { label.textContent = meta.label; label.className = `text-sm font-semibold ${meta.text}`; }
-            if (count) count.textContent = totalStations === 0 ? 'No stations added yet' : `${totalOnline}/${totalStations} stations online (${percent}%)`;
+            // Keep original classes – do NOT invent lg:col-span-2
+            if (banner) banner.className = `rounded-xl border ${meta.border} ${meta.bg} overflow-hidden`;
+            if (ping) {
+                ping.className = `animate-ping absolute inline-flex h-full w-full rounded-full ${meta.dot} opacity-60`;
+                ping.style.display = status === 'good' ? 'none' : '';
+            }
+            if (dot)   dot.className = `relative inline-flex rounded-full h-2.5 w-2.5 ${meta.dot}`;
+            if (label) {
+                label.textContent = meta.label;
+                label.className = `text-sm font-semibold ${meta.text}`;
+            }
+            if (count) {
+                count.textContent = totalStations === 0
+                    ? 'No stations added yet'
+                    : `${totalOnline}/${totalStations} stations online (${percent}%)`;
+            }
         }
 
         function updateTotalBadges(prefix, count) {
+            const n = Number(count) || 0;
             const chartBadge = document.getElementById(prefix + '-chart-total-badge');
             const tableBadge = document.getElementById(prefix + '-table-total-badge');
-            if (chartBadge) chartBadge.textContent = `${count} total`;
-            if (tableBadge) tableBadge.textContent = `${count} total`;
-        }
-        
-        function updateDonutCard(prefix, counts) {
-            const total = counts.online + counts.idle + counts.offline;
-            const center = document.getElementById(prefix + '-donut-center');
-            if (center) {
-                let label = 'No Stations';
-                if (prefix === 'camera') {
-                    label = 'No Cameras';
-                }
-                center.innerHTML = total > 0
-                    ? `<span class="text-sm sm:text-base font-bold text-text-100">${Math.round((counts.online / total) * 100)}%</span><span class="text-[9px] text-text-400 uppercase">Online</span>`
-                    : `<span class="text-sm sm:text-base font-bold text-amber-400">—</span><span class="text-[9px] text-amber-400 uppercase">${label}</span>`;
-            }
-            const badge = document.getElementById(prefix + '-online-badge');
-            if (badge) badge.textContent = `${counts.online}/${total} online`;
-            const onlineEl = document.getElementById(prefix + '-online-count');
-            const idleEl = document.getElementById(prefix + '-idle-count');
-            const offlineEl = document.getElementById(prefix + '-offline-count');
-            if (onlineEl) onlineEl.textContent = counts.online;
-            if (idleEl) idleEl.textContent = counts.idle;
-            if (offlineEl) offlineEl.textContent = counts.offline;
+            if (chartBadge) chartBadge.textContent = `${n} total`;
+            if (tableBadge) tableBadge.textContent = `${n} total`;
         }
 
+        function updateDonutCard(prefix, counts) {
+            const c = counts || { online: 0, idle: 0, offline: 0 };
+            const total = (c.online || 0) + (c.idle || 0) + (c.offline || 0);
+
+            const center = document.getElementById(prefix + '-donut-center');
+            if (center) {
+                const emptyLabel = prefix === 'camera' ? 'No Cameras' : 'No Stations';
+                // Keep same size/classes as the original Blade render
+                center.innerHTML = total > 0
+                    ? `<span class="text-lg font-bold text-text-100 leading-none">${Math.round((c.online / total) * 100)}%</span>
+                    <span class="text-[10px] text-text-400 uppercase tracking-wide mt-0.5">Online</span>`
+                    : `<span class="text-lg font-bold text-amber-400 leading-none">—</span>
+                    <span class="text-[10px] text-amber-400 uppercase tracking-wide mt-0.5">${emptyLabel}</span>`;
+            }
+
+            const badge = document.getElementById(prefix + '-online-badge');
+            if (badge) badge.textContent = `${c.online || 0}/${total} Online`;
+
+            const onlineEl  = document.getElementById(prefix + '-online-count');
+            const idleEl    = document.getElementById(prefix + '-idle-count');
+            const offlineEl = document.getElementById(prefix + '-offline-count');
+            if (onlineEl)  onlineEl.textContent  = c.online  || 0;
+            if (idleEl)    idleEl.textContent    = c.idle    || 0;
+            if (offlineEl) offlineEl.textContent = c.offline || 0;
+        }
+
+        // ---------- MAIN REFRESH ----------
         async function refreshDashboard() {
             const url = document.getElementById('main-content')?.dataset.refreshUrl;
             if (!url) return;
+
             try {
                 const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
                 if (!res.ok) return;
                 const data = await res.json();
 
-                renderTable('aq-table-body', data.airQualityData, 'No air quality data available');
-                renderTable('seismic-table-body', data.seismicData, 'No seismic data available');
-                updateTotalBadges('aq', data.airQualityData.length);
-                updateTotalBadges('seismic', data.seismicData.length);
+                // Safe defaults so missing keys never crash the whole refresh
+                const airQualityData  = Array.isArray(data.airQualityData)  ? data.airQualityData  : [];
+                const seismicData     = Array.isArray(data.seismicData)     ? data.seismicData     : [];
+                const airCounts       = data.airQualityCounts  || { online: 0, idle: 0, offline: 0 };
+                const seismicCounts   = data.seismicCounts     || { online: 0, idle: 0, offline: 0 };
+                const cameraCounts    = data.cameraCounts      || { online: 0, idle: 0, offline: 0 };
 
-                const airChartData2 = getChartData(data.airQualityData);
+                // Tables
+                renderTable('aq-table-body', airQualityData, 'No air quality data available');
+                renderTable('seismic-table-body', seismicData, 'No seismic data available');
+                updateTotalBadges('aq', airQualityData.length);
+                updateTotalBadges('seismic', seismicData.length);
+
+                // Bar charts
+                const airChartData2 = getChartData(airQualityData);
                 airChart.data.labels = airChartData2.labels;
                 airChart.data.datasets[0].data = airChartData2.totals;
                 airChart.data.datasets[0].backgroundColor = barColors.slice(0, airChartData2.labels.length || 1);
                 airChart.update();
 
-                const seismicChartData2 = getChartData(data.seismicData);
+                const seismicChartData2 = getChartData(seismicData);
                 seismicChart.data.labels = seismicChartData2.labels;
                 seismicChart.data.datasets[0].data = seismicChartData2.totals;
                 seismicChart.data.datasets[0].backgroundColor = barColors.slice(0, seismicChartData2.labels.length || 1);
                 seismicChart.update();
 
-                updateStatusChart(airStatusChart, data.airQualityCounts.online, data.airQualityCounts.idle, data.airQualityCounts.offline);
-                updateStatusChart(seismicStatusChart, data.seismicCounts.online, data.seismicCounts.idle, data.seismicCounts.offline);
-                updateStatusChart(cameraStatusChart, 
-                    data.cameraCounts.online, 
-                    data.cameraCounts.idle, 
-                    data.cameraCounts.offline
-                );
+                // Donut charts
+                updateStatusChart(airStatusChart, airCounts.online, airCounts.idle, airCounts.offline);
+                updateStatusChart(seismicStatusChart, seismicCounts.online, seismicCounts.idle, seismicCounts.offline);
+                updateStatusChart(cameraStatusChart, cameraCounts.online, cameraCounts.idle, cameraCounts.offline);
 
-                updateDonutCard('aq', data.airQualityCounts);
-                updateDonutCard('seismic', data.seismicCounts);
-                updateDonutCard('camera', data.cameraCounts); 
-                updateStatusBanner(data.airQualityCounts, data.seismicCounts);
+                // Status cards content
+                updateDonutCard('aq', airCounts);
+                updateDonutCard('seismic', seismicCounts);
+                updateDonutCard('camera', cameraCounts);
+
+                // Banner
+                updateStatusBanner(airCounts, seismicCounts);
+
+                // System tiles (safe even if endpoint doesn’t send them yet)
                 updateSystemHealth(data.systemHealth);
                 updateSystemSummary(data.systemSummary);
 
+                // Timestamp
                 const lastUpdated = document.getElementById('last-updated');
-                if (lastUpdated) lastUpdated.textContent = `Last updated: ${data.generatedAt}`;
+                if (lastUpdated && data.generatedAt) {
+                    lastUpdated.textContent = `Last updated: ${data.generatedAt}`;
+                }
             } catch (e) {
                 console.error('Dashboard refresh failed:', e);
             }
         }
 
+        // Collapsible cards
         initCollapsible('system-health-toggle', 'system-health-body', 'system-health-chevron', 'dashboard.system-health.collapsed');
         initCollapsible('system-summary-toggle', 'system-summary-body', 'system-summary-chevron', 'dashboard.system-summary.collapsed');
 
+        // Auto-refresh every 20 seconds
         setInterval(refreshDashboard, 20000);
     });
 </script>
