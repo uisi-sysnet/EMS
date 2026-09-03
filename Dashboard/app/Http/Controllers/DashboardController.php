@@ -16,8 +16,8 @@ class DashboardController extends Controller
     // Fixed canvas for the JPEG export (generateImageReport). Unlike the
     // PDF, this can't grow to fit content, so the station tables are
     // capped and a "+N more" note is shown when a list runs past that.
-    private const IMAGE_WIDTH          = 1240;
-    private const IMAGE_HEIGHT         = 1754;
+    private const IMAGE_WIDTH          = 1920;
+    private const IMAGE_HEIGHT         = 1080;
     private const IMAGE_MARGIN         = 48;
     private const IMAGE_MAX_TABLE_ROWS = 8;
     private const IMAGE_MAX_PORT_ROWS  = 5;
