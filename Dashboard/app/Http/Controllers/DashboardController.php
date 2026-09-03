@@ -1588,6 +1588,10 @@ class DashboardController extends Controller
      */
     private function imgTruncate(string $text, float $maxWidth, float $size, bool $bold = false): string
     {
+
+        mb_internal_encoding('UTF-8');
+        mb_http_output('UTF-8');
+
         if ($maxWidth <= 0 || $this->imgTextWidth($text, $size, $bold) <= $maxWidth) {
             return $text;
         }
