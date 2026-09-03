@@ -1106,7 +1106,8 @@ class DashboardController extends Controller
 
         // ---- Station tables (side-by-side on first page, continue on next pages if needed) ----
         // Air Quality table – full width
-        $y = $this->ensureSpace($pages, $page, $y, 80);
+        $y = $this->ensureSpace($pages, $page, $y, 180);   // need ~180px
+        $y += 20;
         $y = $this->drawImgStationTable(
             $page,
             'Air Quality Stations',
