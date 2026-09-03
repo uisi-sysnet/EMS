@@ -1033,42 +1033,7 @@ class DashboardController extends Controller
         $y = $this->drawImgHeader($page, $ctx['generatedAt'], $ctx['generatedBy'],
                                 self::IMAGE_MARGIN, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, $y);
 
-        $y += 20;
-        $y = $this->drawImgHardwareNetwork($page, $ctx, self::IMAGE_MARGIN,
-                                        self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, $y);
-
-        // ---- Stations Status Summary ----
-        $y = $this->ensureSpace($pages, $page, $y, 180);   // need ~180px
-        $y += 20;
-        $y = $this->drawImgSectionTitle($page, 'Stations Status Summary',
-                                        self::IMAGE_MARGIN, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, $y);
-
-        [$catW, $onlineW, $idleW, $offlineW, $totalW] = $this->imgColumnWidths(
-            self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, [0.32, 0.17, 0.17, 0.17, 0.17]
-        );
-
-        $y = $this->drawImgTable($page, self::IMAGE_MARGIN, $y, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
-            [
-                ['label' => 'Category', 'width' => $catW],
-                ['label' => 'Online',   'width' => $onlineW, 'align' => 'center'],
-                ['label' => 'Idle',     'width' => $idleW,   'align' => 'center'],
-                ['label' => 'Offline',  'width' => $offlineW,'align' => 'center'],
-                ['label' => 'Total',    'width' => $totalW,  'align' => 'center'],
-            ],
-            [
-                ['Air Quality', $ctx['airQualityCounts']['online'], $ctx['airQualityCounts']['idle'], $ctx['airQualityCounts']['offline'], $ctx['airQualityData']->count()],
-                ['Seismic',     $ctx['seismicCounts']['online'],    $ctx['seismicCounts']['idle'],    $ctx['seismicCounts']['offline'],    $ctx['seismicData']->count()],
-                [
-                    'Total',
-                    $ctx['airQualityCounts']['online'] + $ctx['seismicCounts']['online'],
-                    $ctx['airQualityCounts']['idle']   + $ctx['seismicCounts']['idle'],
-                    $ctx['airQualityCounts']['offline']+ $ctx['seismicCounts']['offline'],
-                    $ctx['airQualityData']->count() + $ctx['seismicData']->count(),
-                ],
-            ]
-        );
-
-        // ---- System Status ----
+                // ---- System Status ----
         $y = $this->ensureSpace($pages, $page, $y, 220);
         $y += 20;
         $y = $this->drawImgSectionTitle($page, 'System Status',
@@ -1101,6 +1066,41 @@ class DashboardController extends Controller
                 ['badge' => true, 'label' => $this->boolStatusLabel($ctx['databaseOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['databaseOnline'] ?? null)]],
                 ['EMS Gateway', 'ems.target', $ctx['emsStatusText'] ?? '—',
                 ['badge' => true, 'label' => $this->boolStatusLabel($ctx['emsOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['emsOnline'] ?? null)]],
+            ]
+        );
+
+        $y += 20;
+        $y = $this->drawImgHardwareNetwork($page, $ctx, self::IMAGE_MARGIN,
+                                        self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, $y);
+
+        // ---- Stations Status Summary ----
+        $y = $this->ensureSpace($pages, $page, $y, 180);   // need ~180px
+        $y += 20;
+        $y = $this->drawImgSectionTitle($page, 'Stations Status Summary',
+                                        self::IMAGE_MARGIN, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, $y);
+
+        [$catW, $onlineW, $idleW, $offlineW, $totalW] = $this->imgColumnWidths(
+            self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, [0.32, 0.17, 0.17, 0.17, 0.17]
+        );
+
+        $y = $this->drawImgTable($page, self::IMAGE_MARGIN, $y, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
+            [
+                ['label' => 'Category', 'width' => $catW],
+                ['label' => 'Online',   'width' => $onlineW, 'align' => 'center'],
+                ['label' => 'Idle',     'width' => $idleW,   'align' => 'center'],
+                ['label' => 'Offline',  'width' => $offlineW,'align' => 'center'],
+                ['label' => 'Total',    'width' => $totalW,  'align' => 'center'],
+            ],
+            [
+                ['Air Quality', $ctx['airQualityCounts']['online'], $ctx['airQualityCounts']['idle'], $ctx['airQualityCounts']['offline'], $ctx['airQualityData']->count()],
+                ['Seismic',     $ctx['seismicCounts']['online'],    $ctx['seismicCounts']['idle'],    $ctx['seismicCounts']['offline'],    $ctx['seismicData']->count()],
+                [
+                    'Total',
+                    $ctx['airQualityCounts']['online'] + $ctx['seismicCounts']['online'],
+                    $ctx['airQualityCounts']['idle']   + $ctx['seismicCounts']['idle'],
+                    $ctx['airQualityCounts']['offline']+ $ctx['seismicCounts']['offline'],
+                    $ctx['airQualityData']->count() + $ctx['seismicData']->count(),
+                ],
             ]
         );
 
