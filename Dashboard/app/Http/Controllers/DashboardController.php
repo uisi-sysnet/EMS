@@ -1121,7 +1121,8 @@ class DashboardController extends Controller
         );
 
         // Seismic table – full width
-        $y = $this->ensureSpace($pages, $page, $y, 80);
+        $y = $this->ensureSpace($pages, $page, $y, 180);   // need ~180px
+        $y += 20;
         $y = $this->drawImgStationTable(
             $page,
             'Seismic Stations',
