@@ -832,6 +832,11 @@
         const chartDefaults = {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    bottom: 4   // small breathing room for rotated labels
+                }
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -843,8 +848,25 @@
                 }
             },
             scales: {
-                y: { beginAtZero: true, grid: { color: '#2B3442' }, ticks: { color: '#9CA3AF' } },
-                x: { grid: { display: false }, ticks: { color: '#9CA3AF' } }
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#2B3442' },
+                    ticks: { color: '#9CA3AF' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        color: '#9CA3AF',
+                        maxRotation: 45,      // rotate when needed
+                        minRotation: 0,
+                        autoSkip: true,
+                        autoSkipPadding: 8,
+                        maxTicksLimit: 25,    // don’t show every label if there are 30+
+                        font: {
+                            size: 10
+                        }
+                    }
+                }
             }
         };
 
