@@ -1343,7 +1343,7 @@ class DashboardController extends Controller
     private function drawImgStationTable(&$image, string $title, $data, array $counts, int $x, int $y, int $width, array &$pages, &$page): int
     {
         $heading = $title . ' (' . $counts['online'] . ' online / ' . $data->count() . ' total)';
-        $rowHeight = 24;
+        $rowHeight = 32;
         $headerHeight = 26; // from drawImgTable header row
         $totalRows = $data->count();
 
