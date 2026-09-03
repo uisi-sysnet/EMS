@@ -1341,8 +1341,30 @@ class DashboardController extends Controller
             ];
         }
 
-        if ($rows === []) {
-            $rows[] = ['—', 'No stations available', '', '', ['badge' => true, 'label' => 'N/A', 'status' => 'unknown']];
+        // --- ADD FOOTER ROW (All Stations) ---
+        // Compute aggregate values from the FULL collection (not just $shown)
+        $totalStations = $data->count();
+        $totalReadings = $data->sum('total');
+        $latestAll = $data->pluck('latest_at')->filter()->max(); // most recent timestamp
+
+        // Build a status summary string (e.g., "12 online, 3 idle, 1 offline")
+        $statusSummary = $counts['online'] . ' online, ' . $counts['idle'] . ' idle, ' . $counts['offline'] . ' offline';
+
+        // Append the footer row (you can choose to put it only if there is at least one station)
+        $rows[] = [
+            '',                                 // No. column – leave blank or use 'Σ'
+            'All Stations',                     // Station name
+            number_format($totalReadings),      // Sum of totals
+            $latestAll ? \Carbon\Carbon::parse($latestAll)->format('Y-m-d H:i') : '—', // latest timestamp
+            ['badge' => true, 'label' => $statusSummary, 'status' => 'good'], // use 'good' as neutral green
+        ];
+        // --- END OF ADDITION ---
+
+        // If there are no stations, keep the existing placeholder row
+        if ($data->isEmpty()) {
+            $rows = [
+                ['—', 'No stations available', '', '', ['badge' => true, 'label' => 'N/A', 'status' => 'unknown']]
+            ];
         }
 
         $y = $this->drawImgTable($image, $x, $y, $width, $columns, $rows, 24);
