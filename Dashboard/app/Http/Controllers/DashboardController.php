@@ -1344,7 +1344,7 @@ class DashboardController extends Controller
     {
         $heading = $title . ' (' . $counts['online'] . ' online / ' . $data->count() . ' total)';
         $rowHeight = 32;
-        $headerHeight = 26; // from drawImgTable header row
+        $headerHeight = 32; // from drawImgTable header row
         $totalRows = $data->count();
 
         if ($totalRows === 0) {
