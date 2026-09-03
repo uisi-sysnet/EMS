@@ -797,7 +797,6 @@
             offline: { label: 'Offline', text: 'text-red-400',         bg: 'bg-red-700/20',         border: 'border-red-600/30',         dot: 'bg-red-400' },
         };
 
-        // ----- helper functions (unchanged) -----
         function getChartData(collection) {
             let labels = collection.map(item => item.station);
             let totals = collection.map(item => parseInt(String(item.total).replace(/,/g, '')) || 0);
@@ -837,6 +836,7 @@
             return `${datePart} ${String(hour).padStart(2, '0')}:${mm} ${ampm}`;
         }
 
+        // Color palette (dynamically sized)
         const barColors = ['#14B8A6', '#0F766E', '#5EEAD4', '#0B4F3A', '#2DD4BF', '#115E59'];
 
         const chartDefaults = {
@@ -863,7 +863,6 @@
         const airChartData = getChartData(airData);
         const seismicChartData = getChartData(seismicDataInit);
 
-        // ----- initialize charts -----
         const airChart = new Chart(document.getElementById('airQualityChart').getContext('2d'), {
             type: 'bar',
             data: {
@@ -902,11 +901,25 @@
             });
         }
 
+        function updateStatusChart(chart, online, idle, offline) {
+            if (!chart) return;
+            const total = online + idle + offline;
+            chart.data.labels = total > 0 ? ['Online', 'Idle', 'Offline'] : ['No Stations'];
+            chart.data.datasets[0].data = total > 0 ? [online, idle, offline] : [1];
+            chart.data.datasets[0].backgroundColor = total > 0 ? ['#2DD4BF', '#FBBF24', '#F87171'] : ['#FBBF24'];
+            chart.update();
+        }
+
         let airStatusChart = makeStatusChart('airQualityStatusChart', {{ $airQualityCounts['online'] }}, {{ $airQualityCounts['idle'] }}, {{ $airQualityCounts['offline'] }});
         let seismicStatusChart = makeStatusChart('seismicStatusChart', {{ $seismicCounts['online'] }}, {{ $seismicCounts['idle'] }}, {{ $seismicCounts['offline'] }});
-        let cameraStatusChart = makeStatusChart('cameraStatusChart', {{ $cameraOnline }}, {{ $cameraIdle }}, {{ $cameraOffline }});
 
-        // ----- UI update functions (with safety) -----
+        // After the airStatusChart and seismicStatusChart initialization:
+        let cameraStatusChart = makeStatusChart('cameraStatusChart', 
+            {{ $cameraOnline }}, 
+            {{ $cameraIdle }}, 
+            {{ $cameraOffline }}
+        );
+
         function rowHtml(item, no) {
             const meta = statusBadgeMeta[item.status] || statusBadgeMeta.offline;
             return `<tr class="hover:bg-surface-700 transition h-10">
@@ -927,7 +940,7 @@
         function renderTable(tbodyId, collection, emptyLabel) {
             const tbody = document.getElementById(tbodyId);
             if (!tbody) return;
-            if (!collection || !collection.length) {
+            if (!collection.length) {
                 tbody.innerHTML = `<tr><td colspan="7" class="px-2 py-4 text-center text-text-400">${emptyLabel}</td></tr>`;
                 return;
             }
@@ -944,44 +957,111 @@
             barEl.className = 'h-full rounded-full ' + tileData.colors.bar;
         }
 
-        function updateStatusChart(chart, online, idle, offline) {
-            if (!chart) return;
-            const total = online + idle + offline;
-            chart.data.labels = total > 0 ? ['Online', 'Idle', 'Offline'] : ['No Stations'];
-            chart.data.datasets[0].data = total > 0 ? [online, idle, offline] : [1];
-            chart.data.datasets[0].backgroundColor = total > 0 ? ['#2DD4BF', '#FBBF24', '#F87171'] : ['#FBBF24'];
-            chart.update();
+        /**
+         * Wires up a card's header toggle button to show/hide its body
+         * and persist the collapsed state in localStorage (per card, via
+         * storageKey) so it survives a page reload. Deliberately an
+         * instant show/hide (Tailwind's `hidden` class) rather than an
+         * animated height transition — the body's contents get replaced
+         * wholesale by refreshDashboard() every 20s, and measuring
+         * scrollHeight against that moving target is more trouble than
+         * it's worth for a collapse toggle.
+         */
+        function initCollapsible(toggleId, bodyId, chevronId, storageKey) {
+            const toggle = document.getElementById(toggleId);
+            const body = document.getElementById(bodyId);
+            const chevron = document.getElementById(chevronId);
+            if (!toggle || !body) return;
+
+            function setCollapsed(collapsed) {
+                body.classList.toggle('hidden', collapsed);
+                toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                if (chevron) chevron.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+                try { localStorage.setItem(storageKey, collapsed ? '1' : '0'); } catch (e) { /* private mode etc. */ }
+            }
+
+            let startCollapsed = false;
+            try { startCollapsed = localStorage.getItem(storageKey) === '1'; } catch (e) { /* private mode etc. */ }
+            setCollapsed(startCollapsed);
+
+            toggle.addEventListener('click', () => setCollapsed(!body.classList.contains('hidden')));
         }
 
-        function updateDonutCard(prefix, counts) {
-            if (!counts) return;
-            const total = (counts.online || 0) + (counts.idle || 0) + (counts.offline || 0);
-            const center = document.getElementById(prefix + '-donut-center');
-            if (center) {
-                let label = 'No Stations';
-                if (prefix === 'camera') label = 'No Cameras';
-                center.innerHTML = total > 0
-                    ? `<span class="text-sm sm:text-base font-bold text-text-100">${Math.round((counts.online / total) * 100)}%</span><span class="text-[9px] text-text-400 uppercase">Online</span>`
-                    : `<span class="text-sm sm:text-base font-bold text-amber-400">—</span><span class="text-[9px] text-amber-400 uppercase">${label}</span>`;
+        function updateSystemHealth(health) {
+            if (!health) return;
+            setBarTile('cpu', health.cpu);
+            const cpuMeta = document.getElementById('cpu-meta');
+            if (cpuMeta) cpuMeta.textContent = `${health.cpu.cores} core${health.cpu.cores > 1 ? 's' : ''} · load ${health.cpu.load}`;
+
+            setBarTile('mem', health.memory);
+            const memMeta = document.getElementById('mem-meta');
+            if (memMeta) memMeta.textContent = `${health.memory.used} / ${health.memory.total}`;
+
+            setBarTile('disk', health.disk);
+            const diskMeta = document.getElementById('disk-meta');
+            if (diskMeta) diskMeta.textContent = `${health.disk.used} / ${health.disk.total}`;
+
+            const uptimeEl = document.getElementById('uptime-text');
+            if (uptimeEl) uptimeEl.textContent = `${health.uptime.days}d ${health.uptime.hours}h ${health.uptime.minutes}m`;
+        }
+
+        function networkPortIconSvg(active) {
+            return active
+                ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>'
+                : '<svg class="w-4 h-4 text-text-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>';
+        }
+
+        function updateSystemSummary(summary) {
+            if (!summary) return;
+
+            const deviceEl = document.getElementById('summary-device');
+            if (deviceEl) deviceEl.textContent = summary.device_model;
+
+            const cpuEl = document.getElementById('summary-cpu');
+            if (cpuEl) cpuEl.textContent = summary.cpu_model;
+
+            const osEl = document.getElementById('summary-os');
+            if (osEl) osEl.textContent = summary.os_version;
+
+            const memEl = document.getElementById('summary-memory');
+            if (memEl) {
+                memEl.textContent = summary.memory.available
+                    ? `${summary.memory.slots_used}/${summary.memory.slots_total} DIMMs · ${summary.memory.total_label}`
+                    : `${summary.memory.total_label} (DIMM count needs sudo)`;
             }
-            const badge = document.getElementById(prefix + '-online-badge');
-            if (badge) badge.textContent = `${counts.online || 0}/${total} online`;
-            const onlineEl = document.getElementById(prefix + '-online-count');
-            const idleEl = document.getElementById(prefix + '-idle-count');
-            const offlineEl = document.getElementById(prefix + '-offline-count');
-            if (onlineEl) onlineEl.textContent = counts.online || 0;
-            if (idleEl) idleEl.textContent = counts.idle || 0;
-            if (offlineEl) offlineEl.textContent = counts.offline || 0;
+
+            const storageEl = document.getElementById('summary-storage');
+            if (storageEl) storageEl.textContent = summary.storage;
+
+            const usedEl = document.getElementById('summary-network-used');
+            if (usedEl) {
+                usedEl.innerHTML = `Used <span class="text-amber-400">${summary.network.used}</span>/${summary.network.total}`;
+            }
+
+            const portsEl = document.getElementById('summary-network-ports');
+            if (portsEl) {
+                portsEl.innerHTML = summary.network.ports.length
+                    ? summary.network.ports.map(p => `
+                        <div class="flex flex-col items-center gap-1 shrink-0">
+                            <span class="text-[10px] uppercase tracking-wider text-text-400 shrink-0" title="${esc(p.name)}">${esc(p.name)}</span>
+                            <div class="w-9 h-9 rounded-lg flex items-center justify-center ${p.colors.bg}">
+                                ${networkPortIconSvg(p.active)}
+                            </div>
+                            <span class="text-[9px] text-text-500 w-[90px] text-center leading-none" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
+                        </div>
+                    `).join('')
+                    : '<span class="text-xs text-text-500">No network interfaces detected</span>';
+            }
         }
 
         function updateStatusBanner(airCounts, seismicCounts) {
-            const online = (airCounts?.online || 0) + (seismicCounts?.online || 0);
-            const total = (airCounts?.online || 0) + (airCounts?.idle || 0) + (airCounts?.offline || 0)
-                       + (seismicCounts?.online || 0) + (seismicCounts?.idle || 0) + (seismicCounts?.offline || 0);
-            const percent = total > 0 ? Math.round((online / total) * 1000) / 10 : 100;
+            const totalOnline = airCounts.online + seismicCounts.online;
+            const totalStations = airCounts.online + airCounts.idle + airCounts.offline
+                + seismicCounts.online + seismicCounts.idle + seismicCounts.offline;
+            const percent = totalStations > 0 ? Math.round((totalOnline / totalStations) * 1000) / 10 : 100;
 
             let status = 'idle';
-            if (total === 0) status = 'idle';
+            if (totalStations === 0) status = 'idle';
             else if (percent >= 100) status = 'good';
             else if (percent >= 80) status = 'warning';
             else status = 'critical';
@@ -1003,192 +1083,85 @@
             if (ping) { ping.className = `animate-ping absolute inline-flex h-full w-full rounded-full ${meta.dot} opacity-60`; ping.style.display = status === 'good' ? 'none' : ''; }
             if (dot) dot.className = `relative inline-flex rounded-full h-2.5 w-2.5 ${meta.dot}`;
             if (label) { label.textContent = meta.label; label.className = `text-sm font-semibold ${meta.text}`; }
-            if (count) count.textContent = total === 0 ? 'No stations added yet' : `${online}/${total} stations online (${percent}%)`;
-        }
-
-        function updateSystemHealth(health) {
-            if (!health) return;
-            try {
-                setBarTile('cpu', {
-                    percent: health.cpu?.percent ?? 0,
-                    colors: health.cpu?.colors ?? { text: 'text-text-400', bar: 'bg-text-400' }
-                });
-                const cpuMeta = document.getElementById('cpu-meta');
-                if (cpuMeta) cpuMeta.textContent = `${health.cpu?.cores || 1} core${health.cpu?.cores > 1 ? 's' : ''} · load ${health.cpu?.load || '0.00'}`;
-
-                setBarTile('mem', {
-                    percent: health.memory?.percent ?? 0,
-                    colors: health.memory?.colors ?? { text: 'text-text-400', bar: 'bg-text-400' }
-                });
-                const memMeta = document.getElementById('mem-meta');
-                if (memMeta) memMeta.textContent = `${health.memory?.used || '0 GB'} / ${health.memory?.total || '0 GB'}`;
-
-                setBarTile('disk', {
-                    percent: health.disk?.percent ?? 0,
-                    colors: health.disk?.colors ?? { text: 'text-text-400', bar: 'bg-text-400' }
-                });
-                const diskMeta = document.getElementById('disk-meta');
-                if (diskMeta) diskMeta.textContent = `${health.disk?.used || '0 GB'} / ${health.disk?.total || '0 GB'}`;
-
-                const uptimeEl = document.getElementById('uptime-text');
-                if (uptimeEl) uptimeEl.textContent = `${health.uptime?.days || 0}d ${health.uptime?.hours || 0}h ${health.uptime?.minutes || 0}m`;
-            } catch (e) {
-                console.warn('updateSystemHealth failed:', e);
-            }
-        }
-
-        function updateSystemSummary(summary) {
-            if (!summary) return;
-            try {
-                const deviceEl = document.getElementById('summary-device');
-                if (deviceEl) deviceEl.textContent = summary.device_model || '—';
-
-                const cpuEl = document.getElementById('summary-cpu');
-                if (cpuEl) cpuEl.textContent = summary.cpu_model || '—';
-
-                const osEl = document.getElementById('summary-os');
-                if (osEl) osEl.textContent = summary.os_version || '—';
-
-                const memEl = document.getElementById('summary-memory');
-                if (memEl) {
-                    memEl.textContent = summary.memory?.available
-                        ? `${summary.memory.slots_used}/${summary.memory.slots_total} DIMMs · ${summary.memory.total_label}`
-                        : `${summary.memory?.total_label || '—'} (DIMM count needs sudo)`;
-                }
-
-                const storageEl = document.getElementById('summary-storage');
-                if (storageEl) storageEl.textContent = summary.storage || '—';
-
-                const portsEl = document.getElementById('summary-network-ports');
-                if (portsEl && summary.network?.ports) {
-                    portsEl.innerHTML = summary.network.ports.length
-                        ? summary.network.ports.map(p => `
-                            <div class="flex flex-col items-center gap-1 shrink-0">
-                                <span class="text-[10px] uppercase tracking-wider text-text-400 shrink-0" title="${esc(p.name)}">${esc(p.name)}</span>
-                                <div class="w-9 h-9 rounded-lg flex items-center justify-center ${p.colors?.bg || 'bg-surface-700'}">
-                                    ${p.active
-                                        ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>'
-                                        : '<svg class="w-4 h-4 text-text-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>'
-                                    }
-                                </div>
-                                <span class="text-[9px] text-text-500 w-[90px] text-center leading-none" title="${esc(p.ip_cidr || 'No IP assigned')}">${esc(p.ip_cidr || '—')}</span>
-                            </div>
-                        `).join('')
-                        : '<span class="text-xs text-text-500">No network interfaces detected</span>';
-                }
-            } catch (e) {
-                console.warn('updateSystemSummary failed:', e);
-            }
+            if (count) count.textContent = totalStations === 0 ? 'No stations added yet' : `${totalOnline}/${totalStations} stations online (${percent}%)`;
         }
 
         function updateTotalBadges(prefix, count) {
             const chartBadge = document.getElementById(prefix + '-chart-total-badge');
             const tableBadge = document.getElementById(prefix + '-table-total-badge');
-            if (chartBadge) chartBadge.textContent = `${count || 0} total`;
-            if (tableBadge) tableBadge.textContent = `${count || 0} total`;
+            if (chartBadge) chartBadge.textContent = `${count} total`;
+            if (tableBadge) tableBadge.textContent = `${count} total`;
         }
-
-        // ----- collapsible init (unchanged) -----
-        function initCollapsible(toggleId, bodyId, chevronId, storageKey) {
-            const toggle = document.getElementById(toggleId);
-            const body = document.getElementById(bodyId);
-            const chevron = document.getElementById(chevronId);
-            if (!toggle || !body) return;
-
-            function setCollapsed(collapsed) {
-                body.classList.toggle('hidden', collapsed);
-                toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-                if (chevron) chevron.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
-                try { localStorage.setItem(storageKey, collapsed ? '1' : '0'); } catch (e) { /* ignore */ }
+        
+        function updateDonutCard(prefix, counts) {
+            const total = counts.online + counts.idle + counts.offline;
+            const center = document.getElementById(prefix + '-donut-center');
+            if (center) {
+                let label = 'No Stations';
+                if (prefix === 'camera') {
+                    label = 'No Cameras';
+                }
+                center.innerHTML = total > 0
+                    ? `<span class="text-sm sm:text-base font-bold text-text-100">${Math.round((counts.online / total) * 100)}%</span><span class="text-[9px] text-text-400 uppercase">Online</span>`
+                    : `<span class="text-sm sm:text-base font-bold text-amber-400">—</span><span class="text-[9px] text-amber-400 uppercase">${label}</span>`;
             }
-
-            let startCollapsed = false;
-            try { startCollapsed = localStorage.getItem(storageKey) === '1'; } catch (e) { /* ignore */ }
-            setCollapsed(startCollapsed);
-
-            toggle.addEventListener('click', () => setCollapsed(!body.classList.contains('hidden')));
+            const badge = document.getElementById(prefix + '-online-badge');
+            if (badge) badge.textContent = `${counts.online}/${total} online`;
+            const onlineEl = document.getElementById(prefix + '-online-count');
+            const idleEl = document.getElementById(prefix + '-idle-count');
+            const offlineEl = document.getElementById(prefix + '-offline-count');
+            if (onlineEl) onlineEl.textContent = counts.online;
+            if (idleEl) idleEl.textContent = counts.idle;
+            if (offlineEl) offlineEl.textContent = counts.offline;
         }
 
-        // ----- main refresh function (with safety) -----
         async function refreshDashboard() {
             const url = document.getElementById('main-content')?.dataset.refreshUrl;
             if (!url) return;
-
             try {
                 const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                if (!res.ok) return;
                 const data = await res.json();
 
-                // 1. Tables
-                try {
-                    renderTable('aq-table-body', data.airQualityData, 'No air quality data available');
-                    renderTable('seismic-table-body', data.seismicData, 'No seismic data available');
-                } catch (e) { console.warn('Table update failed:', e); }
+                renderTable('aq-table-body', data.airQualityData, 'No air quality data available');
+                renderTable('seismic-table-body', data.seismicData, 'No seismic data available');
+                updateTotalBadges('aq', data.airQualityData.length);
+                updateTotalBadges('seismic', data.seismicData.length);
 
-                // 2. Total badges
-                try {
-                    updateTotalBadges('aq', data.airQualityData?.length);
-                    updateTotalBadges('seismic', data.seismicData?.length);
-                } catch (e) { console.warn('Badge update failed:', e); }
+                const airChartData2 = getChartData(data.airQualityData);
+                airChart.data.labels = airChartData2.labels;
+                airChart.data.datasets[0].data = airChartData2.totals;
+                airChart.data.datasets[0].backgroundColor = barColors.slice(0, airChartData2.labels.length || 1);
+                airChart.update();
 
-                // 3. Bar charts
-                try {
-                    const aq = getChartData(data.airQualityData || []);
-                    airChart.data.labels = aq.labels;
-                    airChart.data.datasets[0].data = aq.totals;
-                    airChart.data.datasets[0].backgroundColor = barColors.slice(0, aq.labels.length || 1);
-                    airChart.update();
-                } catch (e) { console.warn('Air chart update failed:', e); }
+                const seismicChartData2 = getChartData(data.seismicData);
+                seismicChart.data.labels = seismicChartData2.labels;
+                seismicChart.data.datasets[0].data = seismicChartData2.totals;
+                seismicChart.data.datasets[0].backgroundColor = barColors.slice(0, seismicChartData2.labels.length || 1);
+                seismicChart.update();
 
-                try {
-                    const seis = getChartData(data.seismicData || []);
-                    seismicChart.data.labels = seis.labels;
-                    seismicChart.data.datasets[0].data = seis.totals;
-                    seismicChart.data.datasets[0].backgroundColor = barColors.slice(0, seis.labels.length || 1);
-                    seismicChart.update();
-                } catch (e) { console.warn('Seismic chart update failed:', e); }
+                updateStatusChart(airStatusChart, data.airQualityCounts.online, data.airQualityCounts.idle, data.airQualityCounts.offline);
+                updateStatusChart(seismicStatusChart, data.seismicCounts.online, data.seismicCounts.idle, data.seismicCounts.offline);
+                updateStatusChart(cameraStatusChart, 
+                    data.cameraCounts.online, 
+                    data.cameraCounts.idle, 
+                    data.cameraCounts.offline
+                );
 
-                // 4. Donut charts
-                try {
-                    updateStatusChart(airStatusChart, data.airQualityCounts?.online ?? 0, data.airQualityCounts?.idle ?? 0, data.airQualityCounts?.offline ?? 0);
-                    updateStatusChart(seismicStatusChart, data.seismicCounts?.online ?? 0, data.seismicCounts?.idle ?? 0, data.seismicCounts?.offline ?? 0);
-                    updateStatusChart(cameraStatusChart, data.cameraCounts?.online ?? 0, data.cameraCounts?.idle ?? 0, data.cameraCounts?.offline ?? 0);
-                } catch (e) { console.warn('Donut chart update failed:', e); }
+                updateDonutCard('aq', data.airQualityCounts);
+                updateDonutCard('seismic', data.seismicCounts);
+                updateDonutCard('camera', data.cameraCounts); 
+                updateStatusBanner(data.airQualityCounts, data.seismicCounts);
+                updateSystemHealth(data.systemHealth);
+                updateSystemSummary(data.systemSummary);
 
-                // 5. Donut card center texts and counts
-                try {
-                    updateDonutCard('aq', data.airQualityCounts);
-                    updateDonutCard('seismic', data.seismicCounts);
-                    updateDonutCard('camera', data.cameraCounts);
-                } catch (e) { console.warn('Donut card update failed:', e); }
-
-                // 6. Status banner
-                try {
-                    updateStatusBanner(data.airQualityCounts, data.seismicCounts);
-                } catch (e) { console.warn('Status banner update failed:', e); }
-
-                // 7. System health
-                try {
-                    updateSystemHealth(data.systemHealth);
-                } catch (e) { console.warn('System health update failed:', e); }
-
-                // 8. System summary
-                try {
-                    updateSystemSummary(data.systemSummary);
-                } catch (e) { console.warn('System summary update failed:', e); }
-
-                // 9. Last updated
                 const lastUpdated = document.getElementById('last-updated');
-                if (lastUpdated && data.generatedAt) {
-                    lastUpdated.textContent = `Last updated: ${data.generatedAt}`;
-                }
-
+                if (lastUpdated) lastUpdated.textContent = `Last updated: ${data.generatedAt}`;
             } catch (e) {
                 console.error('Dashboard refresh failed:', e);
             }
         }
 
-        // ----- init collapsibles and start refresh -----
         initCollapsible('system-health-toggle', 'system-health-body', 'system-health-chevron', 'dashboard.system-health.collapsed');
         initCollapsible('system-summary-toggle', 'system-summary-body', 'system-summary-chevron', 'dashboard.system-summary.collapsed');
 
