@@ -1105,18 +1105,33 @@ class DashboardController extends Controller
         );
 
         // ---- Station tables (side-by-side on first page, continue on next pages if needed) ----
-        $y = $this->ensureSpace($pages, $page, $y, 400);
-        $y += 24;
+        // Air Quality table – full width
+        $y = $this->ensureSpace($pages, $page, $y, 80);
+        $y = $this->drawImgStationTable(
+            $page,
+            'Air Quality Stations',
+            $ctx['airQualityData'],
+            $ctx['airQualityCounts'],
+            self::IMAGE_MARGIN,
+            $y,
+            self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
+            $pages,
+            $page
+        );
 
-        $gutter    = 32;
-        $halfWidth = (int) ((self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN - $gutter) / 2);
-        $rightX    = self::IMAGE_MARGIN + $halfWidth + $gutter;
-
-        // We still use the capped version for cleanliness, but you can remove the take() later
-        $this->drawImgStationTable($page, 'Air Quality Stations', $ctx['airQualityData'], $ctx['airQualityCounts'],
-                                self::IMAGE_MARGIN, $y, $halfWidth);
-        $this->drawImgStationTable($page, 'Seismic Stations', $ctx['seismicData'], $ctx['seismicCounts'],
-                                $rightX, $y, $halfWidth);
+        // Seismic table – full width
+        $y = $this->ensureSpace($pages, $page, $y, 80);
+        $y = $this->drawImgStationTable(
+            $page,
+            'Seismic Stations',
+            $ctx['seismicData'],
+            $ctx['seismicCounts'],
+            self::IMAGE_MARGIN,
+            $y,
+            self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
+            $pages,
+            $page
+        );
 
         // Footer on every page
         $this->drawImgFooter($page, self::IMAGE_MARGIN, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
