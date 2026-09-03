@@ -861,7 +861,7 @@
                         minRotation: 0,
                         autoSkip: true,
                         autoSkipPadding: 8,
-                        maxTicksLimit: 25,    // don’t show every label if there are 30+
+                        maxTicksLimit: 10,    // don’t show every label if there are 30+
                         font: {
                             size: 10
                         }
