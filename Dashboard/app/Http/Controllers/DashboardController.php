@@ -1073,6 +1073,8 @@ class DashboardController extends Controller
         $y = $this->drawImgHardwareNetwork($page, $ctx, self::IMAGE_MARGIN,
                                         self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, $y);
 
+        $y = $this->ensureSpace($pages, $page, $y, self::IMAGE_HEIGHT);
+
         // ---- Stations Status Summary ----
         $y = $this->ensureSpace($pages, $page, $y, 180);   // need ~180px
         $y += 20;
