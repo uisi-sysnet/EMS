@@ -182,15 +182,42 @@ class DashboardController extends Controller
      */
     public function generateImageReport(Request $request)
     {
-        $ctx   = $this->buildReportContext();
-        $image = $this->renderSystemStatusImage($ctx);
+        $ctx    = $this->buildReportContext();
+        $pages  = $this->renderSystemStatusPages($ctx);   // returns array of GD resources
 
-        $filename = 'system-status-report-' . $ctx['generatedAt']->format('Y-m-d_His') . '.jpg';
+        $timestamp = $ctx['generatedAt']->format('Y-m-d_His');
 
-        return response()->streamDownload(function () use ($image) {
-            imagejpeg($image, null, 90);
-            imagedestroy($image);
-        }, $filename, ['Content-Type' => 'image/jpeg']);
+        // Single page → just download the JPEG
+        if (count($pages) === 1) {
+            $filename = "system-status-report-{$timestamp}.jpg";
+
+            return response()->streamDownload(function () use ($pages) {
+                imagejpeg($pages[0], null, 90);
+                imagedestroy($pages[0]);
+            }, $filename, ['Content-Type' => 'image/jpeg']);
+        }
+
+        // Multiple pages → ZIP
+        $zipFilename = "system-status-report-{$timestamp}.zip";
+        $tmpZip = tempnam(sys_get_temp_dir(), 'report_');
+
+        $zip = new \ZipArchive();
+        $zip->open($tmpZip, \ZipArchive::OVERWRITE);
+
+        foreach ($pages as $i => $img) {
+            $pageNum = $i + 1;
+            ob_start();
+            imagejpeg($img, null, 90);
+            $jpegData = ob_get_clean();
+            imagedestroy($img);
+
+            $zip->addFromString("page-{$pageNum}.jpg", $jpegData);
+        }
+        $zip->close();
+
+        return response()->download($tmpZip, $zipFilename, [
+            'Content-Type' => 'application/zip',
+        ])->deleteFileAfterSend(true);
     }
 
     /**
@@ -993,63 +1020,70 @@ class DashboardController extends Controller
     // ------------------------------------------------------------------
 
     /**
-     * Builds the full 1920x1080 GD image resource for generateImageReport().
-     * Caller is responsible for imagejpeg()/imagedestroy()-ing the result.
+     * Renders the system-status report as one or more portrait pages.
+     * Returns an array of GD image resources (caller must imagedestroy them).
      */
-    private function renderSystemStatusImage(array $ctx)
+    private function renderSystemStatusPages(array $ctx): array
     {
-        $canvasWidth  = self::IMAGE_WIDTH;
-        $canvasHeight = self::IMAGE_HEIGHT;
-        $margin       = self::IMAGE_MARGIN;
-        $contentX     = $margin;
-        $contentWidth = $canvasWidth - ($margin * 2);
+        $pages = [];
+        $page  = $this->createBlankPage();
+        $y     = self::IMAGE_MARGIN;
 
-        $image = imagecreatetruecolor($canvasWidth, $canvasHeight);
-        $white = imagecolorallocate($image, 255, 255, 255);
-        imagefilledrectangle($image, 0, 0, $canvasWidth, $canvasHeight, $white);
-
-        $y = $margin;
-        $y = $this->drawImgHeader($image, $ctx['generatedAt'], $ctx['generatedBy'], $contentX, $contentWidth, $y);
+        // ---- Header (only on first page) ----
+        $y = $this->drawImgHeader($page, $ctx['generatedAt'], $ctx['generatedBy'],
+                                self::IMAGE_MARGIN, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, $y);
 
         $y += 20;
-        $y = $this->drawImgHardwareNetwork($image, $ctx, $contentX, $contentWidth, $y);
+        $y = $this->drawImgHardwareNetwork($page, $ctx, self::IMAGE_MARGIN,
+                                        self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, $y);
 
+        // ---- Stations Status Summary ----
+        $y = $this->ensureSpace($pages, $page, $y, 180);   // need ~180px
         $y += 20;
-        $y = $this->drawImgSectionTitle($image, 'Stations Status Summary', $contentX, $contentWidth, $y);
-        [$catW, $onlineW, $idleW, $offlineW, $totalW] = $this->imgColumnWidths($contentWidth, [0.32, 0.17, 0.17, 0.17, 0.17]);
-        $y = $this->drawImgTable(
-            $image, $contentX, $y, $contentWidth,
+        $y = $this->drawImgSectionTitle($page, 'Stations Status Summary',
+                                        self::IMAGE_MARGIN, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, $y);
+
+        [$catW, $onlineW, $idleW, $offlineW, $totalW] = $this->imgColumnWidths(
+            self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, [0.32, 0.17, 0.17, 0.17, 0.17]
+        );
+
+        $y = $this->drawImgTable($page, self::IMAGE_MARGIN, $y, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
             [
                 ['label' => 'Category', 'width' => $catW],
                 ['label' => 'Online',   'width' => $onlineW, 'align' => 'center'],
                 ['label' => 'Idle',     'width' => $idleW,   'align' => 'center'],
-                ['label' => 'Offline',  'width' => $offlineW, 'align' => 'center'],
+                ['label' => 'Offline',  'width' => $offlineW,'align' => 'center'],
                 ['label' => 'Total',    'width' => $totalW,  'align' => 'center'],
             ],
             [
                 ['Air Quality', $ctx['airQualityCounts']['online'], $ctx['airQualityCounts']['idle'], $ctx['airQualityCounts']['offline'], $ctx['airQualityData']->count()],
-                ['Seismic', $ctx['seismicCounts']['online'], $ctx['seismicCounts']['idle'], $ctx['seismicCounts']['offline'], $ctx['seismicData']->count()],
+                ['Seismic',     $ctx['seismicCounts']['online'],    $ctx['seismicCounts']['idle'],    $ctx['seismicCounts']['offline'],    $ctx['seismicData']->count()],
                 [
                     'Total',
                     $ctx['airQualityCounts']['online'] + $ctx['seismicCounts']['online'],
-                    $ctx['airQualityCounts']['idle'] + $ctx['seismicCounts']['idle'],
-                    $ctx['airQualityCounts']['offline'] + $ctx['seismicCounts']['offline'],
+                    $ctx['airQualityCounts']['idle']   + $ctx['seismicCounts']['idle'],
+                    $ctx['airQualityCounts']['offline']+ $ctx['seismicCounts']['offline'],
                     $ctx['airQualityData']->count() + $ctx['seismicData']->count(),
                 ],
             ]
         );
 
+        // ---- System Status ----
+        $y = $this->ensureSpace($pages, $page, $y, 220);
         $y += 20;
-        $y = $this->drawImgSectionTitle($image, 'System Status', $contentX, $contentWidth, $y);
+        $y = $this->drawImgSectionTitle($page, 'System Status',
+                                        self::IMAGE_MARGIN, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, $y);
 
         $storageDetail = isset($ctx['storageUsedGb'], $ctx['storageTotalGb'])
             ? number_format($ctx['storageUsedGb'], 1) . ' GB used of ' . number_format($ctx['storageTotalGb'], 1) . ' GB'
             : '—';
         $storageValue = $ctx['storagePercent'] !== null ? number_format($ctx['storagePercent'], 2) . '% free' : '—';
 
-        [$metricW, $detailW, $valueW, $statusW] = $this->imgColumnWidths($contentWidth, [0.22, 0.38, 0.20, 0.20]);
-        $y = $this->drawImgTable(
-            $image, $contentX, $y, $contentWidth,
+        [$metricW, $detailW, $valueW, $statusW] = $this->imgColumnWidths(
+            self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, [0.22, 0.38, 0.20, 0.20]
+        );
+
+        $y = $this->drawImgTable($page, self::IMAGE_MARGIN, $y, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
             [
                 ['label' => 'Metric', 'width' => $metricW],
                 ['label' => 'Detail', 'width' => $detailW],
@@ -1057,40 +1091,69 @@ class DashboardController extends Controller
                 ['label' => 'Status', 'width' => $statusW],
             ],
             [
-                [
-                    'System Uptime', 'Since last restart', $ctx['systemUptimeHuman'] ?: '—',
-                    ['badge' => true, 'label' => $this->boolStatusLabel(isset($ctx['systemUptimeHuman'])), 'status' => $this->boolStatusKey(isset($ctx['systemUptimeHuman']))],
-                ],
-                [
-                    'Storage', $storageDetail, $storageValue,
-                    ['badge' => true, 'label' => $this->storageStatusLabel($ctx['storagePercent']), 'status' => $this->storageStatusKey($ctx['storagePercent'])],
-                ],
-                [
-                    'MQTT Broker (Mosquitto)', 'mosquitto.service', $ctx['mqttStatusText'] ?? '—',
-                    ['badge' => true, 'label' => $this->boolStatusLabel($ctx['mqttOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['mqttOnline'] ?? null)],
-                ],
-                [
-                    'Database (PostgreSQL)', 'postgresql.service', $ctx['databaseStatusText'] ?? '—',
-                    ['badge' => true, 'label' => $this->boolStatusLabel($ctx['databaseOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['databaseOnline'] ?? null)],
-                ],
-                [
-                    'EMS Gateway', 'ems.target', $ctx['emsStatusText'] ?? '—',
-                    ['badge' => true, 'label' => $this->boolStatusLabel($ctx['emsOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['emsOnline'] ?? null)],
-                ],
+                ['System Uptime', 'Since last restart', $ctx['systemUptimeHuman'] ?: '—',
+                ['badge' => true, 'label' => $this->boolStatusLabel(isset($ctx['systemUptimeHuman'])), 'status' => $this->boolStatusKey(isset($ctx['systemUptimeHuman']))]],
+                ['Storage', $storageDetail, $storageValue,
+                ['badge' => true, 'label' => $this->storageStatusLabel($ctx['storagePercent']), 'status' => $this->storageStatusKey($ctx['storagePercent'])]],
+                ['MQTT Broker (Mosquitto)', 'mosquitto.service', $ctx['mqttStatusText'] ?? '—',
+                ['badge' => true, 'label' => $this->boolStatusLabel($ctx['mqttOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['mqttOnline'] ?? null)]],
+                ['Database (PostgreSQL)', 'postgresql.service', $ctx['databaseStatusText'] ?? '—',
+                ['badge' => true, 'label' => $this->boolStatusLabel($ctx['databaseOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['databaseOnline'] ?? null)]],
+                ['EMS Gateway', 'ems.target', $ctx['emsStatusText'] ?? '—',
+                ['badge' => true, 'label' => $this->boolStatusLabel($ctx['emsOnline'] ?? null), 'status' => $this->boolStatusKey($ctx['emsOnline'] ?? null)]],
             ]
         );
 
+        // ---- Station tables (side-by-side on first page, continue on next pages if needed) ----
+        $y = $this->ensureSpace($pages, $page, $y, 400);
         $y += 24;
+
         $gutter    = 32;
-        $halfWidth = (int) (($contentWidth - $gutter) / 2);
-        $rightX    = $contentX + $halfWidth + $gutter;
+        $halfWidth = (int) ((self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN - $gutter) / 2);
+        $rightX    = self::IMAGE_MARGIN + $halfWidth + $gutter;
 
-        $this->drawImgStationTable($image, 'Air Quality Stations', $ctx['airQualityData'], $ctx['airQualityCounts'], $contentX, $y, $halfWidth);
-        $this->drawImgStationTable($image, 'Seismic Stations', $ctx['seismicData'], $ctx['seismicCounts'], $rightX, $y, $halfWidth);
+        // We still use the capped version for cleanliness, but you can remove the take() later
+        $this->drawImgStationTable($page, 'Air Quality Stations', $ctx['airQualityData'], $ctx['airQualityCounts'],
+                                self::IMAGE_MARGIN, $y, $halfWidth);
+        $this->drawImgStationTable($page, 'Seismic Stations', $ctx['seismicData'], $ctx['seismicCounts'],
+                                $rightX, $y, $halfWidth);
 
-        $this->drawImgFooter($image, $contentX, $contentWidth, $canvasHeight - $margin, $ctx['generatedAt']);
+        // Footer on every page
+        $this->drawImgFooter($page, self::IMAGE_MARGIN, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
+                            self::IMAGE_HEIGHT - self::IMAGE_MARGIN, $ctx['generatedAt']);
 
-        return $image;
+        $pages[] = $page;
+        return $pages;
+    }
+
+    /** Create a blank white portrait page */
+    private function createBlankPage()
+    {
+        $img = imagecreatetruecolor(self::IMAGE_WIDTH, self::IMAGE_HEIGHT);
+        $white = imagecolorallocate($img, 255, 255, 255);
+        imagefilledrectangle($img, 0, 0, self::IMAGE_WIDTH, self::IMAGE_HEIGHT, $white);
+        return $img;
+    }
+
+    /**
+     * If remaining space on current page is less than $needed, close the page
+     * and start a new one. Returns the new $y (top margin on new page).
+     */
+    private function ensureSpace(array &$pages, &$page, int $y, int $needed): int
+    {
+        $available = self::IMAGE_HEIGHT - self::IMAGE_MARGIN - $y;
+        if ($available >= $needed) {
+            return $y;
+        }
+
+        // Finish current page
+        $this->drawImgFooter($page, self::IMAGE_MARGIN, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
+                            self::IMAGE_HEIGHT - self::IMAGE_MARGIN, now()->timezone('Asia/Manila'));
+        $pages[] = $page;
+
+        // New page
+        $page = $this->createBlankPage();
+        return self::IMAGE_MARGIN + 20;   // small top margin on continuation pages
     }
 
     private function drawImgHeader($image, $generatedAt, string $generatedBy, int $x, int $width, int $y): int
