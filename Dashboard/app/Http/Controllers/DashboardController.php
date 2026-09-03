@@ -1178,8 +1178,7 @@ class DashboardController extends Controller
         $dark = [26, 26, 26];
 
         $titleBaseline = $y + 28;
-        $this->imgText($image, 'Environment Monitoring', $x, $titleBaseline, 28, $teal, true);
-        $this->imgText($image, 'System Status Report', $x, $titleBaseline + 30, 22, $teal, true);
+        $this->imgText($image, 'Environment Monitoring System Status Report', $x, $titleBaseline, 24, $teal, true);
 
         $subtitleBaseline = $titleBaseline + 22;
         $this->imgText($image, 'Developed by Uplink Integrated Solutions Inc.', $x, $subtitleBaseline, 13, $gray);
