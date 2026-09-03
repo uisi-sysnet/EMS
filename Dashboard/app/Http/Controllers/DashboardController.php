@@ -1158,7 +1158,7 @@ class DashboardController extends Controller
      * If remaining space on current page is less than $needed, close the page
      * and start a new one. Returns the new $y (top margin on new page).
      */
-    private function ensureSpace(array &$pages, &$page, int $y, int $needed): int
+    private function ensureSpace(array &$pages, &$page, int $y, int $needed, $generatedAt, int $pageNum): int
     {
         $available = self::IMAGE_HEIGHT - self::IMAGE_MARGIN - $y;
         if ($available >= $needed) {
@@ -1166,13 +1166,20 @@ class DashboardController extends Controller
         }
 
         // Finish current page
-        $this->drawImgFooter($page, self::IMAGE_MARGIN, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
-                            self::IMAGE_HEIGHT - self::IMAGE_MARGIN, now()->timezone('Asia/Manila'));
+        $this->drawImgFooter(
+            $page,
+            self::IMAGE_MARGIN,
+            self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
+            self::IMAGE_HEIGHT - self::IMAGE_MARGIN,
+            $generatedAt,
+            $pageNum,
+            0   // totalPages will be filled later (or leave as 0 for now)
+        );
         $pages[] = $page;
 
         // New page
         $page = $this->createBlankPage();
-        return self::IMAGE_MARGIN + 20;   // small top margin on continuation pages
+        return self::IMAGE_MARGIN + 20;
     }
 
     private function drawImgHeader($image, $generatedAt, string $generatedBy, int $x, int $width, int $y): int
@@ -1422,14 +1429,16 @@ class DashboardController extends Controller
         ];
     }
 
-    private function drawImgFooter($image, int $x, int $width, int $baselineBottom, $generatedAt): void
+    private function drawImgFooter($image, int $x, int $width, int $baselineBottom, $generatedAt, int $pageNum = 1, int $totalPages = 1): void
     {
         $gray  = [136, 136, 136];
         $line1 = 'This report reflects station status at the time it was generated and may not match a subsequently refreshed dashboard.';
         $line2 = '© ' . $generatedAt->format('Y') . ' Uplink Integrated Solutions Inc. All rights reserved.';
+        $line3 = "Page {$pageNum} of {$totalPages}";
 
-        $this->imgText($image, $line1, $x + intdiv($width, 2), $baselineBottom - 16, 10.5, $gray, false, 'center');
-        $this->imgText($image, $line2, $x + intdiv($width, 2), $baselineBottom, 10.5, $gray, false, 'center');
+        $this->imgText($image, $line1, $x + intdiv($width, 2), $baselineBottom - 32, 10.5, $gray, false, 'center');
+        $this->imgText($image, $line2, $x + intdiv($width, 2), $baselineBottom - 16, 10.5, $gray, false, 'center');
+        $this->imgText($image, $line3, $x + intdiv($width, 2), $baselineBottom, 10.5, $gray, false, 'center');
     }
 
     private function drawImgStatusBadge($image, int $x, int $y, string $label, string $status, int $height): void
