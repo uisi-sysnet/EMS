@@ -1138,10 +1138,6 @@ class DashboardController extends Controller
             $page
         );
 
-        // Footer on every page
-        $this->drawImgFooter($page, self::IMAGE_MARGIN, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
-                            self::IMAGE_HEIGHT - self::IMAGE_MARGIN, $ctx['generatedAt']);
-
         $pages[] = $page;
 
         // ---- Add page numbers to all pages ----
