@@ -1298,7 +1298,7 @@ class DashboardController extends Controller
      * ['badge' => true, 'label' => ..., 'status' => ...] to render a
      * colored status pill. Returns the y position just below the table.
      */
-    private function drawImgTable($image, int $x, int $y, int $width, array $columns, array $rows, int $rowHeight = 26): int
+    private function drawImgTable($image, int $x, int $y, int $width, array $columns, array $rows, int $rowHeight = 32): int
     {
         $tableTop  = $y;
         $teal      = imagecolorallocate($image, 15, 118, 110);
