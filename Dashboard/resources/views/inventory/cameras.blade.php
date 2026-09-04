@@ -611,7 +611,7 @@
                                 <tbody class="divide-y divide-border-800">
                                     @foreach($cameras as $camera)
                                         <tr class="hover:bg-surface-700/50 transition" data-camera-id="{{ $camera->id }}">
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $camera->id }}</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $loop->iteration }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->channel }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">{{ $camera->name }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">{{ $camera->slug }}</td>
