@@ -415,7 +415,7 @@
                                         {{ $station->station_mn }}
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">
-                                        {{ $station->station_name ?? '-' }}
+                                        {{ $station->station_name }}
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border
@@ -437,13 +437,13 @@
                                         @endif
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        {{ $station->latitude ?? '-' }}
+                                        {{ $station->latitude }}
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                        {{ $station->longitude ?? '-' }}
+                                        {{ $station->longitude }}
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-text-300">
-                                        {{ $station->lead_ip ?? '-' }}
+                                        {{ $station->lead_ip }}
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
                                         {{ $station->updated_at ? $station->updated_at->format('Y-m-d H:i') : '-' }}
@@ -575,7 +575,7 @@
                                                 {{ $station->station_mn }}
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">
-                                                {{ $station->station_name ?? '-' }}
+                                                {{ $station->station_name }}
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap">
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border
@@ -603,22 +603,22 @@
                                                 @endif
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                                {{ $station->location ?? '-' }}
+                                                {{ $station->location }}
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                                {{ $station->latitude ?? '-' }}
+                                                {{ $station->latitude }}
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                                {{ $station->longitude ?? '-' }}
+                                                {{ $station->longitude }}
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-text-300">
-                                                {{ $station->lead_ip ?? '-' }}
+                                                {{ $station->lead_ip }}
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                                {{ $station->lead_port ?? '-' }}
+                                                {{ $station->lead_port }}
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                                {{ $station->lead_slave ?? '-' }}
+                                                {{ $station->lead_slave }}
                                             </td>
                                             {{-- <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
                                                 {{ $station->updated_at ? $station->updated_at->format('Y-m-d H:i') : '-' }}
