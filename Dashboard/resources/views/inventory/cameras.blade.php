@@ -2,11 +2,30 @@
 @include('layouts.topbar')
 
 <style>
-.thin-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
-.thin-scrollbar::-webkit-scrollbar-track { background: #1A1A1A; border-radius: 10px; }
-.thin-scrollbar::-webkit-scrollbar-thumb { background: #4B5563; border-radius: 10px; }
-.thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #6B7280; }
-.thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
+    .thin-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+    .thin-scrollbar::-webkit-scrollbar-track { background: #1A1A1A; border-radius: 10px; }
+    .thin-scrollbar::-webkit-scrollbar-thumb { background: #4B5563; border-radius: 10px; }
+    .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #6B7280; }
+    .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
+    /* Message expand / collapse */
+    .log-message {
+        max-width: 28rem;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+    }
+    .log-message:hover {
+        background-color: rgba(255, 255, 255, 0.03);
+    }
+    .log-message.collapsed {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .log-message.expanded {
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
 </style>
 
 <!-- Add Camera Modal -->
