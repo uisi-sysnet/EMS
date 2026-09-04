@@ -595,7 +595,7 @@
                             <table class="min-w-full divide-y divide-border-700">
                                 <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500 sticky top-0 z-10">
                                     <tr>
-                                        <th class="px-4 py-3 text-left font-medium">ID</th>
+                                        <th class="px-4 py-3 text-left font-medium">No.</th>
                                         <th class="px-4 py-3 text-left font-medium">Channel</th>
                                         <th class="px-4 py-3 text-left font-medium">Name</th>
                                         <th class="px-4 py-3 text-left font-medium">Slug</th>
