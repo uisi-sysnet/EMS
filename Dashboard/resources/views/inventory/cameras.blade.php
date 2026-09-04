@@ -616,7 +616,13 @@
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">{{ $camera->name }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">{{ $camera->slug }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-text-300">{{ $camera->ip_address }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->location ?? '-' }}</td>
+                                            <td class="px-4 py-2.5 text-xs text-text-300">
+                                                <div class="log-message collapsed rounded px-1 -mx-1"
+                                                    title="Click to expand / collapse"
+                                                    onclick="this.classList.toggle('collapsed'); this.classList.toggle('expanded');">
+                                                    {{ $camera->location ?? '-' }}
+                                                </div>
+                                            </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->device_type ?? '-' }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap">
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{ $camera->enabled ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30' : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
