@@ -598,7 +598,7 @@
                                         <th class="px-4 py-3 text-left font-medium">No.</th>
                                         <th class="px-4 py-3 text-left font-medium">Channel</th>
                                         <th class="px-4 py-3 text-left font-medium">Name</th>
-                                        <th class="px-4 py-3 text-left font-medium">Slug</th>
+                                        {{-- <th class="px-4 py-3 text-left font-medium">Slug</th> --}}
                                         <th class="px-4 py-3 text-left font-medium">IP Address</th>
                                         <th class="px-4 py-3 text-left font-medium">Location</th>
                                         <th class="px-4 py-3 text-left font-medium">Device Type</th>
@@ -614,7 +614,7 @@
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $loop->iteration }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->channel }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">{{ $camera->name }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">{{ $camera->slug }}</td>
+                                            {{-- <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">{{ $camera->slug }}</td> --}}
                                             <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-text-300">{{ $camera->ip_address }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->location ?? '-' }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->device_type ?? '-' }}</td>
