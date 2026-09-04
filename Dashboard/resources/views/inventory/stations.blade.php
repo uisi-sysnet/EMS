@@ -602,8 +602,12 @@
                                                     </span>
                                                 @endif
                                             </td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                                {{ $station->location }}
+                                            <td class="px-4 py-2.5 text-xs text-text-300">
+                                                <div class="log-message collapsed rounded px-1 -mx-1"
+                                                    title="Click to expand / collapse"
+                                                    onclick="this.classList.toggle('collapsed'); this.classList.toggle('expanded');">
+                                                    {{ $station->location }}
+                                                </div>
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
                                                 {{ $station->latitude }}
