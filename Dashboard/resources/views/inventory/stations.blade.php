@@ -572,9 +572,16 @@
                                             <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-munti-green-400">
                                                 {{ $station->station_mn }}
                                             </td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">
-                                                {{ $station->station_name ?? '-' }}
+
+                                            {{-- Name --}}
+                                            <td class="px-4 py-2.5 text-xs text-text-200">
+                                                <div class="log-message collapsed rounded px-1 -mx-1"
+                                                    title="Click to expand / collapse"
+                                                    onclick="this.classList.toggle('collapsed'); this.classList.toggle('expanded');">
+                                                    {{ $station->station_name ?? '-' }}
+                                                </div>
                                             </td>
+
                                             <td class="px-4 py-2.5 whitespace-nowrap">
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border
                                                     {{ $station->enabled
@@ -583,6 +590,7 @@
                                                     {{ $station->enabled ? 'Yes' : 'No' }}
                                                 </span>
                                             </td>
+
                                             <td class="px-4 py-2.5 whitespace-nowrap">
                                                 @if($station->sensor_data_count > 0)
                                                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-munti-green-600/30 bg-munti-green-700/15 text-munti-green-400">
@@ -600,18 +608,32 @@
                                                     </span>
                                                 @endif
                                             </td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
-                                                {{ $station->location ?? '-' }}
+
+                                            {{-- Location --}}
+                                            <td class="px-4 py-2.5 text-xs text-text-300">
+                                                <div class="log-message collapsed rounded px-1 -mx-1"
+                                                    title="Click to expand / collapse"
+                                                    onclick="this.classList.toggle('collapsed'); this.classList.toggle('expanded');">
+                                                    {{ $station->location ?? '-' }}
+                                                </div>
                                             </td>
+
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
                                                 {{ $station->latitude ?? '-' }}
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
                                                 {{ $station->longitude ?? '-' }}
                                             </td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-text-300">
-                                                {{ $station->lead_ip ?? '-' }}
+
+                                            {{-- IP Address --}}
+                                            <td class="px-4 py-2.5 font-mono text-xs text-text-300">
+                                                <div class="log-message collapsed rounded px-1 -mx-1"
+                                                    title="Click to expand / collapse"
+                                                    onclick="this.classList.toggle('collapsed'); this.classList.toggle('expanded');">
+                                                    {{ $station->lead_ip ?? '-' }}
+                                                </div>
                                             </td>
+
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
                                                 {{ $station->lead_port ?? '-' }}
                                             </td>
