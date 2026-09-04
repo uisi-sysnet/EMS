@@ -17,6 +17,12 @@ Shared services:
 PostgreSQL + TimescaleDB, Mosquitto MQTT, systemd, optional nginx/php-fpm
 ```
 
+## Version Details
+
+Version 9.0.2 - Fixed dashboard auto refresh bugs.
+Version 9.0.3 - Fixed and enhanced image reports.
+Version 9.0.4 - Fixed inventories table layout.
+
 ## Repository Layout
 
 ```text
@@ -85,18 +91,18 @@ There are two environment files:
 
 Important Python service settings:
 
-| Setting | Purpose |
-| --- | --- |
-| `SYSTEM_DB_HOST`, `SYSTEM_DB_PORT`, `SYSTEM_DB_USER`, `SYSTEM_DB_PASSWORD` | Shared PostgreSQL connection |
-| `AQ_DB_NAME` | Air quality database, default `IOT_aq_sensor_data` |
-| `SEISMIC_DB_NAME` | Seismic database, default `IOT_seismic_sensor_data` |
-| `SMS_DB_NAME` | Raw SMS database, default `IOT_sms_telemetry` |
-| `API_DB_NAME` | API keys and allowlist database, default `IOT_api` |
-| `LOG_DB_NAME` | Centralized service logs database, default `IOT_service_logs` |
-| `AQ_SERVER_HOST`, `AQ_SERVER_PORT` | HJ212 TCP listener bind address and port |
-| `MQTT_BROKER_HOST`, `MQTT_BROKER_PORT`, `MQTT_TOPIC` | Seismic MQTT source |
-| `SMS_INGESTION_ENABLED`, `SIM800_SERIAL_PORT`, `SIM800_BAUDRATE` | Optional SIM800L SMS ingestion |
-| `API_BIND_HOST`, `API_PORT`, `API_KEYS` | FastAPI bind address, port, and initial tokens |
+| Setting                                                                    | Purpose                                                       |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `SYSTEM_DB_HOST`, `SYSTEM_DB_PORT`, `SYSTEM_DB_USER`, `SYSTEM_DB_PASSWORD` | Shared PostgreSQL connection                                  |
+| `AQ_DB_NAME`                                                               | Air quality database, default `IOT_aq_sensor_data`            |
+| `SEISMIC_DB_NAME`                                                          | Seismic database, default `IOT_seismic_sensor_data`           |
+| `SMS_DB_NAME`                                                              | Raw SMS database, default `IOT_sms_telemetry`                 |
+| `API_DB_NAME`                                                              | API keys and allowlist database, default `IOT_api`            |
+| `LOG_DB_NAME`                                                              | Centralized service logs database, default `IOT_service_logs` |
+| `AQ_SERVER_HOST`, `AQ_SERVER_PORT`                                         | HJ212 TCP listener bind address and port                      |
+| `MQTT_BROKER_HOST`, `MQTT_BROKER_PORT`, `MQTT_TOPIC`                       | Seismic MQTT source                                           |
+| `SMS_INGESTION_ENABLED`, `SIM800_SERIAL_PORT`, `SIM800_BAUDRATE`           | Optional SIM800L SMS ingestion                                |
+| `API_BIND_HOST`, `API_PORT`, `API_KEYS`                                    | FastAPI bind address, port, and initial tokens                |
 
 `API_KEYS` uses this format:
 
@@ -192,21 +198,21 @@ GET /api/system/status
 
 Main API endpoints:
 
-| Endpoint | Description |
-| --- | --- |
-| `GET /api/air-quality/stations/latest` | Latest reading for every air quality station |
-| `GET /api/air-quality/stations/{station_mn}/latest` | Latest reading for one air quality station |
-| `GET /api/air-quality/analytics/1d` | 24-hour average readings |
-| `GET /api/air-quality/analytics/7d` | 7-day daily averages |
-| `GET /api/air-quality/analytics/30d` | 30-day daily averages |
-| `GET /api/air-quality/stations` | Registered air quality station list |
-| `GET /api/seismic/stations/latest` | Latest seismic reading for every station |
-| `GET /api/seismic/stations/{station_id}/latest` | Latest seismic reading for one station |
-| `GET /api/seismic/graph/latest` | Latest graph payload for every seismic station |
-| `GET /api/seismic/stations/{station_id}/graph/latest` | Latest graph payload for one seismic station |
-| `GET /api/seismic/stations/{station_id}/history?hours=1` | Raw seismic history, 1 to 24 hours |
-| `GET /api/seismic/events?min_peis=1&hours=24` | PEIS-filtered seismic events |
-| `GET /api/system/logs` | Centralized service logs |
+| Endpoint                                                 | Description                                    |
+| -------------------------------------------------------- | ---------------------------------------------- |
+| `GET /api/air-quality/stations/latest`                   | Latest reading for every air quality station   |
+| `GET /api/air-quality/stations/{station_mn}/latest`      | Latest reading for one air quality station     |
+| `GET /api/air-quality/analytics/1d`                      | 24-hour average readings                       |
+| `GET /api/air-quality/analytics/7d`                      | 7-day daily averages                           |
+| `GET /api/air-quality/analytics/30d`                     | 30-day daily averages                          |
+| `GET /api/air-quality/stations`                          | Registered air quality station list            |
+| `GET /api/seismic/stations/latest`                       | Latest seismic reading for every station       |
+| `GET /api/seismic/stations/{station_id}/latest`          | Latest seismic reading for one station         |
+| `GET /api/seismic/graph/latest`                          | Latest graph payload for every seismic station |
+| `GET /api/seismic/stations/{station_id}/graph/latest`    | Latest graph payload for one seismic station   |
+| `GET /api/seismic/stations/{station_id}/history?hours=1` | Raw seismic history, 1 to 24 hours             |
+| `GET /api/seismic/events?min_peis=1&hours=24`            | PEIS-filtered seismic events                   |
+| `GET /api/system/logs`                                   | Centralized service logs                       |
 
 Interactive API docs are available from FastAPI at:
 
