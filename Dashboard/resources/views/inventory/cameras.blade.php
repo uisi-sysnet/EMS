@@ -2,30 +2,11 @@
 @include('layouts.topbar')
 
 <style>
-    .thin-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
-    .thin-scrollbar::-webkit-scrollbar-track { background: #1A1A1A; border-radius: 10px; }
-    .thin-scrollbar::-webkit-scrollbar-thumb { background: #4B5563; border-radius: 10px; }
-    .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #6B7280; }
-    .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
-    /* Message expand / collapse */
-    .log-message {
-        max-width: 28rem;
-        cursor: pointer;
-        transition: background-color 0.15s ease;
-    }
-    .log-message:hover {
-        background-color: rgba(255, 255, 255, 0.03);
-    }
-    .log-message.collapsed {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .log-message.expanded {
-        white-space: normal;
-        word-break: break-word;
-        overflow-wrap: anywhere;
-    }
+.thin-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+.thin-scrollbar::-webkit-scrollbar-track { background: #1A1A1A; border-radius: 10px; }
+.thin-scrollbar::-webkit-scrollbar-thumb { background: #4B5563; border-radius: 10px; }
+.thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #6B7280; }
+.thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
 </style>
 
 <!-- Add Camera Modal -->
@@ -635,13 +616,7 @@
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">{{ $camera->name }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">{{ $camera->slug }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-text-300">{{ $camera->ip_address }}</td>
-                                            <td class="px-4 py-2.5 text-xs text-text-300">
-                                                <div class="log-message collapsed rounded px-1 -mx-1"
-                                                    title="Click to expand / collapse"
-                                                    onclick="this.classList.toggle('collapsed'); this.classList.toggle('expanded');">
-                                                    {{ $camera->location ?? '-' }}
-                                                </div>
-                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->location ?? '-' }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->device_type ?? '-' }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap">
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{ $camera->enabled ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30' : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
