@@ -613,18 +613,71 @@
                                         <tr class="hover:bg-surface-700/50 transition" data-camera-id="{{ $camera->id }}">
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $camera->id }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->channel }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">{{ $camera->name }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-radar-400">{{ $camera->slug }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-text-300">{{ $camera->ip_address }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->location ?? '-' }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->device_type ?? '-' }}</td>
+
+                                            {{-- Name --}}
+                                            <td class="px-4 py-2.5 text-xs text-text-200">
+                                                <div class="log-message collapsed rounded px-1 -mx-1"
+                                                    title="Click to expand / collapse"
+                                                    onclick="this.classList.toggle('collapsed'); this.classList.toggle('expanded');">
+                                                    {{ $camera->name }}
+                                                </div>
+                                            </td>
+
+                                            {{-- Slug --}}
+                                            <td class="px-4 py-2.5 font-mono text-xs text-radar-400">
+                                                <div class="log-message collapsed rounded px-1 -mx-1"
+                                                    title="Click to expand / collapse"
+                                                    onclick="this.classList.toggle('collapsed'); this.classList.toggle('expanded');">
+                                                    {{ $camera->slug }}
+                                                </div>
+                                            </td>
+
+                                            {{-- IP Address --}}
+                                            <td class="px-4 py-2.5 font-mono text-xs text-text-300">
+                                                <div class="log-message collapsed rounded px-1 -mx-1"
+                                                    title="Click to expand / collapse"
+                                                    onclick="this.classList.toggle('collapsed'); this.classList.toggle('expanded');">
+                                                    {{ $camera->ip_address }}
+                                                </div>
+                                            </td>
+
+                                            {{-- Location --}}
+                                            <td class="px-4 py-2.5 text-xs text-text-300">
+                                                <div class="log-message collapsed rounded px-1 -mx-1"
+                                                    title="Click to expand / collapse"
+                                                    onclick="this.classList.toggle('collapsed'); this.classList.toggle('expanded');">
+                                                    {{ $camera->location ?? '-' }}
+                                                </div>
+                                            </td>
+
+                                            {{-- Device Type --}}
+                                            <td class="px-4 py-2.5 text-xs text-text-300">
+                                                <div class="log-message collapsed rounded px-1 -mx-1"
+                                                    title="Click to expand / collapse"
+                                                    onclick="this.classList.toggle('collapsed'); this.classList.toggle('expanded');">
+                                                    {{ $camera->device_type ?? '-' }}
+                                                </div>
+                                            </td>
+
                                             <td class="px-4 py-2.5 whitespace-nowrap">
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{ $camera->enabled ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30' : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
                                                     {{ $camera->enabled ? 'Active' : 'Inactive' }}
                                                 </span>
                                             </td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->serial_number ?? '-' }}</td>
-                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $camera->last_synced_at ? $camera->last_synced_at->format('Y-m-d H:i') : '-' }}</td>
+
+                                            {{-- Serial # --}}
+                                            <td class="px-4 py-2.5 text-xs text-text-300">
+                                                <div class="log-message collapsed rounded px-1 -mx-1"
+                                                    title="Click to expand / collapse"
+                                                    onclick="this.classList.toggle('collapsed'); this.classList.toggle('expanded');">
+                                                    {{ $camera->serial_number ?? '-' }}
+                                                </div>
+                                            </td>
+
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
+                                                {{ $camera->last_synced_at ? $camera->last_synced_at->format('Y-m-d H:i') : '-' }}
+                                            </td>
+
                                             <td class="px-4 py-2.5 whitespace-nowrap text-center">
                                                 <div class="flex items-center justify-center gap-1.5">
                                                     {{-- Edit Button --}}
