@@ -606,6 +606,7 @@
                                         <th class="px-4 py-3 text-left font-medium">Status</th>
                                         <th class="px-4 py-3 text-left font-medium">Serial #</th>
                                         <th class="px-4 py-3 text-left font-medium">Last Sync</th>
+                                        <th class="px-4 py-3 text-left font-medium">Note</th>
                                         <th class="px-4 py-3 text-center font-medium">Actions</th>
                                     </tr>
                                 </thead>
@@ -627,6 +628,7 @@
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">{{ $camera->serial_number ?? '-' }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $camera->last_synced_at ? $camera->last_synced_at->format('Y-m-d H:i') : '-' }}</td>
+                                            <td class="px-4 py-2.5 text-xs text-text-300 max-w-37.5 truncate" title="{{ $camera->notes }}">{{ $camera->notes ?? '-' }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-center">
                                                 <div class="flex items-center justify-center gap-1.5">
                                                     {{-- Edit Button --}}
