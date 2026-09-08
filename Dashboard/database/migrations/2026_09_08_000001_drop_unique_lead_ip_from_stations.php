@@ -6,16 +6,16 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-  public function up()
+  public function up(): void
   {
-      Schema::table('stations', function (Blueprint $table) {
+      Schema::connection('aq')->table('stations', function (Blueprint $table) {
           $table->dropUnique('stations_lead_ip_unique');
       });
   }
 
-  public function down()
+  public function down(): void
   {
-      Schema::table('stations', function (Blueprint $table) {
+      Schema::connection('aq')->table('stations', function (Blueprint $table) {
           $table->unique('lead_ip', 'stations_lead_ip_unique');
       });
   }
