@@ -412,7 +412,7 @@ class DashboardController extends Controller
                 return (object) [
                     'station_mn'   => $station->station_mn,
                     'station'      => $station->station_name ?: $station->station_mn,
-                    'ip'           => $ip ?? $station->lead_ip,
+                    'ip' => $station->lead_ip,   // always use the station record's IP
                     // TODO: swap for a real location/address column on the
                     // stations table if one exists — currently falling
                     // back to the IP, same as the rest of the dashboard.
