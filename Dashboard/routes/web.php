@@ -20,6 +20,7 @@ use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\TerminalAuthController;
 use App\Http\Controllers\TelegramSettingsController;
 use App\Http\Controllers\CameraController;
+use App\Http\Controllers\CalibrationController; 
 use App\Models\Camera;
 
 Route::get('/register', [LoginController::class, 'showRegisterForm'])->name('register');
@@ -137,4 +138,6 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::get('/inventory/cameras/download-format', [CameraController::class, 'downloadFormat'])->name('cameras.download-format');
     Route::post('/inventory/cameras/import', [CameraController::class, 'import'])->name('inventory.cameras.import');
     /* Route::patch('/inventory/cameras/{id}/restore', [CameraController::class, 'restore'])->name('inventory.cameras.restore'); */
+
+    Route::get('/settings/calibration', [CalibrationController::class, 'index'])->name('settings.calibration.index'); 
 });

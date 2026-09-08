@@ -135,7 +135,9 @@
                             </a>
                         </div>
                     </div>
+                    <a href="{{ route('settings.calibration.index') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Cal</a>
                     <a href="{{ route('about') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">About</a>
+
                 @endif
             </div>
 
