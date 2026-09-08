@@ -139,10 +139,8 @@
 
 <!-- ==================== ADD EXTERNAL API MODAL ==================== -->
 <div id="addApiModal" class="fixed inset-0 z-50 hidden">
-    <!-- Backdrop -->
     <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeAddCalibrationModal()"></div>
 
-    <!-- Modal Panel -->
     <div class="absolute inset-0 flex items-center justify-center p-4">
         <div class="relative w-full max-w-5xl bg-surface-900 border border-border-700 rounded-2xl shadow-2xl overflow-hidden">
 
@@ -160,9 +158,8 @@
             <div class="p-6">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-                    <!-- LEFT COLUMN: Dropdown + Documentation -->
+                    <!-- LEFT COLUMN -->
                     <div class="flex flex-col gap-4">
-                        <!-- Dropdown -->
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
                             <select id="apiSource"
@@ -175,32 +172,26 @@
                             </select>
                         </div>
 
-                        <!-- Documentation Box -->
                         <div class="flex-1 flex flex-col">
                             <div class="flex-1 min-h-[280px] p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
                                 <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
                                 <p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>
 
-                                <!-- Example content (shown dynamically via JS) -->
                                 <div id="docContent" class="hidden space-y-3">
                                     <p><strong class="text-text-200">Base Endpoint:</strong></p>
                                     <code class="block text-xs bg-surface-900 px-2 py-1.5 rounded text-munti-blue-300">https://api.example.com/v1/data</code>
-
                                     <p class="mt-3"><strong class="text-text-200">Rate Limit:</strong> 60 requests / minute</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- MIDDLE COLUMN: API URL -->
+                    <!-- MIDDLE COLUMN -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">API URL</label>
-                        <input type="url"
-                               id="apiUrl"
-                               placeholder="https://api.example.com/v1/endpoint"
+                        <input type="url" id="apiUrl" placeholder="https://api.example.com/v1/endpoint"
                                class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
 
-                        <!-- Extra helper area under URL (optional) -->
                         <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
                             <p class="font-medium text-text-400 mb-2">Tips</p>
                             <ul class="space-y-1.5 list-disc list-inside">
@@ -211,15 +202,12 @@
                         </div>
                     </div>
 
-                    <!-- RIGHT COLUMN: API Key -->
+                    <!-- RIGHT COLUMN -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">API Key</label>
-                        <input type="password"
-                               id="apiKey"
-                               placeholder="Enter your API key"
+                        <input type="password" id="apiKey" placeholder="Enter your API key"
                                class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
 
-                        <!-- Extra helper area under Key -->
                         <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
                             <p class="font-medium text-text-400 mb-2">Security Note</p>
                             <p>Your API key is stored encrypted and never exposed in the frontend after saving.</p>
@@ -230,13 +218,11 @@
 
             <!-- Modal Footer -->
             <div class="px-6 py-4 border-t border-border-700 bg-surface-800/60 flex items-center justify-end gap-3">
-                <button type="button"
-                        onclick="closeAddCalibrationModal()"
+                <button type="button" onclick="closeAddCalibrationModal()"
                         class="h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
                     Cancel
                 </button>
-                <button type="button"
-                        onclick="saveExternalApi()"
+                <button type="button" onclick="saveExternalApi()"
                         class="h-9 px-5 text-sm font-medium text-white bg-munti-green-600 hover:bg-munti-green-500 rounded-lg transition">
                     Save API
                 </button>
@@ -245,7 +231,100 @@
     </div>
 </div>
 
+<!-- ==================== EDIT EXTERNAL API MODAL ==================== -->
+<div id="editApiModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeEditCalibrationModal()"></div>
+
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-5xl bg-surface-900 border border-border-700 rounded-2xl shadow-2xl overflow-hidden">
+
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-border-700 bg-surface-800 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-text-100">Edit External API</h3>
+                <button type="button" onclick="closeEditCalibrationModal()" class="p-1.5 rounded-lg text-text-400 hover:text-text-100 hover:bg-surface-700 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+                    <!-- LEFT COLUMN -->
+                    <div class="flex flex-col gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
+                            <select id="editApiSource"
+                                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                                <option value="">-- Choose API --</option>
+                                <option value="accustation">AccuStation</option>
+                                <option value="openweather">OpenWeather</option>
+                                <option value="iqair">IQAir</option>
+                                <option value="custom">Custom API</option>
+                            </select>
+                        </div>
+
+                        <div class="flex-1 flex flex-col">
+                            <div class="flex-1 min-h-[280px] p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
+                                <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
+                                <div id="editDocContent" class="space-y-3">
+                                    <p><strong class="text-text-200">Base Endpoint:</strong></p>
+                                    <code class="block text-xs bg-surface-900 px-2 py-1.5 rounded text-munti-blue-300">https://api.accustation.com/v1/data</code>
+                                    <p class="mt-3"><strong class="text-text-200">Rate Limit:</strong> 60 requests / minute</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MIDDLE COLUMN -->
+                    <div class="flex flex-col">
+                        <label class="block text-xs font-medium text-text-400 mb-1.5">API URL</label>
+                        <input type="url" id="editApiUrl" placeholder="https://api.example.com/v1/endpoint"
+                               class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+
+                        <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
+                            <p class="font-medium text-text-400 mb-2">Tips</p>
+                            <ul class="space-y-1.5 list-disc list-inside">
+                                <li>Include the full endpoint path</li>
+                                <li>Use HTTPS whenever possible</li>
+                                <li>Query parameters can be added later</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT COLUMN -->
+                    <div class="flex flex-col">
+                        <label class="block text-xs font-medium text-text-400 mb-1.5">API Key</label>
+                        <input type="password" id="editApiKey" placeholder="Enter your API key"
+                               class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+
+                        <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
+                            <p class="font-medium text-text-400 mb-2">Security Note</p>
+                            <p>Your API key is stored encrypted and never exposed in the frontend after saving.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-border-700 bg-surface-800/60 flex items-center justify-end gap-3">
+                <button type="button" onclick="closeEditCalibrationModal()"
+                        class="h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
+                    Cancel
+                </button>
+                <button type="button" onclick="updateExternalApi()"
+                        class="h-9 px-5 text-sm font-medium text-white bg-munti-blue-600 hover:bg-munti-blue-500 rounded-lg transition">
+                    Update API
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+    // ---------- ADD Modal ----------
     function openAddCalibrationModal() {
         document.getElementById('addApiModal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
@@ -256,7 +335,6 @@
         document.body.style.overflow = '';
     }
 
-    // Simple demo: show documentation when source changes
     document.getElementById('apiSource')?.addEventListener('change', function () {
         const doc = document.getElementById('docContent');
         if (this.value) {
@@ -276,15 +354,51 @@
             return;
         }
 
-        // TODO: replace with real AJAX / form submit
         alert(`Saved!\nSource: ${source}\nURL: ${url}`);
         closeAddCalibrationModal();
     }
 
+    // ---------- EDIT Modal ----------
     function editCalibration(id) {
-        alert(`Edit Calibration #${id} – implement as needed`);
+        // Sample data – replace with real data from your backend later
+        const sampleData = {
+            1: {
+                source: 'accustation',
+                url: 'https://api.accustation.com/v1/data',
+                key: 'sk_live_************************'
+            }
+        };
+
+        const data = sampleData[id] || sampleData[1];
+
+        document.getElementById('editApiSource').value = data.source;
+        document.getElementById('editApiUrl').value = data.url;
+        document.getElementById('editApiKey').value = data.key;
+
+        document.getElementById('editApiModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
     }
 
+    function closeEditCalibrationModal() {
+        document.getElementById('editApiModal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    function updateExternalApi() {
+        const source = document.getElementById('editApiSource').value;
+        const url = document.getElementById('editApiUrl').value;
+        const key = document.getElementById('editApiKey').value;
+
+        if (!source || !url || !key) {
+            alert('Please fill in all fields.');
+            return;
+        }
+
+        alert(`Updated!\nSource: ${source}\nURL: ${url}`);
+        closeEditCalibrationModal();
+    }
+
+    // ---------- DELETE ----------
     function deleteCalibration(id, fileName) {
         Swal.fire({
             title: 'Delete Calibration?',
@@ -306,9 +420,12 @@
         });
     }
 
-    // Close modal on Escape key
+    // Close modals on Escape
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') closeAddCalibrationModal();
+        if (e.key === 'Escape') {
+            closeAddCalibrationModal();
+            closeEditCalibrationModal();
+        }
     });
 </script>
 
