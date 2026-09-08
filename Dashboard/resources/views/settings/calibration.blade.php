@@ -27,9 +27,9 @@
         <!-- Header -->
         <div class="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
             <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2.5">
-                <span class="leading-tight uppercase tracking-wide">Calibration Management</span>
+                <span class="leading-tight uppercase tracking-wide">Calibration API Management</span>
             </h2>
-            <span class="text-xs sm:text-sm text-text-400">View, edit and manage calibration records</span>
+            <span class="text-xs sm:text-sm text-text-400">View, edit and manage API for a new calibration reference</span>
         </div>
 
         <!-- Content -->
