@@ -10,7 +10,6 @@ return new class extends Migration
     public function up(): void
     {
         Schema::connection('aq')->table('stations', function (Blueprint $table) {
-            // Try to drop using the known index name
             $table->dropUnique('stations_lead_ip_unique');
         });
     }
@@ -18,7 +17,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::connection('aq')->table('stations', function (Blueprint $table) {
-            // Re-add if you ever rollback
             $table->unique('lead_ip', 'stations_lead_ip_unique');
         });
     }
