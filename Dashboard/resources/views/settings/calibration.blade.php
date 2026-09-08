@@ -75,7 +75,7 @@
                                 <tr class="hover:bg-surface-700/50 transition">
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">1</td>
                                     <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border bg-radar-700/15 text-radar-400 border-radar-600/30">
+                                        <span class="inline-flex items-center gap-1.5 text-xs text-text-200 transition">
                                             AccuStation
                                         </span>
                                     </td>
@@ -91,15 +91,12 @@
                                         </div>
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-munti-green-700/15 text-munti-green-400 border border-munti-green-600/30">
+                                        <span class="inline-flex items-center gap-1.5 text-xs text-text-200 transition">
                                             1,213
                                         </span>
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-munti-green-700/15 text-munti-green-400 border border-munti-green-600/30">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                            </svg>
+                                        <span class="inline-flex items-center gap-1.5 text-xs text-text-200 transition">
                                             1 req/min
                                         </span>
                                     </td>
@@ -112,56 +109,6 @@
                                                 </svg>
                                             </button>
                                             <button type="button" onclick="deleteCalibration(1, 'accustation_data.json')" class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition" title="Delete">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
-                                                    <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-
-                                <!-- Row 2 -->
-                                <tr class="hover:bg-surface-700/50 transition">
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">2</td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30">
-                                            Sensor
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <a href="#" class="inline-flex items-center gap-1.5 text-xs text-text-200 transition">
-                                            XML
-                                        </a>
-                                    </td>
-                                    <td class="px-4 py-2.5">
-                                        <div class="flex flex-wrap gap-1 max-w-xs text-text-200">
-                                            <span class="checklist-tag checklist-tag-temperature">Temperature</span>
-                                            <span class="checklist-tag checklist-tag-humidity">Humidity</span>
-                                            <span class="checklist-tag checklist-tag-pressure">Pressure</span>
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-surface-700/50 text-text-300 border border-border-600/50">
-                                            847
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-munti-yellow-700/20 text-munti-yellow-400 border border-munti-yellow-600/30">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                            </svg>
-                                            12 req/min
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">2026-03-15 14:22</td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-center">
-                                        <div class="flex items-center justify-center gap-1.5">
-                                            <button type="button" onclick="editCalibration(2)" class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition" title="Edit">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                </svg>
-                                            </button>
-                                            <button type="button" onclick="deleteCalibration(2, 'sensor_calibration.csv')" class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition" title="Delete">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
                                                     <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                                                 </svg>
