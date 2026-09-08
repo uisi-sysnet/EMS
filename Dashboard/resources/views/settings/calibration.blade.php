@@ -186,13 +186,6 @@
                                     <p><strong class="text-text-200">Base Endpoint:</strong></p>
                                     <code class="block text-xs bg-surface-900 px-2 py-1.5 rounded text-munti-blue-300">https://api.example.com/v1/data</code>
 
-                                    <p class="mt-3"><strong class="text-text-200">Required Parameters:</strong></p>
-                                    <ul class="list-disc list-inside space-y-1 text-xs">
-                                        <li><code class="text-munti-yellow-400">api_key</code> – Your authentication key</li>
-                                        <li><code class="text-munti-yellow-400">location</code> – Latitude,Longitude</li>
-                                        <li><code class="text-munti-yellow-400">fields</code> – Comma-separated metrics</li>
-                                    </ul>
-
                                     <p class="mt-3"><strong class="text-text-200">Rate Limit:</strong> 60 requests / minute</p>
                                 </div>
                             </div>
