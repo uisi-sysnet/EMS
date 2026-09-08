@@ -87,16 +87,7 @@ class StationController extends Controller
             'latitude'     => 'nullable|numeric|between:-90,90',
             'longitude'    => 'nullable|numeric|between:-180,180',
             'location' => 'nullable|string|max:255',
-            'lead_ip'      => [
-                'nullable',
-                'string',
-                'max:64',
-                function ($attribute, $value, $fail) use ($request) {
-                    if ($value && Station::existsByLeadIpWithTrashed($value)) {
-                        $fail('The lead IP "' . $value . '" is already in use. Please use a unique lead IP.');
-                    }
-                }
-            ],
+            'lead_ip' => 'nullable|string|max:64',
             'lead_port'    => 'nullable|integer|min:0|max:65535',
             'lead_slave'   => 'nullable|integer',
         ]);
@@ -159,21 +150,7 @@ class StationController extends Controller
             'latitude'     => 'nullable|numeric|between:-90,90',
             'longitude'    => 'nullable|numeric|between:-180,180',
             'location' => 'nullable|string|max:255',
-            'lead_ip'      => [
-                'nullable',
-                'string',
-                'max:64',
-                function ($attribute, $value, $fail) use ($station_mn) {
-                    if ($value) {
-                        $exists = Station::where('lead_ip', $value)
-                            ->where('station_mn', '!=', $station_mn)
-                            ->exists();
-                        if ($exists) {
-                            $fail('The lead IP "' . $value . '" is already in use. Please use a unique lead IP.');
-                        }
-                    }
-                }
-            ],
+            'lead_ip' => 'nullable|string|max:64',
             'lead_port'    => 'nullable|integer|min:0|max:65535',
             'lead_slave'   => 'nullable|integer',
         ]);
