@@ -208,10 +208,10 @@
                     <input type="password" id="apiKey" placeholder="Enter your API key"
                     class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
 
-                    <!-- ===== PARAMETER CHECKBOXES ===== -->
+                    <!-- ===== FIELDS TO MAP TO DATABASE (Single Column) ===== -->
                     <div class="mt-4">
-                        <label class="block text-xs font-medium text-text-400 mb-2">Select Parameters</label>
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 p-3 bg-surface-800/50 border border-border-700 rounded-lg max-h-[180px] overflow-y-auto thin-scrollbar">
+                        <label class="block text-xs font-medium text-text-400 mb-2">Fields to Map to Database</label>
+                        <div class="grid grid-cols-1 gap-y-1.5 p-3 bg-surface-800/50 border border-border-700 rounded-lg max-h-[200px] overflow-y-auto thin-scrollbar">
                             <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="pm25" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>PM2.5</span>
@@ -277,7 +277,7 @@
                                 <span>Lead Temperature</span>
                             </label>
                         </div>
-                        <p class="text-[10px] text-text-500 mt-1.5">Select all parameters this API provides</p>
+                        <p class="text-[10px] text-text-500 mt-1.5">Select which fields from the API response should be stored in the database.</p>
                     </div>
 
                     <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
@@ -369,10 +369,10 @@
                     <input type="password" id="editApiKey" placeholder="Enter your API key"
                     class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
 
-                    <!-- ===== PARAMETER CHECKBOXES ===== -->
+                    <!-- ===== FIELDS TO MAP TO DATABASE (Single Column) ===== -->
                     <div class="mt-4">
-                        <label class="block text-xs font-medium text-text-400 mb-2">Select Parameters</label>
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 p-3 bg-surface-800/50 border border-border-700 rounded-lg max-h-[180px] overflow-y-auto thin-scrollbar">
+                        <label class="block text-xs font-medium text-text-400 mb-2">Fields to Map to Database</label>
+                        <div class="grid grid-cols-1 gap-y-1.5 p-3 bg-surface-800/50 border border-border-700 rounded-lg max-h-[200px] overflow-y-auto thin-scrollbar">
                             <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="pm25" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>PM2.5</span>
@@ -438,7 +438,7 @@
                                 <span>Lead Temperature</span>
                             </label>
                         </div>
-                        <p class="text-[10px] text-text-500 mt-1.5">Select all parameters this API provides</p>
+                        <p class="text-[10px] text-text-500 mt-1.5">Select which fields from the API response should be stored in the database.</p>
                     </div>
 
                     <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
