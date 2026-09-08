@@ -163,72 +163,141 @@
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
                             <select id="apiSource"
-                                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
-                                <option value="">-- Choose API --</option>
-                                <option value="accustation">AccuStation</option>
-                                <option value="openweather">OpenWeather</option>
-                                <option value="iqair">IQAir</option>
-                                <option value="custom">Custom API</option>
-                            </select>
-                        </div>
+                            class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                            <option value="">Choose API</option>
+                            <option value="accustation">AccuStation</option>
+                            <option value="openweather">OpenWeather</option>
+                            <option value="iqair">IQAir</option>
+                            <option value="custom">Custom API</option>
+                        </select>
+                    </div>
 
-                        <div class="flex-1 flex flex-col">
-                            <div class="flex-1 min-h-[280px] p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
-                                <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
-                                <p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>
+                    <div class="flex-1 flex flex-col">
+                        <div class="flex-1 min-h-[280px] p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
+                            <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
+                            <p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>
 
-                                <div id="docContent" class="hidden space-y-3">
-                                    <p><strong class="text-text-200">Base Endpoint:</strong></p>
-                                    <code class="block text-xs bg-surface-900 px-2 py-1.5 rounded text-munti-blue-300">https://api.example.com/v1/data</code>
-                                    <p class="mt-3"><strong class="text-text-200">Rate Limit:</strong> 60 requests / minute</p>
-                                </div>
+                            <div id="docContent" class="hidden space-y-3">
+                                <p><strong class="text-text-200">Base Endpoint:</strong></p>
+                                <code class="block text-xs bg-surface-900 px-2 py-1.5 rounded text-munti-blue-300">https://api.example.com/v1/data</code>
+                                <p class="mt-3"><strong class="text-text-200">Rate Limit:</strong> 60 requests / minute</p>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- MIDDLE COLUMN -->
-                    <div class="flex flex-col">
-                        <label class="block text-xs font-medium text-text-400 mb-1.5">API URL</label>
-                        <input type="url" id="apiUrl" placeholder="https://api.example.com/v1/endpoint"
-                               class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                <!-- MIDDLE COLUMN -->
+                <div class="flex flex-col">
+                    <label class="block text-xs font-medium text-text-400 mb-1.5">API URL</label>
+                    <input type="url" id="apiUrl" placeholder="https://api.example.com/v1/endpoint"
+                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
 
-                        <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
-                            <p class="font-medium text-text-400 mb-2">Tips</p>
-                            <ul class="space-y-1.5 list-disc list-inside">
-                                <li>Include the full endpoint path</li>
-                                <li>Use HTTPS whenever possible</li>
-                                <li>Query parameters can be added later</li>
-                            </ul>
+                    <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
+                        <p class="font-medium text-text-400 mb-2">Tips</p>
+                        <ul class="space-y-1.5 list-disc list-inside">
+                            <li>Include the full endpoint path</li>
+                            <li>Use HTTPS whenever possible</li>
+                            <li>Query parameters can be added later</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN -->
+                <div class="flex flex-col">
+                    <label class="block text-xs font-medium text-text-400 mb-1.5">API Key</label>
+                    <input type="password" id="apiKey" placeholder="Enter your API key"
+                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+
+                    <!-- ===== PARAMETER CHECKBOXES ===== -->
+                    <div class="mt-4">
+                        <label class="block text-xs font-medium text-text-400 mb-2">Select Parameters</label>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 p-3 bg-surface-800/50 border border-border-700 rounded-lg max-h-[180px] overflow-y-auto thin-scrollbar">
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="pm25" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>PM2.5</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="pm10" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>PM10</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="tsp" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>TSP</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="ozone" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Ozone</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="carbon_monoxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Carbon Monoxide</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="sulfur_dioxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Sulfur Dioxide</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="nitrogen_dioxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Nitrogen Dioxide</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="temperature" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Temperature</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="humidity" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Humidity</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="rain" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Rain</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="wind_speed" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Wind Speed</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="wind_direction" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Wind Direction</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="air_pressure" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Air Pressure</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="noise" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Noise</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="lead" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Lead</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="add_params" value="lead_temperature" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Lead Temperature</span>
+                            </label>
                         </div>
+                        <p class="text-[10px] text-text-500 mt-1.5">Select all parameters this API provides</p>
                     </div>
 
-                    <!-- RIGHT COLUMN -->
-                    <div class="flex flex-col">
-                        <label class="block text-xs font-medium text-text-400 mb-1.5">API Key</label>
-                        <input type="password" id="apiKey" placeholder="Enter your API key"
-                               class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
-
-                        <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
-                            <p class="font-medium text-text-400 mb-2">Security Note</p>
-                            <p>Your API key is stored encrypted and never exposed in the frontend after saving.</p>
-                        </div>
+                    <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
+                        <p class="font-medium text-text-400 mb-2">Security Note</p>
+                        <p>Your API key is stored encrypted and never exposed in the frontend after saving.</p>
                     </div>
                 </div>
             </div>
-
-            <!-- Modal Footer -->
-            <div class="px-6 py-4 border-t border-border-700 bg-surface-800/60 flex items-center justify-end gap-3">
-                <button type="button" onclick="closeAddCalibrationModal()"
-                        class="h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
-                    Cancel
-                </button>
-                <button type="button" onclick="saveExternalApi()"
-                        class="h-9 px-5 text-sm font-medium text-white bg-munti-green-600 hover:bg-munti-green-500 rounded-lg transition">
-                    Save API
-                </button>
-            </div>
         </div>
-    </div>
+
+        <!-- Modal Footer -->
+        <div class="px-6 py-4 border-t border-border-700 bg-surface-800/60 flex items-center justify-end gap-3">
+            <button type="button" onclick="closeAddCalibrationModal()"
+            class="h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
+            Cancel
+        </button>
+        <button type="button" onclick="saveExternalApi()"
+        class="h-9 px-5 text-sm font-medium text-white bg-munti-green-600 hover:bg-munti-green-500 rounded-lg transition">
+        Save API
+    </button>
 </div>
 
 <!-- ==================== EDIT EXTERNAL API MODAL ==================== -->
@@ -257,70 +326,139 @@
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
                             <select id="editApiSource"
-                                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
-                                <option value="">-- Choose API --</option>
-                                <option value="accustation">AccuStation</option>
-                                <option value="openweather">OpenWeather</option>
-                                <option value="iqair">IQAir</option>
-                                <option value="custom">Custom API</option>
-                            </select>
-                        </div>
+                            class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                            <option value="">-- Choose API --</option>
+                            <option value="accustation">AccuStation</option>
+                            <option value="openweather">OpenWeather</option>
+                            <option value="iqair">IQAir</option>
+                            <option value="custom">Custom API</option>
+                        </select>
+                    </div>
 
-                        <div class="flex-1 flex flex-col">
-                            <div class="flex-1 min-h-[280px] p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
-                                <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
-                                <div id="editDocContent" class="space-y-3">
-                                    <p><strong class="text-text-200">Base Endpoint:</strong></p>
-                                    <code class="block text-xs bg-surface-900 px-2 py-1.5 rounded text-munti-blue-300">https://api.accustation.com/v1/data</code>
-                                    <p class="mt-3"><strong class="text-text-200">Rate Limit:</strong> 60 requests / minute</p>
-                                </div>
+                    <div class="flex-1 flex flex-col">
+                        <div class="flex-1 min-h-[280px] p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
+                            <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
+                            <div id="editDocContent" class="space-y-3">
+                                <p><strong class="text-text-200">Base Endpoint:</strong></p>
+                                <code class="block text-xs bg-surface-900 px-2 py-1.5 rounded text-munti-blue-300">https://api.accustation.com/v1/data</code>
+                                <p class="mt-3"><strong class="text-text-200">Rate Limit:</strong> 60 requests / minute</p>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- MIDDLE COLUMN -->
-                    <div class="flex flex-col">
-                        <label class="block text-xs font-medium text-text-400 mb-1.5">API URL</label>
-                        <input type="url" id="editApiUrl" placeholder="https://api.example.com/v1/endpoint"
-                               class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                <!-- MIDDLE COLUMN -->
+                <div class="flex flex-col">
+                    <label class="block text-xs font-medium text-text-400 mb-1.5">API URL</label>
+                    <input type="url" id="editApiUrl" placeholder="https://api.example.com/v1/endpoint"
+                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
 
-                        <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
-                            <p class="font-medium text-text-400 mb-2">Tips</p>
-                            <ul class="space-y-1.5 list-disc list-inside">
-                                <li>Include the full endpoint path</li>
-                                <li>Use HTTPS whenever possible</li>
-                                <li>Query parameters can be added later</li>
-                            </ul>
+                    <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
+                        <p class="font-medium text-text-400 mb-2">Tips</p>
+                        <ul class="space-y-1.5 list-disc list-inside">
+                            <li>Include the full endpoint path</li>
+                            <li>Use HTTPS whenever possible</li>
+                            <li>Query parameters can be added later</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN -->
+                <div class="flex flex-col">
+                    <label class="block text-xs font-medium text-text-400 mb-1.5">API Key</label>
+                    <input type="password" id="editApiKey" placeholder="Enter your API key"
+                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+
+                    <!-- ===== PARAMETER CHECKBOXES ===== -->
+                    <div class="mt-4">
+                        <label class="block text-xs font-medium text-text-400 mb-2">Select Parameters</label>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 p-3 bg-surface-800/50 border border-border-700 rounded-lg max-h-[180px] overflow-y-auto thin-scrollbar">
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="pm25" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>PM2.5</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="pm10" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>PM10</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="tsp" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>TSP</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="ozone" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Ozone</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="carbon_monoxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Carbon Monoxide</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="sulfur_dioxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Sulfur Dioxide</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="nitrogen_dioxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Nitrogen Dioxide</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="temperature" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Temperature</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="humidity" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Humidity</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="rain" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Rain</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="wind_speed" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Wind Speed</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="wind_direction" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Wind Direction</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="air_pressure" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Air Pressure</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="noise" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Noise</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="lead" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Lead</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                                <input type="checkbox" name="edit_params" value="lead_temperature" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                <span>Lead Temperature</span>
+                            </label>
                         </div>
+                        <p class="text-[10px] text-text-500 mt-1.5">Select all parameters this API provides</p>
                     </div>
 
-                    <!-- RIGHT COLUMN -->
-                    <div class="flex flex-col">
-                        <label class="block text-xs font-medium text-text-400 mb-1.5">API Key</label>
-                        <input type="password" id="editApiKey" placeholder="Enter your API key"
-                               class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
-
-                        <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
-                            <p class="font-medium text-text-400 mb-2">Security Note</p>
-                            <p>Your API key is stored encrypted and never exposed in the frontend after saving.</p>
-                        </div>
+                    <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
+                        <p class="font-medium text-text-400 mb-2">Security Note</p>
+                        <p>Your API key is stored encrypted and never exposed in the frontend after saving.</p>
                     </div>
                 </div>
             </div>
-
-            <!-- Modal Footer -->
-            <div class="px-6 py-4 border-t border-border-700 bg-surface-800/60 flex items-center justify-end gap-3">
-                <button type="button" onclick="closeEditCalibrationModal()"
-                        class="h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
-                    Cancel
-                </button>
-                <button type="button" onclick="updateExternalApi()"
-                        class="h-9 px-5 text-sm font-medium text-white bg-munti-blue-600 hover:bg-munti-blue-500 rounded-lg transition">
-                    Update API
-                </button>
-            </div>
         </div>
-    </div>
+
+        <!-- Modal Footer -->
+        <div class="px-6 py-4 border-t border-border-700 bg-surface-800/60 flex items-center justify-end gap-3">
+            <button type="button" onclick="closeEditCalibrationModal()"
+            class="h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
+            Cancel
+        </button>
+        <button type="button" onclick="updateExternalApi()"
+        class="h-9 px-5 text-sm font-medium text-white bg-munti-blue-600 hover:bg-munti-blue-500 rounded-lg transition">
+        Update API
+    </button>
 </div>
 
 <script>
