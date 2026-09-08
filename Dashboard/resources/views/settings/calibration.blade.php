@@ -112,18 +112,18 @@
                                     <!-- File -->
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <a href="#"
-                                           class="inline-flex items-center gap-1.5 text-xs text-munti-blue-400 hover:text-munti-blue-300 transition"
+                                           class="inline-flex items-center gap-1.5 text-xs text-text-200 transition"
                                            title="View file (preview not available)">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
                                             </svg>
-                                            accustation_data.json
+                                            JSON
                                         </a>
                                     </td>
 
                                     <!-- Checklist of Data -->
                                     <td class="px-4 py-2.5">
-                                        <div class="flex flex-wrap gap-1 max-w-xs">
+                                        <div class="flex flex-wrap gap-1 max-w-xs text-text-200">
                                             <span class="checklist-tag checklist-tag-pm25">PM2.5</span>
                                             <span class="checklist-tag checklist-tag-pm10">PM10</span>
                                         </div>
@@ -186,17 +186,17 @@
 
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <a href="#"
-                                           class="inline-flex items-center gap-1.5 text-xs text-munti-blue-400 hover:text-munti-blue-300 transition"
+                                           class="inline-flex items-center gap-1.5 text-xs text-text-200 transition"
                                            title="View file (preview not available)">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
                                             </svg>
-                                            sensor_calibration.csv
+                                            XML
                                         </a>
                                     </td>
 
                                     <td class="px-4 py-2.5">
-                                        <div class="flex flex-wrap gap-1 max-w-xs">
+                                        <div class="flex flex-wrap gap-1 max-w-xs text-text-200">
                                             <span class="checklist-tag checklist-tag-temperature">Temperature</span>
                                             <span class="checklist-tag checklist-tag-humidity">Humidity</span>
                                             <span class="checklist-tag checklist-tag-pressure">Pressure</span>
