@@ -8,34 +8,17 @@
     .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #6B7280; }
     .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
 
-    /* Checklist tag styles */
     .checklist-tag {
         @apply inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border;
     }
-    .checklist-tag-temperature {
-        @apply bg-munti-red-700/20 text-munti-red-400 border-munti-red-600/30;
-    }
-    .checklist-tag-humidity {
-        @apply bg-munti-blue-700/20 text-munti-blue-400 border-munti-blue-600/30;
-    }
-    .checklist-tag-pressure {
-        @apply bg-munti-yellow-700/20 text-munti-yellow-400 border-munti-yellow-600/30;
-    }
-    .checklist-tag-pm25 {
-        @apply bg-munti-purple-700/20 text-munti-purple-400 border-munti-purple-600/30;
-    }
-    .checklist-tag-pm10 {
-        @apply bg-munti-orange-700/20 text-munti-orange-400 border-munti-orange-600/30;
-    }
-    .checklist-tag-co {
-        @apply bg-munti-gray-700/20 text-munti-gray-400 border-munti-gray-600/30;
-    }
-    .checklist-tag-no2 {
-        @apply bg-munti-teal-700/20 text-munti-teal-400 border-munti-teal-600/30;
-    }
-    .checklist-tag-o3 {
-        @apply bg-munti-indigo-700/20 text-munti-indigo-400 border-munti-indigo-600/30;
-    }
+    .checklist-tag-temperature { @apply bg-munti-red-700/20 text-munti-red-400 border-munti-red-600/30; }
+    .checklist-tag-humidity { @apply bg-munti-blue-700/20 text-munti-blue-400 border-munti-blue-600/30; }
+    .checklist-tag-pressure { @apply bg-munti-yellow-700/20 text-munti-yellow-400 border-munti-yellow-600/30; }
+    .checklist-tag-pm25 { @apply bg-munti-purple-700/20 text-munti-purple-400 border-munti-purple-600/30; }
+    .checklist-tag-pm10 { @apply bg-munti-orange-700/20 text-munti-orange-400 border-munti-orange-600/30; }
+    .checklist-tag-co { @apply bg-munti-gray-700/20 text-munti-gray-400 border-munti-gray-600/30; }
+    .checklist-tag-no2 { @apply bg-munti-teal-700/20 text-munti-teal-400 border-munti-teal-600/30; }
+    .checklist-tag-o3 { @apply bg-munti-indigo-700/20 text-munti-indigo-400 border-munti-indigo-600/30; }
 </style>
 
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
@@ -51,7 +34,6 @@
 
         <!-- Content -->
         <div class="flex-1 overflow-y-auto thin-scrollbar min-h-0 bg-background-900 py-6 px-5 sm:px-8">
-
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
 
                 <!-- Table Section -->
@@ -63,19 +45,11 @@
                         <div class="flex items-center gap-3">
                             <span class="text-xs text-text-500">2 Record(s)</span>
 
-                            <!-- Add Calibration Button -->
                             <button type="button"
                                     onclick="openAddCalibrationModal()"
                                     class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 rounded-md hover:bg-munti-green-700/30 transition whitespace-nowrap">
-                                <svg xmlns="http://www.w3.org/2000/svg"
-                                     class="w-3.5 h-3.5 shrink-0"
-                                     fill="none"
-                                     viewBox="0 0 24 24"
-                                     stroke="currentColor">
-                                    <path stroke-linecap="round"
-                                          stroke-linejoin="round"
-                                          stroke-width="2"
-                                          d="M12 4v16m8-8H4"/>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                 </svg>
                                 Add Calibration
                             </button>
@@ -97,46 +71,33 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-border-800">
-
                                 <!-- Row 1 -->
-                                <tr class="hover:bg-surface-700/50 transition" data-calibration-id="1">
+                                <tr class="hover:bg-surface-700/50 transition">
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">1</td>
-
-                                    <!-- Source -->
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border bg-radar-700/15 text-radar-400 border-radar-600/30">
                                             AccuStation
                                         </span>
                                     </td>
-
-                                    <!-- File -->
                                     <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <a href="#"
-                                           class="inline-flex items-center gap-1.5 text-xs text-text-200 transition"
-                                           title="View file (preview not available)">
+                                        <a href="#" class="inline-flex items-center gap-1.5 text-xs text-munti-blue-400 hover:text-munti-blue-300 transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
                                             </svg>
-                                            JSON
+                                            accustation_data.json
                                         </a>
                                     </td>
-
-                                    <!-- Checklist of Data -->
                                     <td class="px-4 py-2.5">
-                                        <div class="flex flex-wrap gap-1 max-w-xs text-text-200">
+                                        <div class="flex flex-wrap gap-1 max-w-xs">
                                             <span class="checklist-tag checklist-tag-pm25">PM2.5</span>
                                             <span class="checklist-tag checklist-tag-pm10">PM10</span>
                                         </div>
                                     </td>
-
-                                    <!-- Total Data -->
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-munti-green-700/15 text-munti-green-400 border border-munti-green-600/30">
                                             1,213
                                         </span>
                                     </td>
-
-                                    <!-- No. of Requests/min -->
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-munti-green-700/15 text-munti-green-400 border border-munti-green-600/30">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -145,27 +106,15 @@
                                             1 req/min
                                         </span>
                                     </td>
-
-                                    <!-- Created At -->
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                        2026-03-12 09:45
-                                    </td>
-
-                                    <!-- Actions -->
+                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">2026-03-12 09:45</td>
                                     <td class="px-4 py-2.5 whitespace-nowrap text-center">
                                         <div class="flex items-center justify-center gap-1.5">
-                                            <button type="button"
-                                                    onclick="editCalibration(1)"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Edit Calibration">
+                                            <button type="button" onclick="editCalibration(1)" class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition" title="Edit">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                                 </svg>
                                             </button>
-                                            <button type="button"
-                                                    onclick="deleteCalibration(1, 'accustation_data.json')"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Delete Calibration">
+                                            <button type="button" onclick="deleteCalibration(1, 'accustation_data.json')" class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition" title="Delete">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
                                                     <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                                                 </svg>
@@ -174,41 +123,34 @@
                                     </td>
                                 </tr>
 
-                                <!-- Row 2 (extra sample) -->
-                                <tr class="hover:bg-surface-700/50 transition" data-calibration-id="2">
+                                <!-- Row 2 -->
+                                <tr class="hover:bg-surface-700/50 transition">
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">2</td>
-
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30">
                                             Sensor
                                         </span>
                                     </td>
-
                                     <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <a href="#"
-                                           class="inline-flex items-center gap-1.5 text-xs text-text-200 transition"
-                                           title="View file (preview not available)">
+                                        <a href="#" class="inline-flex items-center gap-1.5 text-xs text-munti-blue-400 hover:text-munti-blue-300 transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
                                             </svg>
-                                            XML
+                                            sensor_calibration.csv
                                         </a>
                                     </td>
-
                                     <td class="px-4 py-2.5">
-                                        <div class="flex flex-wrap gap-1 max-w-xs text-text-200">
+                                        <div class="flex flex-wrap gap-1 max-w-xs">
                                             <span class="checklist-tag checklist-tag-temperature">Temperature</span>
                                             <span class="checklist-tag checklist-tag-humidity">Humidity</span>
                                             <span class="checklist-tag checklist-tag-pressure">Pressure</span>
                                         </div>
                                     </td>
-
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-surface-700/50 text-text-300 border border-border-600/50">
                                             847
                                         </span>
                                     </td>
-
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-munti-yellow-700/20 text-munti-yellow-400 border border-munti-yellow-600/30">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -217,25 +159,15 @@
                                             12 req/min
                                         </span>
                                     </td>
-
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                        2026-03-15 14:22
-                                    </td>
-
+                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">2026-03-15 14:22</td>
                                     <td class="px-4 py-2.5 whitespace-nowrap text-center">
                                         <div class="flex items-center justify-center gap-1.5">
-                                            <button type="button"
-                                                    onclick="editCalibration(2)"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Edit Calibration">
+                                            <button type="button" onclick="editCalibration(2)" class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition" title="Edit">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                                 </svg>
                                             </button>
-                                            <button type="button"
-                                                    onclick="deleteCalibration(2, 'sensor_calibration.csv')"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group"
-                                                    title="Delete Calibration">
+                                            <button type="button" onclick="deleteCalibration(2, 'sensor_calibration.csv')" class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition" title="Delete">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
                                                     <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                                                 </svg>
@@ -243,7 +175,6 @@
                                         </div>
                                     </td>
                                 </tr>
-
                             </tbody>
                         </table>
                     </div>
@@ -253,10 +184,155 @@
     </div>
 </div>
 
+<!-- ==================== ADD EXTERNAL API MODAL ==================== -->
+<div id="addApiModal" class="fixed inset-0 z-50 hidden">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeAddCalibrationModal()"></div>
+
+    <!-- Modal Panel -->
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-5xl bg-surface-900 border border-border-700 rounded-2xl shadow-2xl overflow-hidden">
+
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-border-700 bg-surface-800 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-text-100">Add External API</h3>
+                <button type="button" onclick="closeAddCalibrationModal()" class="p-1.5 rounded-lg text-text-400 hover:text-text-100 hover:bg-surface-700 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+                    <!-- LEFT COLUMN: Dropdown + Documentation -->
+                    <div class="flex flex-col gap-4">
+                        <!-- Dropdown -->
+                        <div>
+                            <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
+                            <select id="apiSource"
+                                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                                <option value="">-- Choose API --</option>
+                                <option value="accustation">AccuStation</option>
+                                <option value="openweather">OpenWeather</option>
+                                <option value="iqair">IQAir</option>
+                                <option value="custom">Custom API</option>
+                            </select>
+                        </div>
+
+                        <!-- Documentation Box -->
+                        <div class="flex-1 flex flex-col">
+                            <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
+                            <div class="flex-1 min-h-[280px] p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
+                                <p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>
+
+                                <!-- Example content (shown dynamically via JS) -->
+                                <div id="docContent" class="hidden space-y-3">
+                                    <p><strong class="text-text-200">Base Endpoint:</strong></p>
+                                    <code class="block text-xs bg-surface-900 px-2 py-1.5 rounded text-munti-blue-300">https://api.example.com/v1/data</code>
+
+                                    <p class="mt-3"><strong class="text-text-200">Required Parameters:</strong></p>
+                                    <ul class="list-disc list-inside space-y-1 text-xs">
+                                        <li><code class="text-munti-yellow-400">api_key</code> – Your authentication key</li>
+                                        <li><code class="text-munti-yellow-400">location</code> – Latitude,Longitude</li>
+                                        <li><code class="text-munti-yellow-400">fields</code> – Comma-separated metrics</li>
+                                    </ul>
+
+                                    <p class="mt-3"><strong class="text-text-200">Rate Limit:</strong> 60 requests / minute</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MIDDLE COLUMN: API URL -->
+                    <div class="flex flex-col">
+                        <label class="block text-xs font-medium text-text-400 mb-1.5">API URL</label>
+                        <input type="url"
+                               id="apiUrl"
+                               placeholder="https://api.example.com/v1/endpoint"
+                               class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+
+                        <!-- Extra helper area under URL (optional) -->
+                        <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
+                            <p class="font-medium text-text-400 mb-2">Tips</p>
+                            <ul class="space-y-1.5 list-disc list-inside">
+                                <li>Include the full endpoint path</li>
+                                <li>Use HTTPS whenever possible</li>
+                                <li>Query parameters can be added later</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT COLUMN: API Key -->
+                    <div class="flex flex-col">
+                        <label class="block text-xs font-medium text-text-400 mb-1.5">API Key</label>
+                        <input type="password"
+                               id="apiKey"
+                               placeholder="Enter your API key"
+                               class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+
+                        <!-- Extra helper area under Key -->
+                        <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
+                            <p class="font-medium text-text-400 mb-2">Security Note</p>
+                            <p>Your API key is stored encrypted and never exposed in the frontend after saving.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-border-700 bg-surface-800/60 flex items-center justify-end gap-3">
+                <button type="button"
+                        onclick="closeAddCalibrationModal()"
+                        class="h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
+                    Cancel
+                </button>
+                <button type="button"
+                        onclick="saveExternalApi()"
+                        class="h-9 px-5 text-sm font-medium text-white bg-munti-green-600 hover:bg-munti-green-500 rounded-lg transition">
+                    Save API
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    // Placeholder functions – wire these to your actual routes/controllers
     function openAddCalibrationModal() {
-        alert('Add Calibration modal – implement as needed');
+        document.getElementById('addApiModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeAddCalibrationModal() {
+        document.getElementById('addApiModal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    // Simple demo: show documentation when source changes
+    document.getElementById('apiSource')?.addEventListener('change', function () {
+        const doc = document.getElementById('docContent');
+        if (this.value) {
+            doc.classList.remove('hidden');
+        } else {
+            doc.classList.add('hidden');
+        }
+    });
+
+    function saveExternalApi() {
+        const source = document.getElementById('apiSource').value;
+        const url = document.getElementById('apiUrl').value;
+        const key = document.getElementById('apiKey').value;
+
+        if (!source || !url || !key) {
+            alert('Please fill in all fields.');
+            return;
+        }
+
+        // TODO: replace with real AJAX / form submit
+        alert(`Saved!\nSource: ${source}\nURL: ${url}`);
+        closeAddCalibrationModal();
     }
 
     function editCalibration(id) {
@@ -279,11 +355,15 @@
             iconColor: '#ef4444'
         }).then((result) => {
             if (result.isConfirmed) {
-                // In a real app you would submit a form or call an API here
                 alert(`Deleted calibration #${id}`);
             }
         });
     }
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeAddCalibrationModal();
+    });
 </script>
 
 @include('layouts.footer')
