@@ -208,73 +208,73 @@
                     <input type="password" id="apiKey" placeholder="Enter your API key"
                     class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
 
-                    <!-- ===== FIELDS TO MAP TO DATABASE (Single Column) ===== -->
+                    <!-- ===== FIELDS TO MAP TO DATABASE (4‑column grid) ===== -->
                     <div class="mt-4">
                         <label class="block text-xs font-medium text-text-400 mb-2">Fields to Map to Database</label>
-                        <div class="grid grid-cols-1 gap-y-1.5 p-3 bg-surface-800/50 border border-border-700 rounded-lg max-h-[200px] overflow-y-auto thin-scrollbar">
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-1.5 p-3 bg-surface-800/50 border border-border-700 rounded-lg max-h-[220px] overflow-y-auto thin-scrollbar">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="pm25" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>PM25</span>
+                                <span>PM2.5</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="pm10" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>PM10</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="tsp" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>TSP</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="ozone" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Ozone</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="carbon_monoxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>Carbon Monoxide</span>
+                                <span>CO</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="sulfur_dioxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>Sulfur Dioxide</span>
+                                <span>SO₂</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="nitrogen_dioxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>Nitrogen Dioxide</span>
+                                <span>NO₂</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="temperature" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Temperature</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="humidity" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Humidity</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="rain" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Rain</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="wind_speed" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Wind Speed</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="wind_direction" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>Wind Direction</span>
+                                <span>Wind Dir.</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="air_pressure" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Air Pressure</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="noise" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Noise</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="lead" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Lead</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="lead_temperature" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>Lead Temperature</span>
+                                <span>Lead Temp.</span>
                             </label>
                         </div>
                         <p class="text-[10px] text-text-500 mt-1.5">Select which fields from the API response should be stored in the database.</p>
@@ -369,73 +369,73 @@
                     <input type="password" id="editApiKey" placeholder="Enter your API key"
                     class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
 
-                    <!-- ===== FIELDS TO MAP TO DATABASE (Single Column) ===== -->
+                    <!-- ===== FIELDS TO MAP TO DATABASE (4‑column grid) ===== -->
                     <div class="mt-4">
                         <label class="block text-xs font-medium text-text-400 mb-2">Fields to Map to Database</label>
-                        <div class="grid grid-cols-1 gap-y-1.5 p-3 bg-surface-800/50 border border-border-700 rounded-lg max-h-[200px] overflow-y-auto thin-scrollbar">
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-1.5 p-3 bg-surface-800/50 border border-border-700 rounded-lg max-h-[220px] overflow-y-auto thin-scrollbar">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="pm25" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>PM25</span>
+                                <span>PM2.5</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="pm10" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>PM10</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="tsp" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>TSP</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="ozone" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Ozone</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="carbon_monoxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>Carbon Monoxide</span>
+                                <span>CO</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="sulfur_dioxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>Sulfur Dioxide</span>
+                                <span>SO₂</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="nitrogen_dioxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>Nitrogen Dioxide</span>
+                                <span>NO₂</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="temperature" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Temperature</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="humidity" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Humidity</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="rain" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Rain</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="wind_speed" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Wind Speed</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="wind_direction" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>Wind Direction</span>
+                                <span>Wind Dir.</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="air_pressure" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Air Pressure</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="noise" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Noise</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="lead" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
                                 <span>Lead</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                            <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="lead_temperature" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>Lead Temperature</span>
+                                <span>Lead Temp.</span>
                             </label>
                         </div>
                         <p class="text-[10px] text-text-500 mt-1.5">Select which fields from the API response should be stored in the database.</p>
