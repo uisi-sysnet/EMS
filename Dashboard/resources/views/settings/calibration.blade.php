@@ -214,7 +214,7 @@
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-1.5 p-3 bg-surface-800/50 border border-border-700 rounded-lg max-h-[220px] overflow-y-auto thin-scrollbar">
                             <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="pm25" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>PM2.5</span>
+                                <span>PM25</span>
                             </label>
                             <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="add_params" value="pm10" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
@@ -327,7 +327,7 @@
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
                             <select id="editApiSource"
                             class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
-                            <option value="">-- Choose API --</option>
+                            <option value="">Choose API</option>
                             <option value="accustation">AccuStation</option>
                             <option value="openweather">OpenWeather</option>
                             <option value="iqair">IQAir</option>
@@ -375,7 +375,7 @@
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-1.5 p-3 bg-surface-800/50 border border-border-700 rounded-lg max-h-[220px] overflow-y-auto thin-scrollbar">
                             <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="pm25" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                <span>PM2.5</span>
+                                <span>PM25</span>
                             </label>
                             <label class="flex items-center gap-1.5 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                 <input type="checkbox" name="edit_params" value="pm10" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
