@@ -84,10 +84,9 @@
                                             JSON
                                         </a>
                                     </td>
-                                    <td class="px-4 py-2.5">
+                                    <td class="px-4 py-2.5 whitespace-nowrap">
                                         <div class="flex flex-wrap gap-1 max-w-xs text-text-200">
-                                            <span class="checklist-tag checklist-tag-pm25">PM2.5</span>
-                                            <span class="checklist-tag checklist-tag-pm10">PM10</span>
+                                            PM 2
                                         </div>
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap">
