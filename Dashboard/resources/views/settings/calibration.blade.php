@@ -65,7 +65,7 @@
                 <div class="flex-1 flex flex-col min-h-0">
                     <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
                         <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider flex items-center gap-2">
-                            Calibration Records
+                            External API Records
                         </h3>
                         <div class="flex items-center gap-3">
                             <span class="text-xs text-text-500">{{ $calibrations->count() }} Record(s)</span>
