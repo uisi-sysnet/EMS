@@ -177,8 +177,8 @@
 
                         <!-- Documentation Box -->
                         <div class="flex-1 flex flex-col">
-                            <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
                             <div class="flex-1 min-h-[280px] p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
+                                <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
                                 <p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>
 
                                 <!-- Example content (shown dynamically via JS) -->
