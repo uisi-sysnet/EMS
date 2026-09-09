@@ -158,7 +158,7 @@
             <div class="p-6">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-5">
 
-                    <!-- COLUMN 1: API Source + Documentation -->
+                    <!-- COLUMN 1: API Source + Auth Type + Documentation -->
                     <div class="flex flex-col gap-4">
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
@@ -168,18 +168,27 @@
                                 <option value="accustation">AccuStation</option>
                                 <option value="openweather">OpenWeather</option>
                                 <option value="iqair">IQAir</option>
+                                <option value="accuweather">AccuWeather</option>
                                 <option value="custom">Custom API</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-text-400 mb-1.5">Authentication Type</label>
+                            <select id="authType"
+                                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                                <option value="api_key" selected>API Key</option>
+                                <option value="oauth2">OAuth2</option>
+                                <option value="basic">Basic Auth</option>
                             </select>
                         </div>
 
                         <div class="flex-1 flex flex-col">
                             <div class="flex-1 min-h-[250px] p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
                                 <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
-                                <p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>
-                                <div id="docContent" class="hidden space-y-3">
-                                    <p><strong class="text-text-200">Base Endpoint:</strong></p>
-                                    <code class="block text-xs bg-surface-900 px-2 py-1.5 rounded text-munti-blue-300">https://api.example.com/v1/data</code>
-                                    <p class="mt-3"><strong class="text-text-200">Rate Limit:</strong> 60 requests / minute</p>
+                                <div id="docContent" class="space-y-3">
+                                    <!-- Dynamic content will be inserted by JavaScript -->
+                                    <p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>
                                 </div>
                             </div>
                         </div>
@@ -326,7 +335,7 @@
             <div class="p-6">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-5">
 
-                    <!-- COLUMN 1: API Source + Documentation -->
+                    <!-- COLUMN 1: API Source + Auth Type + Documentation -->
                     <div class="flex flex-col gap-4">
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
@@ -336,7 +345,18 @@
                                 <option value="accustation">AccuStation</option>
                                 <option value="openweather">OpenWeather</option>
                                 <option value="iqair">IQAir</option>
+                                <option value="accuweather">AccuWeather</option>
                                 <option value="custom">Custom API</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-text-400 mb-1.5">Authentication Type</label>
+                            <select id="editAuthType"
+                                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                                <option value="api_key" selected>API Key</option>
+                                <option value="oauth2">OAuth2</option>
+                                <option value="basic">Basic Auth</option>
                             </select>
                         </div>
 
@@ -344,9 +364,7 @@
                             <div class="flex-1 min-h-[250px] p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
                                 <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
                                 <div id="editDocContent" class="space-y-3">
-                                    <p><strong class="text-text-200">Base Endpoint:</strong></p>
-                                    <code class="block text-xs bg-surface-900 px-2 py-1.5 rounded text-munti-blue-300">https://api.accustation.com/v1/data</code>
-                                    <p class="mt-3"><strong class="text-text-200">Rate Limit:</strong> 60 requests / minute</p>
+                                    <!-- Dynamic content -->
                                 </div>
                             </div>
                         </div>
@@ -473,7 +491,63 @@
 </div>
 
 <script>
-    // ---------- ADD Modal ----------
+    // ========== HELPERS ==========
+    const docMap = {
+        accustation: {
+            endpoint: 'https://api.accustation.com/v1/data',
+            rate: '60 requests / minute',
+            params: 'apikey, station_id',
+            auth: 'API Key (query parameter)'
+        },
+        openweather: {
+            endpoint: 'https://api.openweathermap.org/data/2.5/weather',
+            rate: '60 calls/minute (free tier)',
+            params: 'appid, q, units',
+            auth: 'API Key (appid query parameter)'
+        },
+        iqair: {
+            endpoint: 'https://api.iqair.com/v2/',
+            rate: '10,000 calls/month (free)',
+            params: 'api_key, city',
+            auth: 'API Key (api_key query parameter)'
+        },
+        accuweather: {
+            endpoint: 'http://dataservice.accuweather.com/',
+            rate: '500 calls/day (Free tier) / higher for paid plans',
+            params: 'apikey (query parameter), locationKey, metric etc.',
+            auth: 'API Key (apikey query parameter)',
+            endpoints: 'Current Conditions, Hourly/Daily Forecasts, Alerts, Indices, and more'
+        },
+        custom: {
+            endpoint: 'Your custom endpoint',
+            rate: 'Depends on your service',
+            params: 'Define your own',
+            auth: 'Varies'
+        }
+    };
+
+    function updateDocContent(docDiv, source) {
+        if (source && docMap[source]) {
+            const info = docMap[source];
+            let html = `
+                <p><strong class="text-text-200">Base Endpoint:</strong></p>
+                <code class="block text-xs bg-surface-900 px-2 py-1.5 rounded text-munti-blue-300">${info.endpoint}</code>
+                <p class="mt-3"><strong class="text-text-200">Rate Limit:</strong> ${info.rate}</p>
+                <p class="mt-2"><strong class="text-text-200">Required Parameters:</strong> ${info.params}</p>
+                <p class="mt-2"><strong class="text-text-200">Authentication:</strong> ${info.auth}</p>
+            `;
+            if (info.endpoints) {
+                html += `<p class="mt-2"><strong class="text-text-200">Available Endpoints:</strong> ${info.endpoints}</p>`;
+            }
+            docDiv.innerHTML = html;
+            docDiv.classList.remove('hidden');
+        } else {
+            docDiv.innerHTML = `<p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>`;
+            docDiv.classList.add('hidden');
+        }
+    }
+
+    // ========== ADD MODAL ==========
     function openAddCalibrationModal() {
         document.getElementById('addApiModal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
@@ -482,14 +556,38 @@
     function closeAddCalibrationModal() {
         document.getElementById('addApiModal').classList.add('hidden');
         document.body.style.overflow = '';
+        // reset form
+        document.getElementById('apiSource').value = '';
+        document.getElementById('apiUrl').value = '';
+        document.getElementById('apiKey').value = '';
+        document.getElementById('authType').value = 'api_key';
+        updateDocContent(document.getElementById('docContent'), '');
     }
 
     document.getElementById('apiSource')?.addEventListener('change', function () {
-        const doc = document.getElementById('docContent');
-        if (this.value) {
-            doc.classList.remove('hidden');
+        const docDiv = document.getElementById('docContent');
+        updateDocContent(docDiv, this.value);
+        // Optionally pre-fill URL placeholder for AccuWeather
+        const urlField = document.getElementById('apiUrl');
+        if (this.value === 'accuweather') {
+            urlField.placeholder = 'http://dataservice.accuweather.com/currentconditions/v1/{locationKey}';
         } else {
-            doc.classList.add('hidden');
+            urlField.placeholder = 'https://api.example.com/v1/endpoint';
+        }
+    });
+
+    // Auth type toggles (optional – show/hide or change placeholder)
+    document.getElementById('authType')?.addEventListener('change', function() {
+        const keyField = document.getElementById('apiKey');
+        if (this.value === 'api_key') {
+            keyField.placeholder = 'Enter your API key';
+            keyField.type = 'password';
+        } else if (this.value === 'oauth2') {
+            keyField.placeholder = 'Enter OAuth2 token (or Client ID:Secret)';
+            keyField.type = 'text';
+        } else if (this.value === 'basic') {
+            keyField.placeholder = 'Enter username:password (Base64)';
+            keyField.type = 'text';
         }
     });
 
@@ -497,24 +595,27 @@
         const source = document.getElementById('apiSource').value;
         const url = document.getElementById('apiUrl').value;
         const key = document.getElementById('apiKey').value;
+        const authType = document.getElementById('authType').value;
 
         if (!source || !url || !key) {
             alert('Please fill in all fields.');
             return;
         }
 
-        alert(`Saved!\nSource: ${source}\nURL: ${url}`);
+        // In a real app, send data to backend via AJAX
+        alert(`Saved!\nSource: ${source}\nURL: ${url}\nAuth Type: ${authType}`);
         closeAddCalibrationModal();
     }
 
-    // ---------- EDIT Modal ----------
+    // ========== EDIT MODAL ==========
     function editCalibration(id) {
-        // Sample data – replace with real data from your backend later
+        // Sample data – replace with real data from your backend
         const sampleData = {
             1: {
                 source: 'accustation',
                 url: 'https://api.accustation.com/v1/data',
-                key: 'sk_live_************************'
+                key: 'sk_live_************************',
+                authType: 'api_key'
             }
         };
 
@@ -523,6 +624,11 @@
         document.getElementById('editApiSource').value = data.source;
         document.getElementById('editApiUrl').value = data.url;
         document.getElementById('editApiKey').value = data.key;
+        document.getElementById('editAuthType').value = data.authType || 'api_key';
+
+        // Update documentation
+        const docDiv = document.getElementById('editDocContent');
+        updateDocContent(docDiv, data.source);
 
         document.getElementById('editApiModal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
@@ -533,21 +639,49 @@
         document.body.style.overflow = '';
     }
 
+    // Event listeners for edit modal
+    document.getElementById('editApiSource')?.addEventListener('change', function () {
+        const docDiv = document.getElementById('editDocContent');
+        updateDocContent(docDiv, this.value);
+        // Optionally pre-fill URL placeholder
+        const urlField = document.getElementById('editApiUrl');
+        if (this.value === 'accuweather') {
+            urlField.placeholder = 'http://dataservice.accuweather.com/currentconditions/v1/{locationKey}';
+        } else {
+            urlField.placeholder = 'https://api.example.com/v1/endpoint';
+        }
+    });
+
+    document.getElementById('editAuthType')?.addEventListener('change', function() {
+        const keyField = document.getElementById('editApiKey');
+        if (this.value === 'api_key') {
+            keyField.placeholder = 'Enter your API key';
+            keyField.type = 'password';
+        } else if (this.value === 'oauth2') {
+            keyField.placeholder = 'Enter OAuth2 token (or Client ID:Secret)';
+            keyField.type = 'text';
+        } else if (this.value === 'basic') {
+            keyField.placeholder = 'Enter username:password (Base64)';
+            keyField.type = 'text';
+        }
+    });
+
     function updateExternalApi() {
         const source = document.getElementById('editApiSource').value;
         const url = document.getElementById('editApiUrl').value;
         const key = document.getElementById('editApiKey').value;
+        const authType = document.getElementById('editAuthType').value;
 
         if (!source || !url || !key) {
             alert('Please fill in all fields.');
             return;
         }
 
-        alert(`Updated!\nSource: ${source}\nURL: ${url}`);
+        alert(`Updated!\nSource: ${source}\nURL: ${url}\nAuth Type: ${authType}`);
         closeEditCalibrationModal();
     }
 
-    // ---------- DELETE ----------
+    // ========== DELETE ==========
     function deleteCalibration(id, fileName) {
         Swal.fire({
             title: 'Delete Calibration?',
@@ -569,7 +703,7 @@
         });
     }
 
-    // Close modals on Escape
+    // ========== CLOSE ON ESC ==========
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             closeAddCalibrationModal();
