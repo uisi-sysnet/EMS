@@ -230,7 +230,19 @@ class DashboardController extends Controller
     public function buildReportImageJpeg(): string
     {
         $ctx   = $this->buildReportContext();
-        $image = $this->renderSystemStatusImage($ctx);
+        $pages = $this->renderSystemStatusPages($ctx);
+
+        // A Telegram photo can only be a single image — same constraint
+        // generateImageReport() handles by falling back to a ZIP when
+        // there's more than one page. The digest has no ZIP fallback, so
+        // it only ever sends page 1; any extra pages (station tables ran
+        // past IMAGE_MAX_TABLE_ROWS) are destroyed here instead of leaked.
+        // The full multi-page report is still available via the "Download
+        // Image" button / PDF report.
+        $image = $pages[0];
+        foreach (array_slice($pages, 1) as $extraPage) {
+            imagedestroy($extraPage);
+        }
 
         ob_start();
         imagejpeg($image, null, 90);
