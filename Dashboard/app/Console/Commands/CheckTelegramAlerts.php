@@ -48,11 +48,22 @@ class CheckTelegramAlerts extends Command
     private function checkStations(Collection $stations, string $type, TelegramNotifier $telegram): void
     {
         foreach ($stations as $station) {
+            // buildDashboardData() returns plain objects with 'station_mn'
+            // (air quality) or 'station_id' (seismic) as the identifier,
+            // and 'station' as the display name — never 'id' or
+            // 'station_name'. Reading those nonexistent properties used to
+            // silently return null for every station, which collapsed
+            // every station of a given type onto the SAME alert-state key
+            // ("station:Air Quality:" / "station:Seismic:") and broke
+            // transition tracking entirely. Pick whichever identifier the
+            // object actually has instead.
+            $identifier = $station->station_mn ?? $station->station_id ?? null;
+
             // Escaped because the message is sent with parse_mode=HTML —
             // an unescaped '<', '>' or '&' in the station name would make
             // Telegram reject the whole message with a 400.
-            $name = htmlspecialchars($station->station_name ?? "Station #{$station->id}", ENT_QUOTES);
-            $key  = "station:{$type}:{$station->id}";
+            $name = htmlspecialchars($station->station ?? "Station {$identifier}", ENT_QUOTES);
+            $key  = "station:{$type}:{$identifier}";
 
             $this->notifyOnTransition(
                 key: $key,
