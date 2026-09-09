@@ -19,6 +19,8 @@
     .checklist-tag-co { @apply bg-munti-gray-700/20 text-munti-gray-400 border-munti-gray-600/30; }
     .checklist-tag-no2 { @apply bg-munti-teal-700/20 text-munti-teal-400 border-munti-teal-600/30; }
     .checklist-tag-o3 { @apply bg-munti-indigo-700/20 text-munti-indigo-400 border-munti-indigo-600/30; }
+    /* Fallback for any other checklist item */
+    .checklist-tag-default { @apply bg-munti-gray-700/20 text-munti-gray-400 border-munti-gray-600/30; }
 </style>
 
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
@@ -43,7 +45,7 @@
                             Calibration API Records
                         </h3>
                         <div class="flex items-center gap-3">
-                            <span class="text-xs text-text-500">2 Record(s)</span>
+                            <span class="text-xs text-text-500">{{ $calibrations->count() }} Record(s)</span>
 
                             <button type="button"
                                     onclick="openAddCalibrationModal()"
@@ -71,46 +73,56 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-border-800">
+                                @forelse($calibrations as $index => $cal)
                                 <tr class="hover:bg-surface-700/50 transition">
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">1</td>
+                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $index + 1 }}</td>
 
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center gap-1.5 text-xs text-text-200 transition">
-                                            AccuStation
+                                            {{ $cal->source }}
                                         </span>
                                     </td>
 
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center gap-1.5 text-xs text-text-200 transition">
-                                            JSON
+                                            {{ basename($cal->file_path) }}
+                                        </span>
+                                    </td>
+
+                                    <td class="px-4 py-2.5 whitespace-nowrap">
+                                        <div class="flex flex-wrap gap-1">
+                                            @foreach($cal->checklist as $item)
+                                                @php
+                                                    $slug = strtolower(str_replace([' ', '.'], '-', $item));
+                                                    $tagClass = 'checklist-tag-default';
+                                                    if (in_array($slug, ['temperature', 'humidity', 'pressure', 'pm25', 'pm10', 'co', 'no2', 'o3'])) {
+                                                        $tagClass = 'checklist-tag-' . $slug;
+                                                    }
+                                                @endphp
+                                                <span class="checklist-tag {{ $tagClass }}">{{ $item }}</span>
+                                            @endforeach
+                                        </div>
+                                    </td>
+
+                                    <td class="px-4 py-2.5 whitespace-nowrap">
+                                        <span class="inline-flex items-center gap-1.5 text-xs text-text-200 transition">
+                                            {{ number_format($cal->total_data) }}
                                         </span>
                                     </td>
 
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center gap-1.5 text-xs text-text-200 transition">
-                                            PM 2
-                                        </span>
-                                    </td>
-
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center gap-1.5 text-xs text-text-200 transition">
-                                            1,213
-                                        </span>
-                                    </td>
-
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center gap-1.5 text-xs text-text-200 transition">
-                                            1 req/min
+                                            {{ $cal->requests_per_min }} req/min
                                         </span>
                                     </td>
 
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
-                                        2026-03-12 09:45
+                                        {{ $cal->created_at->format('Y-m-d H:i') }}
                                     </td>
 
                                     <td class="px-4 py-2.5 whitespace-nowrap text-center">
                                         <div class="flex items-center justify-center gap-1.5">
-                                            <button type="button" onclick="editCalibration(1)"
+                                            <button type="button" onclick="editCalibration({{ $cal->id }})"
                                                     class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition"
                                                     title="Edit">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -118,7 +130,7 @@
                                                         d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                                 </svg>
                                             </button>
-                                            <button type="button" onclick="deleteCalibration(1, 'accustation_data.json')"
+                                            <button type="button" onclick="deleteCalibration({{ $cal->id }}, '{{ basename($cal->file_path) }}')"
                                                     class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition"
                                                     title="Delete">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
@@ -128,6 +140,13 @@
                                         </div>
                                     </td>
                                 </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="8" class="px-4 py-8 text-center text-text-500 text-sm">
+                                        No calibration records found.
+                                    </td>
+                                </tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
@@ -187,7 +206,7 @@
                             <div class="flex-1 min-h-[250px] p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
                                 <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
                                 <div id="docContent" class="space-y-3">
-                                    <!-- Dynamic content will be inserted by JavaScript -->
+                                    <!-- Dynamic content inserted by JavaScript -->
                                     <p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>
                                 </div>
                             </div>
@@ -592,6 +611,7 @@
     });
 
     function saveExternalApi() {
+        // In a real app, send data via AJAX to a store endpoint
         const source = document.getElementById('apiSource').value;
         const url = document.getElementById('apiUrl').value;
         const key = document.getElementById('apiKey').value;
@@ -602,19 +622,54 @@
             return;
         }
 
-        // In a real app, send data to backend via AJAX
+        // TODO: Send to backend (POST /settings/calibration)
         alert(`Saved!\nSource: ${source}\nURL: ${url}\nAuth Type: ${authType}`);
         closeAddCalibrationModal();
+        // Optionally reload page or refresh table via AJAX
+        // window.location.reload();
     }
 
     // ========== EDIT MODAL ==========
     function editCalibration(id) {
-        // Sample data – replace with real data from your backend
+        // In a real app, fetch the record via AJAX (GET /settings/calibration/{id})
+        // For demo, we'll use sample data stored in the page or fetched from the server.
+        // You can either embed the full data as a JSON object in the Blade, or fetch it.
+        // Here we'll use a fallback.
+
+        // Example: fetch from server (uncomment when route exists)
+        /*
+        fetch(`/settings/calibration/${id}/edit`)
+            .then(response => response.json())
+            .then(data => {
+                // Populate modal fields
+                document.getElementById('editApiSource').value = data.source;
+                document.getElementById('editApiUrl').value = data.url;
+                document.getElementById('editApiKey').value = data.api_key;
+                document.getElementById('editAuthType').value = data.auth_type;
+                updateDocContent(document.getElementById('editDocContent'), data.source);
+                document.getElementById('editApiModal').classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            });
+        */
+
+        // Temporary sample data for demonstration
         const sampleData = {
             1: {
                 source: 'accustation',
                 url: 'https://api.accustation.com/v1/data',
                 key: 'sk_live_************************',
+                authType: 'api_key'
+            },
+            2: {
+                source: 'openweather',
+                url: 'https://api.openweathermap.org/data/2.5/weather',
+                key: 'ow_1234567890',
+                authType: 'api_key'
+            },
+            3: {
+                source: 'accuweather',
+                url: 'http://dataservice.accuweather.com/currentconditions/v1/12345',
+                key: 'accu_abcdef12345',
                 authType: 'api_key'
             }
         };
@@ -643,7 +698,6 @@
     document.getElementById('editApiSource')?.addEventListener('change', function () {
         const docDiv = document.getElementById('editDocContent');
         updateDocContent(docDiv, this.value);
-        // Optionally pre-fill URL placeholder
         const urlField = document.getElementById('editApiUrl');
         if (this.value === 'accuweather') {
             urlField.placeholder = 'http://dataservice.accuweather.com/currentconditions/v1/{locationKey}';
@@ -667,6 +721,7 @@
     });
 
     function updateExternalApi() {
+        // In a real app, send data via AJAX to an update endpoint (PUT /settings/calibration/{id})
         const source = document.getElementById('editApiSource').value;
         const url = document.getElementById('editApiUrl').value;
         const key = document.getElementById('editApiKey').value;
@@ -679,10 +734,12 @@
 
         alert(`Updated!\nSource: ${source}\nURL: ${url}\nAuth Type: ${authType}`);
         closeEditCalibrationModal();
+        // window.location.reload();
     }
 
     // ========== DELETE ==========
     function deleteCalibration(id, fileName) {
+        // In a real app, send DELETE request to /settings/calibration/{id}
         Swal.fire({
             title: 'Delete Calibration?',
             html: `Are you sure you want to delete the calibration record for <strong>"${fileName}"</strong>?<br>
@@ -698,7 +755,9 @@
             iconColor: '#ef4444'
         }).then((result) => {
             if (result.isConfirmed) {
+                // TODO: Send DELETE request
                 alert(`Deleted calibration #${id}`);
+                // window.location.reload();
             }
         });
     }
