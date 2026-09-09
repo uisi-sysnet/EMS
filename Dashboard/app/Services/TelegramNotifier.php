@@ -30,7 +30,16 @@ class TelegramNotifier
         }
 
         try {
-            $request = Http::timeout(20)->attach('photo', $jpegBytes, 'system-status.jpg');
+            // This host has an IPv6 address configured but no working route
+            // to the outside world — connecting to api.telegram.org's AAAA
+            // record fails instantly at the kernel level (ENETUNREACH), and
+            // Guzzle's curl handler doesn't fall back to the working IPv4
+            // address fast enough, instead stalling for the full timeout
+            // with 0 bytes received. Forcing IPv4 here sidesteps the broken
+            // route entirely rather than depending on fallback timing.
+            $request = Http::timeout(20)
+                ->withOptions(['curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4]])
+                ->attach('photo', $jpegBytes, 'system-status.jpg');
 
             $payload = ['chat_id' => $settings->chat_id];
             if (filled($caption)) {
@@ -74,14 +83,18 @@ class TelegramNotifier
         }
 
         try {
-            $response = Http::timeout(10)->post(
-                "https://api.telegram.org/bot{$settings->bot_token}/sendMessage",
-                [
-                    'chat_id'    => $settings->chat_id,
-                    'text'       => $text,
-                    'parse_mode' => 'HTML',
-                ]
-            );
+            // Same broken-IPv6-route workaround as sendPhoto() above — see
+            // that method's comment for why this is needed.
+            $response = Http::timeout(10)
+                ->withOptions(['curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4]])
+                ->post(
+                    "https://api.telegram.org/bot{$settings->bot_token}/sendMessage",
+                    [
+                        'chat_id'    => $settings->chat_id,
+                        'text'       => $text,
+                        'parse_mode' => 'HTML',
+                    ]
+                );
 
             if ($response->failed()) {
                 Log::error('Telegram sendMessage failed', [
