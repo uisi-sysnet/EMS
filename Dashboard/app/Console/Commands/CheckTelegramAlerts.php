@@ -48,7 +48,10 @@ class CheckTelegramAlerts extends Command
     private function checkStations(Collection $stations, string $type, TelegramNotifier $telegram): void
     {
         foreach ($stations as $station) {
-            $name = $station->station_name ?? "Station #{$station->id}";
+            // Escaped because the message is sent with parse_mode=HTML —
+            // an unescaped '<', '>' or '&' in the station name would make
+            // Telegram reject the whole message with a 400.
+            $name = htmlspecialchars($station->station_name ?? "Station #{$station->id}", ENT_QUOTES);
             $key  = "station:{$type}:{$station->id}";
 
             $this->notifyOnTransition(
@@ -94,23 +97,38 @@ class CheckTelegramAlerts extends Command
      * Loads the last known status for $key, sends onEnter[$currentStatus]
      * if we just transitioned INTO that status, or onRecoverFrom[$prev]
      * if we just transitioned OUT of a status being watched for recovery
-     * — then persists $currentStatus either way so the next run has an
-     * accurate "last status" to compare against. On the very first run
-     * for a given key (no row yet), it just records the baseline status
-     * without sending anything — otherwise every station/metric would
-     * fire a spurious alert the moment this feature is turned on.
+     * — then persists $currentStatus so the next run has an accurate
+     * "last status" to compare against. If a send was attempted and
+     * failed, the old status is left in place instead, so the same
+     * transition is detected and retried on the next run rather than
+     * being silently dropped. On the very first run for a given key (no
+     * row yet), it just records the baseline status without sending
+     * anything — otherwise every station/metric would fire a spurious
+     * alert the moment this feature is turned on.
      */
     private function notifyOnTransition(string $key, string $currentStatus, TelegramNotifier $telegram, array $onEnter, array $onRecoverFrom): void
     {
         $state = TelegramAlertState::firstOrNew(['key' => $key]);
         $previousStatus = $state->exists ? $state->last_status : null;
 
+        // Defaults to "ok" when no send was actually attempted (no prior
+        // state, or the transition isn't one we message on), so those
+        // cases still persist the baseline/current status as before.
+        $sent = true;
+
         if ($previousStatus !== null && $previousStatus !== $currentStatus) {
             if (isset($onEnter[$currentStatus])) {
-                $telegram->send($onEnter[$currentStatus]);
+                $sent = $telegram->send($onEnter[$currentStatus]);
             } elseif (isset($onRecoverFrom[$previousStatus])) {
-                $telegram->send($onRecoverFrom[$previousStatus]);
+                $sent = $telegram->send($onRecoverFrom[$previousStatus]);
             }
+        }
+
+        if (! $sent) {
+            // Leave last_status as the old value so next run sees the
+            // same transition again and retries the notification,
+            // instead of silently swallowing this alert forever.
+            return;
         }
 
         $state->last_status = $currentStatus;

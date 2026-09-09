@@ -80,7 +80,11 @@ class SendTelegramDailyDigest extends Command
         }
 
         if (! $force) {
-            if ($now->format('H:i') !== $time) {
+            // substr guards against DB drivers/column types that return
+            // "HH:MM:SS" for a TIME column instead of the "HH:MM" that
+            // was saved — without this, the digest would silently never
+            // fire on schedule and only ever send via --force.
+            if (substr($time, 0, 5) !== $now->format('H:i')) {
                 return;
             }
 
@@ -102,8 +106,11 @@ class SendTelegramDailyDigest extends Command
 
         // Forced test sends don't count as "today's digest" — otherwise
         // testing at 10am would suppress the real 8am/2pm scheduled send
-        // for the rest of the day.
-        if (! $force) {
+        // for the rest of the day. And only mark it sent if it actually
+        // succeeded — otherwise a transient Telegram API failure would
+        // get recorded as "sent" and this slot would just stay silent
+        // for the rest of the day instead of retrying next minute.
+        if (! $force && $ok) {
             $settings->update([$lastSentColumn => $now->toDateString()]);
         }
     }
