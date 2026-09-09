@@ -19,7 +19,6 @@
     .checklist-tag-co { @apply bg-munti-gray-700/20 text-munti-gray-400 border-munti-gray-600/30; }
     .checklist-tag-no2 { @apply bg-munti-teal-700/20 text-munti-teal-400 border-munti-teal-600/30; }
     .checklist-tag-o3 { @apply bg-munti-indigo-700/20 text-munti-indigo-400 border-munti-indigo-600/30; }
-    /* Fallback for any other checklist item */
     .checklist-tag-default { @apply bg-munti-gray-700/20 text-munti-gray-400 border-munti-gray-600/30; }
 </style>
 
@@ -177,7 +176,7 @@
             <div class="p-6">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-5">
 
-                    <!-- COLUMN 1: API Source + Auth Type + Documentation -->
+                    <!-- COLUMN 1: API Source + Auth Type (Bearer Token) + Documentation -->
                     <div class="flex flex-col gap-4">
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
@@ -192,14 +191,13 @@
                             </select>
                         </div>
 
+                        <!-- Authentication Type – fixed to Bearer Token -->
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Authentication Type</label>
-                            <select id="authType"
-                                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
-                                <option value="api_key" selected>API Key</option>
-                                <option value="oauth2">OAuth2</option>
-                                <option value="basic">Basic Auth</option>
-                            </select>
+                            <div class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 flex items-center">
+                                <span class="text-text-300">Bearer Token</span>
+                                <input type="hidden" id="authType" value="bearer_token">
+                            </div>
                         </div>
 
                         <div class="flex-1 flex flex-col">
@@ -229,15 +227,15 @@
                         </div>
                     </div>
 
-                    <!-- COLUMN 3: API Key + Security Note -->
+                    <!-- COLUMN 3: Bearer Token (API Key) + Security Note -->
                     <div class="flex flex-col">
-                        <label class="block text-xs font-medium text-text-400 mb-1.5">API Key</label>
-                        <input type="password" id="apiKey" placeholder="Enter your API key"
+                        <label class="block text-xs font-medium text-text-400 mb-1.5">Bearer Token</label>
+                        <input type="password" id="apiKey" placeholder="Enter your Bearer token"
                                class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
 
                         <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
                             <p class="font-medium text-text-400 mb-2">Security Note</p>
-                            <p>Your API key is stored encrypted and never exposed in the frontend after saving.</p>
+                            <p>Your token is stored encrypted and never exposed in the frontend after saving.</p>
                         </div>
                     </div>
 
@@ -354,7 +352,7 @@
             <div class="p-6">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-5">
 
-                    <!-- COLUMN 1: API Source + Auth Type + Documentation -->
+                    <!-- COLUMN 1: API Source + Auth Type (Bearer Token) + Documentation -->
                     <div class="flex flex-col gap-4">
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
@@ -371,12 +369,10 @@
 
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Authentication Type</label>
-                            <select id="editAuthType"
-                                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
-                                <option value="api_key" selected>API Key</option>
-                                <option value="oauth2">OAuth2</option>
-                                <option value="basic">Basic Auth</option>
-                            </select>
+                            <div class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 flex items-center">
+                                <span class="text-text-300">Bearer Token</span>
+                                <input type="hidden" id="editAuthType" value="bearer_token">
+                            </div>
                         </div>
 
                         <div class="flex-1 flex flex-col">
@@ -405,15 +401,15 @@
                         </div>
                     </div>
 
-                    <!-- COLUMN 3: API Key + Security Note -->
+                    <!-- COLUMN 3: Bearer Token -->
                     <div class="flex flex-col">
-                        <label class="block text-xs font-medium text-text-400 mb-1.5">API Key</label>
-                        <input type="password" id="editApiKey" placeholder="Enter your API key"
+                        <label class="block text-xs font-medium text-text-400 mb-1.5">Bearer Token</label>
+                        <input type="password" id="editApiKey" placeholder="Enter your Bearer token"
                                class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
 
                         <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
                             <p class="font-medium text-text-400 mb-2">Security Note</p>
-                            <p>Your API key is stored encrypted and never exposed in the frontend after saving.</p>
+                            <p>Your token is stored encrypted and never exposed in the frontend after saving.</p>
                         </div>
                     </div>
 
@@ -516,32 +512,32 @@
             endpoint: 'https://api.accustation.com/v1/data',
             rate: '60 requests / minute',
             params: 'apikey, station_id',
-            auth: 'API Key (query parameter)'
+            auth: 'Bearer Token'
         },
         openweather: {
             endpoint: 'https://api.openweathermap.org/data/2.5/weather',
             rate: '60 calls/minute (free tier)',
             params: 'appid, q, units',
-            auth: 'API Key (appid query parameter)'
+            auth: 'Bearer Token'
         },
         iqair: {
             endpoint: 'https://api.iqair.com/v2/',
             rate: '10,000 calls/month (free)',
             params: 'api_key, city',
-            auth: 'API Key (api_key query parameter)'
+            auth: 'Bearer Token'
         },
         accuweather: {
             endpoint: 'http://dataservice.accuweather.com/',
             rate: '500 calls/day (Free tier) / higher for paid plans',
-            params: 'apikey (query parameter), locationKey, metric etc.',
-            auth: 'API Key (apikey query parameter)',
+            params: 'locationKey, metric etc. (token sent as Bearer)',
+            auth: 'Bearer Token',
             endpoints: 'Current Conditions, Hourly/Daily Forecasts, Alerts, Indices, and more'
         },
         custom: {
             endpoint: 'Your custom endpoint',
             rate: 'Depends on your service',
             params: 'Define your own',
-            auth: 'Varies'
+            auth: 'Bearer Token'
         }
     };
 
@@ -579,7 +575,7 @@
         document.getElementById('apiSource').value = '';
         document.getElementById('apiUrl').value = '';
         document.getElementById('apiKey').value = '';
-        document.getElementById('authType').value = 'api_key';
+        // authType hidden remains 'bearer_token'
         updateDocContent(document.getElementById('docContent'), '');
     }
 
@@ -595,29 +591,13 @@
         }
     });
 
-    // Auth type toggles (optional – show/hide or change placeholder)
-    document.getElementById('authType')?.addEventListener('change', function() {
-        const keyField = document.getElementById('apiKey');
-        if (this.value === 'api_key') {
-            keyField.placeholder = 'Enter your API key';
-            keyField.type = 'password';
-        } else if (this.value === 'oauth2') {
-            keyField.placeholder = 'Enter OAuth2 token (or Client ID:Secret)';
-            keyField.type = 'text';
-        } else if (this.value === 'basic') {
-            keyField.placeholder = 'Enter username:password (Base64)';
-            keyField.type = 'text';
-        }
-    });
-
     function saveExternalApi() {
-        // In a real app, send data via AJAX to a store endpoint
         const source = document.getElementById('apiSource').value;
         const url = document.getElementById('apiUrl').value;
-        const key = document.getElementById('apiKey').value;
-        const authType = document.getElementById('authType').value;
+        const token = document.getElementById('apiKey').value;
+        const authType = document.getElementById('authType').value; // 'bearer_token'
 
-        if (!source || !url || !key) {
+        if (!source || !url || !token) {
             alert('Please fill in all fields.');
             return;
         }
@@ -625,52 +605,31 @@
         // TODO: Send to backend (POST /settings/calibration)
         alert(`Saved!\nSource: ${source}\nURL: ${url}\nAuth Type: ${authType}`);
         closeAddCalibrationModal();
-        // Optionally reload page or refresh table via AJAX
         // window.location.reload();
     }
 
     // ========== EDIT MODAL ==========
     function editCalibration(id) {
         // In a real app, fetch the record via AJAX (GET /settings/calibration/{id})
-        // For demo, we'll use sample data stored in the page or fetched from the server.
-        // You can either embed the full data as a JSON object in the Blade, or fetch it.
-        // Here we'll use a fallback.
-
-        // Example: fetch from server (uncomment when route exists)
-        /*
-        fetch(`/settings/calibration/${id}/edit`)
-            .then(response => response.json())
-            .then(data => {
-                // Populate modal fields
-                document.getElementById('editApiSource').value = data.source;
-                document.getElementById('editApiUrl').value = data.url;
-                document.getElementById('editApiKey').value = data.api_key;
-                document.getElementById('editAuthType').value = data.auth_type;
-                updateDocContent(document.getElementById('editDocContent'), data.source);
-                document.getElementById('editApiModal').classList.remove('hidden');
-                document.body.style.overflow = 'hidden';
-            });
-        */
-
-        // Temporary sample data for demonstration
+        // For demo, we use sample data.
         const sampleData = {
             1: {
                 source: 'accustation',
                 url: 'https://api.accustation.com/v1/data',
-                key: 'sk_live_************************',
-                authType: 'api_key'
+                token: 'sk_live_************************',
+                authType: 'bearer_token'
             },
             2: {
                 source: 'openweather',
                 url: 'https://api.openweathermap.org/data/2.5/weather',
-                key: 'ow_1234567890',
-                authType: 'api_key'
+                token: 'ow_1234567890',
+                authType: 'bearer_token'
             },
             3: {
                 source: 'accuweather',
                 url: 'http://dataservice.accuweather.com/currentconditions/v1/12345',
-                key: 'accu_abcdef12345',
-                authType: 'api_key'
+                token: 'accu_abcdef12345',
+                authType: 'bearer_token'
             }
         };
 
@@ -678,8 +637,8 @@
 
         document.getElementById('editApiSource').value = data.source;
         document.getElementById('editApiUrl').value = data.url;
-        document.getElementById('editApiKey').value = data.key;
-        document.getElementById('editAuthType').value = data.authType || 'api_key';
+        document.getElementById('editApiKey').value = data.token;
+        // editAuthType hidden already has 'bearer_token'
 
         // Update documentation
         const docDiv = document.getElementById('editDocContent');
@@ -706,28 +665,13 @@
         }
     });
 
-    document.getElementById('editAuthType')?.addEventListener('change', function() {
-        const keyField = document.getElementById('editApiKey');
-        if (this.value === 'api_key') {
-            keyField.placeholder = 'Enter your API key';
-            keyField.type = 'password';
-        } else if (this.value === 'oauth2') {
-            keyField.placeholder = 'Enter OAuth2 token (or Client ID:Secret)';
-            keyField.type = 'text';
-        } else if (this.value === 'basic') {
-            keyField.placeholder = 'Enter username:password (Base64)';
-            keyField.type = 'text';
-        }
-    });
-
     function updateExternalApi() {
-        // In a real app, send data via AJAX to an update endpoint (PUT /settings/calibration/{id})
         const source = document.getElementById('editApiSource').value;
         const url = document.getElementById('editApiUrl').value;
-        const key = document.getElementById('editApiKey').value;
-        const authType = document.getElementById('editAuthType').value;
+        const token = document.getElementById('editApiKey').value;
+        const authType = document.getElementById('editAuthType').value; // 'bearer_token'
 
-        if (!source || !url || !key) {
+        if (!source || !url || !token) {
             alert('Please fill in all fields.');
             return;
         }
@@ -739,7 +683,6 @@
 
     // ========== DELETE ==========
     function deleteCalibration(id, fileName) {
-        // In a real app, send DELETE request to /settings/calibration/{id}
         Swal.fire({
             title: 'Delete Calibration?',
             html: `Are you sure you want to delete the calibration record for <strong>"${fileName}"</strong>?<br>
