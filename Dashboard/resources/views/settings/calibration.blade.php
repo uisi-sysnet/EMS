@@ -20,6 +20,26 @@
     .checklist-tag-no2 { @apply bg-munti-teal-700/20 text-munti-teal-400 border-munti-teal-600/30; }
     .checklist-tag-o3 { @apply bg-munti-indigo-700/20 text-munti-indigo-400 border-munti-indigo-600/30; }
     .checklist-tag-default { @apply bg-munti-gray-700/20 text-munti-gray-400 border-munti-gray-600/30; }
+
+    /* JSON viewer styling */
+    .json-viewer {
+        background: #0d1117;
+        color: #e6edf3;
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 13px;
+        line-height: 1.6;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        max-height: 60vh;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+    .json-viewer .json-key { color: #ff7b72; }
+    .json-viewer .json-string { color: #a5d6ff; }
+    .json-viewer .json-number { color: #79c0ff; }
+    .json-viewer .json-boolean { color: #ffa657; }
+    .json-viewer .json-null { color: #8b949e; }
 </style>
 
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
@@ -121,6 +141,16 @@
 
                                     <td class="px-4 py-2.5 whitespace-nowrap text-center">
                                         <div class="flex items-center justify-center gap-1.5">
+                                            <!-- View JSON button -->
+                                            <button type="button" onclick="viewJson({{ $cal->id }})"
+                                                    class="p-1.5 rounded-lg text-text-400 hover:text-munti-blue-400 hover:bg-surface-700/70 transition"
+                                                    title="View JSON">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                </svg>
+                                            </button>
+                                            <!-- Edit button -->
                                             <button type="button" onclick="editCalibration({{ $cal->id }})"
                                                     class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition"
                                                     title="Edit">
@@ -129,6 +159,7 @@
                                                         d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                                 </svg>
                                             </button>
+                                            <!-- Delete button -->
                                             <button type="button" onclick="deleteCalibration({{ $cal->id }}, '{{ basename($cal->file_path) }}')"
                                                     class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition"
                                                     title="Delete">
@@ -150,6 +181,41 @@
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== VIEW JSON MODAL ==================== -->
+<div id="viewJsonModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeViewJsonModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-4xl bg-surface-900 border border-border-700 rounded-2xl shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-border-700 bg-surface-800 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-text-100">JSON Data</h3>
+                <button type="button" onclick="closeViewJsonModal()" class="p-1.5 rounded-lg text-text-400 hover:text-text-100 hover:bg-surface-700 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <!-- Modal Body -->
+            <div class="p-6">
+                <div class="json-viewer" id="jsonContent">
+                    <!-- JSON will be inserted here -->
+                </div>
+            </div>
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-border-700 bg-surface-800/60 flex items-center justify-end">
+                <button type="button" onclick="closeViewJsonModal()"
+                        class="h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
+                    Close
+                </button>
+                <button type="button" onclick="copyJsonToClipboard()"
+                        class="ml-3 h-9 px-4 text-sm font-medium text-white bg-munti-blue-600 hover:bg-munti-blue-500 rounded-lg transition">
+                    Copy JSON
+                </button>
             </div>
         </div>
     </div>
@@ -227,7 +293,7 @@
                         </div>
                     </div>
 
-                    <!-- COLUMN 3: Bearer Token (API Key) + Security Note -->
+                    <!-- COLUMN 3: Bearer Token + Security Note -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">Bearer Token</label>
                         <input type="password" id="apiKey" placeholder="Enter your Bearer token"
@@ -562,6 +628,110 @@
         }
     }
 
+    // ========== VIEW JSON MODAL ==========
+    let currentJsonData = null;
+
+    function viewJson(id) {
+        // In a real app, you would fetch the JSON from the server:
+        // fetch(`/settings/calibration/${id}/json`)
+        //   .then(res => res.json())
+        //   .then(data => { displayJson(data); });
+
+        // For demo, generate sample JSON based on the record id
+        const sampleData = {
+            1: {
+                id: 1,
+                source: 'accustation',
+                file: 'sensor_calibration_2026-01.xlsx',
+                checklist: ['Temperature', 'Humidity', 'PM2.5', 'PM10'],
+                total_data: 15423,
+                requests_per_min: 45,
+                created_at: '2026-03-12 09:45',
+                readings: [
+                    { timestamp: '2026-03-12T09:00:00', temp: 22.5, humidity: 45, pm25: 12, pm10: 18 },
+                    { timestamp: '2026-03-12T09:05:00', temp: 22.8, humidity: 44, pm25: 14, pm10: 20 },
+                    { timestamp: '2026-03-12T09:10:00', temp: 23.1, humidity: 43, pm25: 11, pm10: 17 }
+                ]
+            },
+            2: {
+                id: 2,
+                source: 'manual',
+                file: 'manual_check_2026-01-15.pdf',
+                checklist: ['Pressure', 'CO', 'NO2', 'O3'],
+                total_data: 892,
+                requests_per_min: 12,
+                created_at: '2026-03-07 14:20',
+                readings: [
+                    { timestamp: '2026-03-07T14:00:00', pressure: 1012, co: 0.8, no2: 15, o3: 22 },
+                    { timestamp: '2026-03-07T14:10:00', pressure: 1013, co: 0.7, no2: 14, o3: 24 }
+                ]
+            },
+            3: {
+                id: 3,
+                source: 'sensor',
+                file: 'sensor_calibration_2026-02.xlsx',
+                checklist: ['Temperature', 'Humidity', 'Pressure', 'PM2.5', 'PM10', 'CO', 'NO2', 'O3'],
+                total_data: 28145,
+                requests_per_min: 62,
+                created_at: '2026-03-13 08:00',
+                readings: [
+                    { timestamp: '2026-03-13T08:00:00', temp: 21.5, humidity: 50, pressure: 1015, pm25: 8, pm10: 12, co: 0.5, no2: 10, o3: 18 },
+                    { timestamp: '2026-03-13T08:05:00', temp: 21.8, humidity: 49, pressure: 1014, pm25: 9, pm10: 13, co: 0.6, no2: 11, o3: 20 }
+                ]
+            }
+        };
+
+        const jsonData = sampleData[id] || sampleData[1];
+        currentJsonData = jsonData;
+        displayJson(jsonData);
+        document.getElementById('viewJsonModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function displayJson(data) {
+        const container = document.getElementById('jsonContent');
+        // Pretty print with syntax highlighting (simple)
+        const jsonString = JSON.stringify(data, null, 4);
+        // Basic syntax highlighting using regex (quick and dirty)
+        const highlighted = jsonString
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+            .replace(/: "([^"]+)"/g, ': <span class="json-string">"$1"</span>')
+            .replace(/: (\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
+            .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
+            .replace(/: (null)/g, ': <span class="json-null">$1</span>');
+        container.innerHTML = highlighted;
+    }
+
+    function closeViewJsonModal() {
+        document.getElementById('viewJsonModal').classList.add('hidden');
+        document.body.style.overflow = '';
+        currentJsonData = null;
+    }
+
+    function copyJsonToClipboard() {
+        if (!currentJsonData) return;
+        const jsonString = JSON.stringify(currentJsonData, null, 4);
+        navigator.clipboard.writeText(jsonString).then(() => {
+            // Simple feedback
+            const btn = document.querySelector('#viewJsonModal .bg-munti-blue-600');
+            const originalText = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = originalText; }, 2000);
+        }).catch(() => {
+            alert('Could not copy JSON. Please select and copy manually.');
+        });
+    }
+
+    // Close JSON modal on Escape
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeViewJsonModal();
+            closeAddCalibrationModal();
+            closeEditCalibrationModal();
+        }
+    });
+
     // ========== ADD MODAL ==========
     function openAddCalibrationModal() {
         document.getElementById('addApiModal').classList.remove('hidden');
@@ -571,18 +741,15 @@
     function closeAddCalibrationModal() {
         document.getElementById('addApiModal').classList.add('hidden');
         document.body.style.overflow = '';
-        // reset form
         document.getElementById('apiSource').value = '';
         document.getElementById('apiUrl').value = '';
         document.getElementById('apiKey').value = '';
-        // authType hidden remains 'bearer_token'
         updateDocContent(document.getElementById('docContent'), '');
     }
 
     document.getElementById('apiSource')?.addEventListener('change', function () {
         const docDiv = document.getElementById('docContent');
         updateDocContent(docDiv, this.value);
-        // Optionally pre-fill URL placeholder for AccuWeather
         const urlField = document.getElementById('apiUrl');
         if (this.value === 'accuweather') {
             urlField.placeholder = 'http://dataservice.accuweather.com/currentconditions/v1/{locationKey}';
@@ -595,23 +762,19 @@
         const source = document.getElementById('apiSource').value;
         const url = document.getElementById('apiUrl').value;
         const token = document.getElementById('apiKey').value;
-        const authType = document.getElementById('authType').value; // 'bearer_token'
+        const authType = document.getElementById('authType').value;
 
         if (!source || !url || !token) {
             alert('Please fill in all fields.');
             return;
         }
 
-        // TODO: Send to backend (POST /settings/calibration)
         alert(`Saved!\nSource: ${source}\nURL: ${url}\nAuth Type: ${authType}`);
         closeAddCalibrationModal();
-        // window.location.reload();
     }
 
     // ========== EDIT MODAL ==========
     function editCalibration(id) {
-        // In a real app, fetch the record via AJAX (GET /settings/calibration/{id})
-        // For demo, we use sample data.
         const sampleData = {
             1: {
                 source: 'accustation',
@@ -638,9 +801,7 @@
         document.getElementById('editApiSource').value = data.source;
         document.getElementById('editApiUrl').value = data.url;
         document.getElementById('editApiKey').value = data.token;
-        // editAuthType hidden already has 'bearer_token'
 
-        // Update documentation
         const docDiv = document.getElementById('editDocContent');
         updateDocContent(docDiv, data.source);
 
@@ -653,7 +814,6 @@
         document.body.style.overflow = '';
     }
 
-    // Event listeners for edit modal
     document.getElementById('editApiSource')?.addEventListener('change', function () {
         const docDiv = document.getElementById('editDocContent');
         updateDocContent(docDiv, this.value);
@@ -669,7 +829,7 @@
         const source = document.getElementById('editApiSource').value;
         const url = document.getElementById('editApiUrl').value;
         const token = document.getElementById('editApiKey').value;
-        const authType = document.getElementById('editAuthType').value; // 'bearer_token'
+        const authType = document.getElementById('editAuthType').value;
 
         if (!source || !url || !token) {
             alert('Please fill in all fields.');
@@ -678,7 +838,6 @@
 
         alert(`Updated!\nSource: ${source}\nURL: ${url}\nAuth Type: ${authType}`);
         closeEditCalibrationModal();
-        // window.location.reload();
     }
 
     // ========== DELETE ==========
@@ -698,20 +857,10 @@
             iconColor: '#ef4444'
         }).then((result) => {
             if (result.isConfirmed) {
-                // TODO: Send DELETE request
                 alert(`Deleted calibration #${id}`);
-                // window.location.reload();
             }
         });
     }
-
-    // ========== CLOSE ON ESC ==========
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') {
-            closeAddCalibrationModal();
-            closeEditCalibrationModal();
-        }
-    });
 </script>
 
 @include('layouts.footer')
