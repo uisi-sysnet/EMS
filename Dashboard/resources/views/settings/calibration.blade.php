@@ -383,7 +383,7 @@
                     <!-- COLUMN 4: Fields to Map to Database (Checkboxes) -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">Fields to Map to Database</label>
-                        <div class="flex-1 p-3 bg-surface-800/50 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 210px;">
+                        <div class="flex-1 p-3 bg-surface-800/50 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 300px;">
                             <div class="grid grid-cols-1 gap-y-1.5">
                                 <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                                     <input type="checkbox" name="edit_params" value="pm25" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
