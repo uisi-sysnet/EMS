@@ -231,7 +231,7 @@
             <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-border-700 bg-gradient-to-r from-surface-800 to-surface-800/60 flex items-center justify-between shrink-0">
                 <div class="flex items-center gap-3 min-w-0">
                     <div class="w-9 h-9 rounded-lg bg-munti-blue-600/20 border border-munti-blue-600/30 flex items-center justify-center shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-munti-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-text-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                         </svg>
                     </div>
@@ -254,11 +254,11 @@
             <div class="px-4 sm:px-6 py-2 border-b border-border-700 bg-surface-800/30 flex items-center justify-between gap-2 shrink-0">
                 <div class="flex items-center gap-1">
                     <button type="button" id="jsonViewPretty" onclick="setJsonViewMode('pretty')"
-                            class="px-2.5 py-1 text-[11px] font-medium rounded-md text-munti-blue-300 bg-munti-blue-600/15 border border-munti-blue-600/30">
+                            class="px-2.5 py-1 text-[11px] font-medium rounded-md text-text-100 bg-munti-blue-600/15 border border-munti-blue-600/30">
                         Pretty
                     </button>
                     <button type="button" id="jsonViewRaw" onclick="setJsonViewMode('raw')"
-                            class="px-2.5 py-1 text-[11px] font-medium rounded-md text-text-400 hover:text-text-200 hover:bg-surface-700 transition">
+                            class="px-2.5 py-1 text-[11px] font-medium rounded-md text-text-100 hover:bg-surface-700 transition">
                         Raw
                     </button>
                 </div>
