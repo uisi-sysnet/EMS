@@ -564,42 +564,16 @@
 </div>
 
 <script>
+<script>
     // ========== HELPERS ==========
     const docMap = {
-        accustation: {
-            endpoint: 'https://api.accustation.com/v1/data',
-            rate: '60 requests / minute',
-            params: 'apikey, station_id',
-            auth: 'Bearer Token'
-        },
-        openweather: {
-            endpoint: 'https://api.openweathermap.org/data/2.5/weather',
-            rate: '60 calls/minute (free tier)',
-            params: 'appid, q, units',
-            auth: 'Bearer Token'
-        },
-        iqair: {
-            endpoint: 'https://api.iqair.com/v2/',
-            rate: '10,000 calls/month (free)',
-            params: 'api_key, city',
-            auth: 'Bearer Token'
-        },
-        accuweather: {
-            endpoint: 'http://dataservice.accuweather.com/',
-            rate: '500 calls/day (Free tier) / higher for paid plans',
-            params: 'locationKey, metric etc. (token sent as Bearer)',
-            auth: 'Bearer Token',
-            endpoints: 'Current Conditions, Hourly/Daily Forecasts, Alerts, Indices, and more'
-        },
-        custom: {
-            endpoint: 'Your custom endpoint',
-            rate: 'Depends on your service',
-            params: 'Define your own',
-            auth: 'Bearer Token'
-        }
+        accustation: { endpoint: 'https://api.accustation.com/v1/data', rate: '60 requests / minute', params: 'apikey, station_id', auth: 'Bearer Token' },
+        openweather: { endpoint: 'https://api.openweathermap.org/data/2.5/weather', rate: '60 calls/minute (free tier)', params: 'appid, q, units', auth: 'Bearer Token' },
+        iqair: { endpoint: 'https://api.iqair.com/v2/', rate: '10,000 calls/month (free)', params: 'api_key, city', auth: 'Bearer Token' },
+        accuweather: { endpoint: 'http://dataservice.accuweather.com/', rate: '500 calls/day (Free tier) / higher for paid plans', params: 'locationKey, metric etc. (token sent as Bearer)', auth: 'Bearer Token', endpoints: 'Current Conditions, Hourly/Daily Forecasts, Alerts, Indices, and more' },
+        custom: { endpoint: 'Your custom endpoint', rate: 'Depends on your service', params: 'Define your own', auth: 'Bearer Token' }
     };
 
-    // Default static fields (used before a test is run, and for Reset)
     const DEFAULT_FIELDS = {
         add: [
             { value: 'pm25', label: 'PM2.5' }, { value: 'pm10', label: 'PM10' }, { value: 'tsp', label: 'TSP' },
@@ -612,6 +586,9 @@
         ],
     };
     DEFAULT_FIELDS.edit = DEFAULT_FIELDS.add;
+
+    // Field cache: remembers all fields returned by a successful test per modal
+    const availableFields = { add: null, edit: null };
 
     let addApiTested = false;
     let editApiTested = false;
@@ -626,14 +603,10 @@
                 <p class="mt-2"><strong class="text-text-200">Required Parameters:</strong> ${info.params}</p>
                 <p class="mt-2"><strong class="text-text-200">Authentication:</strong> ${info.auth}</p>
             `;
-            if (info.endpoints) {
-                html += `<p class="mt-2"><strong class="text-text-200">Available Endpoints:</strong> ${info.endpoints}</p>`;
-            }
+            if (info.endpoints) html += `<p class="mt-2"><strong class="text-text-200">Available Endpoints:</strong> ${info.endpoints}</p>`;
             docDiv.innerHTML = html;
-            docDiv.classList.remove('hidden');
         } else {
             docDiv.innerHTML = `<p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>`;
-            docDiv.classList.add('hidden');
         }
     }
 
@@ -652,14 +625,10 @@
             body: JSON.stringify(data),
         })
         .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw err; });
-            }
+            if (!response.ok) return response.json().then(err => { throw err; });
             return response.json();
         })
-        .then(data => {
-            if (successCallback) successCallback(data);
-        })
+        .then(data => { if (successCallback) successCallback(data); })
         .catch(error => {
             if (errorCallback) errorCallback(error);
             else {
@@ -670,74 +639,79 @@
     }
 
     function escapeHtml(str) {
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
-
     function escapeAttr(str) {
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/"/g, '&quot;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    // ========== DYNAMIC FIELD LIST ==========
-    function renderDynamicFields(prefix, fields) {
+    // ========== FIELD LIST RENDERING ==========
+    // Always renders ALL fields. Pre-checks items in `selected`.
+    function renderFields(prefix, allFields, selected = []) {
         const container = document.getElementById(prefix + 'FieldList');
         const hint = document.getElementById(prefix + 'FieldListHint');
         const resetBtn = document.getElementById(prefix + 'ResetFieldsBtn');
         if (!container) return;
 
-        // Preserve currently-checked values (useful for re-test)
-        const checked = Array.from(container.querySelectorAll('input[type="checkbox"]:checked'))
-                             .map(cb => cb.value);
+        const inputName = prefix + '_params';
 
-        if (!fields || !fields.length) {
-            hint.innerHTML = 'No fields detected from API response.';
-            hint.className = 'text-[10px] text-munti-red-300 mt-1.5';
+        if (!allFields || !allFields.length) {
+            container.innerHTML = `<p class="text-text-500 italic text-xs">No fields detected. Click <strong class="text-munti-yellow-400">Test API</strong> to load fields.</p>`;
+            if (hint) {
+                hint.innerHTML = 'Click <strong class="text-munti-yellow-400">Test API</strong> to load real fields from the response.';
+                hint.className = 'text-[10px] text-text-500 mt-1.5';
+            }
+            if (resetBtn) resetBtn.classList.add('hidden');
             return;
         }
 
-        const inputName = prefix + '_params';
+        // Convert DEFAULT_FIELDS objects to plain field paths, but keep labels if they exist
+        const labelMap = {};
+        DEFAULT_FIELDS[prefix].forEach(f => { labelMap[f.value] = f.label; });
 
-        container.innerHTML = fields.map(field => {
-            const isChecked = checked.includes(field);
+        container.innerHTML = allFields.map(field => {
+            const isChecked = selected.includes(field);
+            const display = labelMap[field] || field;
+            const isCustom = !labelMap[field];
             return `
                 <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
                     <input type="checkbox" name="${inputName}" value="${escapeAttr(field)}" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition shrink-0">
-                    <span class="font-mono text-[11px] break-all">${escapeHtml(field)}</span>
+                    <span class="${isCustom ? 'font-mono text-[11px] break-all' : ''}">${escapeHtml(display)}</span>
                 </label>
             `;
         }).join('');
 
-        hint.innerHTML = `<span class="text-munti-green-300">${fields.length} field(s)</span> detected from API response. Select fields to map to database.`;
-        hint.className = 'text-[10px] text-text-500 mt-1.5';
-
-        // Show reset button
+        if (hint) {
+            hint.innerHTML = `<span class="text-munti-green-300">${allFields.length} field(s)</span> available${selected.length ? ` · <span class="text-munti-blue-300">${selected.length} selected</span>` : ''}.`;
+            hint.className = 'text-[10px] text-text-500 mt-1.5';
+        }
         if (resetBtn) resetBtn.classList.remove('hidden');
     }
 
     function resetFieldList(prefix) {
-        const container = document.getElementById(prefix + 'FieldList');
-        const hint = document.getElementById(prefix + 'FieldListHint');
-        const resetBtn = document.getElementById(prefix + 'ResetFieldsBtn');
-        if (!container) return;
-
-        const inputName = prefix + '_params';
-        container.innerHTML = DEFAULT_FIELDS[prefix].map(f => `
-            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                <input type="checkbox" name="${inputName}" value="${escapeAttr(f.value)}" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition shrink-0">
-                <span>${escapeHtml(f.label)}</span>
-            </label>
-        `).join('');
-
-        hint.innerHTML = `Click <strong class="text-munti-yellow-400">Test API</strong> to load real fields from the response.`;
-        hint.className = 'text-[10px] text-text-500 mt-1.5';
-
-        if (resetBtn) resetBtn.classList.add('hidden');
+        // Keep all currently-known fields but uncheck everything
+        const fields = availableFields[prefix];
+        if (fields && fields.length) {
+            renderFields(prefix, fields, []);
+        } else {
+            // Fall back to default static list
+            const inputName = prefix + '_params';
+            const container = document.getElementById(prefix + 'FieldList');
+            const hint = document.getElementById(prefix + 'FieldListHint');
+            const resetBtn = document.getElementById(prefix + 'ResetFieldsBtn');
+            if (!container) return;
+            container.innerHTML = DEFAULT_FIELDS[prefix].map(f => `
+                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                    <input type="checkbox" name="${inputName}" value="${escapeAttr(f.value)}" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition shrink-0">
+                    <span>${escapeHtml(f.label)}</span>
+                </label>
+            `).join('');
+            if (hint) {
+                hint.innerHTML = `Click <strong class="text-munti-yellow-400">Test API</strong> to load real fields from the response.`;
+                hint.className = 'text-[10px] text-text-500 mt-1.5';
+            }
+            if (resetBtn) resetBtn.classList.add('hidden');
+        }
     }
 
     // ========== TEST API ==========
@@ -750,19 +724,13 @@
             container.classList.add('bg-munti-green-700/10', 'border-munti-green-600/30', 'text-munti-green-300');
             let previewHtml = '';
             if (result.preview) {
-                const previewStr = typeof result.preview === 'string'
-                    ? result.preview
-                    : JSON.stringify(result.preview, null, 2);
-                const truncated = previewStr.length > 1500
-                    ? previewStr.substring(0, 1500) + '\n... (truncated)'
-                    : previewStr;
+                const previewStr = typeof result.preview === 'string' ? result.preview : JSON.stringify(result.preview, null, 2);
+                const truncated = previewStr.length > 1500 ? previewStr.substring(0, 1500) + '\n... (truncated)' : previewStr;
                 previewHtml = `<pre class="mt-2 p-2 bg-black/40 rounded text-[11px] whitespace-pre-wrap break-all max-h-48 overflow-y-auto thin-scrollbar">${escapeHtml(truncated)}</pre>`;
             }
             container.innerHTML = `
                 <div class="flex flex-wrap items-center gap-2 font-medium">
-                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                    </svg>
+                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                     <span>${result.message}</span>
                     <span class="ml-auto text-[10px] opacity-75">HTTP ${result.status || '—'} · ${result.duration_ms || 0} ms</span>
                 </div>
@@ -772,9 +740,7 @@
             container.classList.add('bg-munti-red-700/10', 'border-munti-red-600/30', 'text-munti-red-300');
             container.innerHTML = `
                 <div class="flex flex-wrap items-center gap-2 font-medium">
-                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
+                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     <span>${result.message || 'API test failed.'}</span>
                     ${result.status ? `<span class="ml-auto text-[10px] opacity-75">HTTP ${result.status}${result.duration_ms ? ' · ' + result.duration_ms + ' ms' : ''}</span>` : ''}
                 </div>
@@ -803,23 +769,24 @@
             <span>Testing...</span>
         `;
 
-        sendRequest(
-            'POST',
-            '/settings/calibration/test',
+        sendRequest('POST', '/settings/calibration/test',
             { source, api_url: url, api_token: token, auth_type: authType },
             (data) => {
                 renderTestResult(resultContainer, data);
                 const prefix = isEdit ? 'edit' : 'add';
 
-                if (isEdit) {
-                    editApiTested = data.success;
-                } else {
-                    addApiTested = data.success;
-                }
+                if (isEdit) editApiTested = data.success;
+                else addApiTested = data.success;
 
-                // If test succeeded and fields were extracted, render dynamic checklist
+                // Cache all fields + always render them all
                 if (data.success && Array.isArray(data.fields) && data.fields.length) {
-                    renderDynamicFields(prefix, data.fields);
+                    availableFields[prefix] = data.fields;
+
+                    // Preserve currently-checked values
+                    const containerEl = document.getElementById(prefix + 'FieldList');
+                    const currentlyChecked = Array.from(containerEl.querySelectorAll('input[type="checkbox"]:checked'))
+                                                   .map(cb => cb.value);
+                    renderFields(prefix, data.fields, currentlyChecked);
                 }
 
                 buttonEl.disabled = false;
@@ -831,11 +798,8 @@
                     message: error.message || 'Test request failed.',
                     error: error.errors ? Object.values(error.errors).flat().join('\n') : null,
                 });
-                if (isEdit) {
-                    editApiTested = false;
-                } else {
-                    addApiTested = false;
-                }
+                if (isEdit) editApiTested = false;
+                else addApiTested = false;
                 buttonEl.disabled = false;
                 buttonEl.innerHTML = originalHtml;
             }
@@ -906,14 +870,8 @@
         fetch(`/settings/calibration/${id}/fetch-response`, {
             headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
         })
-        .then(res => {
-            if (!res.ok) throw new Error('Failed to fetch API response');
-            return res.json();
-        })
-        .then(data => {
-            currentJsonData = data;
-            renderJsonResponse(data);
-        })
+        .then(res => { if (!res.ok) throw new Error('Failed to fetch API response'); return res.json(); })
+        .then(data => { currentJsonData = data; renderJsonResponse(data); })
         .catch(err => {
             currentJsonData = { success: false, message: err.message || 'Could not load API response.' };
             renderJsonResponse(currentJsonData);
@@ -929,34 +887,18 @@
     function renderJsonStatusStrip(response) {
         const strip = document.getElementById('jsonStatusStrip');
         const status = response.status;
-        const success = response.success === true;
-
-        let badgeClass = 'status-err';
-        let badgeLabel = 'ERROR';
+        let badgeClass = 'status-err', badgeLabel = 'ERROR';
         if (status) {
             if (status >= 200 && status < 300) { badgeClass = 'status-2xx'; badgeLabel = 'OK'; }
             else if (status >= 300 && status < 400) { badgeClass = 'status-3xx'; badgeLabel = 'REDIRECT'; }
             else if (status >= 400 && status < 500) { badgeClass = 'status-4xx'; badgeLabel = 'CLIENT ERROR'; }
             else if (status >= 500) { badgeClass = 'status-5xx'; badgeLabel = 'SERVER ERROR'; }
         }
-
         const items = [];
-        items.push(`
-            <span class="status-badge ${badgeClass}">
-                <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
-                ${badgeLabel}${status ? ' · ' + status : ''}
-            </span>
-        `);
-        if (response.duration_ms !== undefined) {
-            items.push(`<span class="text-text-400"><span class="text-text-500">Time:</span> <span class="text-text-200">${response.duration_ms} ms</span></span>`);
-        }
-        if (response.source) {
-            items.push(`<span class="text-text-400"><span class="text-text-500">Source:</span> <span class="text-text-200">${escapeHtml(response.source)}</span></span>`);
-        }
-        if (response.fetched_at) {
-            items.push(`<span class="text-text-400"><span class="text-text-500">Fetched:</span> <span class="text-text-200">${escapeHtml(response.fetched_at)}</span></span>`);
-        }
-
+        items.push(`<span class="status-badge ${badgeClass}"><span class="w-1.5 h-1.5 rounded-full bg-current"></span>${badgeLabel}${status ? ' · ' + status : ''}</span>`);
+        if (response.duration_ms !== undefined) items.push(`<span class="text-text-400"><span class="text-text-500">Time:</span> <span class="text-text-200">${response.duration_ms} ms</span></span>`);
+        if (response.source) items.push(`<span class="text-text-400"><span class="text-text-500">Source:</span> <span class="text-text-200">${escapeHtml(response.source)}</span></span>`);
+        if (response.fetched_at) items.push(`<span class="text-text-400"><span class="text-text-500">Fetched:</span> <span class="text-text-200">${escapeHtml(response.fetched_at)}</span></span>`);
         strip.innerHTML = items.join('');
         strip.classList.remove('hidden');
         strip.classList.add('flex');
@@ -964,15 +906,13 @@
 
     function renderJsonBody(response) {
         const container = document.getElementById('jsonContent');
-
         let payload;
         if (response.data !== undefined) payload = response.data;
         else if (response.error) payload = { error: response.error };
         else if (response.message) payload = { message: response.message };
         else payload = null;
 
-        document.getElementById('jsonModalSubtitle').textContent =
-            response.url ? response.url : 'Live response from saved endpoint';
+        document.getElementById('jsonModalSubtitle').textContent = response.url ? response.url : 'Live response from saved endpoint';
 
         if (payload === null || payload === undefined) {
             container.innerHTML = `<div class="flex items-center justify-center py-10 text-text-500 text-sm italic">No data returned.</div>`;
@@ -986,7 +926,6 @@
         } else {
             prettyJson = JSON.stringify(payload, null, 4);
         }
-
         const rawJson = typeof payload === 'string' ? payload : JSON.stringify(payload);
 
         const viewer = document.createElement('div');
@@ -998,7 +937,6 @@
         } else {
             viewer.innerHTML = `<span class="json-line">${escapeHtml(rawJson)}</span>`;
         }
-
         container.innerHTML = '';
         container.appendChild(viewer);
     }
@@ -1018,9 +956,7 @@
 
     function syntaxHighlightLine(line) {
         let escaped = escapeHtml(line);
-        escaped = escaped.replace(/^(\s*)"([^"]+)"(\s*:)/, (m, sp, key, colon) =>
-            `${sp}<span class="json-key">"${key}"</span><span class="json-punct">${colon}</span>`
-        );
+        escaped = escaped.replace(/^(\s*)"([^"]+)"(\s*:)/, (m, sp, key, colon) => `${sp}<span class="json-key">"${key}"</span><span class="json-punct">${colon}</span>`);
         escaped = escaped.replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>');
         escaped = escaped.replace(/: (-?\d+\.?\d*(?:[eE][+-]?\d+)?)/g, ': <span class="json-number">$1</span>');
         escaped = escaped.replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>');
@@ -1035,22 +971,14 @@
         const raw = document.getElementById('jsonViewRaw');
         const activeClass = ['text-munti-blue-300', 'bg-munti-blue-600/15', 'border-munti-blue-600/30'];
         const inactiveClass = ['text-text-400'];
-
         if (mode === 'pretty') {
-            pretty.classList.add(...activeClass);
-            pretty.classList.remove(...inactiveClass);
-            raw.classList.remove(...activeClass);
-            raw.classList.add(...inactiveClass);
+            pretty.classList.add(...activeClass); pretty.classList.remove(...inactiveClass);
+            raw.classList.remove(...activeClass); raw.classList.add(...inactiveClass);
         } else {
-            raw.classList.add(...activeClass);
-            raw.classList.remove(...inactiveClass);
-            pretty.classList.remove(...activeClass);
-            pretty.classList.add(...inactiveClass);
+            raw.classList.add(...activeClass); raw.classList.remove(...inactiveClass);
+            pretty.classList.remove(...activeClass); pretty.classList.add(...inactiveClass);
         }
-        if (currentJsonData) {
-            renderJsonBody(currentJsonData);
-            renderJsonFooter(currentJsonData);
-        }
+        if (currentJsonData) { renderJsonBody(currentJsonData); renderJsonFooter(currentJsonData); }
     }
 
     function toggleLineNumbers() {
@@ -1080,14 +1008,8 @@
         const jsonString = JSON.stringify(currentJsonData, null, 4);
         const btn = document.getElementById('jsonCopyBtn');
         const originalHtml = btn.innerHTML;
-
         navigator.clipboard.writeText(jsonString).then(() => {
-            btn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                </svg>
-                <span>Copied!</span>
-            `;
+            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg><span>Copied!</span>`;
             btn.classList.remove('bg-munti-blue-600', 'hover:bg-munti-blue-500');
             btn.classList.add('bg-munti-green-600', 'hover:bg-munti-green-500');
             setTimeout(() => {
@@ -1095,14 +1017,13 @@
                 btn.classList.add('bg-munti-blue-600', 'hover:bg-munti-blue-500');
                 btn.classList.remove('bg-munti-green-600', 'hover:bg-munti-green-500');
             }, 2000);
-        }).catch(() => {
-            Swal.fire('Error', 'Could not copy JSON. Please select and copy manually.', 'error');
-        });
+        }).catch(() => Swal.fire('Error', 'Could not copy JSON. Please select and copy manually.', 'error'));
     }
 
     // ========== ADD MODAL ==========
     function openAddCalibrationModal() {
         addApiTested = false;
+        availableFields.add = null;
         document.getElementById('addTestResult').classList.add('hidden');
         document.getElementById('addTestResult').innerHTML = '';
         document.getElementById('addApiModal').classList.remove('hidden');
@@ -1118,20 +1039,18 @@
         document.getElementById('addTestResult').classList.add('hidden');
         document.getElementById('addTestResult').innerHTML = '';
         addApiTested = false;
+        availableFields.add = null;
         updateDocContent(document.getElementById('docContent'), '');
         resetFieldList('add');
     }
 
     document.getElementById('apiSource')?.addEventListener('change', function () {
         addApiTested = false;
-        const docDiv = document.getElementById('docContent');
-        updateDocContent(docDiv, this.value);
+        updateDocContent(document.getElementById('docContent'), this.value);
         const urlField = document.getElementById('apiUrl');
-        if (this.value === 'accuweather') {
-            urlField.placeholder = 'http://dataservice.accuweather.com/currentconditions/v1/{locationKey}';
-        } else {
-            urlField.placeholder = 'https://api.example.com/v1/endpoint';
-        }
+        urlField.placeholder = this.value === 'accuweather'
+            ? 'http://dataservice.accuweather.com/currentconditions/v1/{locationKey}'
+            : 'https://api.example.com/v1/endpoint';
     });
 
     function saveExternalApi() {
@@ -1139,30 +1058,18 @@
             Swal.fire('Test Required', 'Please run a successful API test before saving.', 'warning');
             return;
         }
-
         const source = document.getElementById('apiSource').value;
         const url = document.getElementById('apiUrl').value;
         const token = document.getElementById('apiKey').value;
         const authType = document.getElementById('authType').value;
-
-        const checklist = Array.from(document.querySelectorAll('input[name="add_params"]:checked'))
-                               .map(cb => cb.value);
+        const checklist = Array.from(document.querySelectorAll('input[name="add_params"]:checked')).map(cb => cb.value);
 
         if (!source || !url || !token) {
             Swal.fire('Validation Error', 'Please fill in all fields.', 'warning');
             return;
         }
 
-        const payload = {
-            source,
-            api_url: url,
-            api_token: token,
-            auth_type: authType,
-            checklist,
-            total_data: 0,
-            requests_per_min: 0,
-            file_path: null,
-        };
+        const payload = { source, api_url: url, api_token: token, auth_type: authType, checklist, total_data: 0, requests_per_min: 0, file_path: null };
 
         sendRequest('POST', '/settings/calibration', payload, (data) => {
             Swal.fire('Success', data.message, 'success');
@@ -1174,49 +1081,49 @@
     // ========== EDIT MODAL ==========
     function editCalibration(id) {
         editApiTested = false;
+        availableFields.edit = null;
         document.getElementById('editTestResult').classList.add('hidden');
         document.getElementById('editTestResult').innerHTML = '';
 
+        // Step 1: fetch the saved record
         fetch(`/settings/calibration/${id}`, {
             headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
         })
-        .then(res => {
-            if (!res.ok) throw new Error('Failed to fetch record');
-            return res.json();
-        })
+        .then(res => { if (!res.ok) throw new Error('Failed to fetch record'); return res.json(); })
         .then(data => {
             document.getElementById('editApiSource').value = data.source;
             document.getElementById('editApiUrl').value = data.api_url;
             document.getElementById('editApiKey').value = '';
 
-            const checklist = data.checklist || [];
+            const savedChecklist = data.checklist || [];
 
-            // If saved checklist has non-default field names (dotted paths), render them dynamically
-            const inputName = 'edit_params';
+            // Immediately render a loading placeholder for the field list
             const container = document.getElementById('editFieldList');
             const hint = document.getElementById('editFieldListHint');
-            const resetBtn = document.getElementById('editResetFieldsBtn');
+            container.innerHTML = `<p class="text-text-500 italic text-xs">Loading live fields…</p>`;
+            if (hint) { hint.innerHTML = 'Fetching all available fields from the API…'; hint.className = 'text-[10px] text-text-500 mt-1.5'; }
 
-            if (checklist.length) {
-                container.innerHTML = checklist.map(field => `
-                    <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                        <input type="checkbox" name="${inputName}" value="${escapeAttr(field)}" checked class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition shrink-0">
-                        <span class="font-mono text-[11px] break-all">${escapeHtml(field)}</span>
-                    </label>
-                `).join('');
-                hint.innerHTML = `<span class="text-munti-green-300">${checklist.length} saved field(s)</span>. Click <strong class="text-munti-yellow-400">Test API</strong> to reload from endpoint.`;
-                hint.className = 'text-[10px] text-text-500 mt-1.5';
-                if (resetBtn) resetBtn.classList.remove('hidden');
-            } else {
-                resetFieldList('edit');
-            }
-
-            const docDiv = document.getElementById('editDocContent');
-            updateDocContent(docDiv, data.source);
-
+            updateDocContent(document.getElementById('editDocContent'), data.source);
             document.getElementById('editApiModal').dataset.id = id;
             document.getElementById('editApiModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+
+            // Step 2: fetch the LIVE fields from the API
+            return fetch(`/settings/calibration/${id}/fetch-response`, {
+                headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
+            }).then(r => r.json()).then(resp => ({ record: data, live: resp }));
+        })
+        .then(({ record, live }) => {
+            const liveFields = Array.isArray(live.fields) ? live.fields : [];
+
+            // Merge: live fields + any saved field that isn't in live response (so nothing gets hidden)
+            const merged = [...liveFields];
+            (record.checklist || []).forEach(f => { if (!merged.includes(f)) merged.push(f); });
+
+            availableFields.edit = merged;
+
+            // Always render ALL fields; pre-check the saved ones
+            renderFields('edit', merged, record.checklist || []);
         })
         .catch(err => {
             Swal.fire('Error', 'Could not load record for editing.', 'error');
@@ -1229,18 +1136,16 @@
         document.getElementById('editTestResult').classList.add('hidden');
         document.getElementById('editTestResult').innerHTML = '';
         editApiTested = false;
+        availableFields.edit = null;
     }
 
     document.getElementById('editApiSource')?.addEventListener('change', function () {
         editApiTested = false;
-        const docDiv = document.getElementById('editDocContent');
-        updateDocContent(docDiv, this.value);
+        updateDocContent(document.getElementById('editDocContent'), this.value);
         const urlField = document.getElementById('editApiUrl');
-        if (this.value === 'accuweather') {
-            urlField.placeholder = 'http://dataservice.accuweather.com/currentconditions/v1/{locationKey}';
-        } else {
-            urlField.placeholder = 'https://api.example.com/v1/endpoint';
-        }
+        urlField.placeholder = this.value === 'accuweather'
+            ? 'http://dataservice.accuweather.com/currentconditions/v1/{locationKey}'
+            : 'https://api.example.com/v1/endpoint';
     });
 
     function updateExternalApi() {
@@ -1248,36 +1153,22 @@
             Swal.fire('Test Required', 'Please run a successful API test before updating.', 'warning');
             return;
         }
-
         const id = document.getElementById('editApiModal').dataset.id;
-        if (!id) {
-            Swal.fire('Error', 'No record ID found.', 'error');
-            return;
-        }
+        if (!id) { Swal.fire('Error', 'No record ID found.', 'error'); return; }
 
         const source = document.getElementById('editApiSource').value;
         const url = document.getElementById('editApiUrl').value;
         const token = document.getElementById('editApiKey').value;
         const authType = document.getElementById('editAuthType').value;
-
-        const checklist = Array.from(document.querySelectorAll('input[name="edit_params"]:checked'))
-                               .map(cb => cb.value);
+        const checklist = Array.from(document.querySelectorAll('input[name="edit_params"]:checked')).map(cb => cb.value);
 
         if (!source || !url) {
             Swal.fire('Validation Error', 'Please fill in required fields.', 'warning');
             return;
         }
 
-        const payload = {
-            source,
-            api_url: url,
-            auth_type: authType,
-            checklist,
-        };
-
-        if (token && token.trim() !== '') {
-            payload.api_token = token;
-        }
+        const payload = { source, api_url: url, auth_type: authType, checklist };
+        if (token && token.trim() !== '') payload.api_token = token;
 
         sendRequest('PUT', `/settings/calibration/${id}`, payload, (data) => {
             Swal.fire('Success', data.message, 'success');
@@ -1290,17 +1181,14 @@
     function deleteCalibration(id, fileName) {
         Swal.fire({
             title: 'Delete Calibration?',
-            html: `Are you sure you want to delete the calibration record for <strong>"${fileName}"</strong>?<br>
-                   <span style="color: #ef4444;">This action cannot be undone!</span>`,
+            html: `Are you sure you want to delete the calibration record for <strong>"${fileName}"</strong>?<br><span style="color: #ef4444;">This action cannot be undone!</span>`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc2626',
             cancelButtonColor: '#6b7280',
             confirmButtonText: 'Yes, delete it!',
             cancelButtonText: 'Cancel',
-            background: '#1f2937',
-            color: '#f3f4f6',
-            iconColor: '#ef4444'
+            background: '#1f2937', color: '#f3f4f6', iconColor: '#ef4444'
         }).then((result) => {
             if (result.isConfirmed) {
                 sendRequest('DELETE', `/settings/calibration/${id}`, {}, (data) => {
@@ -1311,7 +1199,6 @@
         });
     }
 
-    // ========== CLOSE ON ESC ==========
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             closeViewJsonModal();
