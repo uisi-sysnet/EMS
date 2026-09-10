@@ -143,6 +143,7 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
 
     Route::prefix('settings/calibration')->group(function () {
         Route::post('/test', [CalibrationController::class, 'test'])->name('settings.calibration.test');
+        Route::get('/{id}/fetch-response', [CalibrationController::class, 'fetchResponse'])->name('settings.calibration.fetch-response'); 
         Route::post('/', [CalibrationController::class, 'store'])->name('settings.calibration.store');
         Route::get('/{id}', [CalibrationController::class, 'show'])->name('settings.calibration.show');
         Route::put('/{id}', [CalibrationController::class, 'update'])->name('settings.calibration.update');

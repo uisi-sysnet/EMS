@@ -220,4 +220,70 @@ class CalibrationController extends Controller
         }
         return $data;
     }
+
+    /**
+     * Fetch the live API response for a saved calibration record.
+     */
+    public function fetchResponse($id)
+    {
+        $calibration = CalibrationApi::findOrFail($id);
+
+        // Decrypt the stored token
+        try {
+            $token = decrypt($calibration->api_token);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Stored token could not be decrypted.',
+                'error'   => $e->getMessage(),
+            ], 200);
+        }
+
+        try {
+            $headers = [
+                'Accept'        => 'application/json',
+                'Authorization' => 'Bearer ' . $token,
+                'User-Agent'    => 'Munti-Calibration/1.0',
+            ];
+
+            $startTime = microtime(true);
+
+            $response = Http::withHeaders($headers)
+                ->timeout(20)
+                ->get($calibration->api_url);
+
+            $duration = round((microtime(true) - $startTime) * 1000, 2);
+
+            $body = null;
+            try {
+                $body = $response->json();
+            } catch (\Exception $e) {
+                $body = $response->body();
+            }
+
+            return response()->json([
+                'success'     => $response->successful(),
+                'status'      => $response->status(),
+                'duration_ms' => $duration,
+                'url'         => $calibration->api_url,
+                'source'      => $calibration->source,
+                'fetched_at'  => now()->toDateTimeString(),
+                'data'        => $body,
+            ]);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not connect to API. Please check the URL.',
+                'url'     => $calibration->api_url,
+                'error'   => $e->getMessage(),
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Fetch API response failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch API response: ' . $e->getMessage(),
+                'url'     => $calibration->api_url,
+            ], 200);
+        }
+    }
 }

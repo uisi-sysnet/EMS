@@ -679,45 +679,109 @@
         });
     }
 
-    // ========== VIEW JSON ==========
+    // ========== VIEW API RESPONSE (LIVE) ==========
     let currentJsonData = null;
 
     function viewJson(id) {
-        fetch(`/settings/calibration/${id}`, {
+        // Show a loading state immediately
+        const container = document.getElementById('jsonContent');
+        container.innerHTML = `
+            <div class="flex items-center justify-center gap-2 py-8 text-text-400">
+                <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+                <span>Fetching live API response...</span>
+            </div>
+        `;
+        document.getElementById('viewJsonModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+
+        fetch(`/settings/calibration/${id}/fetch-response`, {
             headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
         })
         .then(res => {
-            if (!res.ok) throw new Error('Failed to fetch JSON');
+            if (!res.ok) throw new Error('Failed to fetch API response');
             return res.json();
         })
         .then(data => {
             currentJsonData = data;
-            displayJson(data);
-            document.getElementById('viewJsonModal').classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
+            displayApiResponse(data);
         })
         .catch(err => {
-            Swal.fire('Error', 'Could not load JSON data.', 'error');
+            container.innerHTML = `
+                <div class="flex items-center gap-2 py-8 text-munti-red-300">
+                    <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    <span>${escapeHtml(err.message || 'Could not load API response.')}</span>
+                </div>
+            `;
         });
     }
 
-    function displayJson(data) {
+    function displayApiResponse(response) {
         const container = document.getElementById('jsonContent');
-        const jsonString = JSON.stringify(data, null, 4);
-        const highlighted = jsonString
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+        // Meta banner (source, URL, status, duration, fetched time)
+        const success = response.success === true;
+        const bannerClass = success
+            ? 'bg-munti-green-700/10 border-munti-green-600/30 text-munti-green-300'
+            : 'bg-munti-red-700/10 border-munti-red-600/30 text-munti-red-300';
+
+        let metaHtml = `
+            <div class="mb-3 p-3 rounded-lg border ${bannerClass} text-xs">
+                <div class="flex flex-wrap items-center gap-2 font-medium">
+                    <span class="inline-flex items-center gap-1.5">
+                        ${success
+                            ? '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>'
+                            : '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>'}
+                        ${success ? 'API responded successfully' : (response.message || 'API request failed')}
+                    </span>
+                    ${response.status ? `<span class="ml-auto text-[10px] opacity-80">HTTP ${response.status}${response.duration_ms ? ' · ' + response.duration_ms + ' ms' : ''}</span>` : ''}
+                </div>
+                <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px] opacity-90">
+                    ${response.source ? `<div><span class="opacity-70">Source:</span> ${escapeHtml(response.source)}</div>` : ''}
+                    ${response.url ? `<div class="break-all"><span class="opacity-70">URL:</span> ${escapeHtml(response.url)}</div>` : ''}
+                    ${response.fetched_at ? `<div><span class="opacity-70">Fetched:</span> ${escapeHtml(response.fetched_at)}</div>` : ''}
+                </div>
+            </div>
+        `;
+
+        // Payload (the API data, or error)
+        const payload = response.data !== undefined
+            ? response.data
+            : (response.error ? { error: response.error } : null);
+
+        let payloadHtml = '';
+        if (payload !== null && payload !== undefined) {
+            const jsonString = typeof payload === 'string'
+                ? payload
+                : JSON.stringify(payload, null, 4);
+            payloadHtml = syntaxHighlight(jsonString);
+        } else {
+            payloadHtml = `<div class="py-4 text-center text-text-500 italic">No data returned.</div>`;
+        }
+
+        container.innerHTML = metaHtml + `<div class="json-viewer">${payloadHtml}</div>`;
+    }
+
+    function syntaxHighlight(jsonString) {
+        // Escape HTML first
+        const escaped = escapeHtml(jsonString);
+        return escaped
             .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
-            .replace(/: "([^"]+)"/g, ': <span class="json-string">"$1"</span>')
+            .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
             .replace(/: (\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
             .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
             .replace(/: (null)/g, ': <span class="json-null">$1</span>');
-        container.innerHTML = highlighted;
     }
 
     function closeViewJsonModal() {
         document.getElementById('viewJsonModal').classList.add('hidden');
         document.body.style.overflow = '';
         currentJsonData = null;
+        document.getElementById('jsonContent').innerHTML = '';
     }
 
     function copyJsonToClipboard() {
