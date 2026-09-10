@@ -21,7 +21,6 @@
     .checklist-tag-o3 { @apply bg-munti-indigo-700/20 text-munti-indigo-400 border-munti-indigo-600/30; }
     .checklist-tag-default { @apply bg-munti-gray-700/20 text-munti-gray-400 border-munti-gray-600/30; }
 
-    /* ===== JSON Inspector ===== */
     .json-viewer {
         background: #0d1117;
         color: #e6edf3;
@@ -96,7 +95,6 @@
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
     <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex flex-col min-h-0">
 
-        <!-- Header -->
         <div class="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
             <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2.5">
                 <span class="leading-tight uppercase tracking-wide">Calibration API Management</span>
@@ -104,11 +102,9 @@
             <span class="text-xs sm:text-sm text-text-400">View, edit and manage API for a new calibration reference</span>
         </div>
 
-        <!-- Content -->
         <div class="flex-1 overflow-y-auto thin-scrollbar min-h-0 bg-background-900 py-4 sm:py-6 px-4 sm:px-8">
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
 
-                <!-- Table Section -->
                 <div class="flex-1 flex flex-col min-h-0">
                     <div class="px-4 sm:px-5 py-3 border-b border-border-700 bg-surface-900/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider flex items-center gap-2">
@@ -311,7 +307,6 @@
             <div class="p-4 sm:p-6 overflow-y-auto thin-scrollbar flex-1">
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
 
-                    <!-- COLUMN 1 -->
                     <div class="flex flex-col gap-4">
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
@@ -344,7 +339,6 @@
                         </div>
                     </div>
 
-                    <!-- COLUMN 2 -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">API URL</label>
                         <input type="url" id="apiUrl" placeholder="https://api.example.com/v1/endpoint"
@@ -360,7 +354,6 @@
                         </div>
                     </div>
 
-                    <!-- COLUMN 3 -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">Bearer Token</label>
                         <input type="password" id="apiKey" placeholder="Enter your Bearer token"
@@ -372,7 +365,6 @@
                         </div>
                     </div>
 
-                    <!-- COLUMN 4: DYNAMIC FIELD LIST -->
                     <div class="flex flex-col">
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="block text-xs font-medium text-text-400">Fields to Map to Database</label>
@@ -407,7 +399,6 @@
 
                 </div>
 
-                <!-- Test Result Panel (Add) -->
                 <div id="addTestResult" class="hidden mt-4 p-3 rounded-lg border text-xs"></div>
             </div>
 
@@ -453,7 +444,6 @@
             <div class="p-4 sm:p-6 overflow-y-auto thin-scrollbar flex-1">
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
 
-                    <!-- COLUMN 1 -->
                     <div class="flex flex-col gap-4">
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
@@ -484,7 +474,6 @@
                         </div>
                     </div>
 
-                    <!-- COLUMN 2 -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">API URL</label>
                         <input type="url" id="editApiUrl" placeholder="https://api.example.com/v1/endpoint"
@@ -500,7 +489,6 @@
                         </div>
                     </div>
 
-                    <!-- COLUMN 3 -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">Bearer Token</label>
                         <input type="password" id="editApiKey" placeholder="Leave blank to keep current token"
@@ -512,14 +500,19 @@
                         </div>
                     </div>
 
-                    <!-- COLUMN 4: DYNAMIC FIELD LIST (EDIT) -->
                     <div class="flex flex-col">
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="block text-xs font-medium text-text-400">Fields to Map to Database</label>
-                            <button type="button" id="editResetFieldsBtn" onclick="resetFieldList('edit')"
-                                    class="hidden text-[10px] text-munti-blue-400 hover:text-munti-blue-300 underline">
-                                Reset
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <button type="button" id="editRefreshFieldsBtn" onclick="refreshEditFields()"
+                                        class="hidden text-[10px] text-munti-green-400 hover:text-munti-green-300 underline">
+                                    Refresh
+                                </button>
+                                <button type="button" id="editResetFieldsBtn" onclick="resetFieldList('edit')"
+                                        class="hidden text-[10px] text-munti-blue-400 hover:text-munti-blue-300 underline">
+                                    Reset
+                                </button>
+                            </div>
                         </div>
                         <div class="flex-1 p-3 bg-surface-800/50 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
                             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-y-1.5 gap-x-3" id="editFieldList">
@@ -530,13 +523,20 @@
                                 </label>
                                 @endforeach
                             </div>
+                            <!-- Inline loader overlay -->
+                            <div id="editFieldsLoader" class="hidden items-center gap-2 pt-2 text-[11px] text-text-500">
+                                <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                </svg>
+                                <span>Loading live fields…</span>
+                            </div>
                         </div>
-                        <p class="text-[10px] text-text-500 mt-1.5" id="editFieldListHint">Click <strong class="text-munti-yellow-400">Test API</strong> to load fields from the current endpoint.</p>
+                        <p class="text-[10px] text-text-500 mt-1.5" id="editFieldListHint">Fields will be loaded from the live API endpoint automatically.</p>
                     </div>
 
                 </div>
 
-                <!-- Test Result Panel (Edit) -->
                 <div id="editTestResult" class="hidden mt-4 p-3 rounded-lg border text-xs"></div>
             </div>
 
@@ -564,13 +564,18 @@
 </div>
 
 <script>
-<script>
     // ========== HELPERS ==========
     const docMap = {
         accustation: { endpoint: 'https://api.accustation.com/v1/data', rate: '60 requests / minute', params: 'apikey, station_id', auth: 'Bearer Token' },
         openweather: { endpoint: 'https://api.openweathermap.org/data/2.5/weather', rate: '60 calls/minute (free tier)', params: 'appid, q, units', auth: 'Bearer Token' },
         iqair: { endpoint: 'https://api.iqair.com/v2/', rate: '10,000 calls/month (free)', params: 'api_key, city', auth: 'Bearer Token' },
-        accuweather: { endpoint: 'http://dataservice.accuweather.com/', rate: '500 calls/day (Free tier) / higher for paid plans', params: 'locationKey, metric etc. (token sent as Bearer)', auth: 'Bearer Token', endpoints: 'Current Conditions, Hourly/Daily Forecasts, Alerts, Indices, and more' },
+        accuweather: {
+            endpoint: 'http://dataservice.accuweather.com/',
+            rate: '500 calls/day (Free tier) / higher for paid plans',
+            params: 'locationKey, metric etc. (token sent as Bearer)',
+            auth: 'Bearer Token',
+            endpoints: 'Current Conditions, Hourly/Daily Forecasts, Alerts, Indices, and more'
+        },
         custom: { endpoint: 'Your custom endpoint', rate: 'Depends on your service', params: 'Define your own', auth: 'Bearer Token' }
     };
 
@@ -587,11 +592,11 @@
     };
     DEFAULT_FIELDS.edit = DEFAULT_FIELDS.add;
 
-    // Field cache: remembers all fields returned by a successful test per modal
-    const availableFields = { add: null, edit: null };
-
     let addApiTested = false;
     let editApiTested = false;
+    let editCurrentId = null;
+    let editSavedChecklist = [];   // saved selection to keep checked
+    let editAvailableFields = [];  // fields currently shown in the edit modal
 
     function updateDocContent(docDiv, source) {
         if (source && docMap[source]) {
@@ -605,29 +610,22 @@
             `;
             if (info.endpoints) html += `<p class="mt-2"><strong class="text-text-200">Available Endpoints:</strong> ${info.endpoints}</p>`;
             docDiv.innerHTML = html;
+            docDiv.classList.remove('hidden');
         } else {
             docDiv.innerHTML = `<p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>`;
+            docDiv.classList.add('hidden');
         }
     }
 
-    function getCsrfToken() {
-        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    }
+    function getCsrfToken() { return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''; }
 
     function sendRequest(method, url, data, successCallback, errorCallback) {
         fetch(url, {
             method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': getCsrfToken(),
-                'Accept': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
             body: JSON.stringify(data),
         })
-        .then(response => {
-            if (!response.ok) return response.json().then(err => { throw err; });
-            return response.json();
-        })
+        .then(response => { if (!response.ok) return response.json().then(err => { throw err; }); return response.json(); })
         .then(data => { if (successCallback) successCallback(data); })
         .catch(error => {
             if (errorCallback) errorCallback(error);
@@ -645,73 +643,70 @@
         return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    // ========== FIELD LIST RENDERING ==========
-    // Always renders ALL fields. Pre-checks items in `selected`.
-    function renderFields(prefix, allFields, selected = []) {
+    // ========== DYNAMIC FIELD LIST ==========
+    // checkedValues: array of values that should be checked (may include values not in `fields`)
+    function renderDynamicFields(prefix, fields, checkedValues) {
+        const container = document.getElementById(prefix + 'FieldList');
+        const hint = document.getElementById(prefix + 'FieldListHint');
+        const resetBtn = document.getElementById(prefix + 'ResetFieldsBtn');
+        if (!container) return;
+
+        // If checkedValues not provided, keep the current checkbox state
+        let checked;
+        if (Array.isArray(checkedValues)) {
+            checked = checkedValues.slice();
+        } else {
+            checked = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+        }
+
+        // Build a complete list: all fields (from API) + any extra checked values that aren't in the list
+        const combined = [];
+        const seen = new Set();
+        (fields || []).forEach(f => { if (!seen.has(f)) { seen.add(f); combined.push(f); } });
+        checked.forEach(f => { if (!seen.has(f)) { seen.add(f); combined.push(f); } });
+
+        if (!combined.length) {
+            hint.innerHTML = 'No fields detected from API response.';
+            hint.className = 'text-[10px] text-munti-red-300 mt-1.5';
+            return;
+        }
+
+        const inputName = prefix + '_params';
+        container.innerHTML = combined.map(field => {
+            const isChecked = checked.includes(field);
+            return `
+                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                    <input type="checkbox" name="${inputName}" value="${escapeAttr(field)}" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition shrink-0">
+                    <span class="font-mono text-[11px] break-all">${escapeHtml(field)}</span>
+                </label>
+            `;
+        }).join('');
+
+        const checkedCount = combined.filter(f => checked.includes(f)).length;
+        hint.innerHTML = `<span class="text-munti-green-300">${combined.length} field(s)</span> available · <span class="text-munti-blue-300">${checkedCount} selected</span>.`;
+        hint.className = 'text-[10px] text-text-500 mt-1.5';
+
+        if (resetBtn) resetBtn.classList.remove('hidden');
+    }
+
+    function resetFieldList(prefix) {
         const container = document.getElementById(prefix + 'FieldList');
         const hint = document.getElementById(prefix + 'FieldListHint');
         const resetBtn = document.getElementById(prefix + 'ResetFieldsBtn');
         if (!container) return;
 
         const inputName = prefix + '_params';
+        container.innerHTML = DEFAULT_FIELDS[prefix].map(f => `
+            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                <input type="checkbox" name="${inputName}" value="${escapeAttr(f.value)}" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition shrink-0">
+                <span>${escapeHtml(f.label)}</span>
+            </label>
+        `).join('');
 
-        if (!allFields || !allFields.length) {
-            container.innerHTML = `<p class="text-text-500 italic text-xs">No fields detected. Click <strong class="text-munti-yellow-400">Test API</strong> to load fields.</p>`;
-            if (hint) {
-                hint.innerHTML = 'Click <strong class="text-munti-yellow-400">Test API</strong> to load real fields from the response.';
-                hint.className = 'text-[10px] text-text-500 mt-1.5';
-            }
-            if (resetBtn) resetBtn.classList.add('hidden');
-            return;
-        }
+        hint.innerHTML = `Click <strong class="text-munti-yellow-400">Test API</strong> to load real fields from the response.`;
+        hint.className = 'text-[10px] text-text-500 mt-1.5';
 
-        // Convert DEFAULT_FIELDS objects to plain field paths, but keep labels if they exist
-        const labelMap = {};
-        DEFAULT_FIELDS[prefix].forEach(f => { labelMap[f.value] = f.label; });
-
-        container.innerHTML = allFields.map(field => {
-            const isChecked = selected.includes(field);
-            const display = labelMap[field] || field;
-            const isCustom = !labelMap[field];
-            return `
-                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                    <input type="checkbox" name="${inputName}" value="${escapeAttr(field)}" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition shrink-0">
-                    <span class="${isCustom ? 'font-mono text-[11px] break-all' : ''}">${escapeHtml(display)}</span>
-                </label>
-            `;
-        }).join('');
-
-        if (hint) {
-            hint.innerHTML = `<span class="text-munti-green-300">${allFields.length} field(s)</span> available${selected.length ? ` · <span class="text-munti-blue-300">${selected.length} selected</span>` : ''}.`;
-            hint.className = 'text-[10px] text-text-500 mt-1.5';
-        }
-        if (resetBtn) resetBtn.classList.remove('hidden');
-    }
-
-    function resetFieldList(prefix) {
-        // Keep all currently-known fields but uncheck everything
-        const fields = availableFields[prefix];
-        if (fields && fields.length) {
-            renderFields(prefix, fields, []);
-        } else {
-            // Fall back to default static list
-            const inputName = prefix + '_params';
-            const container = document.getElementById(prefix + 'FieldList');
-            const hint = document.getElementById(prefix + 'FieldListHint');
-            const resetBtn = document.getElementById(prefix + 'ResetFieldsBtn');
-            if (!container) return;
-            container.innerHTML = DEFAULT_FIELDS[prefix].map(f => `
-                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                    <input type="checkbox" name="${inputName}" value="${escapeAttr(f.value)}" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition shrink-0">
-                    <span>${escapeHtml(f.label)}</span>
-                </label>
-            `).join('');
-            if (hint) {
-                hint.innerHTML = `Click <strong class="text-munti-yellow-400">Test API</strong> to load real fields from the response.`;
-                hint.className = 'text-[10px] text-text-500 mt-1.5';
-            }
-            if (resetBtn) resetBtn.classList.add('hidden');
-        }
+        if (resetBtn) resetBtn.classList.add('hidden');
     }
 
     // ========== TEST API ==========
@@ -762,10 +757,7 @@
         const originalHtml = buttonEl.innerHTML;
         buttonEl.disabled = true;
         buttonEl.innerHTML = `
-            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-            </svg>
+            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
             <span>Testing...</span>
         `;
 
@@ -774,19 +766,15 @@
             (data) => {
                 renderTestResult(resultContainer, data);
                 const prefix = isEdit ? 'edit' : 'add';
+                if (isEdit) { editApiTested = data.success; } else { addApiTested = data.success; }
 
-                if (isEdit) editApiTested = data.success;
-                else addApiTested = data.success;
-
-                // Cache all fields + always render them all
                 if (data.success && Array.isArray(data.fields) && data.fields.length) {
-                    availableFields[prefix] = data.fields;
-
-                    // Preserve currently-checked values
-                    const containerEl = document.getElementById(prefix + 'FieldList');
-                    const currentlyChecked = Array.from(containerEl.querySelectorAll('input[type="checkbox"]:checked'))
-                                                   .map(cb => cb.value);
-                    renderFields(prefix, data.fields, currentlyChecked);
+                    // For add: preserve existing checked state
+                    // For edit: use saved checklist as baseline if present, else preserve
+                    const checked = (isEdit && editSavedChecklist.length)
+                        ? editSavedChecklist
+                        : Array.from(document.querySelectorAll(`input[name="${prefix}_params"]:checked`)).map(cb => cb.value);
+                    renderDynamicFields(prefix, data.fields, checked);
                 }
 
                 buttonEl.disabled = false;
@@ -798,8 +786,7 @@
                     message: error.message || 'Test request failed.',
                     error: error.errors ? Object.values(error.errors).flat().join('\n') : null,
                 });
-                if (isEdit) editApiTested = false;
-                else addApiTested = false;
+                if (isEdit) { editApiTested = false; } else { addApiTested = false; }
                 buttonEl.disabled = false;
                 buttonEl.innerHTML = originalHtml;
             }
@@ -819,14 +806,63 @@
     }
 
     function testEditApi() {
+        // If user provided a new token, test with it. Otherwise, fall back to stored token via fetch-response.
+        const token = document.getElementById('editApiKey').value;
+        if (!token || token.trim() === '') {
+            // Use stored token
+            refreshEditFields();
+            return;
+        }
         runApiTest({
             source: document.getElementById('editApiSource').value,
             url: document.getElementById('editApiUrl').value,
-            token: document.getElementById('editApiKey').value,
+            token: token,
             authType: document.getElementById('editAuthType').value,
             resultContainer: 'editTestResult',
             buttonEl: document.getElementById('editTestBtn'),
             isEdit: true,
+        });
+    }
+
+    // Refresh edit fields from the live API (uses stored token via /fetch-response)
+    function refreshEditFields() {
+        if (!editCurrentId) return;
+
+        const loader = document.getElementById('editFieldsLoader');
+        loader.classList.remove('hidden');
+        loader.classList.add('flex');
+
+        const container = document.getElementById('editTestResult');
+        container.classList.add('hidden');
+        container.innerHTML = '';
+
+        fetch(`/settings/calibration/${editCurrentId}/fetch-response`, {
+            headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
+        })
+        .then(res => { if (!res.ok) throw new Error('Failed to fetch API fields'); return res.json(); })
+        .then(data => {
+            loader.classList.add('hidden');
+            loader.classList.remove('flex');
+
+            // Show a mini status in the test result panel
+            renderTestResult('editTestResult', {
+                success: data.success,
+                status: data.status,
+                duration_ms: data.duration_ms,
+                message: data.success ? 'Live fields loaded from API.' : (data.message || 'Could not load fields.'),
+                error: data.error || null,
+            });
+            editApiTested = !!data.success;
+
+            if (Array.isArray(data.fields) && data.fields.length) {
+                editAvailableFields = data.fields;
+                renderDynamicFields('edit', data.fields, editSavedChecklist);
+            }
+        })
+        .catch(err => {
+            loader.classList.add('hidden');
+            loader.classList.remove('flex');
+            renderTestResult('editTestResult', { success: false, message: err.message || 'Could not load fields.' });
         });
     }
 
@@ -878,11 +914,7 @@
         });
     }
 
-    function renderJsonResponse(response) {
-        renderJsonStatusStrip(response);
-        renderJsonBody(response);
-        renderJsonFooter(response);
-    }
+    function renderJsonResponse(response) { renderJsonStatusStrip(response); renderJsonBody(response); renderJsonFooter(response); }
 
     function renderJsonStatusStrip(response) {
         const strip = document.getElementById('jsonStatusStrip');
@@ -920,14 +952,10 @@
         }
 
         let prettyJson;
-        if (typeof payload === 'string') {
-            try { prettyJson = JSON.stringify(JSON.parse(payload), null, 4); }
-            catch { prettyJson = payload; }
-        } else {
-            prettyJson = JSON.stringify(payload, null, 4);
-        }
-        const rawJson = typeof payload === 'string' ? payload : JSON.stringify(payload);
+        if (typeof payload === 'string') { try { prettyJson = JSON.stringify(JSON.parse(payload), null, 4); } catch { prettyJson = payload; } }
+        else { prettyJson = JSON.stringify(payload, null, 4); }
 
+        const rawJson = typeof payload === 'string' ? payload : JSON.stringify(payload);
         const viewer = document.createElement('div');
         viewer.className = 'json-viewer' + (jsonShowLines ? ' with-lines' : '');
         viewer.id = 'jsonViewerBody';
@@ -937,6 +965,7 @@
         } else {
             viewer.innerHTML = `<span class="json-line">${escapeHtml(rawJson)}</span>`;
         }
+
         container.innerHTML = '';
         container.appendChild(viewer);
     }
@@ -1017,13 +1046,12 @@
                 btn.classList.add('bg-munti-blue-600', 'hover:bg-munti-blue-500');
                 btn.classList.remove('bg-munti-green-600', 'hover:bg-munti-green-500');
             }, 2000);
-        }).catch(() => Swal.fire('Error', 'Could not copy JSON. Please select and copy manually.', 'error'));
+        }).catch(() => { Swal.fire('Error', 'Could not copy JSON. Please select and copy manually.', 'error'); });
     }
 
     // ========== ADD MODAL ==========
     function openAddCalibrationModal() {
         addApiTested = false;
-        availableFields.add = null;
         document.getElementById('addTestResult').classList.add('hidden');
         document.getElementById('addTestResult').innerHTML = '';
         document.getElementById('addApiModal').classList.remove('hidden');
@@ -1039,7 +1067,6 @@
         document.getElementById('addTestResult').classList.add('hidden');
         document.getElementById('addTestResult').innerHTML = '';
         addApiTested = false;
-        availableFields.add = null;
         updateDocContent(document.getElementById('docContent'), '');
         resetFieldList('add');
     }
@@ -1068,9 +1095,7 @@
             Swal.fire('Validation Error', 'Please fill in all fields.', 'warning');
             return;
         }
-
         const payload = { source, api_url: url, api_token: token, auth_type: authType, checklist, total_data: 0, requests_per_min: 0, file_path: null };
-
         sendRequest('POST', '/settings/calibration', payload, (data) => {
             Swal.fire('Success', data.message, 'success');
             closeAddCalibrationModal();
@@ -1081,11 +1106,20 @@
     // ========== EDIT MODAL ==========
     function editCalibration(id) {
         editApiTested = false;
-        availableFields.edit = null;
+        editCurrentId = id;
+        editSavedChecklist = [];
+        editAvailableFields = [];
+
         document.getElementById('editTestResult').classList.add('hidden');
         document.getElementById('editTestResult').innerHTML = '';
 
-        // Step 1: fetch the saved record
+        const loader = document.getElementById('editFieldsLoader');
+        loader.classList.add('hidden');
+        loader.classList.remove('flex');
+
+        // Reset field list to defaults while loading
+        resetFieldList('edit');
+
         fetch(`/settings/calibration/${id}`, {
             headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
         })
@@ -1095,39 +1129,18 @@
             document.getElementById('editApiUrl').value = data.api_url;
             document.getElementById('editApiKey').value = '';
 
-            const savedChecklist = data.checklist || [];
-
-            // Immediately render a loading placeholder for the field list
-            const container = document.getElementById('editFieldList');
-            const hint = document.getElementById('editFieldListHint');
-            container.innerHTML = `<p class="text-text-500 italic text-xs">Loading live fields…</p>`;
-            if (hint) { hint.innerHTML = 'Fetching all available fields from the API…'; hint.className = 'text-[10px] text-text-500 mt-1.5'; }
+            editSavedChecklist = Array.isArray(data.checklist) ? data.checklist.slice() : [];
 
             updateDocContent(document.getElementById('editDocContent'), data.source);
+
             document.getElementById('editApiModal').dataset.id = id;
             document.getElementById('editApiModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
 
-            // Step 2: fetch the LIVE fields from the API
-            return fetch(`/settings/calibration/${id}/fetch-response`, {
-                headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
-            }).then(r => r.json()).then(resp => ({ record: data, live: resp }));
+            // Auto-load live fields so ALL fields are visible immediately
+            refreshEditFields();
         })
-        .then(({ record, live }) => {
-            const liveFields = Array.isArray(live.fields) ? live.fields : [];
-
-            // Merge: live fields + any saved field that isn't in live response (so nothing gets hidden)
-            const merged = [...liveFields];
-            (record.checklist || []).forEach(f => { if (!merged.includes(f)) merged.push(f); });
-
-            availableFields.edit = merged;
-
-            // Always render ALL fields; pre-check the saved ones
-            renderFields('edit', merged, record.checklist || []);
-        })
-        .catch(err => {
-            Swal.fire('Error', 'Could not load record for editing.', 'error');
-        });
+        .catch(err => { Swal.fire('Error', 'Could not load record for editing.', 'error'); });
     }
 
     function closeEditCalibrationModal() {
@@ -1136,7 +1149,9 @@
         document.getElementById('editTestResult').classList.add('hidden');
         document.getElementById('editTestResult').innerHTML = '';
         editApiTested = false;
-        availableFields.edit = null;
+        editCurrentId = null;
+        editSavedChecklist = [];
+        editAvailableFields = [];
     }
 
     document.getElementById('editApiSource')?.addEventListener('change', function () {
@@ -1162,10 +1177,7 @@
         const authType = document.getElementById('editAuthType').value;
         const checklist = Array.from(document.querySelectorAll('input[name="edit_params"]:checked')).map(cb => cb.value);
 
-        if (!source || !url) {
-            Swal.fire('Validation Error', 'Please fill in required fields.', 'warning');
-            return;
-        }
+        if (!source || !url) { Swal.fire('Validation Error', 'Please fill in required fields.', 'warning'); return; }
 
         const payload = { source, api_url: url, auth_type: authType, checklist };
         if (token && token.trim() !== '') payload.api_token = token;
@@ -1188,7 +1200,9 @@
             cancelButtonColor: '#6b7280',
             confirmButtonText: 'Yes, delete it!',
             cancelButtonText: 'Cancel',
-            background: '#1f2937', color: '#f3f4f6', iconColor: '#ef4444'
+            background: '#1f2937',
+            color: '#f3f4f6',
+            iconColor: '#ef4444'
         }).then((result) => {
             if (result.isConfirmed) {
                 sendRequest('DELETE', `/settings/calibration/${id}`, {}, (data) => {
@@ -1199,12 +1213,9 @@
         });
     }
 
+    // ========== CLOSE ON ESC ==========
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') {
-            closeViewJsonModal();
-            closeAddCalibrationModal();
-            closeEditCalibrationModal();
-        }
+        if (e.key === 'Escape') { closeViewJsonModal(); closeAddCalibrationModal(); closeEditCalibrationModal(); }
     });
 </script>
 
