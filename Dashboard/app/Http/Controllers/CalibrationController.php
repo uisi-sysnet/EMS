@@ -57,12 +57,13 @@ class CalibrationController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * Display the specified resource (for JSON view).
      */
     public function show($id)
     {
         $calibration = CalibrationApi::findOrFail($id);
         $data = $calibration->toArray();
+        // Decrypt token for display (optional; you can omit if you don't want to expose it)
         try {
             $data['api_token'] = decrypt($calibration->api_token);
         } catch (\Exception $e) {
@@ -126,9 +127,6 @@ class CalibrationController extends Controller
         return response()->json(['message' => 'Calibration API deleted successfully.']);
     }
 
-    /**
-     * Test the API connection before saving.
-     */
     public function test(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -171,8 +169,8 @@ class CalibrationController extends Controller
                 $body = $response->body();
             }
 
-            // Extract flattened field paths from the response
-            $fields = is_array($body) ? $this->extractFields($body) : [];
+            // Extract field paths from the response (even on error, if JSON is returned)
+            $fields = is_array($body) ? $this->extractFieldPaths($body) : [];
 
             if ($response->successful()) {
                 return response()->json([
@@ -209,12 +207,64 @@ class CalibrationController extends Controller
     }
 
     /**
+     * Recursively extract dotted field paths from a decoded JSON response.
+     * If the response is a list, uses the first element.
+     */
+    private function extractFieldPaths($data, $prefix = '')
+    {
+        $paths = [];
+
+        if (!is_array($data)) {
+            return $paths;
+        }
+
+        // If this is a numeric list, use the first element
+        if (!empty($data)) {
+            $keys = array_keys($data);
+            $isList = ($keys === range(0, count($data) - 1));
+            if ($isList && is_array($data[0])) {
+                return $this->extractFieldPaths($data[0], $prefix);
+            }
+        }
+
+        foreach ($data as $key => $value) {
+            $path = $prefix ? ($prefix . '.' . $key) : $key;
+
+            if (is_array($value) && !empty($value)) {
+                $paths = array_merge($paths, $this->extractFieldPaths($value, $path));
+            } else {
+                $paths[] = $path;
+            }
+        }
+
+        return $paths;
+    }
+
+    /**
+     * Truncate the response preview to avoid huge payloads.
+     */
+    private function truncatePreview($data, $maxLength = 2000)
+    {
+        if (is_string($data)) {
+            return substr($data, 0, $maxLength);
+        } elseif (is_array($data)) {
+            $json = json_encode($data, JSON_PRETTY_PRINT);
+            if (strlen($json) > $maxLength) {
+                return substr($json, 0, $maxLength) . "\n... (truncated)";
+            }
+            return $data;
+        }
+        return $data;
+    }
+
+    /**
      * Fetch the live API response for a saved calibration record.
      */
     public function fetchResponse($id)
     {
         $calibration = CalibrationApi::findOrFail($id);
 
+        // Decrypt the stored token
         try {
             $token = decrypt($calibration->api_token);
         } catch (\Exception $e) {
@@ -222,7 +272,7 @@ class CalibrationController extends Controller
                 'success' => false,
                 'message' => 'Stored token could not be decrypted.',
                 'error'   => $e->getMessage(),
-            ]);
+            ], 200);
         }
 
         try {
@@ -262,67 +312,14 @@ class CalibrationController extends Controller
                 'message' => 'Could not connect to API. Please check the URL.',
                 'url'     => $calibration->api_url,
                 'error'   => $e->getMessage(),
-            ]);
+            ], 200);
         } catch (\Exception $e) {
             Log::error('Fetch API response failed: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch API response: ' . $e->getMessage(),
                 'url'     => $calibration->api_url,
-            ]);
+            ], 200);
         }
-    }
-
-    /**
-     * Flatten a JSON structure to dot-notation field paths.
-     *
-     * Example:
-     *   [{ "a": 1, "b": { "c": 2 } }]  →  ["a", "b.c"]
-     */
-    private function extractFields($data, $prefix = '')
-    {
-        $fields = [];
-        if (!is_array($data)) return $fields;
-
-        $keys = array_keys($data);
-        $isList = !empty($keys) && $keys === range(0, count($keys) - 1);
-
-        // If root is a list, sample the first element
-        if ($isList && $prefix === '' && !empty($data)) {
-            return $this->extractFields($data[0], '');
-        }
-
-        foreach ($data as $key => $value) {
-            if ($isList) {
-                $path = $prefix === '' ? "[$key]" : "{$prefix}[$key]";
-            } else {
-                $path = $prefix === '' ? (string)$key : "{$prefix}.{$key}";
-            }
-
-            if (is_array($value) && !empty($value)) {
-                $fields = array_merge($fields, $this->extractFields($value, $path));
-            } else {
-                $fields[] = $path;
-            }
-        }
-
-        return $fields;
-    }
-
-    /**
-     * Truncate the response preview to avoid huge payloads.
-     */
-    private function truncatePreview($data, $maxLength = 2000)
-    {
-        if (is_string($data)) {
-            return substr($data, 0, $maxLength);
-        } elseif (is_array($data)) {
-            $json = json_encode($data, JSON_PRETTY_PRINT);
-            if (strlen($json) > $maxLength) {
-                return substr($json, 0, $maxLength) . "\n... (truncated)";
-            }
-            return $data;
-        }
-        return $data;
     }
 }
