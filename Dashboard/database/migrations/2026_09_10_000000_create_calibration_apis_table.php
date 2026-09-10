@@ -6,16 +6,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * The database connection that should be used by the migration.
-     *
-     * @var string
-     */
     protected $connection = 'aq';
 
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('calibration_apis', function (Blueprint $table) {
@@ -24,16 +16,16 @@ return new class extends Migration
             // Source name (e.g., AccuStation, OpenWeather, AccuWeather, etc.)
             $table->string('source')->index();
             
-            // The full API endpoint URL
-            $table->string('api_url');
+            // The full API endpoint URL — TEXT to allow long URLs
+            $table->text('api_url');
             
-            // Bearer token (encrypted in production)
-            $table->string('api_token')->nullable();
+            // Bearer token (encrypted) — TEXT because encrypted values are ~300-500 chars
+            $table->text('api_token')->nullable();
             
-            // Authentication type – defaults to 'api_key'
-            $table->string('auth_type')->default('api_key');
+            // Authentication type
+            $table->string('auth_type')->default('bearer_token');
             
-            // File path (if a local file is associated, e.g., uploaded calibration file)
+            // File path
             $table->string('file_path')->nullable();
             
             // Checklist of data fields (JSON array)
@@ -47,15 +39,9 @@ return new class extends Migration
             
             // Timestamps
             $table->timestamps();
-            
-            // Optional: add soft deletes if needed
-            // $table->softDeletes();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('calibration_apis');
