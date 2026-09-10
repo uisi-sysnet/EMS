@@ -140,4 +140,11 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     /* Route::patch('/inventory/cameras/{id}/restore', [CameraController::class, 'restore'])->name('inventory.cameras.restore'); */
 
     Route::get('/settings/calibration', [CalibrationController::class, 'index'])->name('settings.calibration.index'); 
+
+    Route::prefix('settings/calibration')->group(function () {
+        Route::post('/', [CalibrationController::class, 'store'])->name('settings.calibration.store');
+        Route::get('/{id}', [CalibrationController::class, 'show'])->name('settings.calibration.show');
+        Route::put('/{id}', [CalibrationController::class, 'update'])->name('settings.calibration.update');
+        Route::delete('/{id}', [CalibrationController::class, 'destroy'])->name('settings.calibration.destroy');
+    });
 });

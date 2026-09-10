@@ -104,13 +104,13 @@
 
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center gap-1.5 text-xs text-text-200 transition">
-                                            {{ basename($cal->file_path) }}
+                                            {{ basename($cal->file_path ?? '') }}
                                         </span>
                                     </td>
 
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <div class="flex flex-wrap gap-1">
-                                            @foreach($cal->checklist as $item)
+                                            @foreach($cal->checklist ?? [] as $item)
                                                 @php
                                                     $slug = strtolower(str_replace([' ', '.'], '-', $item));
                                                     $tagClass = 'checklist-tag-default';
@@ -160,7 +160,7 @@
                                                 </svg>
                                             </button>
                                             <!-- Delete button -->
-                                            <button type="button" onclick="deleteCalibration({{ $cal->id }}, '{{ basename($cal->file_path) }}')"
+                                            <button type="button" onclick="deleteCalibration({{ $cal->id }}, '{{ basename($cal->file_path ?? '') }}')"
                                                     class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition"
                                                     title="Delete">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
@@ -571,6 +571,7 @@
     </div>
 </div>
 
+<!-- ==================== JAVASCRIPT ==================== -->
 <script>
     // ========== HELPERS ==========
     const docMap = {
@@ -628,71 +629,65 @@
         }
     }
 
-    // ========== VIEW JSON MODAL ==========
+    // ========== CSRF TOKEN ==========
+    function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    }
+
+    // ========== COMMON AJAX ==========
+    function sendRequest(method, url, data, successCallback, errorCallback) {
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(data),
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (successCallback) successCallback(data);
+        })
+        .catch(error => {
+            if (errorCallback) errorCallback(error);
+            else {
+                let msg = error.errors ? Object.values(error.errors).flat().join('\n') : error.message || 'Something went wrong.';
+                Swal.fire('Error', msg, 'error');
+            }
+        });
+    }
+
+    // ========== VIEW JSON ==========
     let currentJsonData = null;
 
     function viewJson(id) {
-        // In a real app, you would fetch the JSON from the server:
-        // fetch(`/settings/calibration/${id}/json`)
-        //   .then(res => res.json())
-        //   .then(data => { displayJson(data); });
-
-        // For demo, generate sample JSON based on the record id
-        const sampleData = {
-            1: {
-                id: 1,
-                source: 'accustation',
-                file: 'sensor_calibration_2026-01.xlsx',
-                checklist: ['Temperature', 'Humidity', 'PM2.5', 'PM10'],
-                total_data: 15423,
-                requests_per_min: 45,
-                created_at: '2026-03-12 09:45',
-                readings: [
-                    { timestamp: '2026-03-12T09:00:00', temp: 22.5, humidity: 45, pm25: 12, pm10: 18 },
-                    { timestamp: '2026-03-12T09:05:00', temp: 22.8, humidity: 44, pm25: 14, pm10: 20 },
-                    { timestamp: '2026-03-12T09:10:00', temp: 23.1, humidity: 43, pm25: 11, pm10: 17 }
-                ]
-            },
-            2: {
-                id: 2,
-                source: 'manual',
-                file: 'manual_check_2026-01-15.pdf',
-                checklist: ['Pressure', 'CO', 'NO2', 'O3'],
-                total_data: 892,
-                requests_per_min: 12,
-                created_at: '2026-03-07 14:20',
-                readings: [
-                    { timestamp: '2026-03-07T14:00:00', pressure: 1012, co: 0.8, no2: 15, o3: 22 },
-                    { timestamp: '2026-03-07T14:10:00', pressure: 1013, co: 0.7, no2: 14, o3: 24 }
-                ]
-            },
-            3: {
-                id: 3,
-                source: 'sensor',
-                file: 'sensor_calibration_2026-02.xlsx',
-                checklist: ['Temperature', 'Humidity', 'Pressure', 'PM2.5', 'PM10', 'CO', 'NO2', 'O3'],
-                total_data: 28145,
-                requests_per_min: 62,
-                created_at: '2026-03-13 08:00',
-                readings: [
-                    { timestamp: '2026-03-13T08:00:00', temp: 21.5, humidity: 50, pressure: 1015, pm25: 8, pm10: 12, co: 0.5, no2: 10, o3: 18 },
-                    { timestamp: '2026-03-13T08:05:00', temp: 21.8, humidity: 49, pressure: 1014, pm25: 9, pm10: 13, co: 0.6, no2: 11, o3: 20 }
-                ]
-            }
-        };
-
-        const jsonData = sampleData[id] || sampleData[1];
-        currentJsonData = jsonData;
-        displayJson(jsonData);
-        document.getElementById('viewJsonModal').classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
+        fetch(`/settings/calibration/${id}`, {
+            headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('Failed to fetch JSON');
+            return res.json();
+        })
+        .then(data => {
+            currentJsonData = data;
+            displayJson(data);
+            document.getElementById('viewJsonModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        })
+        .catch(err => {
+            Swal.fire('Error', 'Could not load JSON data.', 'error');
+        });
     }
 
     function displayJson(data) {
         const container = document.getElementById('jsonContent');
-        // Pretty print with syntax highlighting (simple)
         const jsonString = JSON.stringify(data, null, 4);
-        // Basic syntax highlighting using regex (quick and dirty)
         const highlighted = jsonString
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
             .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
@@ -713,7 +708,6 @@
         if (!currentJsonData) return;
         const jsonString = JSON.stringify(currentJsonData, null, 4);
         navigator.clipboard.writeText(jsonString).then(() => {
-            // Simple feedback
             const btn = document.querySelector('#viewJsonModal .bg-munti-blue-600');
             const originalText = btn.textContent;
             btn.textContent = 'Copied!';
@@ -722,15 +716,6 @@
             alert('Could not copy JSON. Please select and copy manually.');
         });
     }
-
-    // Close JSON modal on Escape
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') {
-            closeViewJsonModal();
-            closeAddCalibrationModal();
-            closeEditCalibrationModal();
-        }
-    });
 
     // ========== ADD MODAL ==========
     function openAddCalibrationModal() {
@@ -764,49 +749,61 @@
         const token = document.getElementById('apiKey').value;
         const authType = document.getElementById('authType').value;
 
+        const checklist = Array.from(document.querySelectorAll('input[name="add_params"]:checked'))
+                               .map(cb => cb.value);
+
         if (!source || !url || !token) {
-            alert('Please fill in all fields.');
+            Swal.fire('Validation Error', 'Please fill in all fields.', 'warning');
             return;
         }
 
-        alert(`Saved!\nSource: ${source}\nURL: ${url}\nAuth Type: ${authType}`);
-        closeAddCalibrationModal();
+        const payload = {
+            source,
+            api_url: url,
+            api_token: token,
+            auth_type: authType,
+            checklist,
+            total_data: 0,
+            requests_per_min: 0,
+            file_path: null,
+        };
+
+        sendRequest('POST', '/settings/calibration', payload, (data) => {
+            Swal.fire('Success', data.message, 'success');
+            closeAddCalibrationModal();
+            window.location.reload();
+        });
     }
 
     // ========== EDIT MODAL ==========
     function editCalibration(id) {
-        const sampleData = {
-            1: {
-                source: 'accustation',
-                url: 'https://api.accustation.com/v1/data',
-                token: 'sk_live_************************',
-                authType: 'bearer_token'
-            },
-            2: {
-                source: 'openweather',
-                url: 'https://api.openweathermap.org/data/2.5/weather',
-                token: 'ow_1234567890',
-                authType: 'bearer_token'
-            },
-            3: {
-                source: 'accuweather',
-                url: 'http://dataservice.accuweather.com/currentconditions/v1/12345',
-                token: 'accu_abcdef12345',
-                authType: 'bearer_token'
-            }
-        };
+        fetch(`/settings/calibration/${id}`, {
+            headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('Failed to fetch record');
+            return res.json();
+        })
+        .then(data => {
+            document.getElementById('editApiSource').value = data.source;
+            document.getElementById('editApiUrl').value = data.api_url;
+            document.getElementById('editApiKey').value = '••••••••';
 
-        const data = sampleData[id] || sampleData[1];
+            const checklist = data.checklist || [];
+            document.querySelectorAll('input[name="edit_params"]').forEach(cb => {
+                cb.checked = checklist.includes(cb.value);
+            });
 
-        document.getElementById('editApiSource').value = data.source;
-        document.getElementById('editApiUrl').value = data.url;
-        document.getElementById('editApiKey').value = data.token;
+            const docDiv = document.getElementById('editDocContent');
+            updateDocContent(docDiv, data.source);
 
-        const docDiv = document.getElementById('editDocContent');
-        updateDocContent(docDiv, data.source);
-
-        document.getElementById('editApiModal').classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
+            document.getElementById('editApiModal').dataset.id = id;
+            document.getElementById('editApiModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        })
+        .catch(err => {
+            Swal.fire('Error', 'Could not load record for editing.', 'error');
+        });
     }
 
     function closeEditCalibrationModal() {
@@ -826,18 +823,41 @@
     });
 
     function updateExternalApi() {
+        const id = document.getElementById('editApiModal').dataset.id;
+        if (!id) {
+            Swal.fire('Error', 'No record ID found.', 'error');
+            return;
+        }
+
         const source = document.getElementById('editApiSource').value;
         const url = document.getElementById('editApiUrl').value;
         const token = document.getElementById('editApiKey').value;
         const authType = document.getElementById('editAuthType').value;
 
-        if (!source || !url || !token) {
-            alert('Please fill in all fields.');
+        const checklist = Array.from(document.querySelectorAll('input[name="edit_params"]:checked'))
+                               .map(cb => cb.value);
+
+        if (!source || !url) {
+            Swal.fire('Validation Error', 'Please fill in required fields.', 'warning');
             return;
         }
 
-        alert(`Updated!\nSource: ${source}\nURL: ${url}\nAuth Type: ${authType}`);
-        closeEditCalibrationModal();
+        const payload = {
+            source,
+            api_url: url,
+            auth_type: authType,
+            checklist,
+        };
+
+        if (token && token !== '••••••••') {
+            payload.api_token = token;
+        }
+
+        sendRequest('PUT', `/settings/calibration/${id}`, payload, (data) => {
+            Swal.fire('Success', data.message, 'success');
+            closeEditCalibrationModal();
+            window.location.reload();
+        });
     }
 
     // ========== DELETE ==========
@@ -857,10 +877,22 @@
             iconColor: '#ef4444'
         }).then((result) => {
             if (result.isConfirmed) {
-                alert(`Deleted calibration #${id}`);
+                sendRequest('DELETE', `/settings/calibration/${id}`, {}, (data) => {
+                    Swal.fire('Deleted!', data.message, 'success');
+                    window.location.reload();
+                });
             }
         });
     }
+
+    // ========== CLOSE ON ESC ==========
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeViewJsonModal();
+            closeAddCalibrationModal();
+            closeEditCalibrationModal();
+        }
+    });
 </script>
 
 @include('layouts.footer')
