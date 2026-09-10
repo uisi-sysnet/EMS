@@ -37,8 +37,6 @@
     @media (min-width: 640px) {
         .json-viewer { font-size: 13px; }
     }
-
-    /* Line numbers */
     .json-viewer.with-lines .json-line::before {
         counter-increment: line;
         content: counter(line);
@@ -51,14 +49,11 @@
         border-right: 1px solid #1f2937;
         user-select: none;
     }
-
     .json-viewer .json-line {
         display: block;
         padding: 0 0.75rem;
     }
     .json-viewer .json-line:hover { background: rgba(255,255,255,0.03); }
-
-    /* Syntax colors */
     .json-viewer .json-key { color: #ff7b72; }
     .json-viewer .json-string { color: #a5d6ff; }
     .json-viewer .json-number { color: #79c0ff; }
@@ -66,7 +61,6 @@
     .json-viewer .json-null { color: #8b949e; font-style: italic; }
     .json-viewer .json-punct { color: #8b949e; }
 
-    /* Status badges */
     .status-badge {
         display: inline-flex;
         align-items: center;
@@ -84,7 +78,6 @@
     .status-5xx { background: rgba(239,68,68,0.12);  color: #f87171; border-color: rgba(239,68,68,0.3); }
     .status-err { background: rgba(239,68,68,0.12);  color: #f87171; border-color: rgba(239,68,68,0.3); }
 
-    /* Loading skeleton */
     .json-skeleton {
         display: inline-block;
         height: 12px;
@@ -123,7 +116,6 @@
                         </h3>
                         <div class="flex items-center gap-3 justify-between sm:justify-end">
                             <span class="text-xs text-text-500">{{ $calibrations->count() }} Record(s)</span>
-
                             <button type="button"
                                     onclick="openAddCalibrationModal()"
                                     class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 rounded-md hover:bg-munti-green-700/30 transition whitespace-nowrap">
@@ -160,7 +152,7 @@
                                         <span class="inline-flex items-center gap-1.5 text-xs text-text-200">{{ $cal->file_path ? basename($cal->file_path) : '—' }}</span>
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <div class="flex flex-wrap gap-1">
+                                        <div class="flex flex-wrap gap-1 max-w-xs">
                                             @foreach($cal->checklist ?? [] as $item)
                                                 @php
                                                     $slug = strtolower(str_replace([' ', '.'], '-', $item));
@@ -169,7 +161,7 @@
                                                         $tagClass = 'checklist-tag-' . $slug;
                                                     }
                                                 @endphp
-                                                <span class="checklist-tag {{ $tagClass }}">{{ $item }}</span>
+                                                <span class="checklist-tag {{ $tagClass }}" title="{{ $item }}">{{ Str::limit($item, 20) }}</span>
                                             @endforeach
                                         </div>
                                     </td>
@@ -180,7 +172,7 @@
                                         <div class="flex items-center justify-center gap-1.5">
                                             <button type="button" onclick="viewJson({{ $cal->id }})"
                                                     class="p-1.5 rounded-lg text-text-400 hover:text-munti-blue-400 hover:bg-surface-700/70 transition"
-                                                    title="View JSON">
+                                                    title="Inspect live API response">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -226,8 +218,6 @@
 
     <div class="absolute inset-0 flex items-center justify-center p-0 sm:p-4">
         <div class="relative w-full h-full sm:h-auto sm:max-w-5xl bg-surface-900 border-0 sm:border border-border-700 rounded-none sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-full">
-
-            <!-- ============ HEADER ============ -->
             <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-border-700 bg-gradient-to-r from-surface-800 to-surface-800/60 flex items-center justify-between shrink-0">
                 <div class="flex items-center gap-3 min-w-0">
                     <div class="w-9 h-9 rounded-lg bg-munti-blue-600/20 border border-munti-blue-600/30 flex items-center justify-center shrink-0">
@@ -247,20 +237,14 @@
                 </button>
             </div>
 
-            <!-- ============ STATUS STRIP ============ -->
             <div id="jsonStatusStrip" class="hidden px-4 sm:px-6 py-2.5 border-b border-border-700 bg-surface-800/40 flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] shrink-0"></div>
 
-            <!-- ============ TOOLBAR ============ -->
             <div class="px-4 sm:px-6 py-2 border-b border-border-700 bg-surface-800/30 flex items-center justify-between gap-2 shrink-0">
                 <div class="flex items-center gap-1">
                     <button type="button" id="jsonViewPretty" onclick="setJsonViewMode('pretty')"
-                            class="px-2.5 py-1 text-[11px] font-medium rounded-md text-text-100 bg-munti-blue-600/15 border border-munti-blue-600/30">
-                        Pretty
-                    </button>
+                            class="px-2.5 py-1 text-[11px] font-medium rounded-md text-text-100 bg-munti-blue-600/15 border border-munti-blue-600/30">Pretty</button>
                     <button type="button" id="jsonViewRaw" onclick="setJsonViewMode('raw')"
-                            class="px-2.5 py-1 text-[11px] font-medium rounded-md text-text-100 hover:bg-surface-700 transition">
-                        Raw
-                    </button>
+                            class="px-2.5 py-1 text-[11px] font-medium rounded-md text-text-100 hover:bg-surface-700 transition">Raw</button>
                 </div>
                 <div class="flex items-center gap-1">
                     <button type="button" onclick="toggleLineNumbers()" id="jsonToggleLines"
@@ -275,36 +259,18 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                         </svg>
                     </button>
-                    <button type="button" onclick="expandAllJson()" id="jsonExpandBtn"
-                            class="p-1.5 rounded-md text-text-400 hover:text-text-100 hover:bg-surface-700 transition" title="Expand all">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-                        </svg>
-                    </button>
-                    <button type="button" onclick="collapseAllJson()" id="jsonCollapseBtn"
-                            class="p-1.5 rounded-md text-text-400 hover:text-text-100 hover:bg-surface-700 transition" title="Collapse all">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"/>
-                        </svg>
-                    </button>
                 </div>
             </div>
 
-            <!-- ============ BODY ============ -->
             <div class="p-3 sm:p-4 overflow-y-auto thin-scrollbar flex-1 bg-[#0d1117]">
                 <div id="jsonContent" class="min-h-[200px]"></div>
             </div>
 
-            <!-- ============ FOOTER ============ -->
             <div class="px-4 sm:px-6 py-3 sm:py-4 border-t border-border-700 bg-surface-800/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 shrink-0">
-                <div class="text-[11px] text-text-500" id="jsonFooterInfo">
-                    <!-- filled by JS -->
-                </div>
+                <div class="text-[11px] text-text-500" id="jsonFooterInfo"></div>
                 <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto">
                     <button type="button" onclick="closeViewJsonModal()"
-                            class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
-                        Close
-                    </button>
+                            class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">Close</button>
                     <button type="button" onclick="copyJsonToClipboard()" id="jsonCopyBtn"
                             class="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium text-white bg-munti-blue-600 hover:bg-munti-blue-500 rounded-lg transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -325,7 +291,6 @@
     <div class="absolute inset-0 flex items-center justify-center p-0 sm:p-4">
         <div class="relative w-full h-full sm:h-auto sm:max-w-6xl bg-surface-900 border-0 sm:border border-border-700 rounded-none sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-full">
 
-            <!-- Header -->
             <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-border-700 bg-surface-800 flex items-center justify-between shrink-0">
                 <h3 class="text-base sm:text-lg font-semibold text-text-100">Add External API</h3>
                 <button type="button" onclick="closeAddCalibrationModal()" class="p-1.5 rounded-lg text-text-400 hover:text-text-100 hover:bg-surface-700 transition">
@@ -335,7 +300,6 @@
                 </button>
             </div>
 
-            <!-- Body (scrollable) -->
             <div class="p-4 sm:p-6 overflow-y-auto thin-scrollbar flex-1">
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
 
@@ -402,38 +366,21 @@
 
                     <!-- COLUMN 4 -->
                     <div class="flex flex-col">
-                        <label class="block text-xs font-medium text-text-400 mb-1.5">Fields to Map to Database</label>
-                        <div class="flex-1 p-3 bg-surface-800/50 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-y-1.5 gap-x-3">
-                                @php
-                                    $fields = [
-                                        'pm25' => 'PM2.5', 'pm10' => 'PM10', 'tsp' => 'TSP',
-                                        'ozone' => 'Ozone', 'carbon_monoxide' => 'Carbon Monoxide',
-                                        'sulfur_dioxide' => 'Sulfur Dioxide', 'nitrogen_dioxide' => 'Nitrogen Dioxide',
-                                        'temperature' => 'Temperature', 'humidity' => 'Humidity',
-                                        'rain' => 'Rain', 'wind_speed' => 'Wind Speed',
-                                        'wind_direction' => 'Wind Direction', 'air_pressure' => 'Air Pressure',
-                                        'noise' => 'Noise', 'lead' => 'Lead', 'lead_temperature' => 'Lead Temperature',
-                                    ];
-                                @endphp
-                                @foreach($fields as $value => $label)
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="{{ $value }}" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>{{ $label }}</span>
-                                </label>
-                                @endforeach
-                            </div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-medium text-text-400">Fields to Map to Database</label>
+                            <span id="addFieldsBadge" class="text-[9px] px-1.5 py-0.5 rounded-full bg-surface-700 text-text-500 border border-border-600">Default</span>
                         </div>
-                        <p class="text-[10px] text-text-500 mt-1.5">Select fields from the API response to store.</p>
+                        <div id="addChecklistContainer" class="flex-1 p-3 bg-surface-800/50 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
+                            <!-- Populated by JS -->
+                        </div>
+                        <p class="text-[10px] text-text-500 mt-1.5">Fields auto-populate after a successful API test.</p>
                     </div>
 
                 </div>
 
-                <!-- Test Result Panel (Add) -->
                 <div id="addTestResult" class="hidden mt-4 p-3 rounded-lg border text-xs"></div>
             </div>
 
-            <!-- Footer -->
             <div class="px-4 sm:px-6 py-3 sm:py-4 border-t border-border-700 bg-surface-800/60 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 shrink-0">
                 <button type="button" onclick="testAddApi()" id="addTestBtn"
                         class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium text-munti-yellow-400 bg-munti-yellow-700/20 border border-munti-yellow-600/30 rounded-lg hover:bg-munti-yellow-700/30 transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto">
@@ -444,13 +391,9 @@
                 </button>
                 <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto">
                     <button type="button" onclick="closeAddCalibrationModal()"
-                            class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
-                        Cancel
-                    </button>
+                            class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">Cancel</button>
                     <button type="button" onclick="saveExternalApi()"
-                            class="w-full sm:w-auto h-9 px-5 text-sm font-medium text-white bg-munti-green-600 hover:bg-munti-green-500 rounded-lg transition">
-                        Save API
-                    </button>
+                            class="w-full sm:w-auto h-9 px-5 text-sm font-medium text-white bg-munti-green-600 hover:bg-munti-green-500 rounded-lg transition">Save API</button>
                 </div>
             </div>
         </div>
@@ -464,7 +407,6 @@
     <div class="absolute inset-0 flex items-center justify-center p-0 sm:p-4">
         <div class="relative w-full h-full sm:h-auto sm:max-w-6xl bg-surface-900 border-0 sm:border border-border-700 rounded-none sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-full">
 
-            <!-- Header -->
             <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-border-700 bg-surface-800 flex items-center justify-between shrink-0">
                 <h3 class="text-base sm:text-lg font-semibold text-text-100">Edit External API</h3>
                 <button type="button" onclick="closeEditCalibrationModal()" class="p-1.5 rounded-lg text-text-400 hover:text-text-100 hover:bg-surface-700 transition">
@@ -474,7 +416,6 @@
                 </button>
             </div>
 
-            <!-- Body (scrollable) -->
             <div class="p-4 sm:p-6 overflow-y-auto thin-scrollbar flex-1">
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
 
@@ -539,27 +480,21 @@
 
                     <!-- COLUMN 4 -->
                     <div class="flex flex-col">
-                        <label class="block text-xs font-medium text-text-400 mb-1.5">Fields to Map to Database</label>
-                        <div class="flex-1 p-3 bg-surface-800/50 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-y-1.5 gap-x-3">
-                                @foreach($fields as $value => $label)
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="{{ $value }}" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>{{ $label }}</span>
-                                </label>
-                                @endforeach
-                            </div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-medium text-text-400">Fields to Map to Database</label>
+                            <span id="editFieldsBadge" class="text-[9px] px-1.5 py-0.5 rounded-full bg-surface-700 text-text-500 border border-border-600">Saved</span>
                         </div>
-                        <p class="text-[10px] text-text-500 mt-1.5">Select fields from the API response to store.</p>
+                        <div id="editChecklistContainer" class="flex-1 p-3 bg-surface-800/50 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
+                            <!-- Populated by JS -->
+                        </div>
+                        <p class="text-[10px] text-text-500 mt-1.5">Fields refresh after a successful API test.</p>
                     </div>
 
                 </div>
 
-                <!-- Test Result Panel (Edit) -->
                 <div id="editTestResult" class="hidden mt-4 p-3 rounded-lg border text-xs"></div>
             </div>
 
-            <!-- Footer -->
             <div class="px-4 sm:px-6 py-3 sm:py-4 border-t border-border-700 bg-surface-800/60 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 shrink-0">
                 <button type="button" onclick="testEditApi()" id="editTestBtn"
                         class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium text-munti-yellow-400 bg-munti-yellow-700/20 border border-munti-yellow-600/30 rounded-lg hover:bg-munti-yellow-700/30 transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto">
@@ -570,13 +505,9 @@
                 </button>
                 <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto">
                     <button type="button" onclick="closeEditCalibrationModal()"
-                            class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
-                        Cancel
-                    </button>
+                            class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">Cancel</button>
                     <button type="button" onclick="updateExternalApi()"
-                            class="w-full sm:w-auto h-9 px-5 text-sm font-medium text-white bg-munti-blue-600 hover:bg-munti-blue-500 rounded-lg transition">
-                        Update API
-                    </button>
+                            class="w-full sm:w-auto h-9 px-5 text-sm font-medium text-white bg-munti-blue-600 hover:bg-munti-blue-500 rounded-lg transition">Update API</button>
                 </div>
             </div>
         </div>
@@ -586,41 +517,93 @@
 <script>
     // ========== HELPERS ==========
     const docMap = {
-        accustation: {
-            endpoint: 'https://api.accustation.com/v1/data',
-            rate: '60 requests / minute',
-            params: 'apikey, station_id',
-            auth: 'Bearer Token'
-        },
-        openweather: {
-            endpoint: 'https://api.openweathermap.org/data/2.5/weather',
-            rate: '60 calls/minute (free tier)',
-            params: 'appid, q, units',
-            auth: 'Bearer Token'
-        },
-        iqair: {
-            endpoint: 'https://api.iqair.com/v2/',
-            rate: '10,000 calls/month (free)',
-            params: 'api_key, city',
-            auth: 'Bearer Token'
-        },
-        accuweather: {
-            endpoint: 'http://dataservice.accuweather.com/',
-            rate: '500 calls/day (Free tier) / higher for paid plans',
-            params: 'locationKey, metric etc. (token sent as Bearer)',
-            auth: 'Bearer Token',
-            endpoints: 'Current Conditions, Hourly/Daily Forecasts, Alerts, Indices, and more'
-        },
-        custom: {
-            endpoint: 'Your custom endpoint',
-            rate: 'Depends on your service',
-            params: 'Define your own',
-            auth: 'Bearer Token'
-        }
+        accustation: { endpoint: 'https://api.accustation.com/v1/data', rate: '60 requests / minute', params: 'apikey, station_id', auth: 'Bearer Token' },
+        openweather: { endpoint: 'https://api.openweathermap.org/data/2.5/weather', rate: '60 calls/minute (free tier)', params: 'appid, q, units', auth: 'Bearer Token' },
+        iqair: { endpoint: 'https://api.iqair.com/v2/', rate: '10,000 calls/month (free)', params: 'api_key, city', auth: 'Bearer Token' },
+        accuweather: { endpoint: 'http://dataservice.accuweather.com/', rate: '500 calls/day (Free tier) / higher for paid plans', params: 'locationKey, metric etc. (token sent as Bearer)', auth: 'Bearer Token', endpoints: 'Current Conditions, Hourly/Daily Forecasts, Alerts, Indices, and more' },
+        custom: { endpoint: 'Your custom endpoint', rate: 'Depends on your service', params: 'Define your own', auth: 'Bearer Token' }
     };
+
+    // Default checklist (fallback if no API test has been done)
+    const DEFAULT_CHECKLIST_FIELDS = [
+        { value: 'pm25', label: 'PM2.5' },
+        { value: 'pm10', label: 'PM10' },
+        { value: 'tsp', label: 'TSP' },
+        { value: 'ozone', label: 'Ozone' },
+        { value: 'carbon_monoxide', label: 'Carbon Monoxide' },
+        { value: 'sulfur_dioxide', label: 'Sulfur Dioxide' },
+        { value: 'nitrogen_dioxide', label: 'Nitrogen Dioxide' },
+        { value: 'temperature', label: 'Temperature' },
+        { value: 'humidity', label: 'Humidity' },
+        { value: 'rain', label: 'Rain' },
+        { value: 'wind_speed', label: 'Wind Speed' },
+        { value: 'wind_direction', label: 'Wind Direction' },
+        { value: 'air_pressure', label: 'Air Pressure' },
+        { value: 'noise', label: 'Noise' },
+        { value: 'lead', label: 'Lead' },
+        { value: 'lead_temperature', label: 'Lead Temperature' },
+    ];
 
     let addApiTested = false;
     let editApiTested = false;
+
+    // ========== CHECKLIST RENDERING ==========
+    /**
+     * Render the checklist into a container.
+     * @param {string} containerId   – id of the container
+     * @param {Array}  fields        – array of strings (field paths) OR {value,label} objects
+     * @param {Array}  checkedValues – array of field paths that should be checked
+     * @param {string} inputName     – name attribute for the checkboxes
+     */
+    function renderChecklist(containerId, fields, checkedValues, inputName) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        if (!fields || fields.length === 0) {
+            container.innerHTML = `<p class="text-text-500 italic text-xs">No fields available. Test the API to fetch fields.</p>`;
+            return;
+        }
+
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-1 gap-y-1.5';
+
+        fields.forEach(field => {
+            const value = typeof field === 'string' ? field : field.value;
+            const label = typeof field === 'string' ? field : field.label;
+            const isChecked = (checkedValues || []).includes(value);
+
+            const wrapper = document.createElement('label');
+            wrapper.className = 'flex items-center gap-2 text-xs text-text-300 hover:text-text-200 cursor-pointer transition group';
+            wrapper.title = value;
+            wrapper.innerHTML = `
+                <input type="checkbox" name="${inputName}" value="${escapeHtml(value)}" ${isChecked ? 'checked' : ''}
+                       class="w-3.5 h-3.5 shrink-0 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                <span class="truncate group-hover:whitespace-normal group-hover:break-all">${escapeHtml(label)}</span>
+            `;
+            grid.appendChild(wrapper);
+        });
+
+        container.appendChild(grid);
+    }
+
+    /**
+     * Update the "Default"/"Live"/"Saved" badge next to the checklist label.
+     */
+    function setFieldsBadge(badgeId, text, variant) {
+        const badge = document.getElementById(badgeId);
+        if (!badge) return;
+        badge.textContent = text;
+        badge.className = 'text-[9px] px-1.5 py-0.5 rounded-full border';
+        if (variant === 'live') {
+            badge.classList.add('bg-munti-green-700/20', 'text-munti-green-400', 'border-munti-green-600/30');
+        } else if (variant === 'saved') {
+            badge.classList.add('bg-munti-blue-700/20', 'text-munti-blue-400', 'border-munti-blue-600/30');
+        } else {
+            badge.classList.add('bg-surface-700', 'text-text-500', 'border-border-600');
+        }
+    }
 
     function updateDocContent(docDiv, source) {
         if (source && docMap[source]) {
@@ -679,7 +662,8 @@
         return String(str)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     }
 
     // ========== TEST API ==========
@@ -751,6 +735,23 @@
             { source, api_url: url, api_token: token, auth_type: authType },
             (data) => {
                 renderTestResult(resultContainer, data);
+
+                // If test succeeded, populate the checklist from the returned fields
+                if (data.success && Array.isArray(data.fields) && data.fields.length > 0) {
+                    const containerId = isEdit ? 'editChecklistContainer' : 'addChecklistContainer';
+                    const inputName   = isEdit ? 'edit_params' : 'add_params';
+                    const badgeId     = isEdit ? 'editFieldsBadge' : 'addFieldsBadge';
+
+                    // Preserve any existing checked values
+                    const existingChecked = Array.from(
+                        document.querySelectorAll(`input[name="${inputName}"]:checked`)
+                    ).map(cb => cb.value);
+
+                    // Render new fields, keeping checked state for any that still exist
+                    renderChecklist(containerId, data.fields, existingChecked, inputName);
+                    setFieldsBadge(badgeId, `Live · ${data.fields.length}`, 'live');
+                }
+
                 if (isEdit) {
                     editApiTested = data.success;
                 } else {
@@ -801,11 +802,10 @@
     }
 
     // ========== VIEW API RESPONSE (LIVE) ==========
-    let currentJsonData = null;   // raw server response object
-    let currentJsonId   = null;   // saved record id (for reload)
+    let currentJsonData = null;
+    let currentJsonId   = null;
     let jsonViewMode    = 'pretty';
     let jsonShowLines   = true;
-    let jsonExpanded    = true;
 
     function viewJson(id) {
         currentJsonId = id;
@@ -850,30 +850,22 @@
             renderJsonResponse(data);
         })
         .catch(err => {
-            currentJsonData = {
-                success: false,
-                message: err.message || 'Could not load API response.',
-            };
+            currentJsonData = { success: false, message: err.message || 'Could not load API response.' };
             renderJsonResponse(currentJsonData);
         });
     }
 
-    // ---------- Render full response ----------
     function renderJsonResponse(response) {
         renderJsonStatusStrip(response);
         renderJsonBody(response);
         renderJsonFooter(response);
     }
 
-    // ---------- Status strip ----------
     function renderJsonStatusStrip(response) {
         const strip = document.getElementById('jsonStatusStrip');
         const status = response.status;
-        const success = response.success === true;
 
-        // Badge class
-        let badgeClass = 'status-err';
-        let badgeLabel = 'ERROR';
+        let badgeClass = 'status-err', badgeLabel = 'ERROR';
         if (status) {
             if (status >= 200 && status < 300) { badgeClass = 'status-2xx'; badgeLabel = 'OK'; }
             else if (status >= 300 && status < 400) { badgeClass = 'status-3xx'; badgeLabel = 'REDIRECT'; }
@@ -882,79 +874,47 @@
         }
 
         const items = [];
-        items.push(`
-            <span class="status-badge ${badgeClass}">
-                <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
-                ${badgeLabel}${status ? ' · ' + status : ''}
-            </span>
-        `);
-        if (response.duration_ms !== undefined) {
-            items.push(`<span class="text-text-400"><span class="text-text-500">Time:</span> <span class="text-text-200">${response.duration_ms} ms</span></span>`);
-        }
-        if (response.source) {
-            items.push(`<span class="text-text-400"><span class="text-text-500">Source:</span> <span class="text-text-200">${escapeHtml(response.source)}</span></span>`);
-        }
-        if (response.fetched_at) {
-            items.push(`<span class="text-text-400"><span class="text-text-500">Fetched:</span> <span class="text-text-200">${escapeHtml(response.fetched_at)}</span></span>`);
-        }
+        items.push(`<span class="status-badge ${badgeClass}"><span class="w-1.5 h-1.5 rounded-full bg-current"></span>${badgeLabel}${status ? ' · ' + status : ''}</span>`);
+        if (response.duration_ms !== undefined) items.push(`<span class="text-text-400"><span class="text-text-500">Time:</span> <span class="text-text-200">${response.duration_ms} ms</span></span>`);
+        if (response.source) items.push(`<span class="text-text-400"><span class="text-text-500">Source:</span> <span class="text-text-200">${escapeHtml(response.source)}</span></span>`);
+        if (response.fetched_at) items.push(`<span class="text-text-400"><span class="text-text-500">Fetched:</span> <span class="text-text-200">${escapeHtml(response.fetched_at)}</span></span>`);
 
         strip.innerHTML = items.join('');
         strip.classList.remove('hidden');
         strip.classList.add('flex');
     }
 
-    // ---------- Body ----------
     function renderJsonBody(response) {
         const container = document.getElementById('jsonContent');
 
-        // Determine payload
         let payload;
-        if (response.data !== undefined) {
-            payload = response.data;
-        } else if (response.error) {
-            payload = { error: response.error };
-        } else if (response.message) {
-            payload = { message: response.message };
-        } else {
-            payload = null;
-        }
+        if (response.data !== undefined) payload = response.data;
+        else if (response.error) payload = { error: response.error };
+        else if (response.message) payload = { message: response.message };
+        else payload = null;
 
-        // Subtitle
-        document.getElementById('jsonModalSubtitle').textContent =
-            response.url ? response.url : 'Live response from saved endpoint';
+        document.getElementById('jsonModalSubtitle').textContent = response.url || 'Live response from saved endpoint';
 
         if (payload === null || payload === undefined) {
-            container.innerHTML = `
-                <div class="flex items-center justify-center py-10 text-text-500 text-sm italic">
-                    No data returned.
-                </div>
-            `;
+            container.innerHTML = `<div class="flex items-center justify-center py-10 text-text-500 text-sm italic">No data returned.</div>`;
             return;
         }
 
-        // Pretty-print
         let prettyJson;
         if (typeof payload === 'string') {
-            // Try to parse in case it's a JSON string
-            try { prettyJson = JSON.stringify(JSON.parse(payload), null, 4); }
-            catch { prettyJson = payload; }
+            try { prettyJson = JSON.stringify(JSON.parse(payload), null, 4); } catch { prettyJson = payload; }
         } else {
             prettyJson = JSON.stringify(payload, null, 4);
         }
 
-        // Raw view
         const rawJson = typeof payload === 'string' ? payload : JSON.stringify(payload);
 
-        // Build
         const viewer = document.createElement('div');
         viewer.className = 'json-viewer' + (jsonShowLines ? ' with-lines' : '');
         viewer.id = 'jsonViewerBody';
 
         if (jsonViewMode === 'pretty') {
-            viewer.innerHTML = prettyJson
-                .split('\n')
-                .map(line => `<span class="json-line">${syntaxHighlightLine(line)}</span>`)
-                .join('');
+            viewer.innerHTML = prettyJson.split('\n').map(line => `<span class="json-line">${syntaxHighlightLine(line)}</span>`).join('');
         } else {
             viewer.innerHTML = `<span class="json-line">${escapeHtml(rawJson)}</span>`;
         }
@@ -963,7 +923,6 @@
         container.appendChild(viewer);
     }
 
-    // ---------- Footer ----------
     function renderJsonFooter(response) {
         const footer = document.getElementById('jsonFooterInfo');
         const lines = (document.getElementById('jsonViewerBody')?.textContent || '').split('\n').length;
@@ -977,35 +936,19 @@
         `;
     }
 
-    // ---------- Syntax highlighting (per line) ----------
     function syntaxHighlightLine(line) {
-        // Escape HTML first
         let escaped = escapeHtml(line);
-
-        // Highlight key
-        escaped = escaped.replace(/^(\s*)"([^"]+)"(\s*:)/, (m, sp, key, colon) =>
+        escaped = escaped.replace(/^(\s*)&quot;([^&]+)&quot;(\s*:)/, (m, sp, key, colon) =>
             `${sp}<span class="json-key">"${key}"</span><span class="json-punct">${colon}</span>`
         );
-
-        // Highlight string value
-        escaped = escaped.replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>');
-
-        // Numbers
+        escaped = escaped.replace(/: &quot;([^&]*)&quot;/g, ': <span class="json-string">"$1"</span>');
         escaped = escaped.replace(/: (-?\d+\.?\d*(?:[eE][+-]?\d+)?)/g, ': <span class="json-number">$1</span>');
-
-        // Booleans
         escaped = escaped.replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>');
-
-        // Null
         escaped = escaped.replace(/: (null)/g, ': <span class="json-null">$1</span>');
-
-        // Punctuation outside strings
         escaped = escaped.replace(/([{}[\],])/g, '<span class="json-punct">$1</span>');
-
         return escaped;
     }
 
-    // ---------- Controls ----------
     function setJsonViewMode(mode) {
         jsonViewMode = mode;
         const pretty = document.getElementById('jsonViewPretty');
@@ -1025,8 +968,7 @@
             pretty.classList.add(...inactiveClass);
         }
 
-        if (currentJsonData) renderJsonBody(currentJsonData);
-        if (currentJsonData) renderJsonFooter(currentJsonData);
+        if (currentJsonData) { renderJsonBody(currentJsonData); renderJsonFooter(currentJsonData); }
     }
 
     function toggleLineNumbers() {
@@ -1035,23 +977,6 @@
         if (viewer) viewer.classList.toggle('with-lines', jsonShowLines);
     }
 
-    function expandAllJson() {
-        // For this simple pretty-printer, "expand" just re-renders pretty
-        jsonViewMode = 'pretty';
-        setJsonViewMode('pretty');
-    }
-
-    function collapseAllJson() {
-        // "Collapse" just shows a compact preview
-        const viewer = document.getElementById('jsonViewerBody');
-        if (!viewer) return;
-        const raw = typeof currentJsonData?.data === 'string'
-            ? currentJsonData.data
-            : JSON.stringify(currentJsonData?.data ?? {});
-        viewer.innerHTML = `<span class="json-line">${escapeHtml(raw.slice(0, 500))}${raw.length > 500 ? '\n… (collapsed)' : ''}</span>`;
-    }
-
-    // ---------- Utilities ----------
     function formatBytes(bytes) {
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -1098,6 +1023,11 @@
         addApiTested = false;
         document.getElementById('addTestResult').classList.add('hidden');
         document.getElementById('addTestResult').innerHTML = '';
+
+        // Reset checklist to defaults
+        renderChecklist('addChecklistContainer', DEFAULT_CHECKLIST_FIELDS, [], 'add_params');
+        setFieldsBadge('addFieldsBadge', 'Default', 'default');
+
         document.getElementById('addApiModal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
     }
@@ -1133,12 +1063,11 @@
         }
 
         const source = document.getElementById('apiSource').value;
-        const url = document.getElementById('apiUrl').value;
-        const token = document.getElementById('apiKey').value;
+        const url    = document.getElementById('apiUrl').value;
+        const token  = document.getElementById('apiKey').value;
         const authType = document.getElementById('authType').value;
 
-        const checklist = Array.from(document.querySelectorAll('input[name="add_params"]:checked'))
-                               .map(cb => cb.value);
+        const checklist = Array.from(document.querySelectorAll('input[name="add_params"]:checked')).map(cb => cb.value);
 
         if (!source || !url || !token) {
             Swal.fire('Validation Error', 'Please fill in all fields.', 'warning');
@@ -1181,10 +1110,17 @@
             document.getElementById('editApiUrl').value = data.api_url;
             document.getElementById('editApiKey').value = '';
 
-            const checklist = data.checklist || [];
-            document.querySelectorAll('input[name="edit_params"]').forEach(cb => {
-                cb.checked = checklist.includes(cb.value);
-            });
+            // Render checklist from saved values
+            const savedChecklist = data.checklist || [];
+            if (savedChecklist.length > 0) {
+                // Use saved fields as the checklist items (as {value, label} with same value/label)
+                const fields = savedChecklist.map(v => ({ value: v, label: v }));
+                renderChecklist('editChecklistContainer', fields, savedChecklist, 'edit_params');
+                setFieldsBadge('editFieldsBadge', `Saved · ${savedChecklist.length}`, 'saved');
+            } else {
+                renderChecklist('editChecklistContainer', DEFAULT_CHECKLIST_FIELDS, [], 'edit_params');
+                setFieldsBadge('editFieldsBadge', 'Default', 'default');
+            }
 
             const docDiv = document.getElementById('editDocContent');
             updateDocContent(docDiv, data.source);
@@ -1231,28 +1167,19 @@
         }
 
         const source = document.getElementById('editApiSource').value;
-        const url = document.getElementById('editApiUrl').value;
-        const token = document.getElementById('editApiKey').value;
+        const url    = document.getElementById('editApiUrl').value;
+        const token  = document.getElementById('editApiKey').value;
         const authType = document.getElementById('editAuthType').value;
 
-        const checklist = Array.from(document.querySelectorAll('input[name="edit_params"]:checked'))
-                               .map(cb => cb.value);
+        const checklist = Array.from(document.querySelectorAll('input[name="edit_params"]:checked')).map(cb => cb.value);
 
         if (!source || !url) {
             Swal.fire('Validation Error', 'Please fill in required fields.', 'warning');
             return;
         }
 
-        const payload = {
-            source,
-            api_url: url,
-            auth_type: authType,
-            checklist,
-        };
-
-        if (token && token.trim() !== '') {
-            payload.api_token = token;
-        }
+        const payload = { source, api_url: url, auth_type: authType, checklist };
+        if (token && token.trim() !== '') payload.api_token = token;
 
         sendRequest('PUT', `/settings/calibration/${id}`, payload, (data) => {
             Swal.fire('Success', data.message, 'success');
@@ -1293,6 +1220,12 @@
             closeAddCalibrationModal();
             closeEditCalibrationModal();
         }
+    });
+
+    // ========== INITIAL RENDER (default checklists) ==========
+    document.addEventListener('DOMContentLoaded', function () {
+        renderChecklist('addChecklistContainer', DEFAULT_CHECKLIST_FIELDS, [], 'add_params');
+        renderChecklist('editChecklistContainer', DEFAULT_CHECKLIST_FIELDS, [], 'edit_params');
     });
 </script>
 
