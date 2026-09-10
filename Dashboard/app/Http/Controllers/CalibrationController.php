@@ -4,15 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\CalibrationApi;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 
 class CalibrationController extends Controller
 {
     /**
      * Display the calibration page.
-     *
-     * @return \Illuminate\View\View
      */
     public function index()
     {
@@ -22,21 +21,18 @@ class CalibrationController extends Controller
 
     /**
      * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\JsonResponse
      */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'source'        => 'required|string|max:255',
-            'api_url'       => 'required|url|max:500',
-            'api_token'     => 'required|string|min:1',
-            'auth_type'     => 'required|string|in:bearer_token',
-            'checklist'     => 'nullable|array',
-            'total_data'    => 'nullable|integer|min:0',
+            'source'           => 'required|string|max:255',
+            'api_url'          => 'required|url|max:500',
+            'api_token'        => 'required|string|min:1',
+            'auth_type'        => 'required|string|in:bearer_token',
+            'checklist'        => 'nullable|array',
+            'total_data'       => 'nullable|integer|min:0',
             'requests_per_min' => 'nullable|integer|min:0',
-            'file_path'     => 'nullable|string|max:500',
+            'file_path'        => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -44,14 +40,14 @@ class CalibrationController extends Controller
         }
 
         $calibration = CalibrationApi::create([
-            'source'          => $request->source,
-            'api_url'         => $request->api_url,
-            'api_token'       => encrypt($request->api_token), // encrypt for safety
-            'auth_type'       => $request->auth_type,
-            'checklist'       => $request->checklist ?? [],
-            'total_data'      => $request->total_data ?? 0,
+            'source'           => $request->source,
+            'api_url'          => $request->api_url,
+            'api_token'        => encrypt($request->api_token),
+            'auth_type'        => $request->auth_type,
+            'checklist'        => $request->checklist ?? [],
+            'total_data'       => $request->total_data ?? 0,
             'requests_per_min' => $request->requests_per_min ?? 0,
-            'file_path'       => $request->file_path ?? null,
+            'file_path'        => $request->file_path ?? null,
         ]);
 
         return response()->json([
@@ -62,39 +58,36 @@ class CalibrationController extends Controller
 
     /**
      * Display the specified resource (for JSON view).
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse
      */
     public function show($id)
     {
         $calibration = CalibrationApi::findOrFail($id);
-        // Decrypt token if you want to show it (or just return a placeholder)
         $data = $calibration->toArray();
-        $data['api_token'] = decrypt($calibration->api_token); // optional
+        // Decrypt token for display (optional; you can omit if you don't want to expose it)
+        try {
+            $data['api_token'] = decrypt($calibration->api_token);
+        } catch (\Exception $e) {
+            $data['api_token'] = null;
+        }
         return response()->json($data);
     }
 
     /**
      * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse
      */
     public function update(Request $request, $id)
     {
         $calibration = CalibrationApi::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'source'        => 'required|string|max:255',
-            'api_url'       => 'required|url|max:500',
-            'api_token'     => 'nullable|string|min:1', // allow empty to keep current
-            'auth_type'     => 'required|string|in:bearer_token',
-            'checklist'     => 'nullable|array',
-            'total_data'    => 'nullable|integer|min:0',
+            'source'           => 'required|string|max:255',
+            'api_url'          => 'required|url|max:500',
+            'api_token'        => 'nullable|string|min:1',
+            'auth_type'        => 'required|string|in:bearer_token',
+            'checklist'        => 'nullable|array',
+            'total_data'       => 'nullable|integer|min:0',
             'requests_per_min' => 'nullable|integer|min:0',
-            'file_path'     => 'nullable|string|max:500',
+            'file_path'        => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -102,16 +95,15 @@ class CalibrationController extends Controller
         }
 
         $updateData = [
-            'source'          => $request->source,
-            'api_url'         => $request->api_url,
-            'auth_type'       => $request->auth_type,
-            'checklist'       => $request->checklist ?? [],
-            'total_data'      => $request->total_data ?? 0,
+            'source'           => $request->source,
+            'api_url'          => $request->api_url,
+            'auth_type'        => $request->auth_type,
+            'checklist'        => $request->checklist ?? [],
+            'total_data'       => $request->total_data ?? 0,
             'requests_per_min' => $request->requests_per_min ?? 0,
-            'file_path'       => $request->file_path ?? null,
+            'file_path'        => $request->file_path ?? null,
         ];
 
-        // Only update token if provided
         if ($request->filled('api_token')) {
             $updateData['api_token'] = encrypt($request->api_token);
         }
@@ -126,9 +118,6 @@ class CalibrationController extends Controller
 
     /**
      * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
     {
@@ -136,5 +125,99 @@ class CalibrationController extends Controller
         $calibration->delete();
 
         return response()->json(['message' => 'Calibration API deleted successfully.']);
+    }
+
+    /**
+     * Test the API connection before saving.
+     */
+    public function test(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'api_url'   => 'required|url',
+            'api_token' => 'required|string',
+            'auth_type' => 'required|string|in:bearer_token',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors'  => $validator->errors(),
+            ], 422);
+        }
+
+        $url      = $request->api_url;
+        $token    = $request->api_token;
+        $authType = $request->auth_type;
+
+        try {
+            $headers = [
+                'Accept'        => 'application/json',
+                'Authorization' => 'Bearer ' . $token,
+                'User-Agent'    => 'Munti-Calibration/1.0',
+            ];
+
+            $startTime = microtime(true);
+
+            $response = Http::withHeaders($headers)
+                ->timeout(15)
+                ->get($url);
+
+            $duration = round((microtime(true) - $startTime) * 1000, 2);
+
+            $body = null;
+            try {
+                $body = $response->json();
+            } catch (\Exception $e) {
+                $body = $response->body();
+            }
+
+            if ($response->successful()) {
+                return response()->json([
+                    'success'     => true,
+                    'status'      => $response->status(),
+                    'duration_ms' => $duration,
+                    'message'     => 'API is working correctly.',
+                    'preview'     => $this->truncatePreview($body),
+                ]);
+            }
+
+            return response()->json([
+                'success'     => false,
+                'status'      => $response->status(),
+                'duration_ms' => $duration,
+                'message'     => 'API responded with an error status.',
+                'preview'     => $this->truncatePreview($body),
+            ]);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not connect to API. Please check the URL.',
+                'error'   => $e->getMessage(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('API test failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'API test failed: ' . $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Truncate the response preview to avoid huge payloads.
+     */
+    private function truncatePreview($data, $maxLength = 2000)
+    {
+        if (is_string($data)) {
+            return substr($data, 0, $maxLength);
+        } elseif (is_array($data)) {
+            $json = json_encode($data, JSON_PRETTY_PRINT);
+            if (strlen($json) > $maxLength) {
+                return substr($json, 0, $maxLength) . "\n... (truncated)";
+            }
+            return $data;
+        }
+        return $data;
     }
 }

@@ -21,7 +21,6 @@
     .checklist-tag-o3 { @apply bg-munti-indigo-700/20 text-munti-indigo-400 border-munti-indigo-600/30; }
     .checklist-tag-default { @apply bg-munti-gray-700/20 text-munti-gray-400 border-munti-gray-600/30; }
 
-    /* JSON viewer styling */
     .json-viewer {
         background: #0d1117;
         color: #e6edf3;
@@ -104,7 +103,7 @@
 
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center gap-1.5 text-xs text-text-200 transition">
-                                            {{ basename($cal->file_path ?? '') }}
+                                            {{ $cal->file_path ? basename($cal->file_path) : '—' }}
                                         </span>
                                     </td>
 
@@ -141,7 +140,6 @@
 
                                     <td class="px-4 py-2.5 whitespace-nowrap text-center">
                                         <div class="flex items-center justify-center gap-1.5">
-                                            <!-- View JSON button -->
                                             <button type="button" onclick="viewJson({{ $cal->id }})"
                                                     class="p-1.5 rounded-lg text-text-400 hover:text-munti-blue-400 hover:bg-surface-700/70 transition"
                                                     title="View JSON">
@@ -150,7 +148,6 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                                 </svg>
                                             </button>
-                                            <!-- Edit button -->
                                             <button type="button" onclick="editCalibration({{ $cal->id }})"
                                                     class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition"
                                                     title="Edit">
@@ -159,8 +156,7 @@
                                                         d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                                 </svg>
                                             </button>
-                                            <!-- Delete button -->
-                                            <button type="button" onclick="deleteCalibration({{ $cal->id }}, '{{ basename($cal->file_path ?? '') }}')"
+                                            <button type="button" onclick="deleteCalibration({{ $cal->id }}, '{{ $cal->file_path ? basename($cal->file_path) : 'Record #' . $cal->id }}')"
                                                     class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition"
                                                     title="Delete">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
@@ -191,7 +187,6 @@
     <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeViewJsonModal()"></div>
     <div class="absolute inset-0 flex items-center justify-center p-4">
         <div class="relative w-full max-w-4xl bg-surface-900 border border-border-700 rounded-2xl shadow-2xl overflow-hidden">
-            <!-- Modal Header -->
             <div class="px-6 py-4 border-b border-border-700 bg-surface-800 flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-text-100">JSON Data</h3>
                 <button type="button" onclick="closeViewJsonModal()" class="p-1.5 rounded-lg text-text-400 hover:text-text-100 hover:bg-surface-700 transition">
@@ -200,13 +195,9 @@
                     </svg>
                 </button>
             </div>
-            <!-- Modal Body -->
             <div class="p-6">
-                <div class="json-viewer" id="jsonContent">
-                    <!-- JSON will be inserted here -->
-                </div>
+                <div class="json-viewer" id="jsonContent"></div>
             </div>
-            <!-- Modal Footer -->
             <div class="px-6 py-4 border-t border-border-700 bg-surface-800/60 flex items-center justify-end">
                 <button type="button" onclick="closeViewJsonModal()"
                         class="h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
@@ -228,7 +219,6 @@
     <div class="absolute inset-0 flex items-center justify-center p-4">
         <div class="relative w-full max-w-6xl bg-surface-900 border border-border-700 rounded-2xl shadow-2xl overflow-hidden">
 
-            <!-- Modal Header -->
             <div class="px-6 py-4 border-b border-border-700 bg-surface-800 flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-text-100">Add External API</h3>
                 <button type="button" onclick="closeAddCalibrationModal()" class="p-1.5 rounded-lg text-text-400 hover:text-text-100 hover:bg-surface-700 transition">
@@ -238,11 +228,10 @@
                 </button>
             </div>
 
-            <!-- Modal Body -->
             <div class="p-6">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-5">
 
-                    <!-- COLUMN 1: API Source + Auth Type (Bearer Token) + Documentation -->
+                    <!-- COLUMN 1 -->
                     <div class="flex flex-col gap-4">
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
@@ -257,7 +246,6 @@
                             </select>
                         </div>
 
-                        <!-- Authentication Type – fixed to Bearer Token -->
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Authentication Type</label>
                             <div class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 flex items-center">
@@ -270,14 +258,13 @@
                             <div class="flex-1 min-h-[250px] p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
                                 <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
                                 <div id="docContent" class="space-y-3">
-                                    <!-- Dynamic content inserted by JavaScript -->
                                     <p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- COLUMN 2: API URL + Tips -->
+                    <!-- COLUMN 2 -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">API URL</label>
                         <input type="url" id="apiUrl" placeholder="https://api.example.com/v1/endpoint"
@@ -293,7 +280,7 @@
                         </div>
                     </div>
 
-                    <!-- COLUMN 3: Bearer Token + Security Note -->
+                    <!-- COLUMN 3 -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">Bearer Token</label>
                         <input type="password" id="apiKey" placeholder="Enter your Bearer token"
@@ -305,93 +292,58 @@
                         </div>
                     </div>
 
-                    <!-- COLUMN 4: Fields to Map to Database (Checkboxes) -->
+                    <!-- COLUMN 4 -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">Fields to Map to Database</label>
                         <div class="flex-1 p-3 bg-surface-800/50 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 300px;">
                             <div class="grid grid-cols-1 gap-y-1.5">
+                                @php
+                                    $fields = [
+                                        'pm25' => 'PM2.5', 'pm10' => 'PM10', 'tsp' => 'TSP',
+                                        'ozone' => 'Ozone', 'carbon_monoxide' => 'Carbon Monoxide',
+                                        'sulfur_dioxide' => 'Sulfur Dioxide', 'nitrogen_dioxide' => 'Nitrogen Dioxide',
+                                        'temperature' => 'Temperature', 'humidity' => 'Humidity',
+                                        'rain' => 'Rain', 'wind_speed' => 'Wind Speed',
+                                        'wind_direction' => 'Wind Direction', 'air_pressure' => 'Air Pressure',
+                                        'noise' => 'Noise', 'lead' => 'Lead', 'lead_temperature' => 'Lead Temperature',
+                                    ];
+                                @endphp
+                                @foreach($fields as $value => $label)
                                 <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="pm25" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>PM2.5</span>
+                                    <input type="checkbox" name="add_params" value="{{ $value }}" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                    <span>{{ $label }}</span>
                                 </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="pm10" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>PM10</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="tsp" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>TSP</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="ozone" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Ozone</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="carbon_monoxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Carbon Monoxide</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="sulfur_dioxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Sulfur Dioxide</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="nitrogen_dioxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Nitrogen Dioxide</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="temperature" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Temperature</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="humidity" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Humidity</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="rain" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Rain</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="wind_speed" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Wind Speed</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="wind_direction" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Wind Direction</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="air_pressure" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Air Pressure</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="noise" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Noise</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="lead" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Lead</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="lead_temperature" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Lead Temperature</span>
-                                </label>
+                                @endforeach
                             </div>
                         </div>
                         <p class="text-[10px] text-text-500 mt-1.5">Select fields from the API response to store.</p>
                     </div>
 
                 </div>
+
+                <!-- Test Result Panel (Add) -->
+                <div id="addTestResult" class="hidden mt-4 p-3 rounded-lg border text-xs"></div>
             </div>
 
             <!-- Modal Footer -->
-            <div class="px-6 py-4 border-t border-border-700 bg-surface-800/60 flex items-center justify-end gap-3">
-                <button type="button" onclick="closeAddCalibrationModal()"
-                        class="h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
-                    Cancel
+            <div class="px-6 py-4 border-t border-border-700 bg-surface-800/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <button type="button" onclick="testAddApi()" id="addTestBtn"
+                        class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium text-munti-yellow-400 bg-munti-yellow-700/20 border border-munti-yellow-600/30 rounded-lg hover:bg-munti-yellow-700/30 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span>Test API</span>
                 </button>
-                <button type="button" onclick="saveExternalApi()"
-                        class="h-9 px-5 text-sm font-medium text-white bg-munti-green-600 hover:bg-munti-green-500 rounded-lg transition">
-                    Save API
-                </button>
+                <div class="flex items-center gap-3 sm:justify-end">
+                    <button type="button" onclick="closeAddCalibrationModal()"
+                            class="h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
+                        Cancel
+                    </button>
+                    <button type="button" onclick="saveExternalApi()"
+                            class="h-9 px-5 text-sm font-medium text-white bg-munti-green-600 hover:bg-munti-green-500 rounded-lg transition">
+                        Save API
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -404,7 +356,6 @@
     <div class="absolute inset-0 flex items-center justify-center p-4">
         <div class="relative w-full max-w-6xl bg-surface-900 border border-border-700 rounded-2xl shadow-2xl overflow-hidden">
 
-            <!-- Modal Header -->
             <div class="px-6 py-4 border-b border-border-700 bg-surface-800 flex items-center justify-between">
                 <h3 class="text-lg font-semibold text-text-100">Edit External API</h3>
                 <button type="button" onclick="closeEditCalibrationModal()" class="p-1.5 rounded-lg text-text-400 hover:text-text-100 hover:bg-surface-700 transition">
@@ -414,11 +365,10 @@
                 </button>
             </div>
 
-            <!-- Modal Body -->
             <div class="p-6">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-5">
 
-                    <!-- COLUMN 1: API Source + Auth Type (Bearer Token) + Documentation -->
+                    <!-- COLUMN 1 -->
                     <div class="flex flex-col gap-4">
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
@@ -444,14 +394,12 @@
                         <div class="flex-1 flex flex-col">
                             <div class="flex-1 min-h-[250px] p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
                                 <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
-                                <div id="editDocContent" class="space-y-3">
-                                    <!-- Dynamic content -->
-                                </div>
+                                <div id="editDocContent" class="space-y-3"></div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- COLUMN 2: API URL + Tips -->
+                    <!-- COLUMN 2 -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">API URL</label>
                         <input type="url" id="editApiUrl" placeholder="https://api.example.com/v1/endpoint"
@@ -467,10 +415,10 @@
                         </div>
                     </div>
 
-                    <!-- COLUMN 3: Bearer Token -->
+                    <!-- COLUMN 3 -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">Bearer Token</label>
-                        <input type="password" id="editApiKey" placeholder="Enter your Bearer token"
+                        <input type="password" id="editApiKey" placeholder="Leave blank to keep current token"
                                class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
 
                         <div class="mt-4 flex-1 p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
@@ -479,99 +427,52 @@
                         </div>
                     </div>
 
-                    <!-- COLUMN 4: Fields to Map to Database (Checkboxes) -->
+                    <!-- COLUMN 4 -->
                     <div class="flex flex-col">
                         <label class="block text-xs font-medium text-text-400 mb-1.5">Fields to Map to Database</label>
                         <div class="flex-1 p-3 bg-surface-800/50 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 300px;">
                             <div class="grid grid-cols-1 gap-y-1.5">
+                                @foreach($fields as $value => $label)
                                 <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="pm25" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>PM2.5</span>
+                                    <input type="checkbox" name="edit_params" value="{{ $value }}" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
+                                    <span>{{ $label }}</span>
                                 </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="pm10" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>PM10</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="tsp" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>TSP</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="ozone" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Ozone</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="carbon_monoxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Carbon Monoxide</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="sulfur_dioxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Sulfur Dioxide</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="nitrogen_dioxide" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Nitrogen Dioxide</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="temperature" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Temperature</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="humidity" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Humidity</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="rain" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Rain</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="wind_speed" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Wind Speed</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="wind_direction" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Wind Direction</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="air_pressure" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Air Pressure</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="noise" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Noise</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="lead" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Lead</span>
-                                </label>
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="lead_temperature" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition">
-                                    <span>Lead Temperature</span>
-                                </label>
+                                @endforeach
                             </div>
                         </div>
                         <p class="text-[10px] text-text-500 mt-1.5">Select fields from the API response to store.</p>
                     </div>
 
                 </div>
+
+                <!-- Test Result Panel (Edit) -->
+                <div id="editTestResult" class="hidden mt-4 p-3 rounded-lg border text-xs"></div>
             </div>
 
             <!-- Modal Footer -->
-            <div class="px-6 py-4 border-t border-border-700 bg-surface-800/60 flex items-center justify-end gap-3">
-                <button type="button" onclick="closeEditCalibrationModal()"
-                        class="h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
-                    Cancel
+            <div class="px-6 py-4 border-t border-border-700 bg-surface-800/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <button type="button" onclick="testEditApi()" id="editTestBtn"
+                        class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium text-munti-yellow-400 bg-munti-yellow-700/20 border border-munti-yellow-600/30 rounded-lg hover:bg-munti-yellow-700/30 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span>Test API</span>
                 </button>
-                <button type="button" onclick="updateExternalApi()"
-                        class="h-9 px-5 text-sm font-medium text-white bg-munti-blue-600 hover:bg-munti-blue-500 rounded-lg transition">
-                    Update API
-                </button>
+                <div class="flex items-center gap-3 sm:justify-end">
+                    <button type="button" onclick="closeEditCalibrationModal()"
+                            class="h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
+                        Cancel
+                    </button>
+                    <button type="button" onclick="updateExternalApi()"
+                            class="h-9 px-5 text-sm font-medium text-white bg-munti-blue-600 hover:bg-munti-blue-500 rounded-lg transition">
+                        Update API
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- ==================== JAVASCRIPT ==================== -->
 <script>
     // ========== HELPERS ==========
     const docMap = {
@@ -608,6 +509,9 @@
         }
     };
 
+    let addApiTested = false;
+    let editApiTested = false;
+
     function updateDocContent(docDiv, source) {
         if (source && docMap[source]) {
             const info = docMap[source];
@@ -629,12 +533,10 @@
         }
     }
 
-    // ========== CSRF TOKEN ==========
     function getCsrfToken() {
         return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     }
 
-    // ========== COMMON AJAX ==========
     function sendRequest(method, url, data, successCallback, errorCallback) {
         fetch(url, {
             method: method,
@@ -660,6 +562,131 @@
                 let msg = error.errors ? Object.values(error.errors).flat().join('\n') : error.message || 'Something went wrong.';
                 Swal.fire('Error', msg, 'error');
             }
+        });
+    }
+
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    // ========== TEST API ==========
+    function renderTestResult(containerId, result) {
+        const container = document.getElementById(containerId);
+        container.classList.remove('hidden', 'bg-munti-green-700/10', 'bg-munti-red-700/10',
+            'border-munti-green-600/30', 'border-munti-red-600/30', 'text-munti-green-300', 'text-munti-red-300');
+
+        if (result.success) {
+            container.classList.add('bg-munti-green-700/10', 'border-munti-green-600/30', 'text-munti-green-300');
+            let previewHtml = '';
+            if (result.preview) {
+                const previewStr = typeof result.preview === 'string'
+                    ? result.preview
+                    : JSON.stringify(result.preview, null, 2);
+                const truncated = previewStr.length > 1500
+                    ? previewStr.substring(0, 1500) + '\n... (truncated)'
+                    : previewStr;
+                previewHtml = `<pre class="mt-2 p-2 bg-black/40 rounded text-[11px] whitespace-pre-wrap break-all max-h-48 overflow-y-auto thin-scrollbar">${escapeHtml(truncated)}</pre>`;
+            }
+            container.innerHTML = `
+                <div class="flex items-center gap-2 font-medium">
+                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span>${result.message}</span>
+                    <span class="ml-auto text-[10px] opacity-75">HTTP ${result.status || '—'} · ${result.duration_ms || 0} ms</span>
+                </div>
+                ${previewHtml}
+            `;
+        } else {
+            container.classList.add('bg-munti-red-700/10', 'border-munti-red-600/30', 'text-munti-red-300');
+            container.innerHTML = `
+                <div class="flex items-center gap-2 font-medium">
+                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    <span>${result.message || 'API test failed.'}</span>
+                    ${result.status ? `<span class="ml-auto text-[10px] opacity-75">HTTP ${result.status}${result.duration_ms ? ' · ' + result.duration_ms + ' ms' : ''}</span>` : ''}
+                </div>
+                ${result.error ? `<pre class="mt-2 p-2 bg-black/40 rounded text-[11px] whitespace-pre-wrap break-all">${escapeHtml(result.error)}</pre>` : ''}
+            `;
+        }
+    }
+
+    function runApiTest({ source, url, token, authType, resultContainer, buttonEl, isEdit }) {
+        const container = document.getElementById(resultContainer);
+        container.classList.add('hidden');
+        container.innerHTML = '';
+
+        if (!url || !token) {
+            Swal.fire('Validation Error', 'Please fill in the API URL and Bearer Token before testing.', 'warning');
+            return;
+        }
+
+        const originalHtml = buttonEl.innerHTML;
+        buttonEl.disabled = true;
+        buttonEl.innerHTML = `
+            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            <span>Testing...</span>
+        `;
+
+        sendRequest(
+            'POST',
+            '/settings/calibration/test',
+            { source, api_url: url, api_token: token, auth_type: authType },
+            (data) => {
+                renderTestResult(resultContainer, data);
+                if (isEdit) {
+                    editApiTested = data.success;
+                } else {
+                    addApiTested = data.success;
+                }
+                buttonEl.disabled = false;
+                buttonEl.innerHTML = originalHtml;
+            },
+            (error) => {
+                renderTestResult(resultContainer, {
+                    success: false,
+                    message: error.message || 'Test request failed.',
+                    error: error.errors ? Object.values(error.errors).flat().join('\n') : null,
+                });
+                if (isEdit) {
+                    editApiTested = false;
+                } else {
+                    addApiTested = false;
+                }
+                buttonEl.disabled = false;
+                buttonEl.innerHTML = originalHtml;
+            }
+        );
+    }
+
+    function testAddApi() {
+        runApiTest({
+            source: document.getElementById('apiSource').value,
+            url: document.getElementById('apiUrl').value,
+            token: document.getElementById('apiKey').value,
+            authType: document.getElementById('authType').value,
+            resultContainer: 'addTestResult',
+            buttonEl: document.getElementById('addTestBtn'),
+            isEdit: false,
+        });
+    }
+
+    function testEditApi() {
+        runApiTest({
+            source: document.getElementById('editApiSource').value,
+            url: document.getElementById('editApiUrl').value,
+            token: document.getElementById('editApiKey').value,
+            authType: document.getElementById('editAuthType').value,
+            resultContainer: 'editTestResult',
+            buttonEl: document.getElementById('editTestBtn'),
+            isEdit: true,
         });
     }
 
@@ -719,6 +746,9 @@
 
     // ========== ADD MODAL ==========
     function openAddCalibrationModal() {
+        addApiTested = false;
+        document.getElementById('addTestResult').classList.add('hidden');
+        document.getElementById('addTestResult').innerHTML = '';
         document.getElementById('addApiModal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
     }
@@ -729,10 +759,14 @@
         document.getElementById('apiSource').value = '';
         document.getElementById('apiUrl').value = '';
         document.getElementById('apiKey').value = '';
+        document.getElementById('addTestResult').classList.add('hidden');
+        document.getElementById('addTestResult').innerHTML = '';
+        addApiTested = false;
         updateDocContent(document.getElementById('docContent'), '');
     }
 
     document.getElementById('apiSource')?.addEventListener('change', function () {
+        addApiTested = false;
         const docDiv = document.getElementById('docContent');
         updateDocContent(docDiv, this.value);
         const urlField = document.getElementById('apiUrl');
@@ -744,6 +778,11 @@
     });
 
     function saveExternalApi() {
+        if (!addApiTested) {
+            Swal.fire('Test Required', 'Please run a successful API test before saving.', 'warning');
+            return;
+        }
+
         const source = document.getElementById('apiSource').value;
         const url = document.getElementById('apiUrl').value;
         const token = document.getElementById('apiKey').value;
@@ -777,6 +816,10 @@
 
     // ========== EDIT MODAL ==========
     function editCalibration(id) {
+        editApiTested = false;
+        document.getElementById('editTestResult').classList.add('hidden');
+        document.getElementById('editTestResult').innerHTML = '';
+
         fetch(`/settings/calibration/${id}`, {
             headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
         })
@@ -787,7 +830,7 @@
         .then(data => {
             document.getElementById('editApiSource').value = data.source;
             document.getElementById('editApiUrl').value = data.api_url;
-            document.getElementById('editApiKey').value = '••••••••';
+            document.getElementById('editApiKey').value = '';
 
             const checklist = data.checklist || [];
             document.querySelectorAll('input[name="edit_params"]').forEach(cb => {
@@ -809,9 +852,13 @@
     function closeEditCalibrationModal() {
         document.getElementById('editApiModal').classList.add('hidden');
         document.body.style.overflow = '';
+        document.getElementById('editTestResult').classList.add('hidden');
+        document.getElementById('editTestResult').innerHTML = '';
+        editApiTested = false;
     }
 
     document.getElementById('editApiSource')?.addEventListener('change', function () {
+        editApiTested = false;
         const docDiv = document.getElementById('editDocContent');
         updateDocContent(docDiv, this.value);
         const urlField = document.getElementById('editApiUrl');
@@ -823,6 +870,11 @@
     });
 
     function updateExternalApi() {
+        if (!editApiTested) {
+            Swal.fire('Test Required', 'Please run a successful API test before updating.', 'warning');
+            return;
+        }
+
         const id = document.getElementById('editApiModal').dataset.id;
         if (!id) {
             Swal.fire('Error', 'No record ID found.', 'error');
@@ -849,7 +901,7 @@
             checklist,
         };
 
-        if (token && token !== '••••••••') {
+        if (token && token.trim() !== '') {
             payload.api_token = token;
         }
 
