@@ -121,6 +121,16 @@
     $cameraOffline = $cameraCounts['offline'];
     $cameraTotal = $cameraOnline + $cameraIdle + $cameraOffline;
 
+    // Lead Sensor status comes from a ping check (no reporting pipeline
+    // of its own — see DashboardController::buildLeadSensorData()), so
+    // like Camera it's computed controller-side and passed in directly
+    // rather than derived here via $annotateStatus.
+    $leadSensorCounts = $leadSensorCounts ?? ['online' => 0, 'idle' => 0, 'offline' => 0];
+    $leadSensorOnline = $leadSensorCounts['online'];
+    $leadSensorIdle = $leadSensorCounts['idle'];
+    $leadSensorOffline = $leadSensorCounts['offline'];
+    $leadSensorTotal = $leadSensorOnline + $leadSensorIdle + $leadSensorOffline;
+
     $totalStations = $airQualityTotal + $seismicTotal;
     $totalOnline   = $airQualityOnline + $seismicOnline;
     // Percentage used for the system status banner counts strictly-Online
@@ -403,8 +413,8 @@
                     </div>
                 </div>
 
-                <!-- THREE STATUS CARDS IN ONE ROW -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full min-w-0">
+                <!-- FOUR STATUS CARDS IN ONE ROW -->
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full min-w-0">
                     
                     <!-- Card 1: Air Quality Station Status -->
                     <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
@@ -620,6 +630,79 @@
                                 </span>
                                 <span class="text-[10px] text-text-500 uppercase tracking-wider whitespace-nowrap">
                                     Camera Status
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: Lead Sensor Status -->
+                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">Lead Sensor Status</span>
+                            </h3>
+                        </div>
+
+                        <div class="p-4 sm:p-5 flex flex-col items-center gap-4 w-full min-w-0">
+                            <!-- Donut Chart -->
+                            <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
+                                <canvas id="leadSensorStatusChart"></canvas>
+                                <div id="leadsensor-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    @if($leadSensorTotal > 0)
+                                        <span class="text-lg font-bold text-text-100 leading-none">
+                                            {{ round(($leadSensorOnline / $leadSensorTotal) * 100) }}%
+                                        </span>
+                                        <span class="text-[10px] text-text-400 uppercase tracking-wide mt-0.5">Online</span>
+                                    @else
+                                        <span class="text-lg font-bold text-amber-400 leading-none">—</span>
+                                        <span class="text-[10px] text-amber-400 uppercase tracking-wide mt-0.5">No Sensors</span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- Status Counts -->
+                            <div class="flex flex-col gap-2 w-full">
+                                <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                    <span class="flex items-center gap-4 min-w-0">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)] shrink-0"></span>
+                                        <span class="text-sm text-text-300 truncate">Online</span>
+                                    </span>
+                                    <span id="leadsensor-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                        {{ $leadSensorOnline }}
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                    <span class="flex items-center gap-4 min-w-0">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)] shrink-0"></span>
+                                        <span class="text-sm text-text-300 truncate">Idle</span>
+                                    </span>
+                                    <span id="leadsensor-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                        {{ $leadSensorIdle }}
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                    <span class="flex items-center gap-4 min-w-0">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)] shrink-0"></span>
+                                        <span class="text-sm text-text-300 truncate">Offline</span>
+                                    </span>
+                                    <span id="leadsensor-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                        {{ $leadSensorOffline }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Summary Badge -->
+                            <div class="inline-flex flex-col items-center gap-1 mt-1">
+                                <span id="leadsensor-online-badge"
+                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
+                                            bg-munti-green-700/20 px-4 py-2.5 rounded-full
+                                            border border-munti-green-600/30 shadow-sm whitespace-nowrap">
+                                    {{ $leadSensorOnline }}/{{ $leadSensorTotal }} Online
+                                </span>
+                                <span class="text-[10px] text-text-500 uppercase tracking-wider whitespace-nowrap">
+                                    Lead Sensor Status
                                 </span>
                             </div>
                         </div>
@@ -963,6 +1046,12 @@
             {{ $cameraIdle ?? 0 }},
             {{ $cameraOffline ?? 0 }}
         );
+        let leadSensorStatusChart = makeStatusChart(
+            'leadSensorStatusChart',
+            {{ $leadSensorOnline ?? 0 }},
+            {{ $leadSensorIdle ?? 0 }},
+            {{ $leadSensorOffline ?? 0 }}
+        );
 
         function rowHtml(item, no) {
             const meta = statusBadgeMeta[item.status] || statusBadgeMeta.offline;
@@ -1166,7 +1255,7 @@
 
             const center = document.getElementById(prefix + '-donut-center');
             if (center) {
-                const emptyLabel = prefix === 'camera' ? 'No Cameras' : 'No Stations';
+                const emptyLabel = prefix === 'camera' ? 'No Cameras' : (prefix === 'leadsensor' ? 'No Sensors' : 'No Stations');
                 // Keep same size/classes as the original Blade render
                 center.innerHTML = total > 0
                     ? `<span class="text-lg font-bold text-text-100 leading-none">${Math.round((c.online / total) * 100)}%</span>
@@ -1202,6 +1291,7 @@
                 const airCounts       = data.airQualityCounts  || { online: 0, idle: 0, offline: 0 };
                 const seismicCounts   = data.seismicCounts     || { online: 0, idle: 0, offline: 0 };
                 const cameraCounts    = data.cameraCounts      || { online: 0, idle: 0, offline: 0 };
+                const leadSensorCounts = data.leadSensorCounts || { online: 0, idle: 0, offline: 0 };
 
                 // Tables
                 renderTable('aq-table-body', airQualityData, 'No air quality data available');
@@ -1226,11 +1316,13 @@
                 updateStatusChart(airStatusChart, airCounts.online, airCounts.idle, airCounts.offline);
                 updateStatusChart(seismicStatusChart, seismicCounts.online, seismicCounts.idle, seismicCounts.offline);
                 updateStatusChart(cameraStatusChart, cameraCounts.online, cameraCounts.idle, cameraCounts.offline);
+                updateStatusChart(leadSensorStatusChart, leadSensorCounts.online, leadSensorCounts.idle, leadSensorCounts.offline);
 
                 // Status cards content
                 updateDonutCard('aq', airCounts);
                 updateDonutCard('seismic', seismicCounts);
                 updateDonutCard('camera', cameraCounts);
+                updateDonutCard('leadsensor', leadSensorCounts);
 
                 // Banner
                 updateStatusBanner(airCounts, seismicCounts);

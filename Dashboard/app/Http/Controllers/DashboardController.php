@@ -26,9 +26,10 @@ class DashboardController extends Controller
     {
         [$airQualityData, $seismicData] = $this->buildDashboardData();
         $systemSummary = $this->buildSystemSummary();
-        $cameraCounts = $this->getCameraStatusCounts(); 
+        $cameraCounts = $this->getCameraStatusCounts();
+        $leadSensorCounts = $this->getLeadSensorStatusCounts();
 
-        return view('index', compact('airQualityData', 'seismicData', 'systemSummary', 'cameraCounts'));
+        return view('index', compact('airQualityData', 'seismicData', 'systemSummary', 'cameraCounts', 'leadSensorCounts'));
     }
 
     /**
@@ -52,6 +53,7 @@ class DashboardController extends Controller
         $airQualityCounts = $this->annotateStatus($airQualityData, $idleThresholdMinutes, $offlineThresholdMinutes);
         $seismicCounts    = $this->annotateStatus($seismicData, $idleThresholdMinutes, $offlineThresholdMinutes);
         $cameraCounts     = $this->getCameraStatusCounts();
+        $leadSensorCounts = $this->getLeadSensorStatusCounts();
 
         $health = $this->buildSystemHealth();
 
@@ -65,7 +67,8 @@ class DashboardController extends Controller
             'seismicData'      => $seismicData,
             'airQualityCounts' => $airQualityCounts, // ['online'=>n,'idle'=>n,'offline'=>n]
             'seismicCounts'    => $seismicCounts,
-            'cameraCounts'     => $cameraCounts, 
+            'cameraCounts'     => $cameraCounts,
+            'leadSensorCounts' => $leadSensorCounts,
             'health' => [
                 'cpu' => [
                     'percent' => $health['cpu']['percent'],
@@ -120,6 +123,102 @@ class DashboardController extends Controller
     }
 
     /**
+     * Pings each IP once, in parallel, with a short timeout — used for
+     * Lead Sensor status. Unlike Air Quality/Seismic (which report data
+     * on their own schedule, so "online" is inferred from a last-seen
+     * timestamp) or Camera (which has an explicit last_status column from
+     * its own ONVIF sync), Lead Sensor devices have no reporting pipeline
+     * of their own, so reachability is checked directly instead.
+     *
+     * Processes are started together (non-blocking) and only then waited
+     * on, so N pings take roughly as long as the slowest one rather than
+     * N times a single ping's timeout.
+     *
+     * @param string[] $ips
+     * @return array<string,bool> ip => reachable
+     */
+    private function pingHosts(array $ips): array
+    {
+        $ips = array_values(array_unique(array_filter($ips)));
+        if (empty($ips)) {
+            return [];
+        }
+
+        $processes = [];
+        foreach ($ips as $ip) {
+            // -c 1: send one packet. -W 2: give up after 2s if nothing
+            // comes back. Both are GNU ping (iputils-ping) syntax, which
+            // is what ships on Debian/Ubuntu — see detectOsVersion().
+            $process = new Process(['ping', '-c', '1', '-W', '2', $ip]);
+            $process->start();
+            $processes[$ip] = $process;
+        }
+
+        $results = [];
+        foreach ($processes as $ip => $process) {
+            $process->wait();
+            $results[$ip] = $process->isSuccessful();
+        }
+
+        return $results;
+    }
+
+    /**
+     * Lead Sensor "stations" aren't their own table — each Air Quality
+     * station carries the IP of its co-located lead sensor in the
+     * `lead_ip` column on the `stations` table (same physical site, same
+     * station name; the sensor itself doesn't report data anywhere this
+     * app can read). Stations without a lead_ip configured are skipped —
+     * they don't have a lead sensor installed.
+     *
+     * Ping results are cached briefly (15s — a bit under the live
+     * dashboard's 20s auto-refresh, see index.blade.php's
+     * setInterval(refreshDashboard, 20000)) so the dashboard poll,
+     * telegram:check-alerts (every 60s), and report generation landing
+     * close together don't each trigger a fresh round of pings.
+     */
+    private function buildLeadSensorData(): \Illuminate\Support\Collection
+    {
+        $stations = Station::orderBy('station_mn')
+            ->whereNotNull('lead_ip')
+            ->where('lead_ip', '!=', '')
+            ->get();
+
+        if ($stations->isEmpty()) {
+            return collect();
+        }
+
+        $pingResults = Cache::remember('dashboard.lead_sensor_ping', 15, function () use ($stations) {
+            return $this->pingHosts($stations->pluck('lead_ip')->all());
+        });
+
+        return $stations
+            ->map(function ($station) use ($pingResults) {
+                return (object) [
+                    'station_mn' => $station->station_mn,
+                    'station'    => $station->station_name ?: $station->station_mn,
+                    'ip'         => $station->lead_ip,
+                    // Ping is a point-in-time reachability check, not a
+                    // reporting-timestamp threshold, so there's no natural
+                    // "idle" middle state here — just reachable or not.
+                    'status'     => ($pingResults[$station->lead_ip] ?? false) ? 'online' : 'offline',
+                ];
+            })
+            ->values();
+    }
+
+    private function getLeadSensorStatusCounts(): array
+    {
+        $counts = ['online' => 0, 'idle' => 0, 'offline' => 0];
+
+        foreach ($this->buildLeadSensorData() as $sensor) {
+            $counts[$sensor->status]++;
+        }
+
+        return $counts;
+    }
+
+    /**
      * JSON endpoint used by the dashboard's AJAX polling (see index.blade.php).
      * Returns everything the view needs to refresh in place: station tables,
      * status counts, and system health tiles — without a full page reload.
@@ -134,6 +233,7 @@ class DashboardController extends Controller
         $airQualityCounts = $this->annotateStatus($airQualityData, $idleThresholdMinutes, $offlineThresholdMinutes);
         $seismicCounts    = $this->annotateStatus($seismicData, $idleThresholdMinutes, $offlineThresholdMinutes);
         $cameraCounts     = $this->getCameraStatusCounts();
+        $leadSensorCounts = $this->getLeadSensorStatusCounts();
 
         return response()->json([
             'airQualityData'   => $airQualityData,
@@ -141,6 +241,7 @@ class DashboardController extends Controller
             'airQualityCounts' => $airQualityCounts,
             'seismicCounts'    => $seismicCounts,
             'cameraCounts'     => $cameraCounts,
+            'leadSensorCounts' => $leadSensorCounts,
             'systemHealth'     => $this->buildSystemHealth(),
             'systemSummary'    => $this->buildSystemSummary(),
             'generatedAt'      => now()->timezone('Asia/Manila')->format('Y-m-d h:i A'),
@@ -269,6 +370,12 @@ class DashboardController extends Controller
         $airQualityCounts = $this->annotateStatus($airQualityData, $idleThresholdMinutes, $offlineThresholdMinutes);
         $seismicCounts    = $this->annotateStatus($seismicData, $idleThresholdMinutes, $offlineThresholdMinutes);
 
+        // Camera/Lead Sensor counts weren't part of this report before —
+        // needed now for the station status pie charts below, and for the
+        // "Stations Status Summary" table to stay consistent with them.
+        $cameraCounts     = $this->getCameraStatusCounts();
+        $leadSensorCounts = $this->getLeadSensorStatusCounts();
+
         $generatedAt = now()->timezone('Asia/Manila');
 
         // $request->user() only resolves if the auth guard actually
@@ -319,6 +426,8 @@ class DashboardController extends Controller
             'seismicData'      => $seismicData,
             'airQualityCounts' => $airQualityCounts,
             'seismicCounts'    => $seismicCounts,
+            'cameraCounts'     => $cameraCounts,
+            'leadSensorCounts' => $leadSensorCounts,
             'generatedAt'      => $generatedAt,
             'generatedBy'      => $generatedBy,
 
@@ -1119,6 +1228,25 @@ class DashboardController extends Controller
             ]
         );
 
+        // ---- Station Status Overview (mirrors the live dashboard's doughnut cards) ----
+        // Kept compact (55px radius, no extra table rows added above) since
+        // this report's JPEG/Telegram digest only ever sends page 1 — see
+        // buildReportImageJpeg() — so growing this section risks pushing
+        // the station tables below onto page 2, where the digest can't see
+        // them. If station tables start getting cut off after this change,
+        // this section is the first place to trim.
+        $y = $this->ensureSpace($pages, $page, $y, 200);
+        $y += 20;
+        $y = $this->drawImgSectionTitle($page, 'Station Status Overview',
+                                        self::IMAGE_MARGIN, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, $y);
+        $y += 10;
+        $y = $this->drawImgStatusPieRow($page, [
+            ['label' => 'Air Quality', 'counts' => $ctx['airQualityCounts']],
+            ['label' => 'Seismic',     'counts' => $ctx['seismicCounts']],
+            ['label' => 'Camera',      'counts' => $ctx['cameraCounts']],
+            ['label' => 'Lead Sensor', 'counts' => $ctx['leadSensorCounts']],
+        ], self::IMAGE_MARGIN, self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN, $y);
+
         // ---- Station tables (side-by-side on first page, continue on next pages if needed) ----
         // Air Quality table – full width
         $y = $this->ensureSpace($pages, $page, $y, 180);   // need ~180px
@@ -1466,6 +1594,105 @@ class DashboardController extends Controller
 
         imagefilledrectangle($image, $x, $y, $x + $badgeWidth, $y + $height, $bg);
         $this->imgText($image, $labelUpper, $x + 8, $y + $height - 6, 10, [255, 255, 255], true);
+    }
+
+    /**
+     * Lays out N status pies evenly across $width, one per category —
+     * the same online/idle/offline breakdown as the live dashboard's
+     * doughnut cards (Air Quality / Seismic / Camera / Lead Sensor),
+     * rendered into the static report image.
+     *
+     * @param array<int, array{label: string, counts: array}> $items
+     */
+    private function drawImgStatusPieRow($image, array $items, int $x, int $width, int $y): int
+    {
+        $radius    = 55;
+        $count     = max(count($items), 1);
+        $slotWidth = intdiv($width, $count);
+
+        foreach ($items as $i => $item) {
+            $cx = $x + ($i * $slotWidth) + intdiv($slotWidth, 2);
+            $cy = $y + $radius;
+            $this->drawImgStatusPie($image, $cx, $cy, $radius, $item['counts'], $item['label']);
+        }
+
+        return $y + ($radius * 2) + 45; // room for the two caption lines below each pie
+    }
+
+    /**
+     * Draws one donut-style status pie centered at ($cx, $cy) with a
+     * caption below it. Colors and the ~72% cutout deliberately match
+     * makeStatusChart()/updateStatusChart()'s Chart.js doughnuts in
+     * index.blade.php (not statusRgb()'s green/amber/red, which is used
+     * for table badges elsewhere in this report) so the report visually
+     * matches what's on the live dashboard.
+     */
+    private function drawImgStatusPie($image, int $cx, int $cy, int $radius, array $counts, string $label): void
+    {
+        $online  = $counts['online']  ?? 0;
+        $idle    = $counts['idle']    ?? 0;
+        $offline = $counts['offline'] ?? 0;
+        $total   = $online + $idle + $offline;
+
+        $colors = [
+            'online'  => [45, 212, 191],  // #2DD4BF
+            'idle'    => [251, 191, 36],  // #FBBF24
+            'offline' => [248, 113, 113], // #F87171
+            'empty'   => [251, 191, 36],  // matches the "No Stations" amber slice
+        ];
+
+        $diameter = $radius * 2;
+
+        if ($total === 0) {
+            [$r, $g, $b] = $colors['empty'];
+            $slice = imagecolorallocate($image, $r, $g, $b);
+            imagefilledellipse($image, $cx, $cy, $diameter, $diameter, $slice);
+        } else {
+            $segments = [
+                ['value' => $online,  'color' => $colors['online']],
+                ['value' => $idle,    'color' => $colors['idle']],
+                ['value' => $offline, 'color' => $colors['offline']],
+            ];
+
+            $startAngle = 0.0;
+            foreach ($segments as $segment) {
+                if ($segment['value'] <= 0) {
+                    continue;
+                }
+
+                $sweep    = ($segment['value'] / $total) * 360;
+                $endAngle = $startAngle + $sweep;
+
+                [$r, $g, $b] = $segment['color'];
+                $slice = imagecolorallocate($image, $r, $g, $b);
+
+                // GD angles: 0° = 3 o'clock, clockwise. Offset -90° so
+                // the first slice starts at 12 o'clock, matching
+                // Chart.js's default doughnut rotation. Round only at
+                // the point of the imagefilledarc() call (which needs
+                // ints) so rounding error doesn't accumulate slice to
+                // slice and leave a visible gap or overlap at the end.
+                imagefilledarc(
+                    $image, $cx, $cy, $diameter, $diameter,
+                    (int) round($startAngle - 90), (int) round($endAngle - 90),
+                    $slice, IMG_ARC_PIE
+                );
+
+                $startAngle = $endAngle;
+            }
+        }
+
+        // Punch a white circle in the middle for the doughnut "cutout"
+        // look (Chart.js's makeStatusChart uses cutout: '72%').
+        $cutoutRadius = (int) round($radius * 0.72);
+        $white = imagecolorallocate($image, 255, 255, 255);
+        imagefilledellipse($image, $cx, $cy, $cutoutRadius * 2, $cutoutRadius * 2, $white);
+
+        $centerText = $total > 0 ? round(($online / $total) * 100) . '%' : '—';
+        $this->imgText($image, $centerText, $cx, $cy + 5, 14, [26, 26, 26], true, 'center');
+
+        $this->imgText($image, $label, $cx, $cy + $radius + 22, 12.5, [26, 26, 26], true, 'center');
+        $this->imgText($image, "{$online}/{$total} Online", $cx, $cy + $radius + 37, 10.5, [119, 119, 119], false, 'center');
     }
 
     private function statusRgb(string $status): array
