@@ -33,9 +33,7 @@
         word-break: normal;
         counter-reset: line;
     }
-    @media (min-width: 640px) {
-        .json-viewer { font-size: 13px; }
-    }
+    @media (min-width: 640px) { .json-viewer { font-size: 13px; } }
     .json-viewer.with-lines .json-line::before {
         counter-increment: line;
         content: counter(line);
@@ -48,10 +46,7 @@
         border-right: 1px solid #1f2937;
         user-select: none;
     }
-    .json-viewer .json-line {
-        display: block;
-        padding: 0 0.75rem;
-    }
+    .json-viewer .json-line { display: block; padding: 0 0.75rem; }
     .json-viewer .json-line:hover { background: rgba(255,255,255,0.03); }
     .json-viewer .json-key { color: #ff7b72; }
     .json-viewer .json-string { color: #a5d6ff; }
@@ -76,22 +71,6 @@
     .status-4xx { background: rgba(249,115,22,0.12); color: #fb923c; border-color: rgba(249,115,22,0.3); }
     .status-5xx { background: rgba(239,68,68,0.12);  color: #f87171; border-color: rgba(239,68,68,0.3); }
     .status-err { background: rgba(239,68,68,0.12);  color: #f87171; border-color: rgba(239,68,68,0.3); }
-
-    /* Enabled / Disabled pill */
-    .enabled-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.15rem 0.5rem;
-        border-radius: 9999px;
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        border: 1px solid;
-    }
-    .enabled-pill-on  { background: rgba(34,197,94,0.12); color: #4ade80; border-color: rgba(34,197,94,0.3); }
-    .enabled-pill-off { background: rgba(239,68,68,0.12); color: #f87171; border-color: rgba(239,68,68,0.3); }
-    .enabled-dot { width: 6px; height: 6px; border-radius: 9999px; background: currentColor; }
 
     .json-skeleton {
         display: inline-block;
@@ -120,29 +99,47 @@
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
     <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex flex-col min-h-0">
 
+        <!-- Header -->
         <div class="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
             <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2.5">
                 <span class="leading-tight uppercase tracking-wide">Calibration API Management</span>
             </h2>
-            <span class="text-xs sm:text-sm text-text-400">View, edit and manage API for a new calibration reference</span>
+            <span class="text-xs sm:text-sm text-text-400">View, edit and manage APIs for calibration reference</span>
         </div>
 
-        <div class="flex-1 overflow-y-auto thin-scrollbar min-h-0 bg-background-900 py-4 sm:py-6 px-4 sm:px-8">
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto thin-scrollbar min-h-0 bg-background-900 py-6 px-5 sm:px-8">
+
+            @if(session('success'))
+                <div class="mb-6 px-4 py-3 rounded-lg border border-munti-green-600/30 bg-munti-green-700/15 text-munti-green-400 text-sm font-medium">
+                    {{ session('success') }}
+                </div>
+            @endif
+
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
 
+                <!-- Table Section -->
                 <div class="flex-1 flex flex-col min-h-0">
-                    <div class="px-4 sm:px-5 py-3 border-b border-border-700 bg-surface-900/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
                         <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider flex items-center gap-2">
                             Calibration API Records
                         </h3>
-                        <div class="flex items-center gap-3 justify-between sm:justify-end">
+                        <div class="flex items-center gap-3">
                             <span class="text-xs text-text-500">{{ $calibrations->count() }} Record(s)</span>
 
+                            <!-- Add API Button (opens modal) -->
                             <button type="button"
                                     onclick="openAddCalibrationModal()"
                                     class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 rounded-md hover:bg-munti-green-700/30 transition whitespace-nowrap">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="w-3.5 h-3.5 shrink-0"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M12 4v16m8-8H4"/>
                                 </svg>
                                 Add API
                             </button>
@@ -150,97 +147,97 @@
                     </div>
 
                     <div class="overflow-x-auto thin-scrollbar flex-1">
-                        <table class="min-w-full divide-y divide-border-700">
-                            <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500 sticky top-0 z-10">
-                                <tr>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">No.</th>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">Source</th>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">File</th>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">Checklist of Data</th>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">Total Data</th>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">No. of Requests/min</th>
-                                    <th scope="col" class="px-4 py-3 text-left font-medium">Created At</th>
-                                    <th scope="col" class="px-4 py-3 text-center font-medium">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-border-800">
-                                @forelse($calibrations as $index => $cal)
-                                <tr class="hover:bg-surface-700/50 transition">
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $index + 1 }}</td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center gap-1.5 text-xs text-text-200">{{ $cal->source }}</span>
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        @if($cal->enabled)
-                                            <span class="enabled-pill enabled-pill-on" title="API responded successfully on last save">
-                                                <span class="enabled-dot"></span>
-                                                Enabled
-                                            </span>
-                                        @else
-                                            <span class="enabled-pill enabled-pill-off" title="API did not respond successfully on last save">
-                                                <span class="enabled-dot"></span>
-                                                Disabled
-                                            </span>
-                                        @endif
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <span class="inline-flex items-center gap-1.5 text-xs text-text-200">{{ $cal->file_path ? basename($cal->file_path) : '—' }}</span>
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap">
-                                        <div class="flex flex-wrap gap-1 max-w-md">
-                                            @foreach($cal->checklist ?? [] as $item)
-                                                @php
-                                                    $slug = strtolower(str_replace([' ', '.'], '-', $item));
-                                                    $tagClass = 'checklist-tag-default';
-                                                    if (in_array($slug, ['temperature', 'humidity', 'pressure', 'pm25', 'pm10', 'co', 'no2', 'o3'])) {
-                                                        $tagClass = 'checklist-tag-' . $slug;
-                                                    }
-                                                @endphp
-                                                <span class="checklist-tag text-xs text-text-200 {{ $tagClass }}" title="{{ $item }}">{{ $item }}</span>
-                                            @endforeach
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">{{ number_format($cal->total_data) }}</td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">{{ $cal->requests_per_min }} req/min</td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $cal->created_at->format('Y-m-d H:i') }}</td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap text-center">
-                                        <div class="flex items-center justify-center gap-1.5">
-                                            <button type="button" onclick="viewJson({{ $cal->id }})"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-munti-blue-400 hover:bg-surface-700/70 transition"
-                                                    title="Inspect live API response">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                </svg>
-                                            </button>
-                                            <button type="button" onclick="editCalibration({{ $cal->id }})"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition"
-                                                    title="Edit">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                </svg>
-                                            </button>
-                                            <button type="button" onclick="deleteCalibration({{ $cal->id }}, '{{ $cal->file_path ? basename($cal->file_path) : 'Record #' . $cal->id }}')"
-                                                    class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition"
-                                                    title="Delete">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
-                                                    <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="9" class="px-4 py-8 text-center text-text-500 text-sm">
-                                        No calibration records found.
-                                    </td>
-                                </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                        @if($calibrations->count())
+                            <table class="min-w-full divide-y divide-border-700">
+                                <thead class="bg-surface-900/60 text-[11px] uppercase tracking-wider text-text-500 sticky top-0 z-10">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">No.</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Source</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">File</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Checklist of Data</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Total Data</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">No. of Requests/min</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Created At</th>
+                                        <th scope="col" class="px-4 py-3 text-center font-medium">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-border-800">
+                                    @foreach($calibrations as $index => $cal)
+                                        <tr class="hover:bg-surface-700/50 transition">
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $index + 1 }}</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap">
+                                                <span class="inline-flex items-center gap-1.5 text-xs text-text-200">{{ $cal->source }}</span>
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border
+                                                    {{ $cal->enabled
+                                                        ? 'bg-munti-green-700/15 text-munti-green-400 border-munti-green-600/30'
+                                                        : 'bg-munti-red-700/15 text-munti-red-400 border-munti-red-600/30' }}">
+                                                    {{ $cal->enabled ? 'Enabled' : 'Disabled' }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap">
+                                                <span class="inline-flex items-center gap-1.5 text-xs text-text-200">{{ $cal->file_path ? basename($cal->file_path) : '—' }}</span>
+                                            </td>
+                                            <td class="px-4 py-2.5 text-xs">
+                                                <div class="flex flex-wrap gap-1 max-w-md">
+                                                    @foreach($cal->checklist ?? [] as $item)
+                                                        @php
+                                                            $slug = strtolower(str_replace([' ', '.'], '-', $item));
+                                                            $tagClass = 'checklist-tag-default';
+                                                            if (in_array($slug, ['temperature', 'humidity', 'pressure', 'pm25', 'pm10', 'co', 'no2', 'o3'])) {
+                                                                $tagClass = 'checklist-tag-' . $slug;
+                                                            }
+                                                        @endphp
+                                                        <span class="checklist-tag {{ $tagClass }}" title="{{ $item }}">{{ $item }}</span>
+                                                    @endforeach
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">{{ number_format($cal->total_data) }}</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">{{ $cal->requests_per_min }} req/min</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $cal->created_at->format('Y-m-d H:i') }}</td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-center">
+                                                <div class="flex items-center justify-center gap-1.5">
+                                                    <!-- View JSON -->
+                                                    <button type="button" onclick="viewJson({{ $cal->id }})"
+                                                            class="p-1.5 rounded-lg text-text-400 hover:text-munti-blue-400 hover:bg-surface-700/70 transition-all duration-200 group"
+                                                            title="Inspect live API response">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                        </svg>
+                                                    </button>
+
+                                                    <!-- Edit -->
+                                                    <button type="button" onclick="editCalibration({{ $cal->id }})"
+                                                            class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group"
+                                                            title="Edit API">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                        </svg>
+                                                    </button>
+
+                                                    <!-- Delete -->
+                                                    <button type="button" onclick="deleteCalibration({{ $cal->id }}, '{{ $cal->file_path ? basename($cal->file_path) : 'Record #' . $cal->id }}')"
+                                                            class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group"
+                                                            title="Delete API">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" class="text-red-400">
+                                                            <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        @else
+                            <div class="flex items-center justify-center h-32 text-sm text-text-500">
+                                No calibration records found.
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -329,14 +326,19 @@
 
 <!-- ==================== ADD EXTERNAL API MODAL ==================== -->
 <div id="addApiModal" class="fixed inset-0 z-50 hidden">
-    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeAddCalibrationModal()"></div>
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeAddCalibrationModal()"></div>
 
     <div class="absolute inset-0 flex items-center justify-center p-0 sm:p-4">
-        <div class="relative w-full h-full sm:h-auto sm:max-w-6xl bg-surface-900 border-0 sm:border border-border-700 rounded-none sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-full">
+        <div class="relative w-full h-full sm:h-auto sm:max-w-6xl bg-surface-800 border-0 sm:border border-border-700 rounded-none sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-full">
 
-            <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-border-700 bg-surface-800 flex items-center justify-between shrink-0">
-                <h3 class="text-base sm:text-lg font-semibold text-text-100">Add External API</h3>
-                <button type="button" onclick="closeAddCalibrationModal()" class="p-1.5 rounded-lg text-text-400 hover:text-text-100 hover:bg-surface-700 transition">
+            <div class="sticky top-0 px-4 sm:px-6 py-4 border-b border-border-700 bg-surface-800/95 backdrop-blur-sm flex items-center justify-between shrink-0">
+                <h3 class="text-lg font-semibold text-text-100 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-munti-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add External API
+                </h3>
+                <button type="button" onclick="closeAddCalibrationModal()" class="p-2 rounded-lg hover:bg-surface-700 text-text-400 hover:text-text-100 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -348,9 +350,9 @@
 
                     <div class="flex flex-col gap-4">
                         <div>
-                            <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
+                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Select API Source</label>
                             <select id="apiSource"
-                                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                                    class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
                                 <option value="">Choose API</option>
                                 <option value="accustation">AccuStation</option>
                                 <option value="openweather">OpenWeather</option>
@@ -361,16 +363,16 @@
                         </div>
 
                         <div>
-                            <label class="block text-xs font-medium text-text-400 mb-1.5">Authentication Type</label>
-                            <div class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 flex items-center">
+                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Authentication Type</label>
+                            <div class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 flex items-center">
                                 <span class="text-text-300">Bearer Token</span>
                                 <input type="hidden" id="authType" value="bearer_token">
                             </div>
                         </div>
 
                         <div class="flex-1 flex flex-col">
-                            <div class="flex-1 min-h-[150px] sm:min-h-[250px] p-3 sm:p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
-                                <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
+                            <div class="flex-1 min-h-[150px] sm:min-h-[250px] p-3 sm:p-4 bg-surface-900 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
+                                <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Documentation</label>
                                 <div id="docContent" class="space-y-3">
                                     <p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>
                                 </div>
@@ -379,9 +381,9 @@
                     </div>
 
                     <div class="flex flex-col">
-                        <label class="block text-xs font-medium text-text-400 mb-1.5">API URL</label>
+                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">API URL</label>
                         <input type="url" id="apiUrl" placeholder="https://api.example.com/v1/endpoint"
-                               class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                               class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
 
                         <div class="mt-4 flex-1 p-3 sm:p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
                             <p class="font-medium text-text-400 mb-2">Tips</p>
@@ -394,9 +396,9 @@
                     </div>
 
                     <div class="flex flex-col">
-                        <label class="block text-xs font-medium text-text-400 mb-1.5">Bearer Token</label>
+                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Bearer Token</label>
                         <input type="password" id="apiKey" placeholder="Enter your Bearer token"
-                               class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                               class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
 
                         <div class="mt-4 flex-1 p-3 sm:p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
                             <p class="font-medium text-text-400 mb-2">Security Note</p>
@@ -406,13 +408,13 @@
 
                     <div class="flex flex-col">
                         <div class="flex items-center justify-between mb-1.5">
-                            <label class="block text-xs font-medium text-text-400">Fields to Map to Database</label>
+                            <label class="block text-xs font-medium text-text-400 uppercase tracking-wide">Fields to Map</label>
                             <button type="button" id="addResetFieldsBtn" onclick="resetFieldList('add')"
                                     class="hidden text-[10px] text-munti-blue-400 hover:text-munti-blue-300 underline">
                                 Reset
                             </button>
                         </div>
-                        <div class="flex-1 p-3 bg-surface-800/50 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
+                        <div class="flex-1 p-3 bg-surface-900/60 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
                             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-y-1.5 gap-x-3" id="addFieldList">
                                 @php
                                     $fields = [
@@ -441,13 +443,13 @@
                 <div id="addTestResult" class="hidden mt-4 p-3 rounded-lg border text-xs"></div>
             </div>
 
-            <div class="px-4 sm:px-6 py-3 sm:py-4 border-t border-border-700 bg-surface-800/60 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3 shrink-0">
+            <div class="px-4 sm:px-6 py-4 border-t border-border-700 bg-surface-800/60 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3 shrink-0">
                 <button type="button" onclick="closeAddCalibrationModal()"
-                        class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
+                        class="w-full sm:w-auto px-4 py-2.5 text-sm font-medium text-text-300 hover:text-text-100 bg-surface-700 hover:bg-surface-600 rounded-lg transition border border-border-600">
                     Cancel
                 </button>
                 <button type="button" id="addSaveBtn" onclick="saveExternalApi()"
-                        class="w-full sm:w-auto h-9 px-5 text-sm font-medium text-white bg-munti-green-600 hover:bg-munti-green-500 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed">
+                        class="w-full sm:w-auto px-6 py-2.5 bg-munti-green-600 hover:bg-munti-green-500 text-text-100 font-semibold rounded-lg transition border border-munti-green-500/30 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
                     Save API
                 </button>
             </div>
@@ -457,14 +459,19 @@
 
 <!-- ==================== EDIT EXTERNAL API MODAL ==================== -->
 <div id="editApiModal" class="fixed inset-0 z-50 hidden">
-    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeEditCalibrationModal()"></div>
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeEditCalibrationModal()"></div>
 
     <div class="absolute inset-0 flex items-center justify-center p-0 sm:p-4">
-        <div class="relative w-full h-full sm:h-auto sm:max-w-6xl bg-surface-900 border-0 sm:border border-border-700 rounded-none sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-full">
+        <div class="relative w-full h-full sm:h-auto sm:max-w-6xl bg-surface-800 border-0 sm:border border-border-700 rounded-none sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-full">
 
-            <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-border-700 bg-surface-800 flex items-center justify-between shrink-0">
-                <h3 class="text-base sm:text-lg font-semibold text-text-100">Edit External API</h3>
-                <button type="button" onclick="closeEditCalibrationModal()" class="p-1.5 rounded-lg text-text-400 hover:text-text-100 hover:bg-surface-700 transition">
+            <div class="sticky top-0 px-4 sm:px-6 py-4 border-b border-border-700 bg-surface-800/95 backdrop-blur-sm flex items-center justify-between shrink-0">
+                <h3 class="text-lg font-semibold text-text-100 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-radar-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    Edit External API
+                </h3>
+                <button type="button" onclick="closeEditCalibrationModal()" class="p-2 rounded-lg hover:bg-surface-700 text-text-400 hover:text-text-100 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -476,9 +483,9 @@
 
                     <div class="flex flex-col gap-4">
                         <div>
-                            <label class="block text-xs font-medium text-text-400 mb-1.5">Select API Source</label>
+                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Select API Source</label>
                             <select id="editApiSource"
-                                    class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                                    class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
                                 <option value="">-- Choose API --</option>
                                 <option value="accustation">AccuStation</option>
                                 <option value="openweather">OpenWeather</option>
@@ -489,25 +496,25 @@
                         </div>
 
                         <div>
-                            <label class="block text-xs font-medium text-text-400 mb-1.5">Authentication Type</label>
-                            <div class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 flex items-center">
+                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Authentication Type</label>
+                            <div class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 flex items-center">
                                 <span class="text-text-300">Bearer Token</span>
                                 <input type="hidden" id="editAuthType" value="bearer_token">
                             </div>
                         </div>
 
                         <div class="flex-1 flex flex-col">
-                            <div class="flex-1 min-h-[150px] sm:min-h-[250px] p-3 sm:p-4 bg-surface-800 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
-                                <label class="block text-xs font-medium text-text-400 mb-1.5">Documentation</label>
+                            <div class="flex-1 min-h-[150px] sm:min-h-[250px] p-3 sm:p-4 bg-surface-900 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
+                                <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Documentation</label>
                                 <div id="editDocContent" class="space-y-3"></div>
                             </div>
                         </div>
                     </div>
 
                     <div class="flex flex-col">
-                        <label class="block text-xs font-medium text-text-400 mb-1.5">API URL</label>
+                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">API URL</label>
                         <input type="url" id="editApiUrl" placeholder="https://api.example.com/v1/endpoint"
-                               class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                               class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
 
                         <div class="mt-4 flex-1 p-3 sm:p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
                             <p class="font-medium text-text-400 mb-2">Tips</p>
@@ -520,9 +527,9 @@
                     </div>
 
                     <div class="flex flex-col">
-                        <label class="block text-xs font-medium text-text-400 mb-1.5">Bearer Token</label>
+                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Bearer Token</label>
                         <input type="password" id="editApiKey" placeholder="Leave blank to keep current token"
-                               class="w-full h-10 px-3 text-sm bg-surface-800 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-munti-blue-500/50 focus:border-munti-blue-500 transition">
+                               class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
 
                         <div class="mt-4 flex-1 p-3 sm:p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
                             <p class="font-medium text-text-400 mb-2">Security Note</p>
@@ -532,7 +539,7 @@
 
                     <div class="flex flex-col">
                         <div class="flex items-center justify-between mb-1.5">
-                            <label class="block text-xs font-medium text-text-400">Fields to Map to Database</label>
+                            <label class="block text-xs font-medium text-text-400 uppercase tracking-wide">Fields to Map</label>
                             <div class="flex items-center gap-2">
                                 <button type="button" id="editRefreshFieldsBtn" onclick="refreshEditFields()"
                                         class="hidden text-[10px] text-munti-green-400 hover:text-munti-green-300 underline">
@@ -544,7 +551,7 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="flex-1 p-3 bg-surface-800/50 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
+                        <div class="flex-1 p-3 bg-surface-900/60 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
                             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-y-1.5 gap-x-3" id="editFieldList">
                                 @foreach($fields as $value => $label)
                                 <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
@@ -553,7 +560,6 @@
                                 </label>
                                 @endforeach
                             </div>
-                            <!-- Inline loader overlay -->
                             <div id="editFieldsLoader" class="hidden items-center gap-2 pt-2 text-[11px] text-text-500">
                                 <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -570,13 +576,13 @@
                 <div id="editTestResult" class="hidden mt-4 p-3 rounded-lg border text-xs"></div>
             </div>
 
-            <div class="px-4 sm:px-6 py-3 sm:py-4 border-t border-border-700 bg-surface-800/60 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3 shrink-0">
+            <div class="px-4 sm:px-6 py-4 border-t border-border-700 bg-surface-800/60 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3 shrink-0">
                 <button type="button" onclick="closeEditCalibrationModal()"
-                        class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
+                        class="w-full sm:w-auto px-4 py-2.5 text-sm font-medium text-text-300 hover:text-text-100 bg-surface-700 hover:bg-surface-600 rounded-lg transition border border-border-600">
                     Cancel
                 </button>
                 <button type="button" id="editSaveBtn" onclick="updateExternalApi()"
-                        class="w-full sm:w-auto h-9 px-5 text-sm font-medium text-white bg-munti-blue-600 hover:bg-munti-blue-500 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed">
+                        class="w-full sm:w-auto px-6 py-2.5 bg-radar-500 hover:bg-radar-400 text-text-100 font-semibold rounded-lg transition border border-radar-400/30 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
                     Update API
                 </button>
             </div>
@@ -1117,10 +1123,8 @@
                 }
 
                 if (is2xx(data.status)) {
-                    // 2xx → enabled = true
                     proceedToSaveAdd({ source, url, token, authType, enabled: true });
                 } else {
-                    // Non-2xx → ask user; if save anyway, enabled = false
                     showApiCheckPopup({
                         status: data.status,
                         message: data.message,
@@ -1271,10 +1275,8 @@
             const passed = is2xx(data.status) || data.success === true;
 
             if (passed) {
-                // 2xx → enabled = true
                 proceedToSaveEdit({ id, source, url, token, authType, enabled: true });
             } else {
-                // Non-2xx → ask user; if save anyway, enabled = false
                 showApiCheckPopup({
                     status: data.status,
                     message: data.message,
