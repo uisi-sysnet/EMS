@@ -158,7 +158,7 @@
                                                         $tagClass = 'checklist-tag-' . $slug;
                                                     }
                                                 @endphp
-                                                <span class="checklist-tag text-text-200 {{ $tagClass }}" title="{{ $item }}">{{ $item }}</span>
+                                                <span class="checklist-tag text-xs text-text-200 {{ $tagClass }}" title="{{ $item }}">{{ $item }}</span>
                                             @endforeach
                                         </div>
                                     </td>
