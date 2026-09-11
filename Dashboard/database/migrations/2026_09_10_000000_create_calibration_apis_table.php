@@ -36,6 +36,9 @@ return new class extends Migration
             
             // Number of requests per minute
             $table->unsignedSmallInteger('requests_per_min')->default(0);
+
+            // Whether this API is enabled/active
+            $table->boolean('enabled')->default(true)->index();
             
             // Timestamps
             $table->timestamps();
