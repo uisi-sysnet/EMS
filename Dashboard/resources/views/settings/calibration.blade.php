@@ -9,7 +9,7 @@
     .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
 
     .checklist-tag {
-        @apply inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border;
+        @apply inline-flex items-center px-2 py-0.5 rounded-full text-[10px] text-text-200 font-medium border;
     }
     .checklist-tag-temperature { @apply bg-munti-red-700/20 text-munti-red-400 border-munti-red-600/30; }
     .checklist-tag-humidity { @apply bg-munti-blue-700/20 text-munti-blue-400 border-munti-blue-600/30; }
