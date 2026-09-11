@@ -1498,9 +1498,8 @@ class DashboardController extends Controller
         $heading = $title . ' (' . $counts['online'] . ' online / ' . $data->count() . ' total)';
         $rowHeight = 32;
         $headerHeight = 32; // from drawImgTable header row
-        $totalRows = $data->count();
 
-        if ($totalRows === 0) {
+        if ($data->count() === 0) {
             // Draw a single placeholder row
             $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
             $placeholderRows = [
@@ -1510,7 +1509,27 @@ class DashboardController extends Controller
             return $y;
         }
 
-        // We'll paginate the data. Start with current page.
+        // The image report only has room to call out problems, so only
+        // offline stations get a row here — online/idle stations are
+        // already covered by the heading's "$x online / $y total" count
+        // and the pie chart above, and repeating every already-healthy
+        // station just pushes offline stations further down (or onto
+        // another page the Telegram digest never sends — see
+        // buildReportImageJpeg()).
+        $offlineData = $data->filter(fn ($item) => $item->status === 'offline')->values();
+        $totalRows = $offlineData->count();
+
+        if ($totalRows === 0) {
+            // Nothing offline — one confirmation line instead of a full
+            // table of stations that are all fine.
+            $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
+            $y = $this->drawImgTable($image, $x, $y, $width, $this->stationTableColumns($width), [
+                ['—', 'All stations online — nothing to report', '', '', ['badge' => true, 'label' => 'Online', 'status' => 'online']],
+            ], $rowHeight);
+            return $y;
+        }
+
+        // We'll paginate the offline stations. Start with current page.
         $start = 0;
         // We'll reuse the same page reference, but may start new pages.
         while ($start < $totalRows) {
@@ -1526,8 +1545,8 @@ class DashboardController extends Controller
             $available = self::IMAGE_HEIGHT - self::IMAGE_MARGIN - $y - 30; // leave room for footer
             $rowsPerPage = max(1, intdiv($available, $rowHeight + 2));
 
-            // Slice the data
-            $chunk = $data->slice($start, $rowsPerPage);
+            // Slice the offline-only data
+            $chunk = $offlineData->slice($start, $rowsPerPage);
             $rows = [];
             foreach ($chunk as $i => $item) {
                 $rows[] = [
@@ -1550,10 +1569,6 @@ class DashboardController extends Controller
                 $y += 20;
             }
         }
-
-        // Optionally add an "All Stations" summary row at the end (if you want)
-        // You can add it as a separate text line below the last table.
-        // I'll leave it out for brevity; you can add it if needed.
 
         return $y;
     }
