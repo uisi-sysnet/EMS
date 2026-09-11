@@ -90,6 +90,15 @@
         0%   { background-position: 200% 0; }
         100% { background-position: -200% 0; }
     }
+
+    .swal-status-pill {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 11px;
+        letter-spacing: 0.02em;
+    }
 </style>
 
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
@@ -394,7 +403,7 @@
                                 @endforeach
                             </div>
                         </div>
-                        <p class="text-[10px] text-text-500 mt-1.5" id="addFieldListHint">Click <strong class="text-munti-yellow-400">Test API</strong> to load real fields from the response.</p>
+                        <p class="text-[10px] text-text-500 mt-1.5" id="addFieldListHint">Select the data fields you want to map from the API response.</p>
                     </div>
 
                 </div>
@@ -402,24 +411,15 @@
                 <div id="addTestResult" class="hidden mt-4 p-3 rounded-lg border text-xs"></div>
             </div>
 
-            <div class="px-4 sm:px-6 py-3 sm:py-4 border-t border-border-700 bg-surface-800/60 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 shrink-0">
-                <button type="button" onclick="testAddApi()" id="addTestBtn"
-                        class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium text-munti-yellow-400 bg-munti-yellow-700/20 border border-munti-yellow-600/30 rounded-lg hover:bg-munti-yellow-700/30 transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
-                    <span>Test API</span>
+            <div class="px-4 sm:px-6 py-3 sm:py-4 border-t border-border-700 bg-surface-800/60 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3 shrink-0">
+                <button type="button" onclick="closeAddCalibrationModal()"
+                        class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
+                    Cancel
                 </button>
-                <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                    <button type="button" onclick="closeAddCalibrationModal()"
-                            class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
-                        Cancel
-                    </button>
-                    <button type="button" id="addSaveBtn" onclick="saveExternalApi()"
-                            class="w-full sm:w-auto h-9 px-5 text-sm font-medium text-white bg-munti-green-600 hover:bg-munti-green-500 rounded-lg transition">
-                        Save API
-                    </button>
-                </div>
+                <button type="button" id="addSaveBtn" onclick="saveExternalApi()"
+                        class="w-full sm:w-auto h-9 px-5 text-sm font-medium text-white bg-munti-green-600 hover:bg-munti-green-500 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed">
+                    Save API
+                </button>
             </div>
         </div>
     </div>
@@ -540,24 +540,15 @@
                 <div id="editTestResult" class="hidden mt-4 p-3 rounded-lg border text-xs"></div>
             </div>
 
-            <div class="px-4 sm:px-6 py-3 sm:py-4 border-t border-border-700 bg-surface-800/60 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 shrink-0">
-                <button type="button" onclick="testEditApi()" id="editTestBtn"
-                        class="inline-flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium text-munti-yellow-400 bg-munti-yellow-700/20 border border-munti-yellow-600/30 rounded-lg hover:bg-munti-yellow-700/30 transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
-                    <span>Test API</span>
+            <div class="px-4 sm:px-6 py-3 sm:py-4 border-t border-border-700 bg-surface-800/60 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3 shrink-0">
+                <button type="button" onclick="closeEditCalibrationModal()"
+                        class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
+                    Cancel
                 </button>
-                <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                    <button type="button" onclick="closeEditCalibrationModal()"
-                            class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
-                        Cancel
-                    </button>
-                    <button type="button" id="editSaveBtn" onclick="updateExternalApi()"
-                            class="w-full sm:w-auto h-9 px-5 text-sm font-medium text-white bg-munti-blue-600 hover:bg-munti-blue-500 rounded-lg transition">
-                        Update API
-                    </button>
-                </div>
+                <button type="button" id="editSaveBtn" onclick="updateExternalApi()"
+                        class="w-full sm:w-auto h-9 px-5 text-sm font-medium text-white bg-munti-blue-600 hover:bg-munti-blue-500 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed">
+                    Update API
+                </button>
             </div>
         </div>
     </div>
@@ -592,8 +583,6 @@
     };
     DEFAULT_FIELDS.edit = DEFAULT_FIELDS.add;
 
-    let addApiTested = false;
-    let editApiTested = false;
     let editCurrentId = null;
     let editSavedChecklist = [];   // saved selection to keep checked
     let editAvailableFields = [];  // fields currently shown in the edit modal
@@ -642,16 +631,38 @@
     function escapeAttr(str) {
         return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
+    function is2xx(status) { return typeof status === 'number' && status >= 200 && status < 300; }
+
+    // ========== BUTTON LOADING ==========
+    function setButtonLoading(btnId, loading, loadingText) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        if (loading) {
+            if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `
+                <svg class="w-4 h-4 animate-spin inline-block align-[-2px] mr-1.5" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+                <span>${loadingText || 'Checking API…'}</span>
+            `;
+        } else {
+            btn.disabled = false;
+            if (btn.dataset.originalHtml) {
+                btn.innerHTML = btn.dataset.originalHtml;
+                delete btn.dataset.originalHtml;
+            }
+        }
+    }
 
     // ========== DYNAMIC FIELD LIST ==========
-    // checkedValues: array of values that should be checked (may include values not in `fields`)
     function renderDynamicFields(prefix, fields, checkedValues) {
         const container = document.getElementById(prefix + 'FieldList');
         const hint = document.getElementById(prefix + 'FieldListHint');
         const resetBtn = document.getElementById(prefix + 'ResetFieldsBtn');
         if (!container) return;
 
-        // If checkedValues not provided, keep the current checkbox state
         let checked;
         if (Array.isArray(checkedValues)) {
             checked = checkedValues.slice();
@@ -659,7 +670,6 @@
             checked = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
         }
 
-        // Build a complete list: all fields (from API) + any extra checked values that aren't in the list
         const combined = [];
         const seen = new Set();
         (fields || []).forEach(f => { if (!seen.has(f)) { seen.add(f); combined.push(f); } });
@@ -703,125 +713,100 @@
             </label>
         `).join('');
 
-        hint.innerHTML = `Click <strong class="text-munti-yellow-400">Test API</strong> to load real fields from the response.`;
+        hint.innerHTML = prefix === 'edit'
+            ? 'Fields will be loaded from the live API endpoint automatically.'
+            : 'Select the data fields you want to map from the API response.';
         hint.className = 'text-[10px] text-text-500 mt-1.5';
 
         if (resetBtn) resetBtn.classList.add('hidden');
     }
 
-    // ========== TEST API ==========
+    // ========== API CHECK POPUP ==========
+    function showApiCheckPopup({ status, message, error, onEdit, onSaveAnyway }) {
+        let statusLabel = 'Unknown Status';
+        let pillStyle = 'background: rgba(239,68,68,0.15); color: #f87171;';
+        if (status >= 200 && status < 300) {
+            statusLabel = 'Success';
+            pillStyle = 'background: rgba(34,197,94,0.15); color: #4ade80;';
+        } else if (status >= 300 && status < 400) {
+            statusLabel = 'Redirect';
+            pillStyle = 'background: rgba(59,130,246,0.15); color: #60a5fa;';
+        } else if (status >= 400 && status < 500) {
+            statusLabel = 'Client Error';
+            pillStyle = 'background: rgba(249,115,22,0.15); color: #fb923c;';
+        } else if (status >= 500) {
+            statusLabel = 'Server Error';
+            pillStyle = 'background: rgba(239,68,68,0.15); color: #f87171;';
+        }
+
+        Swal.fire({
+            title: 'API Check Did Not Pass',
+            html: `
+                <div style="text-align: left; font-size: 13px; line-height: 1.5;">
+                    <p style="margin-bottom: 10px;">
+                        <span class="swal-status-pill" style="${pillStyle}">
+                            ${statusLabel}${status ? ' · HTTP ' + status : ''}
+                        </span>
+                    </p>
+                    <p style="color: #d1d5db; margin-bottom: 12px;">
+                        ${escapeHtml(message || 'The API did not respond successfully.')}
+                    </p>
+                    ${error ? `<pre style="background: rgba(0,0,0,0.35); padding: 8px 10px; border-radius: 6px; font-size: 11px; color: #fca5a5; white-space: pre-wrap; word-break: break-all; max-height: 140px; overflow-y: auto; margin: 0;">${escapeHtml(error)}</pre>` : ''}
+                    <p style="margin-top: 14px; color: #9ca3af; font-size: 12px;">
+                        Would you like to <strong style="color: #93c5fd;">edit the input</strong> and try again, or <strong style="color: #fca5a5;">save anyway</strong>?
+                    </p>
+                </div>
+            `,
+            icon: 'warning',
+            showConfirmButton: true,
+            showDenyButton: true,
+            showCancelButton: true,
+            confirmButtonText: 'Save Anyway',
+            denyButtonText: 'Edit Input',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#dc2626',
+            denyButtonColor: '#2563eb',
+            cancelButtonColor: '#6b7280',
+            background: '#1f2937',
+            color: '#f3f4f6',
+            iconColor: '#f59e0b',
+            reverseButtons: false,
+        }).then((result) => {
+            if (result.isConfirmed) {
+                onSaveAnyway && onSaveAnyway();
+            } else if (result.isDenied) {
+                onEdit && onEdit();
+            }
+        });
+    }
+
+    // ========== TEST RESULT RENDERER (still used in edit modal auto-load status) ==========
     function renderTestResult(containerId, result) {
         const container = document.getElementById(containerId);
+        if (!container) return;
         container.classList.remove('hidden', 'bg-munti-green-700/10', 'bg-munti-red-700/10',
             'border-munti-green-600/30', 'border-munti-red-600/30', 'text-munti-green-300', 'text-munti-red-300');
 
         if (result.success) {
             container.classList.add('bg-munti-green-700/10', 'border-munti-green-600/30', 'text-munti-green-300');
-            let previewHtml = '';
-            if (result.preview) {
-                const previewStr = typeof result.preview === 'string' ? result.preview : JSON.stringify(result.preview, null, 2);
-                const truncated = previewStr.length > 1500 ? previewStr.substring(0, 1500) + '\n... (truncated)' : previewStr;
-                previewHtml = `<pre class="mt-2 p-2 bg-black/40 rounded text-[11px] whitespace-pre-wrap break-all max-h-48 overflow-y-auto thin-scrollbar">${escapeHtml(truncated)}</pre>`;
-            }
             container.innerHTML = `
                 <div class="flex flex-wrap items-center gap-2 font-medium">
                     <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                    <span>${result.message}</span>
+                    <span>${escapeHtml(result.message || 'OK')}</span>
                     <span class="ml-auto text-[10px] opacity-75">HTTP ${result.status || '—'} · ${result.duration_ms || 0} ms</span>
                 </div>
-                ${previewHtml}
             `;
         } else {
             container.classList.add('bg-munti-red-700/10', 'border-munti-red-600/30', 'text-munti-red-300');
             container.innerHTML = `
                 <div class="flex flex-wrap items-center gap-2 font-medium">
                     <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                    <span>${result.message || 'API test failed.'}</span>
+                    <span>${escapeHtml(result.message || 'API test failed.')}</span>
                     ${result.status ? `<span class="ml-auto text-[10px] opacity-75">HTTP ${result.status}${result.duration_ms ? ' · ' + result.duration_ms + ' ms' : ''}</span>` : ''}
                 </div>
                 ${result.error ? `<pre class="mt-2 p-2 bg-black/40 rounded text-[11px] whitespace-pre-wrap break-all">${escapeHtml(result.error)}</pre>` : ''}
             `;
         }
-    }
-
-    function runApiTest({ source, url, token, authType, resultContainer, buttonEl, isEdit }) {
-        const container = document.getElementById(resultContainer);
-        container.classList.add('hidden');
-        container.innerHTML = '';
-
-        if (!url || !token) {
-            Swal.fire('Validation Error', 'Please fill in the API URL and Bearer Token before testing.', 'warning');
-            return;
-        }
-
-        const originalHtml = buttonEl.innerHTML;
-        buttonEl.disabled = true;
-        buttonEl.innerHTML = `
-            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
-            <span>Testing...</span>
-        `;
-
-        sendRequest('POST', '/settings/calibration/test',
-            { source, api_url: url, api_token: token, auth_type: authType },
-            (data) => {
-                renderTestResult(resultContainer, data);
-                const prefix = isEdit ? 'edit' : 'add';
-                if (isEdit) { editApiTested = data.success; } else { addApiTested = data.success; }
-
-                if (data.success && Array.isArray(data.fields) && data.fields.length) {
-                    // For add: preserve existing checked state
-                    // For edit: use saved checklist as baseline if present, else preserve
-                    const checked = (isEdit && editSavedChecklist.length)
-                        ? editSavedChecklist
-                        : Array.from(document.querySelectorAll(`input[name="${prefix}_params"]:checked`)).map(cb => cb.value);
-                    renderDynamicFields(prefix, data.fields, checked);
-                }
-
-                buttonEl.disabled = false;
-                buttonEl.innerHTML = originalHtml;
-            },
-            (error) => {
-                renderTestResult(resultContainer, {
-                    success: false,
-                    message: error.message || 'Test request failed.',
-                    error: error.errors ? Object.values(error.errors).flat().join('\n') : null,
-                });
-                if (isEdit) { editApiTested = false; } else { addApiTested = false; }
-                buttonEl.disabled = false;
-                buttonEl.innerHTML = originalHtml;
-            }
-        );
-    }
-
-    function testAddApi() {
-        runApiTest({
-            source: document.getElementById('apiSource').value,
-            url: document.getElementById('apiUrl').value,
-            token: document.getElementById('apiKey').value,
-            authType: document.getElementById('authType').value,
-            resultContainer: 'addTestResult',
-            buttonEl: document.getElementById('addTestBtn'),
-            isEdit: false,
-        });
-    }
-
-    function testEditApi() {
-        // If user provided a new token, test with it. Otherwise, fall back to stored token via fetch-response.
-        const token = document.getElementById('editApiKey').value;
-        if (!token || token.trim() === '') {
-            // Use stored token
-            refreshEditFields();
-            return;
-        }
-        runApiTest({
-            source: document.getElementById('editApiSource').value,
-            url: document.getElementById('editApiUrl').value,
-            token: token,
-            authType: document.getElementById('editAuthType').value,
-            resultContainer: 'editTestResult',
-            buttonEl: document.getElementById('editTestBtn'),
-            isEdit: true,
-        });
     }
 
     // Refresh edit fields from the live API (uses stored token via /fetch-response)
@@ -844,7 +829,6 @@
             loader.classList.add('hidden');
             loader.classList.remove('flex');
 
-            // Show a mini status in the test result panel
             renderTestResult('editTestResult', {
                 success: data.success,
                 status: data.status,
@@ -852,7 +836,6 @@
                 message: data.success ? 'Live fields loaded from API.' : (data.message || 'Could not load fields.'),
                 error: data.error || null,
             });
-            editApiTested = !!data.success;
 
             if (Array.isArray(data.fields) && data.fields.length) {
                 editAvailableFields = data.fields;
@@ -1051,7 +1034,6 @@
 
     // ========== ADD MODAL ==========
     function openAddCalibrationModal() {
-        addApiTested = false;
         document.getElementById('addTestResult').classList.add('hidden');
         document.getElementById('addTestResult').innerHTML = '';
         document.getElementById('addApiModal').classList.remove('hidden');
@@ -1066,13 +1048,12 @@
         document.getElementById('apiKey').value = '';
         document.getElementById('addTestResult').classList.add('hidden');
         document.getElementById('addTestResult').innerHTML = '';
-        addApiTested = false;
         updateDocContent(document.getElementById('docContent'), '');
         resetFieldList('add');
+        setButtonLoading('addSaveBtn', false);
     }
 
     document.getElementById('apiSource')?.addEventListener('change', function () {
-        addApiTested = false;
         updateDocContent(document.getElementById('docContent'), this.value);
         const urlField = document.getElementById('apiUrl');
         urlField.placeholder = this.value === 'accuweather'
@@ -1080,32 +1061,83 @@
             : 'https://api.example.com/v1/endpoint';
     });
 
+    // ========== SAVE (ADD) — checks API first, then saves or prompts ==========
     function saveExternalApi() {
-        if (!addApiTested) {
-            Swal.fire('Test Required', 'Please run a successful API test before saving.', 'warning');
-            return;
-        }
         const source = document.getElementById('apiSource').value;
-        const url = document.getElementById('apiUrl').value;
+        const url = document.getElementById('apiUrl').value.trim();
         const token = document.getElementById('apiKey').value;
         const authType = document.getElementById('authType').value;
-        const checklist = Array.from(document.querySelectorAll('input[name="add_params"]:checked')).map(cb => cb.value);
 
         if (!source || !url || !token) {
             Swal.fire('Validation Error', 'Please fill in all fields.', 'warning');
             return;
         }
-        const payload = { source, api_url: url, api_token: token, auth_type: authType, checklist, total_data: 0, requests_per_min: 0, file_path: null };
+
+        setButtonLoading('addSaveBtn', true, 'Checking API…');
+
+        sendRequest('POST', '/settings/calibration/test',
+            { source, api_url: url, api_token: token, auth_type: authType },
+            (data) => {
+                setButtonLoading('addSaveBtn', false);
+
+                // Update field list silently with API-returned fields (preserve selection)
+                if (data.success && Array.isArray(data.fields) && data.fields.length) {
+                    const checked = Array.from(document.querySelectorAll('input[name="add_params"]:checked')).map(cb => cb.value);
+                    renderDynamicFields('add', data.fields, checked);
+                }
+
+                if (is2xx(data.status)) {
+                    // All good — save directly
+                    proceedToSaveAdd({ source, url, token, authType });
+                } else {
+                    // Warning / error — ask the user
+                    showApiCheckPopup({
+                        status: data.status,
+                        message: data.message,
+                        error: data.error,
+                        onEdit: () => {
+                            const urlField = document.getElementById('apiUrl');
+                            urlField.focus();
+                            urlField.select();
+                        },
+                        onSaveAnyway: () => proceedToSaveAdd({ source, url, token, authType }),
+                    });
+                }
+            },
+            (error) => {
+                setButtonLoading('addSaveBtn', false);
+                const msg = error.errors
+                    ? Object.values(error.errors).flat().join('\n')
+                    : (error.message || 'Could not reach the API for validation.');
+                Swal.fire('API Check Failed', msg, 'error');
+            }
+        );
+    }
+
+    function proceedToSaveAdd({ source, url, token, authType }) {
+        const checklist = Array.from(document.querySelectorAll('input[name="add_params"]:checked')).map(cb => cb.value);
+        const payload = {
+            source, api_url: url, api_token: token, auth_type: authType,
+            checklist, total_data: 0, requests_per_min: 0, file_path: null
+        };
+
+        setButtonLoading('addSaveBtn', true, 'Saving…');
+
         sendRequest('POST', '/settings/calibration', payload, (data) => {
             Swal.fire('Success', data.message, 'success');
             closeAddCalibrationModal();
             window.location.reload();
+        }, (error) => {
+            setButtonLoading('addSaveBtn', false);
+            const msg = error.errors
+                ? Object.values(error.errors).flat().join('\n')
+                : (error.message || 'Failed to save the API record.');
+            Swal.fire('Save Failed', msg, 'error');
         });
     }
 
     // ========== EDIT MODAL ==========
     function editCalibration(id) {
-        editApiTested = false;
         editCurrentId = id;
         editSavedChecklist = [];
         editAvailableFields = [];
@@ -1117,7 +1149,6 @@
         loader.classList.add('hidden');
         loader.classList.remove('flex');
 
-        // Reset field list to defaults while loading
         resetFieldList('edit');
 
         fetch(`/settings/calibration/${id}`, {
@@ -1148,14 +1179,13 @@
         document.body.style.overflow = '';
         document.getElementById('editTestResult').classList.add('hidden');
         document.getElementById('editTestResult').innerHTML = '';
-        editApiTested = false;
         editCurrentId = null;
         editSavedChecklist = [];
         editAvailableFields = [];
+        setButtonLoading('editSaveBtn', false);
     }
 
     document.getElementById('editApiSource')?.addEventListener('change', function () {
-        editApiTested = false;
         updateDocContent(document.getElementById('editDocContent'), this.value);
         const urlField = document.getElementById('editApiUrl');
         urlField.placeholder = this.value === 'accuweather'
@@ -1163,29 +1193,92 @@
             : 'https://api.example.com/v1/endpoint';
     });
 
+    // ========== UPDATE (EDIT) — checks API first, then saves or prompts ==========
     function updateExternalApi() {
-        if (!editApiTested) {
-            Swal.fire('Test Required', 'Please run a successful API test before updating.', 'warning');
-            return;
-        }
         const id = document.getElementById('editApiModal').dataset.id;
         if (!id) { Swal.fire('Error', 'No record ID found.', 'error'); return; }
 
         const source = document.getElementById('editApiSource').value;
-        const url = document.getElementById('editApiUrl').value;
+        const url = document.getElementById('editApiUrl').value.trim();
         const token = document.getElementById('editApiKey').value;
         const authType = document.getElementById('editAuthType').value;
-        const checklist = Array.from(document.querySelectorAll('input[name="edit_params"]:checked')).map(cb => cb.value);
 
-        if (!source || !url) { Swal.fire('Validation Error', 'Please fill in required fields.', 'warning'); return; }
+        if (!source || !url) {
+            Swal.fire('Validation Error', 'Please fill in required fields.', 'warning');
+            return;
+        }
+
+        setButtonLoading('editSaveBtn', true, 'Checking API…');
+
+        // If a new token is supplied, test against the live endpoint with it.
+        // Otherwise fall back to the stored token via fetch-response.
+        const checkPromise = (token && token.trim() !== '')
+            ? new Promise((resolve) => {
+                sendRequest('POST', '/settings/calibration/test',
+                    { source, api_url: url, api_token: token, auth_type: authType },
+                    (data) => resolve(data),
+                    (err) => resolve({
+                        success: false,
+                        message: err.message || 'API check failed.',
+                        error: err.errors ? Object.values(err.errors).flat().join('\n') : null,
+                    })
+                );
+            })
+            : fetch(`/settings/calibration/${id}/fetch-response`, {
+                headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
+            }).then(r => r.json()).catch(err => ({
+                success: false,
+                message: err.message || 'Could not reach the API.',
+            }));
+
+        checkPromise.then((data) => {
+            setButtonLoading('editSaveBtn', false);
+
+            // Silently refresh field list if API returned fields
+            if (data.success && Array.isArray(data.fields) && data.fields.length) {
+                editAvailableFields = data.fields;
+                const checked = Array.from(document.querySelectorAll('input[name="edit_params"]:checked')).map(cb => cb.value);
+                renderDynamicFields('edit', data.fields, checked);
+            }
+
+            if (is2xx(data.status) || data.success === true) {
+                // All good — update directly
+                proceedToSaveEdit({ id, source, url, token, authType });
+            } else {
+                // Warning / error — ask the user
+                showApiCheckPopup({
+                    status: data.status,
+                    message: data.message,
+                    error: data.error,
+                    onEdit: () => {
+                        const urlField = document.getElementById('editApiUrl');
+                        urlField.focus();
+                        urlField.select();
+                    },
+                    onSaveAnyway: () => proceedToSaveEdit({ id, source, url, token, authType }),
+                });
+            }
+        });
+    }
+
+    function proceedToSaveEdit({ id, source, url, token, authType }) {
+        const checklist = Array.from(document.querySelectorAll('input[name="edit_params"]:checked')).map(cb => cb.value);
 
         const payload = { source, api_url: url, auth_type: authType, checklist };
         if (token && token.trim() !== '') payload.api_token = token;
+
+        setButtonLoading('editSaveBtn', true, 'Saving…');
 
         sendRequest('PUT', `/settings/calibration/${id}`, payload, (data) => {
             Swal.fire('Success', data.message, 'success');
             closeEditCalibrationModal();
             window.location.reload();
+        }, (error) => {
+            setButtonLoading('editSaveBtn', false);
+            const msg = error.errors
+                ? Object.values(error.errors).flat().join('\n')
+                : (error.message || 'Failed to update the API record.');
+            Swal.fire('Update Failed', msg, 'error');
         });
     }
 
