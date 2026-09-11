@@ -88,37 +88,51 @@ class DashboardController extends Controller
     }
 
     /**
-     * Get camera status counts based on last_status from the database
+     * Per-camera status list, same rules getCameraStatusCounts() has
+     * always used:
      * - last_status = 'online' -> Online
      * - last_status = 'error' -> Offline
      * - enabled = false -> Offline
      * - no last_status set and enabled = true -> Online (default)
+     *
+     * Kept as its own method (mirroring buildLeadSensorData()) so the
+     * image report can list individual offline cameras, not just a
+     * tally. NOTE: 'station' and 'detail' below assume the Camera model
+     * has `name` and `ip_address` columns — adjust those two lines if
+     * your schema names them differently.
      */
-    private function getCameraStatusCounts(): array
+    private function buildCameraData(): \Illuminate\Support\Collection
     {
-        $cameras = \App\Models\Camera::all();
-        
-        $counts = ['online' => 0, 'idle' => 0, 'offline' => 0];
-        
-        foreach ($cameras as $camera) {
-            // Disabled cameras are always offline
+        return \App\Models\Camera::all()->map(function ($camera) {
             if (!$camera->enabled) {
-                $counts['offline']++;
-                continue;
-            }
-            
-            // Use the last_status from the database
-            if ($camera->last_status === 'online') {
-                $counts['online']++;
+                // Disabled cameras are always offline
+                $status = 'offline';
+            } elseif ($camera->last_status === 'online') {
+                $status = 'online';
             } elseif ($camera->last_status === 'error') {
-                $counts['offline']++;
+                $status = 'offline';
             } else {
                 // If no status set but enabled, consider it online
                 // (or you could default to offline if you prefer)
-                $counts['online']++;
+                $status = 'online';
             }
+
+            return (object) [
+                'station' => $camera->name ?? ('Camera #' . $camera->id),
+                'detail'  => $camera->ip_address ?? '—',
+                'status'  => $status,
+            ];
+        })->values();
+    }
+
+    private function getCameraStatusCounts(): array
+    {
+        $counts = ['online' => 0, 'idle' => 0, 'offline' => 0];
+
+        foreach ($this->buildCameraData() as $camera) {
+            $counts[$camera->status]++;
         }
-        
+
         return $counts;
     }
 
@@ -198,6 +212,7 @@ class DashboardController extends Controller
                     'station_mn' => $station->station_mn,
                     'station'    => $station->station_name ?: $station->station_mn,
                     'ip'         => $station->lead_ip,
+                    'detail'     => $station->lead_ip, // alias of 'ip', for drawImgSimpleStationTable()
                     // Ping is a point-in-time reachability check, not a
                     // reporting-timestamp threshold, so there's no natural
                     // "idle" middle state here — just reachable or not.
@@ -376,6 +391,15 @@ class DashboardController extends Controller
         $cameraCounts     = $this->getCameraStatusCounts();
         $leadSensorCounts = $this->getLeadSensorStatusCounts();
 
+        // Full per-device lists (not just counts) so the report can list
+        // individual offline cameras/lead sensors the same way it already
+        // does for Air Quality/Seismic stations. buildLeadSensorData()'s
+        // ping results are cached for 15s (see its doc comment), so this
+        // second call — after getLeadSensorStatusCounts() already
+        // triggered one — reuses that cache instead of re-pinging.
+        $cameraData     = $this->buildCameraData();
+        $leadSensorData = $this->buildLeadSensorData();
+
         $generatedAt = now()->timezone('Asia/Manila');
 
         // $request->user() only resolves if the auth guard actually
@@ -428,6 +452,8 @@ class DashboardController extends Controller
             'seismicCounts'    => $seismicCounts,
             'cameraCounts'     => $cameraCounts,
             'leadSensorCounts' => $leadSensorCounts,
+            'cameraData'       => $cameraData,
+            'leadSensorData'   => $leadSensorData,
             'generatedAt'      => $generatedAt,
             'generatedBy'      => $generatedBy,
 
@@ -1218,12 +1244,14 @@ class DashboardController extends Controller
             [
                 ['Air Quality', $ctx['airQualityCounts']['online'], $ctx['airQualityCounts']['idle'], $ctx['airQualityCounts']['offline'], $ctx['airQualityData']->count()],
                 ['Seismic',     $ctx['seismicCounts']['online'],    $ctx['seismicCounts']['idle'],    $ctx['seismicCounts']['offline'],    $ctx['seismicData']->count()],
+                ['Camera',      $ctx['cameraCounts']['online'],     $ctx['cameraCounts']['idle'],     $ctx['cameraCounts']['offline'],     $ctx['cameraData']->count()],
+                ['Lead Sensor', $ctx['leadSensorCounts']['online'], $ctx['leadSensorCounts']['idle'], $ctx['leadSensorCounts']['offline'], $ctx['leadSensorData']->count()],
                 [
                     'Total',
-                    $ctx['airQualityCounts']['online'] + $ctx['seismicCounts']['online'],
-                    $ctx['airQualityCounts']['idle']   + $ctx['seismicCounts']['idle'],
-                    $ctx['airQualityCounts']['offline']+ $ctx['seismicCounts']['offline'],
-                    $ctx['airQualityData']->count() + $ctx['seismicData']->count(),
+                    $ctx['airQualityCounts']['online'] + $ctx['seismicCounts']['online'] + $ctx['cameraCounts']['online'] + $ctx['leadSensorCounts']['online'],
+                    $ctx['airQualityCounts']['idle']   + $ctx['seismicCounts']['idle']   + $ctx['cameraCounts']['idle']   + $ctx['leadSensorCounts']['idle'],
+                    $ctx['airQualityCounts']['offline']+ $ctx['seismicCounts']['offline']+ $ctx['cameraCounts']['offline']+ $ctx['leadSensorCounts']['offline'],
+                    $ctx['airQualityData']->count() + $ctx['seismicData']->count() + $ctx['cameraData']->count() + $ctx['leadSensorData']->count(),
                 ],
             ]
         );
@@ -1271,6 +1299,38 @@ class DashboardController extends Controller
             'Seismic Stations',
             $ctx['seismicData'],
             $ctx['seismicCounts'],
+            self::IMAGE_MARGIN,
+            $y,
+            self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
+            $pages,
+            $page
+        );
+
+        // Camera table – full width
+        $y = $this->ensureSpace($pages, $page, $y, 180);   // need ~180px
+        $y += 20;
+        $y = $this->drawImgSimpleStationTable(
+            $page,
+            'Camera Devices',
+            $ctx['cameraData'],
+            $ctx['cameraCounts'],
+            'IP Address',
+            self::IMAGE_MARGIN,
+            $y,
+            self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
+            $pages,
+            $page
+        );
+
+        // Lead Sensor table – full width
+        $y = $this->ensureSpace($pages, $page, $y, 180);   // need ~180px
+        $y += 20;
+        $y = $this->drawImgSimpleStationTable(
+            $page,
+            'Lead Sensor Stations',
+            $ctx['leadSensorData'],
+            $ctx['leadSensorCounts'],
+            'IP Address',
             self::IMAGE_MARGIN,
             $y,
             self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
@@ -1585,6 +1645,88 @@ class DashboardController extends Controller
             ['label' => 'Total',   'width' => $totalW, 'align' => 'right'],
             ['label' => 'Latest',  'width' => $latestW],
             ['label' => 'Status',  'width' => $statusW,  'align' => 'center'], 
+        ];
+    }
+
+    /**
+     * Same offline-only filtering + pagination shape as
+     * drawImgStationTable(), for lists that don't have a reading-count
+     * "Total" or a "Latest" reading timestamp the way Air Quality/Seismic
+     * stations do (Camera, Lead Sensor). $detailLabel/$item->detail take
+     * the place of those two columns — e.g. an IP address.
+     */
+    private function drawImgSimpleStationTable(&$image, string $title, $data, array $counts, string $detailLabel, int $x, int $y, int $width, array &$pages, &$page): int
+    {
+        $total = $data->count();
+        $heading = $title . ' (' . $counts['online'] . ' online / ' . $total . ' total)';
+        $rowHeight = 32;
+        $headerHeight = 32;
+
+        if ($total === 0) {
+            $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
+            $placeholderRows = [
+                ['—', 'No devices available', '', ['badge' => true, 'label' => 'N/A', 'status' => 'unknown']]
+            ];
+            $y = $this->drawImgTable($image, $x, $y, $width, $this->simpleStationTableColumns($width, $detailLabel), $placeholderRows, $rowHeight);
+            return $y;
+        }
+
+        // Only offline devices get a row — same reasoning as
+        // drawImgStationTable(): online/idle counts are already covered
+        // by the heading and the pie chart above.
+        $offlineData = $data->filter(fn ($item) => $item->status === 'offline')->values();
+        $totalRows = $offlineData->count();
+
+        if ($totalRows === 0) {
+            $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
+            $y = $this->drawImgTable($image, $x, $y, $width, $this->simpleStationTableColumns($width, $detailLabel), [
+                ['—', 'All devices online — nothing to report', '', ['badge' => true, 'label' => 'Online', 'status' => 'online']],
+            ], $rowHeight);
+            return $y;
+        }
+
+        $start = 0;
+        while ($start < $totalRows) {
+            $needed = $headerHeight + $rowHeight + 10;
+            $y = $this->ensureSpace($pages, $page, $y, $needed);
+            $image = $page;
+
+            $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
+
+            $available = self::IMAGE_HEIGHT - self::IMAGE_MARGIN - $y - 30;
+            $rowsPerPage = max(1, intdiv($available, $rowHeight + 2));
+
+            $chunk = $offlineData->slice($start, $rowsPerPage);
+            $rows = [];
+            foreach ($chunk as $i => $item) {
+                $rows[] = [
+                    $start + $i + 1,
+                    (string) $item->station,
+                    (string) ($item->detail ?? '—'),
+                    ['badge' => true, 'label' => ucfirst($item->status), 'status' => $item->status],
+                ];
+            }
+
+            $y = $this->drawImgTable($image, $x, $y, $width, $this->simpleStationTableColumns($width, $detailLabel), $rows, $rowHeight);
+
+            $start += $rowsPerPage;
+
+            if ($start < $totalRows) {
+                $y += 20;
+            }
+        }
+
+        return $y;
+    }
+
+    private function simpleStationTableColumns(int $width, string $detailLabel): array
+    {
+        [$noW, $stationW, $detailW, $statusW] = $this->imgColumnWidths($width, [0.08, 0.42, 0.30, 0.20]);
+        return [
+            ['label' => 'No.',        'width' => $noW, 'align' => 'center'],
+            ['label' => 'Device',     'width' => $stationW],
+            ['label' => $detailLabel, 'width' => $detailW],
+            ['label' => 'Status',     'width' => $statusW, 'align' => 'center'],
         ];
     }
 
