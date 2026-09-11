@@ -18,11 +18,13 @@ class CalibrationApi extends Model
         'checklist',
         'total_data',
         'requests_per_min',
+        'enabled',
     ];
 
     protected $casts = [
-        'checklist' => 'array',
-        'total_data' => 'integer',
+        'checklist'        => 'array',
+        'total_data'       => 'integer',
         'requests_per_min' => 'integer',
+        'enabled'          => 'boolean',
     ];
 }

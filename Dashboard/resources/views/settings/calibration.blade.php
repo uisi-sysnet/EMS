@@ -77,6 +77,22 @@
     .status-5xx { background: rgba(239,68,68,0.12);  color: #f87171; border-color: rgba(239,68,68,0.3); }
     .status-err { background: rgba(239,68,68,0.12);  color: #f87171; border-color: rgba(239,68,68,0.3); }
 
+    /* Enabled / Disabled pill */
+    .enabled-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        border: 1px solid;
+    }
+    .enabled-pill-on  { background: rgba(34,197,94,0.12); color: #4ade80; border-color: rgba(34,197,94,0.3); }
+    .enabled-pill-off { background: rgba(239,68,68,0.12); color: #f87171; border-color: rgba(239,68,68,0.3); }
+    .enabled-dot { width: 6px; height: 6px; border-radius: 9999px; background: currentColor; }
+
     .json-skeleton {
         display: inline-block;
         height: 12px;
@@ -139,6 +155,7 @@
                                 <tr>
                                     <th scope="col" class="px-4 py-3 text-left font-medium">No.</th>
                                     <th scope="col" class="px-4 py-3 text-left font-medium">Source</th>
+                                    <th scope="col" class="px-4 py-3 text-left font-medium">Status</th>
                                     <th scope="col" class="px-4 py-3 text-left font-medium">File</th>
                                     <th scope="col" class="px-4 py-3 text-left font-medium">Checklist of Data</th>
                                     <th scope="col" class="px-4 py-3 text-left font-medium">Total Data</th>
@@ -153,6 +170,19 @@
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $index + 1 }}</td>
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center gap-1.5 text-xs text-text-200">{{ $cal->source }}</span>
+                                    </td>
+                                    <td class="px-4 py-2.5 whitespace-nowrap">
+                                        @if($cal->enabled)
+                                            <span class="enabled-pill enabled-pill-on" title="API responded successfully on last save">
+                                                <span class="enabled-dot"></span>
+                                                Enabled
+                                            </span>
+                                        @else
+                                            <span class="enabled-pill enabled-pill-off" title="API did not respond successfully on last save">
+                                                <span class="enabled-dot"></span>
+                                                Disabled
+                                            </span>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <span class="inline-flex items-center gap-1.5 text-xs text-text-200">{{ $cal->file_path ? basename($cal->file_path) : '—' }}</span>
@@ -204,7 +234,7 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="8" class="px-4 py-8 text-center text-text-500 text-sm">
+                                    <td colspan="9" class="px-4 py-8 text-center text-text-500 text-sm">
                                         No calibration records found.
                                     </td>
                                 </tr>
@@ -584,8 +614,8 @@
     DEFAULT_FIELDS.edit = DEFAULT_FIELDS.add;
 
     let editCurrentId = null;
-    let editSavedChecklist = [];   // saved selection to keep checked
-    let editAvailableFields = [];  // fields currently shown in the edit modal
+    let editSavedChecklist = [];
+    let editAvailableFields = [];
 
     function updateDocContent(docDiv, source) {
         if (source && docMap[source]) {
@@ -753,6 +783,9 @@
                     </p>
                     ${error ? `<pre style="background: rgba(0,0,0,0.35); padding: 8px 10px; border-radius: 6px; font-size: 11px; color: #fca5a5; white-space: pre-wrap; word-break: break-all; max-height: 140px; overflow-y: auto; margin: 0;">${escapeHtml(error)}</pre>` : ''}
                     <p style="margin-top: 14px; color: #9ca3af; font-size: 12px;">
+                        Saving anyway will mark this API as <strong style="color: #fca5a5;">Disabled</strong>.
+                    </p>
+                    <p style="margin-top: 6px; color: #9ca3af; font-size: 12px;">
                         Would you like to <strong style="color: #93c5fd;">edit the input</strong> and try again, or <strong style="color: #fca5a5;">save anyway</strong>?
                     </p>
                 </div>
@@ -780,7 +813,6 @@
         });
     }
 
-    // ========== TEST RESULT RENDERER (still used in edit modal auto-load status) ==========
     function renderTestResult(containerId, result) {
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -809,7 +841,6 @@
         }
     }
 
-    // Refresh edit fields from the live API (uses stored token via /fetch-response)
     function refreshEditFields() {
         if (!editCurrentId) return;
 
@@ -1080,17 +1111,16 @@
             (data) => {
                 setButtonLoading('addSaveBtn', false);
 
-                // Update field list silently with API-returned fields (preserve selection)
                 if (data.success && Array.isArray(data.fields) && data.fields.length) {
                     const checked = Array.from(document.querySelectorAll('input[name="add_params"]:checked')).map(cb => cb.value);
                     renderDynamicFields('add', data.fields, checked);
                 }
 
                 if (is2xx(data.status)) {
-                    // All good — save directly
-                    proceedToSaveAdd({ source, url, token, authType });
+                    // 2xx → enabled = true
+                    proceedToSaveAdd({ source, url, token, authType, enabled: true });
                 } else {
-                    // Warning / error — ask the user
+                    // Non-2xx → ask user; if save anyway, enabled = false
                     showApiCheckPopup({
                         status: data.status,
                         message: data.message,
@@ -1100,7 +1130,7 @@
                             urlField.focus();
                             urlField.select();
                         },
-                        onSaveAnyway: () => proceedToSaveAdd({ source, url, token, authType }),
+                        onSaveAnyway: () => proceedToSaveAdd({ source, url, token, authType, enabled: false }),
                     });
                 }
             },
@@ -1114,11 +1144,12 @@
         );
     }
 
-    function proceedToSaveAdd({ source, url, token, authType }) {
+    function proceedToSaveAdd({ source, url, token, authType, enabled }) {
         const checklist = Array.from(document.querySelectorAll('input[name="add_params"]:checked')).map(cb => cb.value);
         const payload = {
             source, api_url: url, api_token: token, auth_type: authType,
-            checklist, total_data: 0, requests_per_min: 0, file_path: null
+            checklist, total_data: 0, requests_per_min: 0, file_path: null,
+            enabled: !!enabled,
         };
 
         setButtonLoading('addSaveBtn', true, 'Saving…');
@@ -1168,7 +1199,6 @@
             document.getElementById('editApiModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
 
-            // Auto-load live fields so ALL fields are visible immediately
             refreshEditFields();
         })
         .catch(err => { Swal.fire('Error', 'Could not load record for editing.', 'error'); });
@@ -1210,8 +1240,6 @@
 
         setButtonLoading('editSaveBtn', true, 'Checking API…');
 
-        // If a new token is supplied, test against the live endpoint with it.
-        // Otherwise fall back to the stored token via fetch-response.
         const checkPromise = (token && token.trim() !== '')
             ? new Promise((resolve) => {
                 sendRequest('POST', '/settings/calibration/test',
@@ -1234,18 +1262,19 @@
         checkPromise.then((data) => {
             setButtonLoading('editSaveBtn', false);
 
-            // Silently refresh field list if API returned fields
             if (data.success && Array.isArray(data.fields) && data.fields.length) {
                 editAvailableFields = data.fields;
                 const checked = Array.from(document.querySelectorAll('input[name="edit_params"]:checked')).map(cb => cb.value);
                 renderDynamicFields('edit', data.fields, checked);
             }
 
-            if (is2xx(data.status) || data.success === true) {
-                // All good — update directly
-                proceedToSaveEdit({ id, source, url, token, authType });
+            const passed = is2xx(data.status) || data.success === true;
+
+            if (passed) {
+                // 2xx → enabled = true
+                proceedToSaveEdit({ id, source, url, token, authType, enabled: true });
             } else {
-                // Warning / error — ask the user
+                // Non-2xx → ask user; if save anyway, enabled = false
                 showApiCheckPopup({
                     status: data.status,
                     message: data.message,
@@ -1255,16 +1284,20 @@
                         urlField.focus();
                         urlField.select();
                     },
-                    onSaveAnyway: () => proceedToSaveEdit({ id, source, url, token, authType }),
+                    onSaveAnyway: () => proceedToSaveEdit({ id, source, url, token, authType, enabled: false }),
                 });
             }
         });
     }
 
-    function proceedToSaveEdit({ id, source, url, token, authType }) {
+    function proceedToSaveEdit({ id, source, url, token, authType, enabled }) {
         const checklist = Array.from(document.querySelectorAll('input[name="edit_params"]:checked')).map(cb => cb.value);
 
-        const payload = { source, api_url: url, auth_type: authType, checklist };
+        const payload = {
+            source, api_url: url, auth_type: authType,
+            checklist,
+            enabled: !!enabled,
+        };
         if (token && token.trim() !== '') payload.api_token = token;
 
         setButtonLoading('editSaveBtn', true, 'Saving…');

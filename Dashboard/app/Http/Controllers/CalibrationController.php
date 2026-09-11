@@ -33,6 +33,7 @@ class CalibrationController extends Controller
             'total_data'       => 'nullable|integer|min:0',
             'requests_per_min' => 'nullable|integer|min:0',
             'file_path'        => 'nullable|string|max:500',
+            'enabled'          => 'sometimes|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -48,6 +49,7 @@ class CalibrationController extends Controller
             'total_data'       => $request->total_data ?? 0,
             'requests_per_min' => $request->requests_per_min ?? 0,
             'file_path'        => $request->file_path ?? null,
+            'enabled'          => $request->boolean('enabled', true), // default true
         ]);
 
         return response()->json([
@@ -63,12 +65,14 @@ class CalibrationController extends Controller
     {
         $calibration = CalibrationApi::findOrFail($id);
         $data = $calibration->toArray();
+
         // Decrypt token for display (optional; you can omit if you don't want to expose it)
         try {
             $data['api_token'] = decrypt($calibration->api_token);
         } catch (\Exception $e) {
             $data['api_token'] = null;
         }
+
         return response()->json($data);
     }
 
@@ -88,6 +92,7 @@ class CalibrationController extends Controller
             'total_data'       => 'nullable|integer|min:0',
             'requests_per_min' => 'nullable|integer|min:0',
             'file_path'        => 'nullable|string|max:500',
+            'enabled'          => 'sometimes|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -103,6 +108,11 @@ class CalibrationController extends Controller
             'requests_per_min' => $request->requests_per_min ?? 0,
             'file_path'        => $request->file_path ?? null,
         ];
+
+        // Only overwrite `enabled` if the key is present in the request
+        if ($request->has('enabled')) {
+            $updateData['enabled'] = $request->boolean('enabled');
+        }
 
         if ($request->filled('api_token')) {
             $updateData['api_token'] = encrypt($request->api_token);
@@ -298,7 +308,7 @@ class CalibrationController extends Controller
                 'source'      => $calibration->source,
                 'fetched_at'  => now()->toDateTimeString(),
                 'data'        => $body,
-                'fields'      => $fields,   // ✅ NEW
+                'fields'      => $fields,
             ]);
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             return response()->json([
