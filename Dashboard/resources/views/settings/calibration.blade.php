@@ -8,9 +8,7 @@
     .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: #6B7280; }
     .thin-scrollbar { scrollbar-width: thin; scrollbar-color: #4B5563 #1A1A1A; }
 
-    .checklist-tag {
-        @apply inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border;
-    }
+    .checklist-tag { @apply inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border; }
     .checklist-tag-temperature { @apply bg-munti-red-700/20 text-munti-red-400 border-munti-red-600/30; }
     .checklist-tag-humidity { @apply bg-munti-blue-700/20 text-munti-blue-400 border-munti-blue-600/30; }
     .checklist-tag-pressure { @apply bg-munti-yellow-700/20 text-munti-yellow-400 border-munti-yellow-600/30; }
@@ -94,12 +92,25 @@
         font-size: 11px;
         letter-spacing: 0.02em;
     }
+
+    .fields-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem 0.75rem;
+        text-align: center;
+        gap: 0.5rem;
+        color: #6b7280;
+        font-size: 11px;
+        line-height: 1.5;
+    }
+    .fields-placeholder svg { opacity: 0.5; }
 </style>
 
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
     <div class="bg-surface-900 rounded-2xl shadow-xl border border-border-800 overflow-hidden flex-1 flex flex-col min-h-0">
 
-        <!-- Header -->
         <div class="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
             <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2.5">
                 <span class="leading-tight uppercase tracking-wide">Calibration API Management</span>
@@ -107,7 +118,6 @@
             <span class="text-xs sm:text-sm text-text-400">View, edit and manage APIs for calibration reference</span>
         </div>
 
-        <!-- Content -->
         <div class="flex-1 overflow-y-auto thin-scrollbar min-h-0 bg-background-900 py-6 px-5 sm:px-8">
 
             @if(session('success'))
@@ -118,7 +128,6 @@
 
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
 
-                <!-- Table Section -->
                 <div class="flex-1 flex flex-col min-h-0">
                     <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex items-center justify-between">
                         <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider flex items-center gap-2">
@@ -127,7 +136,6 @@
                         <div class="flex items-center gap-3">
                             <span class="text-xs text-text-500">{{ $calibrations->count() }} Record(s)</span>
 
-                            <!-- Add API Button (opens modal) -->
                             <button type="button"
                                     onclick="openAddCalibrationModal()"
                                     class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 rounded-md hover:bg-munti-green-700/30 transition whitespace-nowrap">
@@ -199,7 +207,6 @@
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">{{ $cal->created_at->format('Y-m-d H:i') }}</td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-center">
                                                 <div class="flex items-center justify-center gap-1.5">
-                                                    <!-- View JSON -->
                                                     <button type="button" onclick="viewJson({{ $cal->id }})"
                                                             class="p-1.5 rounded-lg text-text-400 hover:text-munti-blue-400 hover:bg-surface-700/70 transition-all duration-200 group"
                                                             title="Inspect live API response">
@@ -209,7 +216,6 @@
                                                         </svg>
                                                     </button>
 
-                                                    <!-- Edit -->
                                                     <button type="button" onclick="editCalibration({{ $cal->id }})"
                                                             class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group"
                                                             title="Edit API">
@@ -219,7 +225,6 @@
                                                         </svg>
                                                     </button>
 
-                                                    <!-- Delete -->
                                                     <button type="button" onclick="deleteCalibration({{ $cal->id }}, '{{ $cal->file_path ? basename($cal->file_path) : 'Record #' . $cal->id }}')"
                                                             class="p-1.5 rounded-lg text-text-400 hover:text-munti-red-400 hover:bg-surface-700/70 transition-all duration-200 group"
                                                             title="Delete API">
@@ -409,33 +414,19 @@
                     <div class="flex flex-col">
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="block text-xs font-medium text-text-400 uppercase tracking-wide">Fields to Map</label>
-                            <button type="button" id="addResetFieldsBtn" onclick="resetFieldList('add')"
-                                    class="hidden text-[10px] text-munti-blue-400 hover:text-munti-blue-300 underline">
-                                Reset
-                            </button>
+                            <span id="addFieldsStatus" class="text-[10px] text-text-500"></span>
                         </div>
                         <div class="flex-1 p-3 bg-surface-900/60 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-y-1.5 gap-x-3" id="addFieldList">
-                                @php
-                                    $fields = [
-                                        'pm25' => 'PM2.5', 'pm10' => 'PM10', 'tsp' => 'TSP',
-                                        'ozone' => 'Ozone', 'carbon_monoxide' => 'Carbon Monoxide',
-                                        'sulfur_dioxide' => 'Sulfur Dioxide', 'nitrogen_dioxide' => 'Nitrogen Dioxide',
-                                        'temperature' => 'Temperature', 'humidity' => 'Humidity',
-                                        'rain' => 'Rain', 'wind_speed' => 'Wind Speed',
-                                        'wind_direction' => 'Wind Direction', 'air_pressure' => 'Air Pressure',
-                                        'noise' => 'Noise', 'lead' => 'Lead', 'lead_temperature' => 'Lead Temperature',
-                                    ];
-                                @endphp
-                                @foreach($fields as $value => $label)
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="add_params" value="{{ $value }}" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition shrink-0">
-                                    <span>{{ $label }}</span>
-                                </label>
-                                @endforeach
+                            <div id="addFieldList">
+                                <div class="fields-placeholder">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                    </svg>
+                                    <span>Enter the API Source, URL, and Bearer Token to automatically load available fields.</span>
+                                </div>
                             </div>
                         </div>
-                        <p class="text-[10px] text-text-500 mt-1.5" id="addFieldListHint">Select the data fields you want to map from the API response.</p>
+                        <p class="text-[10px] text-text-500 mt-1.5" id="addFieldListHint">Fields will auto-load once the required API info is provided.</p>
                     </div>
 
                 </div>
@@ -541,24 +532,21 @@
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="block text-xs font-medium text-text-400 uppercase tracking-wide">Fields to Map</label>
                             <div class="flex items-center gap-2">
+                                <span id="editFieldsStatus" class="text-[10px] text-text-500"></span>
                                 <button type="button" id="editRefreshFieldsBtn" onclick="refreshEditFields()"
                                         class="hidden text-[10px] text-munti-green-400 hover:text-munti-green-300 underline">
                                     Refresh
                                 </button>
-                                <button type="button" id="editResetFieldsBtn" onclick="resetFieldList('edit')"
-                                        class="hidden text-[10px] text-munti-blue-400 hover:text-munti-blue-300 underline">
-                                    Reset
-                                </button>
                             </div>
                         </div>
                         <div class="flex-1 p-3 bg-surface-900/60 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-y-1.5 gap-x-3" id="editFieldList">
-                                @foreach($fields as $value => $label)
-                                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                                    <input type="checkbox" name="edit_params" value="{{ $value }}" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition shrink-0">
-                                    <span>{{ $label }}</span>
-                                </label>
-                                @endforeach
+                            <div id="editFieldList">
+                                <div class="fields-placeholder">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                    </svg>
+                                    <span>Loading fields from the live API…</span>
+                                </div>
                             </div>
                             <div id="editFieldsLoader" class="hidden items-center gap-2 pt-2 text-[11px] text-text-500">
                                 <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -606,22 +594,13 @@
         custom: { endpoint: 'Your custom endpoint', rate: 'Depends on your service', params: 'Define your own', auth: 'Bearer Token' }
     };
 
-    const DEFAULT_FIELDS = {
-        add: [
-            { value: 'pm25', label: 'PM2.5' }, { value: 'pm10', label: 'PM10' }, { value: 'tsp', label: 'TSP' },
-            { value: 'ozone', label: 'Ozone' }, { value: 'carbon_monoxide', label: 'Carbon Monoxide' },
-            { value: 'sulfur_dioxide', label: 'Sulfur Dioxide' }, { value: 'nitrogen_dioxide', label: 'Nitrogen Dioxide' },
-            { value: 'temperature', label: 'Temperature' }, { value: 'humidity', label: 'Humidity' },
-            { value: 'rain', label: 'Rain' }, { value: 'wind_speed', label: 'Wind Speed' },
-            { value: 'wind_direction', label: 'Wind Direction' }, { value: 'air_pressure', label: 'Air Pressure' },
-            { value: 'noise', label: 'Noise' }, { value: 'lead', label: 'Lead' }, { value: 'lead_temperature', label: 'Lead Temperature' },
-        ],
-    };
-    DEFAULT_FIELDS.edit = DEFAULT_FIELDS.add;
-
     let editCurrentId = null;
     let editSavedChecklist = [];
     let editAvailableFields = [];
+
+    // ========== AUTO-FETCH STATE (ADD MODAL) ==========
+    let addFetchTimer = null;
+    let addFetchAbort = null;
 
     function updateDocContent(docDiv, source) {
         if (source && docMap[source]) {
@@ -692,11 +671,38 @@
         }
     }
 
+    // ========== FIELD LIST PLACEHOLDERS ==========
+    function showFieldsPlaceholder(prefix, message) {
+        const container = document.getElementById(prefix + 'FieldList');
+        if (!container) return;
+        container.innerHTML = `
+            <div class="fields-placeholder">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                <span>${escapeHtml(message || 'Enter the API Source, URL, and Bearer Token to automatically load available fields.')}</span>
+            </div>
+        `;
+    }
+
+    function showFieldsLoading(prefix) {
+        const container = document.getElementById(prefix + 'FieldList');
+        if (!container) return;
+        container.innerHTML = `
+            <div class="fields-placeholder">
+                <svg class="w-4 h-4 animate-spin opacity-60" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+                <span>Loading fields from API…</span>
+            </div>
+        `;
+    }
+
     // ========== DYNAMIC FIELD LIST ==========
     function renderDynamicFields(prefix, fields, checkedValues) {
         const container = document.getElementById(prefix + 'FieldList');
         const hint = document.getElementById(prefix + 'FieldListHint');
-        const resetBtn = document.getElementById(prefix + 'ResetFieldsBtn');
         if (!container) return;
 
         let checked;
@@ -712,49 +718,87 @@
         checked.forEach(f => { if (!seen.has(f)) { seen.add(f); combined.push(f); } });
 
         if (!combined.length) {
-            hint.innerHTML = 'No fields detected from API response.';
-            hint.className = 'text-[10px] text-munti-red-300 mt-1.5';
+            showFieldsPlaceholder(prefix, 'No fields detected from API response.');
+            if (hint) hint.innerHTML = '';
             return;
         }
 
         const inputName = prefix + '_params';
-        container.innerHTML = combined.map(field => {
-            const isChecked = checked.includes(field);
-            return `
-                <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                    <input type="checkbox" name="${inputName}" value="${escapeAttr(field)}" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition shrink-0">
-                    <span class="font-mono text-[11px] break-all">${escapeHtml(field)}</span>
-                </label>
-            `;
-        }).join('');
+        container.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-y-1.5 gap-x-3">` +
+            combined.map(field => {
+                const isChecked = checked.includes(field);
+                return `
+                    <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
+                        <input type="checkbox" name="${inputName}" value="${escapeAttr(field)}" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition shrink-0">
+                        <span class="font-mono text-[11px] break-all">${escapeHtml(field)}</span>
+                    </label>
+                `;
+            }).join('') + `</div>`;
 
         const checkedCount = combined.filter(f => checked.includes(f)).length;
-        hint.innerHTML = `<span class="text-munti-green-300">${combined.length} field(s)</span> available · <span class="text-munti-blue-300">${checkedCount} selected</span>.`;
-        hint.className = 'text-[10px] text-text-500 mt-1.5';
-
-        if (resetBtn) resetBtn.classList.remove('hidden');
+        if (hint) {
+            hint.innerHTML = `<span class="text-munti-green-300">${combined.length} field(s)</span> available · <span class="text-munti-blue-300">${checkedCount} selected</span>.`;
+            hint.className = 'text-[10px] text-text-500 mt-1.5';
+        }
     }
 
-    function resetFieldList(prefix) {
-        const container = document.getElementById(prefix + 'FieldList');
-        const hint = document.getElementById(prefix + 'FieldListHint');
-        const resetBtn = document.getElementById(prefix + 'ResetFieldsBtn');
-        if (!container) return;
+    // ========== AUTO-FETCH FIELDS (ADD MODAL) ==========
+    function scheduleAddFieldsFetch() {
+        clearTimeout(addFetchTimer);
+        addFetchTimer = setTimeout(fetchAddFields, 700);
+    }
 
-        const inputName = prefix + '_params';
-        container.innerHTML = DEFAULT_FIELDS[prefix].map(f => `
-            <label class="flex items-center gap-2 text-sm text-text-300 hover:text-text-200 cursor-pointer transition">
-                <input type="checkbox" name="${inputName}" value="${escapeAttr(f.value)}" class="w-3.5 h-3.5 rounded border-border-600 bg-surface-700 text-munti-blue-500 focus:ring-2 focus:ring-munti-blue-500/50 focus:ring-offset-0 transition shrink-0">
-                <span>${escapeHtml(f.label)}</span>
-            </label>
-        `).join('');
+    function fetchAddFields() {
+        const source = document.getElementById('apiSource').value;
+        const url = document.getElementById('apiUrl').value.trim();
+        const token = document.getElementById('apiKey').value;
 
-        hint.innerHTML = prefix === 'edit'
-            ? 'Fields will be loaded from the live API endpoint automatically.'
-            : 'Select the data fields you want to map from the API response.';
-        hint.className = 'text-[10px] text-text-500 mt-1.5';
+        if (!source || !url || !token) {
+            // Cancel any in-flight request and reset to placeholder
+            if (addFetchAbort) { addFetchAbort.abort(); addFetchAbort = null; }
+            showFieldsPlaceholder('add');
+            const hint = document.getElementById('addFieldListHint');
+            if (hint) {
+                hint.innerHTML = 'Fields will auto-load once the required API info is provided.';
+                hint.className = 'text-[10px] text-text-500 mt-1.5';
+            }
+            return;
+        }
 
-        if (resetBtn) resetBtn.classList.add('hidden');
+        if (addFetchAbort) addFetchAbort.abort();
+        addFetchAbort = new AbortController();
+
+        showFieldsLoading('add');
+
+        fetch('/settings/calibration/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
+            body: JSON.stringify({ source, api_url: url, api_token: token, auth_type: 'bearer_token' }),
+            signal: addFetchAbort.signal,
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.fields && Array.isArray(data.fields) && data.fields.length) {
+                const checked = Array.from(document.querySelectorAll('input[name="add_params"]:checked')).map(cb => cb.value);
+                renderDynamicFields('add', data.fields, checked);
+            } else {
+                showFieldsPlaceholder('add', data.message || 'No fields were detected from the API response.');
+                const hint = document.getElementById('addFieldListHint');
+                if (hint) {
+                    hint.innerHTML = data.message || 'No fields detected from the API response.';
+                    hint.className = 'text-[10px] text-munti-yellow-300 mt-1.5';
+                }
+            }
+        })
+        .catch(err => {
+            if (err.name === 'AbortError') return;
+            showFieldsPlaceholder('add', 'Could not reach the API. Please check the URL and token.');
+            const hint = document.getElementById('addFieldListHint');
+            if (hint) {
+                hint.innerHTML = 'Could not reach the API. Please check the URL and token.';
+                hint.className = 'text-[10px] text-munti-red-300 mt-1.5';
+            }
+        });
     }
 
     // ========== API CHECK POPUP ==========
@@ -877,12 +921,15 @@
             if (Array.isArray(data.fields) && data.fields.length) {
                 editAvailableFields = data.fields;
                 renderDynamicFields('edit', data.fields, editSavedChecklist);
+            } else {
+                showFieldsPlaceholder('edit', data.message || 'No fields detected from API response.');
             }
         })
         .catch(err => {
             loader.classList.add('hidden');
             loader.classList.remove('flex');
             renderTestResult('editTestResult', { success: false, message: err.message || 'Could not load fields.' });
+            showFieldsPlaceholder('edit', 'Could not load fields from the API.');
         });
     }
 
@@ -1075,6 +1122,8 @@
         document.getElementById('addTestResult').innerHTML = '';
         document.getElementById('addApiModal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+        // Reset field list to placeholder
+        showFieldsPlaceholder('add');
     }
 
     function closeAddCalibrationModal() {
@@ -1086,17 +1135,30 @@
         document.getElementById('addTestResult').classList.add('hidden');
         document.getElementById('addTestResult').innerHTML = '';
         updateDocContent(document.getElementById('docContent'), '');
-        resetFieldList('add');
+        showFieldsPlaceholder('add');
+        const hint = document.getElementById('addFieldListHint');
+        if (hint) {
+            hint.innerHTML = 'Fields will auto-load once the required API info is provided.';
+            hint.className = 'text-[10px] text-text-500 mt-1.5';
+        }
         setButtonLoading('addSaveBtn', false);
+        // Cancel any pending auto-fetch
+        clearTimeout(addFetchTimer);
+        if (addFetchAbort) { addFetchAbort.abort(); addFetchAbort = null; }
     }
 
+    // Auto-fetch triggers for the add modal
     document.getElementById('apiSource')?.addEventListener('change', function () {
         updateDocContent(document.getElementById('docContent'), this.value);
         const urlField = document.getElementById('apiUrl');
         urlField.placeholder = this.value === 'accuweather'
             ? 'http://dataservice.accuweather.com/currentconditions/v1/{locationKey}'
             : 'https://api.example.com/v1/endpoint';
+        scheduleAddFieldsFetch();
     });
+
+    document.getElementById('apiUrl')?.addEventListener('input', scheduleAddFieldsFetch);
+    document.getElementById('apiKey')?.addEventListener('input', scheduleAddFieldsFetch);
 
     // ========== SAVE (ADD) — checks API first, then saves or prompts ==========
     function saveExternalApi() {
@@ -1184,7 +1246,8 @@
         loader.classList.add('hidden');
         loader.classList.remove('flex');
 
-        resetFieldList('edit');
+        // Show loading placeholder while we fetch the record
+        showFieldsLoading('edit');
 
         fetch(`/settings/calibration/${id}`, {
             headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
@@ -1205,7 +1268,10 @@
 
             refreshEditFields();
         })
-        .catch(err => { Swal.fire('Error', 'Could not load record for editing.', 'error'); });
+        .catch(err => {
+            showFieldsPlaceholder('edit', 'Could not load record for editing.');
+            Swal.fire('Error', 'Could not load record for editing.', 'error');
+        });
     }
 
     function closeEditCalibrationModal() {
