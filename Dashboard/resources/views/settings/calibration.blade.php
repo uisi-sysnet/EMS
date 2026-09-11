@@ -415,7 +415,7 @@
                             class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
                         Cancel
                     </button>
-                    <button type="button" onclick="saveExternalApi()"
+                    <button type="button" id="addSaveBtn" onclick="saveExternalApi()"
                             class="w-full sm:w-auto h-9 px-5 text-sm font-medium text-white bg-munti-green-600 hover:bg-munti-green-500 rounded-lg transition">
                         Save API
                     </button>
@@ -553,7 +553,7 @@
                             class="w-full sm:w-auto h-9 px-4 text-sm font-medium text-text-300 bg-surface-700 border border-border-600 rounded-lg hover:bg-surface-600 transition">
                         Cancel
                     </button>
-                    <button type="button" onclick="updateExternalApi()"
+                    <button type="button" id="editSaveBtn" onclick="updateExternalApi()"
                             class="w-full sm:w-auto h-9 px-5 text-sm font-medium text-white bg-munti-blue-600 hover:bg-munti-blue-500 rounded-lg transition">
                         Update API
                     </button>
@@ -1215,7 +1215,12 @@
 
     // ========== CLOSE ON ESC ==========
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') { closeViewJsonModal(); closeAddCalibrationModal(); closeEditCalibrationModal(); }
+        if (e.key === 'Escape') {
+            if (typeof Swal !== 'undefined' && Swal.isVisible()) return;
+            closeViewJsonModal();
+            closeAddCalibrationModal();
+            closeEditCalibrationModal();
+        }
     });
 </script>
 
