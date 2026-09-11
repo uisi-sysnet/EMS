@@ -188,18 +188,9 @@
                                             <td class="px-4 py-2.5 whitespace-nowrap">
                                                 <span class="inline-flex items-center gap-1.5 text-xs text-text-200">{{ $cal->file_path ? basename($cal->file_path) : '—' }}</span>
                                             </td>
-                                            <td class="px-4 py-2.5 text-xs">
-                                                <div class="flex flex-wrap gap-1 max-w-md">
-                                                    @foreach($cal->checklist ?? [] as $item)
-                                                        @php
-                                                            $slug = strtolower(str_replace([' ', '.'], '-', $item));
-                                                            $tagClass = 'checklist-tag-default';
-                                                            if (in_array($slug, ['temperature', 'humidity', 'pressure', 'pm25', 'pm10', 'co', 'no2', 'o3'])) {
-                                                                $tagClass = 'checklist-tag-' . $slug;
-                                                            }
-                                                        @endphp
-                                                        <span class="checklist-tag text-xs text-text-200 {{ $tagClass }}" title="{{ $item }}">{{ $item }}</span>
-                                                    @endforeach
+                                            <td class="px-4 py-2.5 text-xs text-text-300">
+                                                <div class="max-w-md">
+                                                    {{ implode(', ', $cal->checklist ?? []) ?: '—' }}
                                                 </div>
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-200">{{ number_format($cal->total_data) }}</td>
