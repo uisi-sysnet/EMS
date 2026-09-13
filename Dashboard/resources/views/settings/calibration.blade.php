@@ -350,10 +350,8 @@
                             <select id="apiSource"
                                     class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
                                 <option value="">Choose API</option>
-                                <option value="accustation">AccuStation</option>
-                                <option value="openweather">OpenWeather</option>
-                                <option value="iqair">IQAir</option>
                                 <option value="accuweather">AccuWeather</option>
+                                <option value="foreca">Foreca</option>
                                 <option value="custom">Custom API</option>
                             </select>
                         </div>
@@ -469,11 +467,9 @@
                             <select id="editApiSource"
                                     class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
                                 <option value="">-- Choose API --</option>
-                                <option value="accustation">AccuStation</option>
-                                <option value="openweather">OpenWeather</option>
-                                <option value="iqair">IQAir</option>
-                                <option value="accuweather">AccuWeather</option>
-                                <option value="custom">Custom API</option>
+                                <option value="AccuWeather">AccuWeather</option>
+                                <option value="Foreca">Foreca</option>
+                                <option value="Custom">Custom API</option>
                             </select>
                         </div>
 
