@@ -95,11 +95,9 @@ class DashboardController extends Controller
      * - enabled = false -> Offline
      * - no last_status set and enabled = true -> Online (default)
      *
-     * Kept as its own method (mirroring buildLeadSensorData()) so the
-     * image report can list individual offline cameras, not just a
-     * tally. NOTE: 'station' and 'detail' below assume the Camera model
-     * has `name` and `ip_address` columns — adjust those two lines if
-     * your schema names them differently.
+     * `location` holds the co-located AQ station's station_name (per
+     * user) — this is the join key drawImgAirQualityStationTable() uses
+     * to match a camera to its station for the Remarks column.
      */
     private function buildCameraData(): \Illuminate\Support\Collection
     {
@@ -118,9 +116,8 @@ class DashboardController extends Controller
             }
 
             return (object) [
-                'station' => $camera->name ?? ('Camera #' . $camera->id),
-                'detail'  => $camera->ip_address ?? '—',
-                'status'  => $status,
+                'location' => $camera->location,
+                'status'   => $status,
             ];
         })->values();
     }
@@ -212,7 +209,7 @@ class DashboardController extends Controller
                     'station_mn' => $station->station_mn,
                     'station'    => $station->station_name ?: $station->station_mn,
                     'ip'         => $station->lead_ip,
-                    'detail'     => $station->lead_ip, // alias of 'ip', for drawImgSimpleStationTable()
+                    'detail'     => $station->lead_ip,
                     // Ping is a point-in-time reachability check, not a
                     // reporting-timestamp threshold, so there's no natural
                     // "idle" middle state here — just reachable or not.
@@ -1279,10 +1276,11 @@ class DashboardController extends Controller
         // Air Quality table – full width
         $y = $this->ensureSpace($pages, $page, $y, 180);   // need ~180px
         $y += 20;
-        $y = $this->drawImgStationTable(
+        $y = $this->drawImgAirQualityStationTable(
             $page,
-            'Air Quality Stations',
             $ctx['airQualityData'],
+            $ctx['cameraData'],
+            $ctx['leadSensorData'],
             $ctx['airQualityCounts'],
             self::IMAGE_MARGIN,
             $y,
@@ -1299,38 +1297,6 @@ class DashboardController extends Controller
             'Seismic Stations',
             $ctx['seismicData'],
             $ctx['seismicCounts'],
-            self::IMAGE_MARGIN,
-            $y,
-            self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
-            $pages,
-            $page
-        );
-
-        // Camera table – full width
-        $y = $this->ensureSpace($pages, $page, $y, 180);   // need ~180px
-        $y += 20;
-        $y = $this->drawImgSimpleStationTable(
-            $page,
-            'Camera Devices',
-            $ctx['cameraData'],
-            $ctx['cameraCounts'],
-            'IP Address',
-            self::IMAGE_MARGIN,
-            $y,
-            self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
-            $pages,
-            $page
-        );
-
-        // Lead Sensor table – full width
-        $y = $this->ensureSpace($pages, $page, $y, 180);   // need ~180px
-        $y += 20;
-        $y = $this->drawImgSimpleStationTable(
-            $page,
-            'Lead Sensor Stations',
-            $ctx['leadSensorData'],
-            $ctx['leadSensorCounts'],
-            'IP Address',
             self::IMAGE_MARGIN,
             $y,
             self::IMAGE_WIDTH - 2 * self::IMAGE_MARGIN,
@@ -1553,6 +1519,152 @@ class DashboardController extends Controller
         return $y;
     }
 
+    /**
+     * Air Quality station table with a "Remarks" troubleshooting column.
+     * Each AQ station is co-located with one Camera (linked via
+     * Camera.location matching the station's name) and, where
+     * configured, one Lead Sensor (linked via stations.lead_ip, same
+     * join buildLeadSensorData() itself uses). Only stations with at
+     * least one offline component are listed — a fully-online site has
+     * nothing to report, same principle as the other tables.
+     *
+     * Remark wording follows this truth table (Camera, Lead, AQ — 1 =
+     * online, 0 = offline):
+     *   0 0 0  Check camera, Lead and AQ (Fiber or Power Problem)
+     *   0 0 1  Check Camera and Lead
+     *   0 1 0  Check camera and AQ
+     *   0 1 1  check camera
+     *   1 0 0  check Lead and AQ
+     *   1 0 1  check Lead
+     *   1 1 0  check AQ
+     *   1 1 1  No Problem
+     * generalized to sites missing a Camera or Lead Sensor entirely —
+     * that leg is left out of both the check and the "all down" count
+     * used for the "(Fiber or Power Problem)" note, since not every AQ
+     * station has both co-located devices configured. "Idle" AQ status
+     * is treated as online here (not a device fault the way offline is).
+     */
+    private function drawImgAirQualityStationTable(&$image, $airQualityData, $cameraData, $leadSensorData, array $counts, int $x, int $y, int $width, array &$pages, &$page): int
+    {
+        $heading = 'Air Quality Stations (' . $counts['online'] . ' online / ' . $airQualityData->count() . ' total)';
+        $rowHeight = 32;
+        $headerHeight = 32;
+
+        if ($airQualityData->count() === 0) {
+            $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
+            $placeholderRows = [
+                ['—', 'No stations available', ['badge' => true, 'label' => 'N/A', 'status' => 'unknown']]
+            ];
+            $y = $this->drawImgTable($image, $x, $y, $width, $this->airQualityRemarksColumns($width), $placeholderRows, $rowHeight);
+            return $y;
+        }
+
+        // Camera site status, keyed by normalized location (matches the
+        // AQ station's name). If several cameras share a location, that
+        // leg only reads "online" when every camera there is online.
+        $camerasByLocation = [];
+        foreach ($cameraData as $cam) {
+            $key = mb_strtolower(trim((string) $cam->location));
+            if ($key === '') {
+                continue;
+            }
+            $camerasByLocation[$key][] = $cam->status;
+        }
+
+        // Lead Sensor status, keyed by station_mn — the exact join key
+        // buildLeadSensorData() itself is built from.
+        $leadByStationMn = $leadSensorData->keyBy('station_mn');
+
+        $problemRows = [];
+        foreach ($airQualityData as $item) {
+            // Order matters here: Camera, Lead, AQ — matches the order
+            // used in the "Check X, Y and Z" wording above.
+            $components = [];
+
+            $camKey = mb_strtolower(trim((string) $item->station));
+            if (isset($camerasByLocation[$camKey])) {
+                $components['Camera'] = in_array('offline', $camerasByLocation[$camKey], true) ? 'offline' : 'online';
+            }
+
+            $lead = $leadByStationMn->get($item->station_mn);
+            if ($lead) {
+                $components['Lead'] = $lead->status === 'offline' ? 'offline' : 'online';
+            }
+
+            $components['AQ'] = $item->status === 'offline' ? 'offline' : 'online';
+
+            $offline = array_keys(array_filter($components, fn ($s) => $s === 'offline'));
+
+            if (empty($offline)) {
+                continue; // fully online site — nothing to report
+            }
+
+            $remark = 'Check ' . $this->joinWithAnd($offline);
+            if (count($offline) === count($components) && count($components) > 1) {
+                $remark .= ' (Fiber or Power Problem)';
+            }
+
+            $problemRows[] = [
+                (string) $item->station,
+                $remark,
+                ['badge' => true, 'label' => ucfirst($item->status), 'status' => $item->status],
+            ];
+        }
+
+        $totalRows = count($problemRows);
+
+        if ($totalRows === 0) {
+            $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
+            $y = $this->drawImgTable($image, $x, $y, $width, $this->airQualityRemarksColumns($width), [
+                ['—', 'All stations, cameras and lead sensors online — nothing to report', ['badge' => true, 'label' => 'Online', 'status' => 'online']],
+            ], $rowHeight);
+            return $y;
+        }
+
+        $start = 0;
+        while ($start < $totalRows) {
+            $needed = $headerHeight + $rowHeight + 10;
+            $y = $this->ensureSpace($pages, $page, $y, $needed);
+            $image = $page;
+
+            $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
+
+            $available = self::IMAGE_HEIGHT - self::IMAGE_MARGIN - $y - 30;
+            $rowsPerPage = max(1, intdiv($available, $rowHeight + 2));
+
+            $chunk = array_slice($problemRows, $start, $rowsPerPage);
+            $y = $this->drawImgTable($image, $x, $y, $width, $this->airQualityRemarksColumns($width), $chunk, $rowHeight);
+
+            $start += $rowsPerPage;
+
+            if ($start < $totalRows) {
+                $y += 20;
+            }
+        }
+
+        return $y;
+    }
+
+    private function airQualityRemarksColumns(int $width): array
+    {
+        [$stationW, $remarksW, $statusW] = $this->imgColumnWidths($width, [0.26, 0.54, 0.20]);
+        return [
+            ['label' => 'Station', 'width' => $stationW],
+            ['label' => 'Remarks', 'width' => $remarksW],
+            ['label' => 'Status',  'width' => $statusW, 'align' => 'center'],
+        ];
+    }
+
+    private function joinWithAnd(array $items): string
+    {
+        $items = array_values($items);
+        if (count($items) <= 1) {
+            return $items[0] ?? '';
+        }
+        $last = array_pop($items);
+        return implode(', ', $items) . ' and ' . $last;
+    }
+
     private function drawImgStationTable(&$image, string $title, $data, array $counts, int $x, int $y, int $width, array &$pages, &$page): int
     {
         $heading = $title . ' (' . $counts['online'] . ' online / ' . $data->count() . ' total)';
@@ -1645,88 +1757,6 @@ class DashboardController extends Controller
             ['label' => 'Total',   'width' => $totalW, 'align' => 'right'],
             ['label' => 'Latest',  'width' => $latestW],
             ['label' => 'Status',  'width' => $statusW,  'align' => 'center'], 
-        ];
-    }
-
-    /**
-     * Same offline-only filtering + pagination shape as
-     * drawImgStationTable(), for lists that don't have a reading-count
-     * "Total" or a "Latest" reading timestamp the way Air Quality/Seismic
-     * stations do (Camera, Lead Sensor). $detailLabel/$item->detail take
-     * the place of those two columns — e.g. an IP address.
-     */
-    private function drawImgSimpleStationTable(&$image, string $title, $data, array $counts, string $detailLabel, int $x, int $y, int $width, array &$pages, &$page): int
-    {
-        $total = $data->count();
-        $heading = $title . ' (' . $counts['online'] . ' online / ' . $total . ' total)';
-        $rowHeight = 32;
-        $headerHeight = 32;
-
-        if ($total === 0) {
-            $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
-            $placeholderRows = [
-                ['—', 'No devices available', '', ['badge' => true, 'label' => 'N/A', 'status' => 'unknown']]
-            ];
-            $y = $this->drawImgTable($image, $x, $y, $width, $this->simpleStationTableColumns($width, $detailLabel), $placeholderRows, $rowHeight);
-            return $y;
-        }
-
-        // Only offline devices get a row — same reasoning as
-        // drawImgStationTable(): online/idle counts are already covered
-        // by the heading and the pie chart above.
-        $offlineData = $data->filter(fn ($item) => $item->status === 'offline')->values();
-        $totalRows = $offlineData->count();
-
-        if ($totalRows === 0) {
-            $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
-            $y = $this->drawImgTable($image, $x, $y, $width, $this->simpleStationTableColumns($width, $detailLabel), [
-                ['—', 'All devices online — nothing to report', '', ['badge' => true, 'label' => 'Online', 'status' => 'online']],
-            ], $rowHeight);
-            return $y;
-        }
-
-        $start = 0;
-        while ($start < $totalRows) {
-            $needed = $headerHeight + $rowHeight + 10;
-            $y = $this->ensureSpace($pages, $page, $y, $needed);
-            $image = $page;
-
-            $y = $this->drawImgSectionTitle($image, $heading, $x, $width, $y);
-
-            $available = self::IMAGE_HEIGHT - self::IMAGE_MARGIN - $y - 30;
-            $rowsPerPage = max(1, intdiv($available, $rowHeight + 2));
-
-            $chunk = $offlineData->slice($start, $rowsPerPage);
-            $rows = [];
-            foreach ($chunk as $i => $item) {
-                $rows[] = [
-                    $start + $i + 1,
-                    (string) $item->station,
-                    (string) ($item->detail ?? '—'),
-                    ['badge' => true, 'label' => ucfirst($item->status), 'status' => $item->status],
-                ];
-            }
-
-            $y = $this->drawImgTable($image, $x, $y, $width, $this->simpleStationTableColumns($width, $detailLabel), $rows, $rowHeight);
-
-            $start += $rowsPerPage;
-
-            if ($start < $totalRows) {
-                $y += 20;
-            }
-        }
-
-        return $y;
-    }
-
-    private function simpleStationTableColumns(int $width, string $detailLabel): array
-    {
-        [$noW, $stationW, $detailW, $statusW] = $this->imgColumnWidths($width, [0.08, 0.42, 0.30, 0.20]);
-        return [
-            ['label' => 'No.',        'width' => $noW, 'align' => 'center'],
-            ['label' => 'Device',     'width' => $stationW],
-            ['label' => $detailLabel, 'width' => $detailW],
-            ['label' => 'Status',     'width' => $statusW, 'align' => 'center'],
         ];
     }
 
