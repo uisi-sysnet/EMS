@@ -31,7 +31,7 @@ class CalibrationController extends Controller
             'auth_type'        => 'required|string|in:bearer_token',
             'checklist'        => 'nullable|array',
             'total_data'       => 'nullable|integer|min:0',
-            'requests_per_min' => 'nullable|integer|min:0',
+            'requests_per_min' => 'nullable|numeric|min:0',
             'file_path'        => 'nullable|string|max:500',
             'enabled'          => 'sometimes|boolean',
         ]);
@@ -90,7 +90,7 @@ class CalibrationController extends Controller
             'auth_type'        => 'required|string|in:bearer_token',
             'checklist'        => 'nullable|array',
             'total_data'       => 'nullable|integer|min:0',
-            'requests_per_min' => 'nullable|integer|min:0',
+            'requests_per_min' => 'nullable|numeric|min:0',
             'file_path'        => 'nullable|string|max:500',
             'enabled'          => 'sometimes|boolean',
         ]);
