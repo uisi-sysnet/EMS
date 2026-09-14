@@ -342,11 +342,9 @@
             </div>
 
             <div class="p-4 sm:p-6 overflow-y-auto thin-scrollbar flex-1">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
 
-                    <!-- ==================== COLUMN 1 ==================== -->
                     <div class="flex flex-col gap-4">
-
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Select API Source</label>
                             <select id="apiSource"
@@ -358,23 +356,12 @@
                             </select>
                         </div>
 
-                        {{-- Auth type is fixed to Bearer Token (hidden) --}}
-                        <input type="hidden" id="authType" value="bearer_token">
-
-                        {{-- API URL: auto-filled per source. Hidden unless the source needs a manual URL --}}
-                        <div id="addApiUrlWrap" class="hidden">
-                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">API URL</label>
-                            <input type="url" id="apiUrl" placeholder="https://api.example.com/v1/endpoint"
-                                   class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
-                        </div>
-
                         <div>
-                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Bearer Token</label>
-                            <input type="password" id="apiKey" placeholder="Enter your Bearer token"
-                                   class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
-                            <p class="text-[10px] text-text-500 mt-1.5">
-                                Your token is stored encrypted and never exposed in the frontend after saving.
-                            </p>
+                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Authentication Type</label>
+                            <div class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 flex items-center">
+                                <span class="text-text-300">Bearer Token</span>
+                                <input type="hidden" id="authType" value="bearer_token">
+                            </div>
                         </div>
 
                         <div class="flex-1 flex flex-col">
@@ -387,33 +374,48 @@
                         </div>
                     </div>
 
-                    <!-- ==================== COLUMN 2 ==================== -->
+                    <div class="flex flex-col">
+                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">API URL</label>
+                        <input type="url" id="apiUrl" placeholder="https://api.example.com/v1/endpoint"
+                               class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
+
+                        <div class="mt-4 flex-1 p-3 sm:p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
+                            <p class="font-medium text-text-400 mb-2">Tips</p>
+                            <ul class="space-y-1.5 list-disc list-inside">
+                                <li>Include the full endpoint path</li>
+                                <li>Use HTTPS whenever possible</li>
+                                <li>Query parameters can be added later</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Bearer Token</label>
+                        <input type="password" id="apiKey" placeholder="Enter your Bearer token"
+                               class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
+
+                        <div class="mt-4 flex-1 p-3 sm:p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
+                            <p class="font-medium text-text-400 mb-2">Security Note</p>
+                            <p>Your token is stored encrypted and never exposed in the frontend after saving.</p>
+                        </div>
+                    </div>
+
                     <div class="flex flex-col">
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="block text-xs font-medium text-text-400 uppercase tracking-wide">Fields to Map</label>
                             <span id="addFieldsStatus" class="text-[10px] text-text-500"></span>
                         </div>
-
-                        <div class="flex-1 p-3 bg-surface-900/60 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 320px;">
+                        <div class="flex-1 p-3 bg-surface-900/60 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
                             <div id="addFieldList">
                                 <div class="fields-placeholder">
                                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                     </svg>
-                                    <span>Enter the API Source and Bearer Token to automatically load available fields.</span>
+                                    <span>Enter the API Source, URL, and Bearer Token to automatically load available fields.</span>
                                 </div>
                             </div>
                         </div>
                         <p class="text-[10px] text-text-500 mt-1.5" id="addFieldListHint">Fields will auto-load once the required API info is provided.</p>
-
-                        <div class="mt-4 p-3 sm:p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
-                            <p class="font-medium text-text-400 mb-2">Tips</p>
-                            <ul class="space-y-1.5 list-disc list-inside">
-                                <li>Known endpoints are filled in automatically</li>
-                                <li>Use HTTPS whenever possible</li>
-                                <li>Only the Bearer token is required from you</li>
-                            </ul>
-                        </div>
                     </div>
 
                 </div>
