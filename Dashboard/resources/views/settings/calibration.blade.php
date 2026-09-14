@@ -361,8 +361,8 @@
                         <input type="hidden" id="authType" value="bearer_token">
 
                         <!-- API URL (Invisible & Auto-filled) -->
-                        <div>
-                            <label class="hidden text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">API URL</label>
+                        <div class="hidden">
+                            <label class="text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">API URL</label>
                             <input type="url" id="apiUrl" placeholder="https://api.example.com/v1/endpoint"
                                    class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition"
                                    style="background-color: #0f172a !important; color: #f8fafc !important;">
