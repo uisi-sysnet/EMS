@@ -392,6 +392,25 @@
 
                     <!-- ==================== COLUMN 2 ==================== -->
                     <div class="flex flex-col">
+
+                        <!-- ==================== PLAN TYPE ==================== -->
+                        <div class="mb-4">
+                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Plan Type</label>
+                            <div class="flex items-center gap-5 px-3 py-2.5 bg-surface-900/60 border border-border-700 rounded-lg">
+                                <label for="planFree" class="flex items-center gap-2 cursor-pointer select-none">
+                                    <input type="checkbox" id="planFree" name="apiPlan" value="free"
+                                        class="w-4 h-4 rounded border-border-600 bg-surface-900 accent-munti-green-500 cursor-pointer focus:outline-none focus:ring-2 focus:ring-radar-500/40">
+                                    <span class="text-sm text-text-200">Free</span>
+                                </label>
+                                <label for="planSubscribed" class="flex items-center gap-2 cursor-pointer select-none">
+                                    <input type="checkbox" id="planSubscribed" name="apiPlan" value="subscribed"
+                                        class="w-4 h-4 rounded border-border-600 bg-surface-900 accent-munti-green-500 cursor-pointer focus:outline-none focus:ring-2 focus:ring-radar-500/40">
+                                    <span class="text-sm text-text-200">Subscribed</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- ==================== FIELDS TO MAP ==================== -->
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="block text-xs font-medium text-text-400 uppercase tracking-wide">Fields to Map</label>
                             <span id="addFieldsStatus" class="text-[10px] text-text-500"></span>
