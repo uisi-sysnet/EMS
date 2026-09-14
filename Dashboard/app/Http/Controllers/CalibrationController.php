@@ -105,9 +105,14 @@ class CalibrationController extends Controller
             'auth_type'        => $request->auth_type,
             'checklist'        => $request->checklist ?? [],
             'total_data'       => $request->total_data ?? 0,
-            'requests_per_min' => $request->requests_per_min ?? 0,
             'file_path'        => $request->file_path ?? null,
         ];
+
+        // Only overwrite `requests_per_min` when the client actually sent it,
+        // so the edit modal doesn't wipe the calculated value.
+        if ($request->has('requests_per_min')) {
+            $updateData['requests_per_min'] = $request->requests_per_min ?? 0;
+        }
 
         // Only overwrite `enabled` if the key is present in the request
         if ($request->has('enabled')) {

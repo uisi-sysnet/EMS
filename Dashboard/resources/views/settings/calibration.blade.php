@@ -678,6 +678,20 @@
         }
     }
 
+    // ========== RATE LIMIT CALCULATOR ==========
+    // Converts a plan's daily rate into requests per minute.
+    // AccuWeather Free: 500 requests/day => 500 / 1440 = 0.3472 req/min
+    function getRequestsPerMin(source, plan) {
+        const src = String(source || '').toLowerCase();
+        const p = String(plan || '').toLowerCase();
+
+        if (p === 'free' && src === 'accuweather') {
+            return +(500 / (24 * 60)).toFixed(4); // 0.3472
+        }
+
+        // Add more source/plan rules here if needed.
+        return 0;
+    }
 
     // ========== AUTO-FILL API URL FOR ACCUWEATHER ==========
     const apiUrlMap = {
@@ -686,32 +700,28 @@
         'custom': ''
     };
 
-    // Update the existing event listener for apiSource
     document.getElementById('apiSource')?.addEventListener('change', function () {
         const source = this.value;
-        
+
         // 1. Update documentation
         updateDocContent(document.getElementById('docContent'), source);
-        
+
         // 2. Auto-fill the API URL
         const urlField = document.getElementById('apiUrl');
         if (apiUrlMap[source]) {
             urlField.value = apiUrlMap[source];
         } else {
-            urlField.value = ''; // Clear for custom or empty
+            urlField.value = '';
         }
 
         // 3. Update placeholder for custom
-        urlField.placeholder = source === 'custom' 
-            ? 'https://api.example.com/v1/endpoint' 
+        urlField.placeholder = source === 'custom'
+            ? 'https://api.example.com/v1/endpoint'
             : 'Auto-filled URL';
 
         // 4. Trigger field fetch (if token is already typed)
         scheduleAddFieldsFetch();
     });
-
-    // Also trigger auto-fill on initial load if a source is pre-selected (optional)
-    // document.getElementById('apiSource').dispatchEvent(new Event('change'));
 
     // ========== FIELD LIST PLACEHOLDERS ==========
     function showFieldsPlaceholder(prefix, message) {
@@ -796,7 +806,6 @@
         const token = document.getElementById('apiKey').value;
 
         if (!source || !url || !token) {
-            // Cancel any in-flight request and reset to placeholder
             if (addFetchAbort) { addFetchAbort.abort(); addFetchAbort = null; }
             showFieldsPlaceholder('add');
             const hint = document.getElementById('addFieldListHint');
@@ -1164,7 +1173,6 @@
         document.getElementById('addTestResult').innerHTML = '';
         document.getElementById('addApiModal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
-        // Reset field list to placeholder
         showFieldsPlaceholder('add');
     }
 
@@ -1174,6 +1182,10 @@
         document.getElementById('apiSource').value = '';
         document.getElementById('apiUrl').value = '';
         document.getElementById('apiKey').value = '';
+
+        // Reset plan radios
+        document.querySelectorAll('input[name="apiPlan"]').forEach(r => { r.checked = false; });
+
         document.getElementById('addTestResult').classList.add('hidden');
         document.getElementById('addTestResult').innerHTML = '';
         updateDocContent(document.getElementById('docContent'), '');
@@ -1184,7 +1196,6 @@
             hint.className = 'text-[10px] text-text-500 mt-1.5';
         }
         setButtonLoading('addSaveBtn', false);
-        // Cancel any pending auto-fetch
         clearTimeout(addFetchTimer);
         if (addFetchAbort) { addFetchAbort.abort(); addFetchAbort = null; }
     }
@@ -1209,6 +1220,9 @@
         const token = document.getElementById('apiKey').value;
         const authType = document.getElementById('authType').value;
 
+        // NEW: selected plan
+        const plan = document.querySelector('input[name="apiPlan"]:checked')?.value || null;
+
         if (!source || !url || !token) {
             Swal.fire('Validation Error', 'Please fill in all fields.', 'warning');
             return;
@@ -1227,7 +1241,7 @@
                 }
 
                 if (is2xx(data.status)) {
-                    proceedToSaveAdd({ source, url, token, authType, enabled: true });
+                    proceedToSaveAdd({ source, url, token, authType, enabled: true, plan });
                 } else {
                     showApiCheckPopup({
                         status: data.status,
@@ -1238,7 +1252,7 @@
                             urlField.focus();
                             urlField.select();
                         },
-                        onSaveAnyway: () => proceedToSaveAdd({ source, url, token, authType, enabled: false }),
+                        onSaveAnyway: () => proceedToSaveAdd({ source, url, token, authType, enabled: false, plan }),
                     });
                 }
             },
@@ -1252,11 +1266,17 @@
         );
     }
 
-    function proceedToSaveAdd({ source, url, token, authType, enabled }) {
+    function proceedToSaveAdd({ source, url, token, authType, enabled, plan }) {
         const checklist = Array.from(document.querySelectorAll('input[name="add_params"]:checked')).map(cb => cb.value);
+
+        // NEW: compute requests per minute from source + plan
+        const requestsPerMin = getRequestsPerMin(source, plan);
+
         const payload = {
             source, api_url: url, api_token: token, auth_type: authType,
-            checklist, total_data: 0, requests_per_min: 0, file_path: null,
+            checklist, total_data: 0,
+            requests_per_min: requestsPerMin, // sent to database
+            file_path: null,
             enabled: !!enabled,
         };
 
@@ -1288,7 +1308,6 @@
         loader.classList.add('hidden');
         loader.classList.remove('flex');
 
-        // Show loading placeholder while we fetch the record
         showFieldsLoading('edit');
 
         fetch(`/settings/calibration/${id}`, {
