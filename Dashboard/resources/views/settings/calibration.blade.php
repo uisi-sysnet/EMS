@@ -360,9 +360,9 @@
                         <!-- Hidden Auth Type -->
                         <input type="hidden" id="authType" value="bearer_token">
 
-                        <!-- API URL (Invisible & Auto-filled) -->
-                        <div class="hidden">
-                            <label class="text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">API URL</label>
+                        <!-- API URL (Visible & Auto-filled) -->
+                        <div>
+                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">API URL</label>
                             <input type="url" id="apiUrl" placeholder="https://api.example.com/v1/endpoint"
                                    class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition"
                                    style="background-color: #0f172a !important; color: #f8fafc !important;">
@@ -392,17 +392,18 @@
 
                     <!-- ==================== COLUMN 2 ==================== -->
                     <div class="flex flex-col">
-                        <!-- AccuWeather Plan Checklist (Placed above Fields to Map) -->
-                        <div id="accuWeatherPlanSection" class="hidden mb-4 p-3 bg-surface-800/80 border border-border-700 rounded-lg space-y-3">
+                        
+                        <!-- Subscribed & Plan Checklist (AccuWeather Only) -->
+                        <div id="accuWeatherPlanSection" class="hidden flex-col gap-3 p-3 bg-surface-800/50 border border-border-700 rounded-lg mb-4">
                             <div class="flex items-center justify-between">
-                                <label class="text-xs font-medium text-text-300 uppercase tracking-wide">Subscribed</label>
+                                <label class="text-xs font-medium text-text-400 uppercase tracking-wide">Subscribed</label>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="isSubscribed" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-surface-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-munti-blue-500"></div>
+                                    <div class="w-9 h-5 bg-surface-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-munti-blue-500"></div>
                                 </label>
                             </div>
                             <div id="planSelection" class="hidden">
-                                <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wide">Select Plan</label>
+                                <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Select Plan</label>
                                 <select id="apiPlan" class="w-full h-8 px-2 text-xs bg-surface-900 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-radar-500/40">
                                     <option value="lite">Lite (10,000 requests/month)</option>
                                     <option value="full">Full (675,000 requests/month)</option>
@@ -538,58 +539,6 @@
                     </div>
 
                     <div class="flex flex-col">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <label class="block text-xs font-medium text-text-400 uppercase tracking-wide">Fields to Map</label>
-                            <div class="flex items-center gap-2">
-                                <span id="editFieldsStatus" class="text-[10px] text-text-500"></span>
-                                <button type="button" id="editRefreshFieldsBtn" onclick="refreshEditFields()"
-                                        class="hidden text-[10px] text-munti-green-400 hover:text-munti-green-300 underline">
-                                    Refresh
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex-1 p-3 bg-surface-900/60 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
-                            <div id="editFieldList">
-                                <div class="fields-placeholder">
-                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                    </svg>
-                                    <span>Loading fields from the live API…</span>
-                                </div>
-                            </div>
-                            <div id="editFieldsLoader" class="hidden items-center gap-2 pt-2 text-[11px] text-text-500">
-                                <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                                </svg>
-                                <span>Loading live fields…</span>
-                            </div>
-                        </div>
-                        <p class="text-[10px] text-text-500 mt-1.5" id="editFieldListHint">Fields will be loaded from the live API endpoint automatically.</p>
-                    </div>
-
-                    <div class="flex flex-col">
-                        <!-- AccuWeather Plan Checklist (Placed above Fields to Map) -->
-                        <div id="editAccuWeatherPlanSection" class="hidden mb-4 p-3 bg-surface-800/80 border border-border-700 rounded-lg space-y-3">
-                            <div class="flex items-center justify-between">
-                                <label class="text-xs font-medium text-text-300 uppercase tracking-wide">Subscribed</label>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="editIsSubscribed" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-surface-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-munti-blue-500"></div>
-                                </label>
-                            </div>
-                            <div id="editPlanSelection" class="hidden">
-                                <label class="block text-[10px] font-medium text-text-400 mb-1 uppercase tracking-wide">Select Plan</label>
-                                <select id="editApiPlan" class="w-full h-8 px-2 text-xs bg-surface-900 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-radar-500/40">
-                                    <option value="lite">Lite (10,000 requests/month)</option>
-                                    <option value="full">Full (675,000 requests/month)</option>
-                                </select>
-                            </div>
-                            <div class="text-[10px] text-text-500">
-                                Estimated rate: <span id="editRateValue" class="text-text-200 font-mono">0.35</span> req/min
-                            </div>
-                        </div>
-
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="block text-xs font-medium text-text-400 uppercase tracking-wide">Fields to Map</label>
                             <div class="flex items-center gap-2">
@@ -897,61 +846,46 @@
         });
     }
 
-        // ========== ACCUWEATHER PLAN & RATE CALCULATION ==========
+    // ========== PLAN & RATE CALCULATION LOGIC ==========
     function updatePlanSection(prefix) {
-        const source = document.getElementById(prefix + 'apiSource')?.value;
+        const source = document.getElementById(prefix + 'apiSource').value;
         const section = document.getElementById(prefix + 'accuWeatherPlanSection');
-        if (!section) return;
-
-        // Show only for AccuWeather (handle case-insensitivity)
-        if (source && source.toLowerCase() === 'accuweather') {
+        if (source === 'accuweather' || source === 'AccuWeather') {
             section.classList.remove('hidden');
+            section.classList.add('flex');
             updateRatePreview(prefix);
         } else {
             section.classList.add('hidden');
+            section.classList.remove('flex');
         }
     }
 
     function updateRatePreview(prefix) {
-        const isSub = document.getElementById(prefix + 'isSubscribed')?.checked;
+        const isSub = document.getElementById(prefix + 'isSubscribed').checked;
         let rate = 0;
-        
         if (!isSub) {
-            // Free Trial: 500 requests / day
-            rate = 500 / 1440; 
+            rate = 500 / 1440; // 500/day
         } else {
-            const plan = document.getElementById(prefix + 'apiPlan')?.value;
+            const plan = document.getElementById(prefix + 'apiPlan').value;
             if (plan === 'lite') {
-                // Lite: 10,000 requests / month (approx 30 days)
-                rate = 10000 / (30 * 1440); 
+                rate = 10000 / (30 * 1440); // 10k/month
             } else if (plan === 'full') {
-                // Full: 675,000 requests / month
-                rate = 675000 / (30 * 1440); 
+                rate = 675000 / (30 * 1440); // 675k/month
             }
         }
-        
-        const rateEl = document.getElementById(prefix + 'rateValue');
-        if (rateEl) rateEl.textContent = rate.toFixed(2);
+        document.getElementById(prefix + 'rateValue').textContent = rate.toFixed(2);
+        document.getElementById(prefix + 'ratePreview').dataset.rate = rate;
     }
 
-    // Add Event Listeners for Add Modal
+    // Toggle plan selection visibility
     document.getElementById('isSubscribed')?.addEventListener('change', function() {
         const planSel = document.getElementById('planSelection');
         if (this.checked) planSel.classList.remove('hidden');
         else planSel.classList.add('hidden');
         updateRatePreview('add');
     });
+
     document.getElementById('apiPlan')?.addEventListener('change', () => updateRatePreview('add'));
-
-    // Add Event Listeners for Edit Modal
-    document.getElementById('editIsSubscribed')?.addEventListener('change', function() {
-        const planSel = document.getElementById('editPlanSelection');
-        if (this.checked) planSel.classList.remove('hidden');
-        else planSel.classList.add('hidden');
-        updateRatePreview('edit');
-    });
-    document.getElementById('editApiPlan')?.addEventListener('change', () => updateRatePreview('edit'));
-
 
     // ========== UPDATED SAVE (ADD) FUNCTION ==========
     function saveExternalApi() {
@@ -1011,11 +945,11 @@
         if (source.toLowerCase() === 'accuweather') {
             const isSub = document.getElementById('isSubscribed').checked;
             if (!isSub) {
-                requestsPerMin = Math.round(500 / 1440);
+                requestsPerMin = Math.round(500 / 1440); // Free tier
             } else {
                 const plan = document.getElementById('apiPlan').value;
-                if (plan === 'lite') requestsPerMin = Math.round(10000 / 43200);
-                else if (plan === 'full') requestsPerMin = Math.round(675000 / 43200);
+                if (plan === 'lite') requestsPerMin = Math.round(10000 / 43200); // Lite
+                else if (plan === 'full') requestsPerMin = Math.round(675000 / 43200); // Full
             }
         }
 
@@ -1040,164 +974,7 @@
         });
     }
 
-    // ========== UPDATED EDIT FUNCTION ==========
-    function editCalibration(id) {
-        editCurrentId = id;
-        editSavedChecklist = [];
-        editAvailableFields = [];
-
-        document.getElementById('editTestResult').classList.add('hidden');
-        document.getElementById('editTestResult').innerHTML = '';
-
-        const loader = document.getElementById('editFieldsLoader');
-        loader.classList.add('hidden');
-        loader.classList.remove('flex');
-
-        showFieldsLoading('edit');
-
-        fetch(`/settings/calibration/${id}`, {
-            headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
-        })
-        .then(res => { if (!res.ok) throw new Error('Failed to fetch record'); return res.json(); })
-        .then(data => {
-            document.getElementById('editApiSource').value = data.source;
-            document.getElementById('editApiUrl').value = data.api_url;
-            document.getElementById('editApiKey').value = '';
-
-            editSavedChecklist = Array.isArray(data.checklist) ? data.checklist.slice() : [];
-
-            // Restore AccuWeather Plan settings
-            const reqPerMin = data.requests_per_min || 0;
-            const isSub = reqPerMin > 0; 
-            document.getElementById('editIsSubscribed').checked = isSub;
-            document.getElementById('editPlanSelection').classList.toggle('hidden', !isSub);
-            
-            if (isSub) {
-                if (reqPerMin <= 5) document.getElementById('editApiPlan').value = 'lite';
-                else document.getElementById('editApiPlan').value = 'full';
-            }
-            updateRatePreview('edit');
-            updatePlanSection('edit');
-
-            updateDocContent(document.getElementById('editDocContent'), data.source);
-
-            document.getElementById('editApiModal').dataset.id = id;
-            document.getElementById('editApiModal').classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-
-            refreshEditFields();
-        })
-        .catch(err => {
-            showFieldsPlaceholder('edit', 'Could not load record for editing.');
-            Swal.fire('Error', 'Could not load record for editing.', 'error');
-        });
-    }
-
-    // ========== UPDATED UPDATE (EDIT) FUNCTION ==========
-    function updateExternalApi() {
-        const id = document.getElementById('editApiModal').dataset.id;
-        if (!id) { Swal.fire('Error', 'No record ID found.', 'error'); return; }
-
-        const source = document.getElementById('editApiSource').value;
-        const url = document.getElementById('editApiUrl').value.trim();
-        const token = document.getElementById('editApiKey').value;
-        const authType = document.getElementById('editAuthType').value;
-
-        if (!source || !url) {
-            Swal.fire('Validation Error', 'Please fill in required fields.', 'warning');
-            return;
-        }
-
-        setButtonLoading('editSaveBtn', true, 'Checking API…');
-
-        const checkPromise = (token && token.trim() !== '')
-            ? new Promise((resolve) => {
-                sendRequest('POST', '/settings/calibration/test',
-                    { source, api_url: url, api_token: token, auth_type: authType },
-                    (data) => resolve(data),
-                    (err) => resolve({
-                        success: false,
-                        message: err.message || 'API check failed.',
-                        error: err.errors ? Object.values(err.errors).flat().join('\n') : null,
-                    })
-                );
-            })
-            : fetch(`/settings/calibration/${id}/fetch-response`, {
-                headers: { 'X-CSRF-TOKEN': getCsrfToken(), 'Accept': 'application/json' },
-            }).then(r => r.json()).catch(err => ({
-                success: false,
-                message: err.message || 'Could not reach the API.',
-            }));
-
-        checkPromise.then((data) => {
-            setButtonLoading('editSaveBtn', false);
-
-            if (data.success && Array.isArray(data.fields) && data.fields.length) {
-                editAvailableFields = data.fields;
-                const checked = Array.from(document.querySelectorAll('input[name="edit_params"]:checked')).map(cb => cb.value);
-                renderDynamicFields('edit', data.fields, checked);
-            }
-
-            const passed = is2xx(data.status) || data.success === true;
-
-            if (passed) {
-                proceedToSaveEdit({ id, source, url, token, authType, enabled: true });
-            } else {
-                showApiCheckPopup({
-                    status: data.status,
-                    message: data.message,
-                    error: data.error,
-                    onEdit: () => {
-                        const urlField = document.getElementById('editApiUrl');
-                        urlField.focus();
-                        urlField.select();
-                    },
-                    onSaveAnyway: () => proceedToSaveEdit({ id, source, url, token, authType, enabled: false }),
-                });
-            }
-        });
-    }
-
-    function proceedToSaveEdit({ id, source, url, token, authType, enabled }) {
-        const checklist = Array.from(document.querySelectorAll('input[name="edit_params"]:checked')).map(cb => cb.value);
-
-        // Calculate requests_per_min for AccuWeather
-        let requestsPerMin = 0;
-        if (source.toLowerCase() === 'accuweather') {
-            const isSub = document.getElementById('editIsSubscribed').checked;
-            if (!isSub) {
-                requestsPerMin = Math.round(500 / 1440);
-            } else {
-                const plan = document.getElementById('editApiPlan').value;
-                if (plan === 'lite') requestsPerMin = Math.round(10000 / 43200);
-                else if (plan === 'full') requestsPerMin = Math.round(675000 / 43200);
-            }
-        }
-
-        const payload = {
-            source, api_url: url, auth_type: authType,
-            checklist,
-            requests_per_min: requestsPerMin,
-            enabled: !!enabled,
-        };
-        if (token && token.trim() !== '') payload.api_token = token;
-
-        setButtonLoading('editSaveBtn', true, 'Saving…');
-
-        sendRequest('PUT', `/settings/calibration/${id}`, payload, (data) => {
-            Swal.fire('Success', data.message, 'success');
-            closeEditCalibrationModal();
-            window.location.reload();
-        }, (error) => {
-            setButtonLoading('editSaveBtn', false);
-            const msg = error.errors
-                ? Object.values(error.errors).flat().join('\n')
-                : (error.message || 'Failed to update the API record.');
-            Swal.fire('Update Failed', msg, 'error');
-        });
-    }
-
-    // ========== UPDATED CLOSE FUNCTIONS ==========
+    // ========== UPDATED CLOSE FUNCTION ==========
     function closeAddCalibrationModal() {
         document.getElementById('addApiModal').classList.add('hidden');
         document.body.style.overflow = '';
@@ -1225,25 +1002,7 @@
         updatePlanSection('add');
     }
 
-    function closeEditCalibrationModal() {
-        document.getElementById('editApiModal').classList.add('hidden');
-        document.body.style.overflow = '';
-        document.getElementById('editTestResult').classList.add('hidden');
-        document.getElementById('editTestResult').innerHTML = '';
-        editCurrentId = null;
-        editSavedChecklist = [];
-        editAvailableFields = [];
-        setButtonLoading('editSaveBtn', false);
-        
-        // Reset AccuWeather Plan Section
-        document.getElementById('editIsSubscribed').checked = false;
-        document.getElementById('editPlanSelection').classList.add('hidden');
-        document.getElementById('editApiPlan').value = 'lite';
-        updateRatePreview('edit');
-        updatePlanSection('edit');
-    }
-
-    // ========== HOOK INTO EXISTING API SOURCE CHANGE LISTENERS ==========
+    // ========== HOOK INTO EXISTING API SOURCE CHANGE LISTENER ==========
     // Update the existing add listener:
     document.getElementById('apiSource')?.addEventListener('change', function () {
         const source = this.value;
@@ -1263,16 +1022,6 @@
         scheduleAddFieldsFetch();
     });
 
-    // Update the existing edit listener:
-    document.getElementById('editApiSource')?.addEventListener('change', function () {
-        updateDocContent(document.getElementById('editDocContent'), this.value);
-        const urlField = document.getElementById('editApiUrl');
-        urlField.placeholder = this.value === 'accuweather'
-            ? 'http://dataservice.accuweather.com/currentconditions/v1/{locationKey}'
-            : 'https://api.example.com/v1/endpoint';
-        updatePlanSection('edit');
-    });
-    
     // ========== API CHECK POPUP ==========
     function showApiCheckPopup({ status, message, error, onEdit, onSaveAnyway }) {
         let statusLabel = 'Unknown Status';
