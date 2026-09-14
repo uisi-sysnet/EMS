@@ -573,7 +573,7 @@
         openweather: { endpoint: 'https://api.openweathermap.org/data/2.5/weather', rate: '60 calls/minute (free tier)', params: 'appid, q, units', auth: 'Bearer Token' },
         iqair: { endpoint: 'https://api.iqair.com/v2/', rate: '10,000 calls/month (free)', params: 'api_key, city', auth: 'Bearer Token' },
         accuweather: {
-            endpoint: 'http://dataservice.accuweather.com/',
+            endpoint: 'https://dataservice.accuweather.com/currentconditions/v1/264879',
             rate: '500 calls/day (Free tier) / higher for paid plans',
             params: 'locationKey, metric etc. (token sent as Bearer)',
             auth: 'Bearer Token',
