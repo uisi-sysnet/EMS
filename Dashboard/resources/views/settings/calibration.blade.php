@@ -360,9 +360,9 @@
                         <!-- Hidden Auth Type -->
                         <input type="hidden" id="authType" value="bearer_token">
 
-                        <!-- API URL (Visible & Auto-filled) -->
-                        <div>
-                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">API URL</label>
+                        <!-- API URL (Invisible & Auto-filled) -->
+                        <div class="hidden">
+                            <label class="text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">API URL</label>
                             <input type="url" id="apiUrl" placeholder="https://api.example.com/v1/endpoint"
                                    class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition"
                                    style="background-color: #0f172a !important; color: #f8fafc !important;">
@@ -392,28 +392,6 @@
 
                     <!-- ==================== COLUMN 2 ==================== -->
                     <div class="flex flex-col">
-                        
-                        <!-- Subscribed & Plan Checklist (AccuWeather Only) -->
-                        <div id="accuWeatherPlanSection" class="hidden flex-col gap-3 p-3 bg-surface-800/50 border border-border-700 rounded-lg mb-4">
-                            <div class="flex items-center justify-between">
-                                <label class="text-xs font-medium text-text-400 uppercase tracking-wide">Subscribed</label>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="isSubscribed" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-surface-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-munti-blue-500"></div>
-                                </label>
-                            </div>
-                            <div id="planSelection" class="hidden">
-                                <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Select Plan</label>
-                                <select id="apiPlan" class="w-full h-8 px-2 text-xs bg-surface-900 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-radar-500/40">
-                                    <option value="lite">Lite (10,000 requests/month)</option>
-                                    <option value="full">Full (675,000 requests/month)</option>
-                                </select>
-                            </div>
-                            <div class="text-[10px] text-text-500">
-                                Estimated rate: <span id="rateValue" class="text-text-200 font-mono">0.35</span> req/min
-                            </div>
-                        </div>
-
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="block text-xs font-medium text-text-400 uppercase tracking-wide">Fields to Map</label>
                             <span id="addFieldsStatus" class="text-[10px] text-text-500"></span>
@@ -845,182 +823,6 @@
             }
         });
     }
-
-    // ========== PLAN & RATE CALCULATION LOGIC ==========
-    function updatePlanSection(prefix) {
-        const source = document.getElementById(prefix + 'apiSource').value;
-        const section = document.getElementById(prefix + 'accuWeatherPlanSection');
-        if (source === 'accuweather' || source === 'AccuWeather') {
-            section.classList.remove('hidden');
-            section.classList.add('flex');
-            updateRatePreview(prefix);
-        } else {
-            section.classList.add('hidden');
-            section.classList.remove('flex');
-        }
-    }
-
-    function updateRatePreview(prefix) {
-        const isSub = document.getElementById(prefix + 'isSubscribed').checked;
-        let rate = 0;
-        if (!isSub) {
-            rate = 500 / 1440; // 500/day
-        } else {
-            const plan = document.getElementById(prefix + 'apiPlan').value;
-            if (plan === 'lite') {
-                rate = 10000 / (30 * 1440); // 10k/month
-            } else if (plan === 'full') {
-                rate = 675000 / (30 * 1440); // 675k/month
-            }
-        }
-        document.getElementById(prefix + 'rateValue').textContent = rate.toFixed(2);
-        document.getElementById(prefix + 'ratePreview').dataset.rate = rate;
-    }
-
-    // Toggle plan selection visibility
-    document.getElementById('isSubscribed')?.addEventListener('change', function() {
-        const planSel = document.getElementById('planSelection');
-        if (this.checked) planSel.classList.remove('hidden');
-        else planSel.classList.add('hidden');
-        updateRatePreview('add');
-    });
-
-    document.getElementById('apiPlan')?.addEventListener('change', () => updateRatePreview('add'));
-
-    // ========== UPDATED SAVE (ADD) FUNCTION ==========
-    function saveExternalApi() {
-        const source = document.getElementById('apiSource').value;
-        const url = document.getElementById('apiUrl').value.trim();
-        const token = document.getElementById('apiKey').value;
-        const authType = document.getElementById('authType').value;
-
-        if (!source || !url || !token) {
-            Swal.fire('Validation Error', 'Please fill in all fields.', 'warning');
-            return;
-        }
-
-        setButtonLoading('addSaveBtn', true, 'Checking API…');
-
-        sendRequest('POST', '/settings/calibration/test',
-            { source, api_url: url, api_token: token, auth_type: authType },
-            (data) => {
-                setButtonLoading('addSaveBtn', false);
-
-                if (data.success && Array.isArray(data.fields) && data.fields.length) {
-                    const checked = Array.from(document.querySelectorAll('input[name="add_params"]:checked')).map(cb => cb.value);
-                    renderDynamicFields('add', data.fields, checked);
-                }
-
-                if (is2xx(data.status)) {
-                    proceedToSaveAdd({ source, url, token, authType, enabled: true });
-                } else {
-                    showApiCheckPopup({
-                        status: data.status,
-                        message: data.message,
-                        error: data.error,
-                        onEdit: () => {
-                            const urlField = document.getElementById('apiUrl');
-                            urlField.focus();
-                            urlField.select();
-                        },
-                        onSaveAnyway: () => proceedToSaveAdd({ source, url, token, authType, enabled: false }),
-                    });
-                }
-            },
-            (error) => {
-                setButtonLoading('addSaveBtn', false);
-                const msg = error.errors
-                    ? Object.values(error.errors).flat().join('\n')
-                    : (error.message || 'Could not reach the API for validation.');
-                Swal.fire('API Check Failed', msg, 'error');
-            }
-        );
-    }
-
-    function proceedToSaveAdd({ source, url, token, authType, enabled }) {
-        const checklist = Array.from(document.querySelectorAll('input[name="add_params"]:checked')).map(cb => cb.value);
-        
-        // Calculate requests_per_min based on AccuWeather plan
-        let requestsPerMin = 0;
-        if (source.toLowerCase() === 'accuweather') {
-            const isSub = document.getElementById('isSubscribed').checked;
-            if (!isSub) {
-                requestsPerMin = Math.round(500 / 1440); // Free tier
-            } else {
-                const plan = document.getElementById('apiPlan').value;
-                if (plan === 'lite') requestsPerMin = Math.round(10000 / 43200); // Lite
-                else if (plan === 'full') requestsPerMin = Math.round(675000 / 43200); // Full
-            }
-        }
-
-        const payload = {
-            source, api_url: url, api_token: token, auth_type: authType,
-            checklist, total_data: 0, requests_per_min: requestsPerMin, file_path: null,
-            enabled: !!enabled,
-        };
-
-        setButtonLoading('addSaveBtn', true, 'Saving…');
-
-        sendRequest('POST', '/settings/calibration', payload, (data) => {
-            Swal.fire('Success', data.message, 'success');
-            closeAddCalibrationModal();
-            window.location.reload();
-        }, (error) => {
-            setButtonLoading('addSaveBtn', false);
-            const msg = error.errors
-                ? Object.values(error.errors).flat().join('\n')
-                : (error.message || 'Failed to save the API record.');
-            Swal.fire('Save Failed', msg, 'error');
-        });
-    }
-
-    // ========== UPDATED CLOSE FUNCTION ==========
-    function closeAddCalibrationModal() {
-        document.getElementById('addApiModal').classList.add('hidden');
-        document.body.style.overflow = '';
-        document.getElementById('apiSource').value = '';
-        document.getElementById('apiUrl').value = '';
-        document.getElementById('apiKey').value = '';
-        document.getElementById('addTestResult').classList.add('hidden');
-        document.getElementById('addTestResult').innerHTML = '';
-        updateDocContent(document.getElementById('docContent'), '');
-        showFieldsPlaceholder('add');
-        const hint = document.getElementById('addFieldListHint');
-        if (hint) {
-            hint.innerHTML = 'Fields will auto-load once the required API info is provided.';
-            hint.className = 'text-[10px] text-text-500 mt-1.5';
-        }
-        setButtonLoading('addSaveBtn', false);
-        clearTimeout(addFetchTimer);
-        if (addFetchAbort) { addFetchAbort.abort(); addFetchAbort = null; }
-        
-        // Reset AccuWeather Plan Section
-        document.getElementById('isSubscribed').checked = false;
-        document.getElementById('planSelection').classList.add('hidden');
-        document.getElementById('apiPlan').value = 'lite';
-        updateRatePreview('add');
-        updatePlanSection('add');
-    }
-
-    // ========== HOOK INTO EXISTING API SOURCE CHANGE LISTENER ==========
-    // Update the existing add listener:
-    document.getElementById('apiSource')?.addEventListener('change', function () {
-        const source = this.value;
-        updateDocContent(document.getElementById('docContent'), source);
-        
-        const urlField = document.getElementById('apiUrl');
-        if (apiUrlMap[source]) {
-            urlField.value = apiUrlMap[source];
-        } else {
-            urlField.value = '';
-        }
-        urlField.placeholder = source === 'custom' 
-            ? 'https://api.example.com/v1/endpoint' 
-            : 'Auto-filled URL';
-
-        updatePlanSection('add');
-        scheduleAddFieldsFetch();
-    });
 
     // ========== API CHECK POPUP ==========
     function showApiCheckPopup({ status, message, error, onEdit, onSaveAnyway }) {
