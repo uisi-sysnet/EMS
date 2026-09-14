@@ -106,28 +106,6 @@
         line-height: 1.5;
     }
     .fields-placeholder svg { opacity: 0.5; }
-
-    /* Subscription toggle switch */
-    .plan-toggle { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
-    .plan-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
-    .plan-toggle .track {
-        width: 36px; height: 20px;
-        background: #374151;
-        border-radius: 999px;
-        transition: background 0.2s;
-        position: relative;
-    }
-    .plan-toggle .track::after {
-        content: '';
-        position: absolute;
-        top: 2px; left: 2px;
-        width: 16px; height: 16px;
-        background: #fff;
-        border-radius: 50%;
-        transition: transform 0.2s;
-    }
-    .plan-toggle input:checked + .track { background: #3b82f6; }
-    .plan-toggle input:checked + .track::after { transform: translateX(16px); }
 </style>
 
 <div id="main-content" class="pt-20 pb-6 px-4 sm:px-6 max-w-8xl mx-auto w-full overflow-hidden flex flex-col h-[calc(100dvh)] max-h-[calc(100dvh)]">
@@ -368,7 +346,6 @@
 
                     <!-- ==================== COLUMN 1 ==================== -->
                     <div class="flex flex-col gap-4">
-
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Select API Source</label>
                             <select id="apiSource"
@@ -380,12 +357,15 @@
                             </select>
                         </div>
 
-                        <!-- Hidden Auth Type (always Bearer) -->
+                        <!-- Hidden Auth Type -->
                         <input type="hidden" id="authType" value="bearer_token">
 
-                        <!-- API URL (invisible but auto-filled) -->
+                        <!-- API URL (Invisible & Auto-filled) -->
                         <div class="hidden">
-                            <input type="url" id="apiUrl" value="">
+                            <label class="text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">API URL</label>
+                            <input type="url" id="apiUrl" placeholder="https://api.example.com/v1/endpoint"
+                                   class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition"
+                                   style="background-color: #0f172a !important; color: #f8fafc !important;">
                         </div>
 
                         <!-- Bearer Token -->
@@ -401,7 +381,7 @@
 
                         <!-- Documentation -->
                         <div class="flex-1 flex flex-col">
-                            <div class="flex-1 min-h-[150px] sm:min-h-[280px] p-3 sm:p-4 bg-surface-900 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
+                            <div class="flex-1 min-h-[150px] sm:min-h-[250px] p-3 sm:p-4 bg-surface-900 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
                                 <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Documentation</label>
                                 <div id="docContent" class="space-y-3">
                                     <p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>
@@ -411,69 +391,25 @@
                     </div>
 
                     <!-- ==================== COLUMN 2 ==================== -->
-                    <div class="flex flex-col gap-4">
-
-                        <!-- Rate Limit / Subscription Plan (AccuWeather only) -->
-                        <div id="addPlanSection" class="hidden flex-col gap-3 p-3 bg-surface-800/60 border border-border-700 rounded-lg">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <label class="text-xs font-medium text-text-300 uppercase tracking-wide flex items-center gap-1.5">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-munti-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                        </svg>
-                                        Rate Limit
-                                    </label>
-                                    <p class="text-[10px] text-text-500 mt-0.5" id="addPlanHelp">
-                                        Not subscribed → using Free Core Weather Trial (500/day)
-                                    </p>
-                                </div>
-                                <label class="plan-toggle">
-                                    <input type="checkbox" id="addIsSubscribed">
-                                    <span class="track"></span>
-                                </label>
-                            </div>
-
-                            <div id="addPlanSelection" class="hidden">
-                                <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Select Subscription Plan</label>
-                                <select id="addApiPlan"
-                                        class="w-full h-9 px-2 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-radar-500/40">
-                                    <option value="lite">Lite — 10,000 requests/month</option>
-                                    <option value="full">Full — 675,000 requests/month</option>
-                                </select>
-                            </div>
-
-                            <div class="flex items-center justify-between pt-2 border-t border-border-700">
-                                <span class="text-[10px] text-text-500 uppercase tracking-wide">Calculated Rate</span>
-                                <span class="text-xs font-mono text-munti-green-300">
-                                    <span id="addRatePreview">0.35</span> <span class="text-text-500">req/min</span>
-                                </span>
-                            </div>
-                            <div class="text-[10px] text-text-500 leading-relaxed" id="addPlanBreakdown">
-                                500 requests / day ÷ 1440 minutes
-                            </div>
+                    <div class="flex flex-col">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-medium text-text-400 uppercase tracking-wide">Fields to Map</label>
+                            <span id="addFieldsStatus" class="text-[10px] text-text-500"></span>
                         </div>
 
-                        <!-- Fields to Map -->
-                        <div class="flex flex-col flex-1">
-                            <div class="flex items-center justify-between mb-1.5">
-                                <label class="block text-xs font-medium text-text-400 uppercase tracking-wide">Fields to Map</label>
-                                <span id="addFieldsStatus" class="text-[10px] text-text-500"></span>
-                            </div>
-
-                            <div class="flex-1 p-3 bg-surface-900/60 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
-                                <div id="addFieldList">
-                                    <div class="fields-placeholder">
-                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                        </svg>
-                                        <span>Enter the API Source and Bearer Token to automatically load available fields.</span>
-                                    </div>
+                        <div class="flex-1 p-3 bg-surface-900/60 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 320px;">
+                            <div id="addFieldList">
+                                <div class="fields-placeholder">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                    </svg>
+                                    <span>Enter the API Source and Bearer Token to automatically load available fields.</span>
                                 </div>
                             </div>
-                            <p class="text-[10px] text-text-500 mt-1.5" id="addFieldListHint">Fields will auto-load once the required API info is provided.</p>
                         </div>
+                        <p class="text-[10px] text-text-500 mt-1.5" id="addFieldListHint">Fields will auto-load once the required API info is provided.</p>
 
-                        <div class="p-3 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
+                        <div class="mt-4 p-3 sm:p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
                             <p class="font-medium text-text-400 mb-2">Tips</p>
                             <ul class="space-y-1.5 list-disc list-inside">
                                 <li>Known endpoints are filled in automatically</li>
@@ -524,11 +460,9 @@
             </div>
 
             <div class="p-4 sm:p-6 overflow-y-auto thin-scrollbar flex-1">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
 
-                    <!-- ==================== COLUMN 1 ==================== -->
                     <div class="flex flex-col gap-4">
-
                         <div>
                             <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Select API Source</label>
                             <select id="editApiSource"
@@ -540,109 +474,77 @@
                             </select>
                         </div>
 
-                        <!-- Hidden Auth Type -->
-                        <input type="hidden" id="editAuthType" value="bearer_token">
-
-                        <!-- API URL -->
                         <div>
-                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">API URL</label>
-                            <input type="url" id="editApiUrl" placeholder="https://api.example.com/v1/endpoint"
-                                   class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
+                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Authentication Type</label>
+                            <div class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 flex items-center">
+                                <span class="text-text-300">Bearer Token</span>
+                                <input type="hidden" id="editAuthType" value="bearer_token">
+                            </div>
                         </div>
 
-                        <!-- Bearer Token -->
-                        <div>
-                            <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Bearer Token</label>
-                            <input type="password" id="editApiKey" placeholder="Leave blank to keep current token"
-                                   class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
-                            <p class="text-[10px] text-text-500 mt-1.5">
-                                Your token is stored encrypted and never exposed in the frontend after saving.
-                            </p>
-                        </div>
-
-                        <!-- Documentation -->
                         <div class="flex-1 flex flex-col">
-                            <div class="flex-1 min-h-[150px] sm:min-h-[280px] p-3 sm:p-4 bg-surface-900 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
+                            <div class="flex-1 min-h-[150px] sm:min-h-[250px] p-3 sm:p-4 bg-surface-900 border border-border-600 rounded-lg overflow-y-auto thin-scrollbar text-sm text-text-300 leading-relaxed">
                                 <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Documentation</label>
                                 <div id="editDocContent" class="space-y-3"></div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- ==================== COLUMN 2 ==================== -->
-                    <div class="flex flex-col gap-4">
+                    <div class="flex flex-col">
+                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">API URL</label>
+                        <input type="url" id="editApiUrl" placeholder="https://api.example.com/v1/endpoint"
+                               class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
 
-                        <!-- Rate Limit / Subscription Plan (AccuWeather only) -->
-                        <div id="editPlanSection" class="hidden flex-col gap-3 p-3 bg-surface-800/60 border border-border-700 rounded-lg">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <label class="text-xs font-medium text-text-300 uppercase tracking-wide flex items-center gap-1.5">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-munti-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                        </svg>
-                                        Rate Limit
-                                    </label>
-                                    <p class="text-[10px] text-text-500 mt-0.5" id="editPlanHelp">
-                                        Not subscribed → using Free Core Weather Trial (500/day)
-                                    </p>
-                                </div>
-                                <label class="plan-toggle">
-                                    <input type="checkbox" id="editIsSubscribed">
-                                    <span class="track"></span>
-                                </label>
-                            </div>
+                        <div class="mt-4 flex-1 p-3 sm:p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
+                            <p class="font-medium text-text-400 mb-2">Tips</p>
+                            <ul class="space-y-1.5 list-disc list-inside">
+                                <li>Include the full endpoint path</li>
+                                <li>Use HTTPS whenever possible</li>
+                                <li>Query parameters can be added later</li>
+                            </ul>
+                        </div>
+                    </div>
 
-                            <div id="editPlanSelection" class="hidden">
-                                <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Select Subscription Plan</label>
-                                <select id="editApiPlan"
-                                        class="w-full h-9 px-2 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 focus:outline-none focus:ring-2 focus:ring-radar-500/40">
-                                    <option value="lite">Lite — 10,000 requests/month</option>
-                                    <option value="full">Full — 675,000 requests/month</option>
-                                </select>
-                            </div>
+                    <div class="flex flex-col">
+                        <label class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Bearer Token</label>
+                        <input type="password" id="editApiKey" placeholder="Leave blank to keep current token"
+                               class="w-full h-10 px-3 text-sm bg-surface-900 border border-border-600 rounded-lg text-text-100 placeholder-text-500 focus:outline-none focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 transition">
 
-                            <div class="flex items-center justify-between pt-2 border-t border-border-700">
-                                <span class="text-[10px] text-text-500 uppercase tracking-wide">Calculated Rate</span>
-                                <span class="text-xs font-mono text-munti-green-300">
-                                    <span id="editRatePreview">0.35</span> <span class="text-text-500">req/min</span>
-                                </span>
-                            </div>
-                            <div class="text-[10px] text-text-500 leading-relaxed" id="editPlanBreakdown">
-                                500 requests / day ÷ 1440 minutes
+                        <div class="mt-4 flex-1 p-3 sm:p-4 bg-surface-800/50 border border-border-700 rounded-lg text-xs text-text-500">
+                            <p class="font-medium text-text-400 mb-2">Security Note</p>
+                            <p>Your token is stored encrypted and never exposed in the frontend after saving.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-medium text-text-400 uppercase tracking-wide">Fields to Map</label>
+                            <div class="flex items-center gap-2">
+                                <span id="editFieldsStatus" class="text-[10px] text-text-500"></span>
+                                <button type="button" id="editRefreshFieldsBtn" onclick="refreshEditFields()"
+                                        class="hidden text-[10px] text-munti-green-400 hover:text-munti-green-300 underline">
+                                    Refresh
+                                </button>
                             </div>
                         </div>
-
-                        <!-- Fields to Map -->
-                        <div class="flex flex-col flex-1">
-                            <div class="flex items-center justify-between mb-1.5">
-                                <label class="block text-xs font-medium text-text-400 uppercase tracking-wide">Fields to Map</label>
-                                <div class="flex items-center gap-2">
-                                    <span id="editFieldsStatus" class="text-[10px] text-text-500"></span>
-                                    <button type="button" id="editRefreshFieldsBtn" onclick="refreshEditFields()"
-                                            class="hidden text-[10px] text-munti-green-400 hover:text-munti-green-300 underline">
-                                        Refresh
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="flex-1 p-3 bg-surface-900/60 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
-                                <div id="editFieldList">
-                                    <div class="fields-placeholder">
-                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                        </svg>
-                                        <span>Loading fields from the live API…</span>
-                                    </div>
-                                </div>
-                                <div id="editFieldsLoader" class="hidden items-center gap-2 pt-2 text-[11px] text-text-500">
-                                    <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        <div class="flex-1 p-3 bg-surface-900/60 border border-border-700 rounded-lg overflow-y-auto thin-scrollbar" style="max-height: 260px;">
+                            <div id="editFieldList">
+                                <div class="fields-placeholder">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                     </svg>
-                                    <span>Loading live fields…</span>
+                                    <span>Loading fields from the live API…</span>
                                 </div>
                             </div>
-                            <p class="text-[10px] text-text-500 mt-1.5" id="editFieldListHint">Fields will be loaded from the live API endpoint automatically.</p>
+                            <div id="editFieldsLoader" class="hidden items-center gap-2 pt-2 text-[11px] text-text-500">
+                                <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                </svg>
+                                <span>Loading live fields…</span>
+                            </div>
                         </div>
+                        <p class="text-[10px] text-text-500 mt-1.5" id="editFieldListHint">Fields will be loaded from the live API endpoint automatically.</p>
                     </div>
 
                 </div>
@@ -665,40 +567,14 @@
 </div>
 
 <script>
-    // ================================================================
-    // CONFIG
-    // ================================================================
-    const ACCUWEATHER_URL = 'https://dataservice.accuweather.com/currentconditions/v1/264879';
-
-    const apiUrlMap = {
-        'accuweather': ACCUWEATHER_URL,
-        'AccuWeather': ACCUWEATHER_URL,
-        'foreca': 'https://api.foreca.net/v1/current',
-        'Foreca': 'https://api.foreca.net/v1/current',
-        'custom': '',
-        'Custom': ''
-    };
-
-    // AccuWeather plan → requests per minute
-    // Free : 500/day         → 500 / 1440        ≈ 0.347
-    // Lite : 10,000/month    → 10000 / 43200     ≈ 0.231
-    // Full : 675,000/month   → 675000 / 43200    ≈ 15.625
-    const PLAN_RATES = {
-        'free': { rpm: 500 / 1440,  label: '500 requests / day ÷ 1440 minutes',                   short: 'Free Core Weather Trial' },
-        'lite': { rpm: 10000 / 43200, label: '10,000 requests / month ÷ (30 × 1440 minutes)',    short: 'Lite' },
-        'full': { rpm: 675000 / 43200, label: '675,000 requests / month ÷ (30 × 1440 minutes)',  short: 'Full' }
-    };
-
-    // ================================================================
-    // HELPERS
-    // ================================================================
+    // ========== HELPERS ==========
     const docMap = {
         accustation: { endpoint: 'https://api.accustation.com/v1/data', rate: '60 requests / minute', params: 'apikey, station_id', auth: 'Bearer Token' },
         openweather: { endpoint: 'https://api.openweathermap.org/data/2.5/weather', rate: '60 calls/minute (free tier)', params: 'appid, q, units', auth: 'Bearer Token' },
         iqair: { endpoint: 'https://api.iqair.com/v2/', rate: '10,000 calls/month (free)', params: 'api_key, city', auth: 'Bearer Token' },
         accuweather: {
-            endpoint: 'https://dataservice.accuweather.com/',
-            rate: 'Free: 500/day · Lite: 10,000/month · Full: 675,000/month',
+            endpoint: 'https://dataservice.accuweather.com/currentconditions/v1/264879',
+            rate: '500 calls/day (Free tier) / higher for paid plans',
             params: 'locationKey, metric etc. (token sent as Bearer)',
             auth: 'Bearer Token',
             endpoints: 'Current Conditions, Hourly/Daily Forecasts, Alerts, Indices, and more'
@@ -710,16 +586,30 @@
     let editSavedChecklist = [];
     let editAvailableFields = [];
 
+    // ========== AUTO-FETCH STATE (ADD MODAL) ==========
     let addFetchTimer = null;
     let addFetchAbort = null;
 
-    function isAccuWeather(source) {
-        return !!source && source.toLowerCase() === 'accuweather';
+    function updateDocContent(docDiv, source) {
+        if (source && docMap[source]) {
+            const info = docMap[source];
+            let html = `
+                <p><strong class="text-text-200">Base Endpoint:</strong></p>
+                <code class="block text-xs bg-surface-900 px-2 py-1.5 rounded text-munti-blue-300 break-all">${info.endpoint}</code>
+                <p class="mt-3"><strong class="text-text-200">Rate Limit:</strong> ${info.rate}</p>
+                <p class="mt-2"><strong class="text-text-200">Required Parameters:</strong> ${info.params}</p>
+                <p class="mt-2"><strong class="text-text-200">Authentication:</strong> ${info.auth}</p>
+            `;
+            if (info.endpoints) html += `<p class="mt-2"><strong class="text-text-200">Available Endpoints:</strong> ${info.endpoints}</p>`;
+            docDiv.innerHTML = html;
+            docDiv.classList.remove('hidden');
+        } else {
+            docDiv.innerHTML = `<p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>`;
+            docDiv.classList.add('hidden');
+        }
     }
 
-    function getCsrfToken() {
-        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    }
+    function getCsrfToken() { return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''; }
 
     function sendRequest(method, url, data, successCallback, errorCallback) {
         fetch(url, {
@@ -745,11 +635,8 @@
         return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
     function is2xx(status) { return typeof status === 'number' && status >= 200 && status < 300; }
-    function formatRpm(v) { return Number(v).toFixed(2); }
 
-    // ================================================================
-    // BUTTON LOADING
-    // ================================================================
+    // ========== BUTTON LOADING ==========
     function setButtonLoading(btnId, loading, loadingText) {
         const btn = document.getElementById(btnId);
         if (!btn) return;
@@ -772,81 +659,42 @@
         }
     }
 
-    // ================================================================
-    // PLAN / SUBSCRIPTION HELPERS
-    // ================================================================
-    function getSelectedPlan(prefix) {
-        const isSub = document.getElementById(prefix + 'IsSubscribed').checked;
-        if (!isSub) return 'free';
-        return document.getElementById(prefix + 'ApiPlan').value;
-    }
 
-    function calculateRpm(prefix, source) {
-        if (!isAccuWeather(source)) return 0;
-        const plan = getSelectedPlan(prefix);
-        return +PLAN_RATES[plan].rpm.toFixed(2);
-    }
+    // ========== AUTO-FILL API URL FOR ACCUWEATHER ==========
+    const apiUrlMap = {
+        'accuweather': 'https://dataservice.accuweather.com/currentconditions/v1/264879',
+        'foreca': 'https://api.foreca.net/v1/current',
+        'custom': ''
+    };
 
-    function refreshPlanUI(prefix) {
-        const source = document.getElementById(prefix + 'apiSource').value;
-        const section   = document.getElementById(prefix + 'PlanSection');
-        const subToggle = document.getElementById(prefix + 'IsSubscribed');
-        const planSel   = document.getElementById(prefix + 'PlanSelection');
-        const helpText  = document.getElementById(prefix + 'PlanHelp');
-        const preview   = document.getElementById(prefix + 'RatePreview');
-        const breakdown = document.getElementById(prefix + 'PlanBreakdown');
-
-        if (!section) return;
-
-        if (!isAccuWeather(source)) {
-            section.classList.add('hidden');
-            section.classList.remove('flex');
-            return;
-        }
-
-        section.classList.remove('hidden');
-        section.classList.add('flex');
-
-        const isSub = subToggle.checked;
-        planSel.classList.toggle('hidden', !isSub);
-
-        const plan = isSub ? document.getElementById(prefix + 'ApiPlan').value : 'free';
-        const info = PLAN_RATES[plan];
-
-        preview.textContent = formatRpm(info.rpm);
-        breakdown.textContent = info.label;
-
-        if (helpText) {
-            helpText.textContent = isSub
-                ? `Subscribed → ${info.short} plan`
-                : 'Not subscribed → using Free Core Weather Trial (500/day)';
-        }
-    }
-
-    // ================================================================
-    // DOCUMENTATION CONTENT
-    // ================================================================
-    function updateDocContent(docDiv, source) {
-        const key = (source || '').toLowerCase();
-        if (key && docMap[key]) {
-            const info = docMap[key];
-            let html = `
-                <p><strong class="text-text-200">Base Endpoint:</strong></p>
-                <code class="block text-xs bg-surface-900 px-2 py-1.5 rounded text-munti-blue-300 break-all">${info.endpoint}</code>
-                <p class="mt-3"><strong class="text-text-200">Rate Limit:</strong> ${info.rate}</p>
-                <p class="mt-2"><strong class="text-text-200">Required Parameters:</strong> ${info.params}</p>
-                <p class="mt-2"><strong class="text-text-200">Authentication:</strong> ${info.auth}</p>
-            `;
-            if (info.endpoints) html += `<p class="mt-2"><strong class="text-text-200">Available Endpoints:</strong> ${info.endpoints}</p>`;
-            docDiv.innerHTML = html;
+    // Update the existing event listener for apiSource
+    document.getElementById('apiSource')?.addEventListener('change', function () {
+        const source = this.value;
+        
+        // 1. Update documentation
+        updateDocContent(document.getElementById('docContent'), source);
+        
+        // 2. Auto-fill the API URL
+        const urlField = document.getElementById('apiUrl');
+        if (apiUrlMap[source]) {
+            urlField.value = apiUrlMap[source];
         } else {
-            docDiv.innerHTML = `<p class="text-text-500 italic">Select an API source above to view its documentation and required parameters.</p>`;
+            urlField.value = ''; // Clear for custom or empty
         }
-    }
 
-    // ================================================================
-    // FIELD LIST RENDERING
-    // ================================================================
+        // 3. Update placeholder for custom
+        urlField.placeholder = source === 'custom' 
+            ? 'https://api.example.com/v1/endpoint' 
+            : 'Auto-filled URL';
+
+        // 4. Trigger field fetch (if token is already typed)
+        scheduleAddFieldsFetch();
+    });
+
+    // Also trigger auto-fill on initial load if a source is pre-selected (optional)
+    // document.getElementById('apiSource').dispatchEvent(new Event('change'));
+
+    // ========== FIELD LIST PLACEHOLDERS ==========
     function showFieldsPlaceholder(prefix, message) {
         const container = document.getElementById(prefix + 'FieldList');
         if (!container) return;
@@ -855,7 +703,7 @@
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                 </svg>
-                <span>${escapeHtml(message || 'Enter the API Source and Bearer Token to automatically load available fields.')}</span>
+                <span>${escapeHtml(message || 'Enter the API Source, URL, and Bearer Token to automatically load available fields.')}</span>
             </div>
         `;
     }
@@ -874,6 +722,7 @@
         `;
     }
 
+    // ========== DYNAMIC FIELD LIST ==========
     function renderDynamicFields(prefix, fields, checkedValues) {
         const container = document.getElementById(prefix + 'FieldList');
         const hint = document.getElementById(prefix + 'FieldListHint');
@@ -916,9 +765,7 @@
         }
     }
 
-    // ================================================================
-    // AUTO-FETCH FIELDS (ADD MODAL)
-    // ================================================================
+    // ========== AUTO-FETCH FIELDS (ADD MODAL) ==========
     function scheduleAddFieldsFetch() {
         clearTimeout(addFetchTimer);
         addFetchTimer = setTimeout(fetchAddFields, 700);
@@ -930,6 +777,7 @@
         const token = document.getElementById('apiKey').value;
 
         if (!source || !url || !token) {
+            // Cancel any in-flight request and reset to placeholder
             if (addFetchAbort) { addFetchAbort.abort(); addFetchAbort = null; }
             showFieldsPlaceholder('add');
             const hint = document.getElementById('addFieldListHint');
@@ -976,9 +824,7 @@
         });
     }
 
-    // ================================================================
-    // API CHECK POPUP
-    // ================================================================
+    // ========== API CHECK POPUP ==========
     function showApiCheckPopup({ status, message, error, onEdit, onSaveAnyway }) {
         let statusLabel = 'Unknown Status';
         let pillStyle = 'background: rgba(239,68,68,0.15); color: #f87171;';
@@ -1030,9 +876,13 @@
             background: '#1f2937',
             color: '#f3f4f6',
             iconColor: '#f59e0b',
+            reverseButtons: false,
         }).then((result) => {
-            if (result.isConfirmed) onSaveAnyway && onSaveAnyway();
-            else if (result.isDenied) onEdit && onEdit();
+            if (result.isConfirmed) {
+                onSaveAnyway && onSaveAnyway();
+            } else if (result.isDenied) {
+                onEdit && onEdit();
+            }
         });
     }
 
@@ -1106,9 +956,7 @@
         });
     }
 
-    // ================================================================
-    // VIEW API RESPONSE (LIVE)
-    // ================================================================
+    // ========== VIEW API RESPONSE (LIVE) ==========
     let currentJsonData = null;
     let currentJsonId   = null;
     let jsonViewMode    = 'pretty';
@@ -1291,16 +1139,14 @@
         }).catch(() => { Swal.fire('Error', 'Could not copy JSON. Please select and copy manually.', 'error'); });
     }
 
-    // ================================================================
-    // ADD MODAL
-    // ================================================================
+    // ========== ADD MODAL ==========
     function openAddCalibrationModal() {
         document.getElementById('addTestResult').classList.add('hidden');
         document.getElementById('addTestResult').innerHTML = '';
         document.getElementById('addApiModal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+        // Reset field list to placeholder
         showFieldsPlaceholder('add');
-        refreshPlanUI('add');
     }
 
     function closeAddCalibrationModal() {
@@ -1309,9 +1155,6 @@
         document.getElementById('apiSource').value = '';
         document.getElementById('apiUrl').value = '';
         document.getElementById('apiKey').value = '';
-        document.getElementById('addIsSubscribed').checked = false;
-        document.getElementById('addApiPlan').value = 'lite';
-        document.getElementById('addPlanSelection').classList.add('hidden');
         document.getElementById('addTestResult').classList.add('hidden');
         document.getElementById('addTestResult').innerHTML = '';
         updateDocContent(document.getElementById('docContent'), '');
@@ -1322,37 +1165,25 @@
             hint.className = 'text-[10px] text-text-500 mt-1.5';
         }
         setButtonLoading('addSaveBtn', false);
+        // Cancel any pending auto-fetch
         clearTimeout(addFetchTimer);
         if (addFetchAbort) { addFetchAbort.abort(); addFetchAbort = null; }
-        refreshPlanUI('add');
     }
 
+    // Auto-fetch triggers for the add modal
     document.getElementById('apiSource')?.addEventListener('change', function () {
-        const source = this.value;
+        updateDocContent(document.getElementById('docContent'), this.value);
         const urlField = document.getElementById('apiUrl');
-        if (apiUrlMap[source] !== undefined) {
-            urlField.value = apiUrlMap[source];
-        }
-        updateDocContent(document.getElementById('docContent'), source);
-        refreshPlanUI('add');
+        urlField.placeholder = this.value === 'accuweather'
+            ? 'http://dataservice.accuweather.com/currentconditions/v1/{locationKey}'
+            : 'https://api.example.com/v1/endpoint';
         scheduleAddFieldsFetch();
-    });
-
-    document.getElementById('addIsSubscribed')?.addEventListener('change', function () {
-        document.getElementById('addPlanSelection').classList.toggle('hidden', !this.checked);
-        refreshPlanUI('add');
-    });
-
-    document.getElementById('addApiPlan')?.addEventListener('change', function () {
-        refreshPlanUI('add');
     });
 
     document.getElementById('apiUrl')?.addEventListener('input', scheduleAddFieldsFetch);
     document.getElementById('apiKey')?.addEventListener('input', scheduleAddFieldsFetch);
 
-    // ================================================================
-    // SAVE (ADD)
-    // ================================================================
+    // ========== SAVE (ADD) — checks API first, then saves or prompts ==========
     function saveExternalApi() {
         const source = document.getElementById('apiSource').value;
         const url = document.getElementById('apiUrl').value.trim();
@@ -1384,7 +1215,7 @@
                         message: data.message,
                         error: data.error,
                         onEdit: () => {
-                            const urlField = document.getElementById('apiKey');
+                            const urlField = document.getElementById('apiUrl');
                             urlField.focus();
                             urlField.select();
                         },
@@ -1404,11 +1235,9 @@
 
     function proceedToSaveAdd({ source, url, token, authType, enabled }) {
         const checklist = Array.from(document.querySelectorAll('input[name="add_params"]:checked')).map(cb => cb.value);
-        const requestsPerMin = calculateRpm('add', source);
-
         const payload = {
             source, api_url: url, api_token: token, auth_type: authType,
-            checklist, total_data: 0, requests_per_min: requestsPerMin, file_path: null,
+            checklist, total_data: 0, requests_per_min: 0, file_path: null,
             enabled: !!enabled,
         };
 
@@ -1427,9 +1256,7 @@
         });
     }
 
-    // ================================================================
-    // EDIT MODAL
-    // ================================================================
+    // ========== EDIT MODAL ==========
     function editCalibration(id) {
         editCurrentId = id;
         editSavedChecklist = [];
@@ -1442,6 +1269,7 @@
         loader.classList.add('hidden');
         loader.classList.remove('flex');
 
+        // Show loading placeholder while we fetch the record
         showFieldsLoading('edit');
 
         fetch(`/settings/calibration/${id}`, {
@@ -1455,22 +1283,7 @@
 
             editSavedChecklist = Array.isArray(data.checklist) ? data.checklist.slice() : [];
 
-            // Restore plan state from stored requests_per_min
-            const rpm = parseFloat(data.requests_per_min) || 0;
-            let matchedPlan = 'free';
-            let minDiff = Math.abs(rpm - PLAN_RATES.free.rpm);
-            ['lite', 'full'].forEach(p => {
-                const d = Math.abs(rpm - PLAN_RATES[p].rpm);
-                if (d < minDiff) { minDiff = d; matchedPlan = p; }
-            });
-
-            const isSub = matchedPlan !== 'free';
-            document.getElementById('editIsSubscribed').checked = isSub;
-            document.getElementById('editPlanSelection').classList.toggle('hidden', !isSub);
-            if (isSub) document.getElementById('editApiPlan').value = matchedPlan;
-
             updateDocContent(document.getElementById('editDocContent'), data.source);
-            refreshPlanUI('edit');
 
             document.getElementById('editApiModal').dataset.id = id;
             document.getElementById('editApiModal').classList.remove('hidden');
@@ -1492,35 +1305,18 @@
         editCurrentId = null;
         editSavedChecklist = [];
         editAvailableFields = [];
-        document.getElementById('editIsSubscribed').checked = false;
-        document.getElementById('editPlanSelection').classList.add('hidden');
-        document.getElementById('editApiPlan').value = 'lite';
         setButtonLoading('editSaveBtn', false);
-        refreshPlanUI('edit');
     }
 
     document.getElementById('editApiSource')?.addEventListener('change', function () {
-        const source = this.value;
+        updateDocContent(document.getElementById('editDocContent'), this.value);
         const urlField = document.getElementById('editApiUrl');
-        if (apiUrlMap[source] !== undefined) {
-            urlField.value = apiUrlMap[source];
-        }
-        updateDocContent(document.getElementById('editDocContent'), source);
-        refreshPlanUI('edit');
+        urlField.placeholder = this.value === 'accuweather'
+            ? 'http://dataservice.accuweather.com/currentconditions/v1/{locationKey}'
+            : 'https://api.example.com/v1/endpoint';
     });
 
-    document.getElementById('editIsSubscribed')?.addEventListener('change', function () {
-        document.getElementById('editPlanSelection').classList.toggle('hidden', !this.checked);
-        refreshPlanUI('edit');
-    });
-
-    document.getElementById('editApiPlan')?.addEventListener('change', function () {
-        refreshPlanUI('edit');
-    });
-
-    // ================================================================
-    // UPDATE (EDIT)
-    // ================================================================
+    // ========== UPDATE (EDIT) — checks API first, then saves or prompts ==========
     function updateExternalApi() {
         const id = document.getElementById('editApiModal').dataset.id;
         if (!id) { Swal.fire('Error', 'No record ID found.', 'error'); return; }
@@ -1575,7 +1371,7 @@
                     message: data.message,
                     error: data.error,
                     onEdit: () => {
-                        const urlField = document.getElementById('editApiKey');
+                        const urlField = document.getElementById('editApiUrl');
                         urlField.focus();
                         urlField.select();
                     },
@@ -1587,12 +1383,10 @@
 
     function proceedToSaveEdit({ id, source, url, token, authType, enabled }) {
         const checklist = Array.from(document.querySelectorAll('input[name="edit_params"]:checked')).map(cb => cb.value);
-        const requestsPerMin = calculateRpm('edit', source);
 
         const payload = {
             source, api_url: url, auth_type: authType,
             checklist,
-            requests_per_min: requestsPerMin,
             enabled: !!enabled,
         };
         if (token && token.trim() !== '') payload.api_token = token;
@@ -1612,9 +1406,7 @@
         });
     }
 
-    // ================================================================
-    // DELETE
-    // ================================================================
+    // ========== DELETE ==========
     function deleteCalibration(id, fileName) {
         Swal.fire({
             title: 'Delete Calibration?',
@@ -1638,9 +1430,7 @@
         });
     }
 
-    // ================================================================
-    // CLOSE ON ESC
-    // ================================================================
+    // ========== CLOSE ON ESC ==========
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             if (typeof Swal !== 'undefined' && Swal.isVisible()) return;
