@@ -659,6 +659,41 @@
         }
     }
 
+
+    // ========== AUTO-FILL API URL FOR ACCUWEATHER ==========
+    const apiUrlMap = {
+        'accuweather': 'https://dataservice.accuweather.com/currentconditions/v1/264879',
+        'foreca': 'https://api.foreca.net/v1/current',
+        'custom': ''
+    };
+
+    // Update the existing event listener for apiSource
+    document.getElementById('apiSource')?.addEventListener('change', function () {
+        const source = this.value;
+        
+        // 1. Update documentation
+        updateDocContent(document.getElementById('docContent'), source);
+        
+        // 2. Auto-fill the API URL
+        const urlField = document.getElementById('apiUrl');
+        if (apiUrlMap[source]) {
+            urlField.value = apiUrlMap[source];
+        } else {
+            urlField.value = ''; // Clear for custom or empty
+        }
+
+        // 3. Update placeholder for custom
+        urlField.placeholder = source === 'custom' 
+            ? 'https://api.example.com/v1/endpoint' 
+            : 'Auto-filled URL';
+
+        // 4. Trigger field fetch (if token is already typed)
+        scheduleAddFieldsFetch();
+    });
+
+    // Also trigger auto-fill on initial load if a source is pre-selected (optional)
+    // document.getElementById('apiSource').dispatchEvent(new Event('change'));
+
     // ========== FIELD LIST PLACEHOLDERS ==========
     function showFieldsPlaceholder(prefix, message) {
         const container = document.getElementById(prefix + 'FieldList');
