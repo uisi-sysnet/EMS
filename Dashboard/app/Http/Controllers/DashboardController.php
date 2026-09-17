@@ -1604,10 +1604,33 @@ class DashboardController extends Controller
                 $remark .= ' (Fiber or Power Problem)';
             }
 
+            // Badge severity reflects how much of the *site* is down, not
+            // just the AQ station's own leg — a site whose camera is dead
+            // but whose AQ station is fine is still a Warning, not Online.
+            //   1 of 3 offline -> Warning
+            //   2 of 3 offline -> Critical
+            //   all offline    -> Offline
+            // Generalized for sites missing a Camera and/or Lead Sensor:
+            // "all" means every component actually configured at that site,
+            // so an AQ-only site that's down reads Offline (not Warning).
+            $offlineCount   = count($offline);
+            $componentCount = count($components);
+
+            if ($offlineCount >= $componentCount) {
+                $severityLabel = 'Offline';
+                $severityKey   = 'offline';
+            } elseif ($offlineCount >= 2) {
+                $severityLabel = 'Critical';
+                $severityKey   = 'critical';
+            } else {
+                $severityLabel = 'Warning';
+                $severityKey   = 'warning';
+            }
+
             $problemRows[] = [
                 (string) $item->station,
                 $remark,
-                ['badge' => true, 'label' => ucfirst($item->status), 'status' => $item->status],
+                ['badge' => true, 'label' => $severityLabel, 'status' => $severityKey],
             ];
         }
 
@@ -1887,7 +1910,8 @@ class DashboardController extends Controller
         return match ($status) {
             'online', 'good'       => [22, 163, 74],
             'idle', 'warning'      => [217, 119, 6],
-            'offline', 'critical'  => [220, 38, 38],
+            'offline'              => [220, 38, 38],
+            'critical'             => [153, 27, 27],
             default                => [107, 114, 128],
         };
     }
