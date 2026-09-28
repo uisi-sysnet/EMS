@@ -99,7 +99,7 @@
                         </button>
                         <div id="inventory-menu" class="dropdown-menu absolute left-0 mt-2 w-52 bg-surface-800 rounded-xl shadow-2xl border border-border-700 hidden z-20 overflow-hidden">
                             <a href="{{ route('inventory.stations.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Air Quality</a>
-                            <a href="#" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Water level</a>
+                            <a href="{{ route('inventory.water-level-stations.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">Water level</a>
                             <a href="{{ route('inventory.cameras.index') }}" class="block px-4 py-2.5 text-sm text-text-400 hover:bg-surface-700 hover:text-radar-400 transition-colors">CCTV</a>
                         </div>
                     </div>
@@ -245,7 +245,7 @@
                     </button>
                     <div id="inventory-mobile-submenu" class="mobile-submenu hidden pl-4 space-y-1 mt-1">
                         <a href="{{ route('inventory.stations.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Air Quality</a>
-                        <a href="#" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Water Level</a>
+                        <a href="{{ route('inventory.water-level-stations.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">Water Level</a>
                         <a href="{{ route('inventory.cameras.index') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-400 hover:text-text-100 hover:bg-surface-700 transition">CCTV</a>
                     </div>
                 </div> 
