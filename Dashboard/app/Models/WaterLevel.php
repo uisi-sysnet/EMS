@@ -3,66 +3,29 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
-class WaterLevel extends Model
+class WaterLevelSensorData extends Model
 {
-    use SoftDeletes;
-
-    /**
-     * The EMS database connection (registered at runtime in AppServiceProvider).
-     */
     protected $connection = 'water_level';
+    protected $table      = 'sensor_data';
 
-    /**
-     * The table associated with the model.
-     */
-    protected $table = 'stations';
-
-    /**
-     * Mass-assignable attributes (mirrors the migration columns).
-     */
     protected $fillable = [
         'station_mn',
-        'station_name',
-        'enabled',
-        'location',
-        'latitude',
-        'longitude',
-        'installation_height',
-        'elevation_height',
-        'lead_ip',
-        'lead_port',
-        'lead_slave',
+        'water_level',
+        'battery_voltage',
+        'temperature',
+        'recorded_at',
     ];
 
-    /**
-     * Attribute casting so Blade gets proper types.
-     */
     protected $casts = [
-        'enabled'             => 'boolean',
-        'latitude'            => 'float',
-        'longitude'           => 'float',
-        'installation_height' => 'float',
-        'elevation_height'    => 'float',
-        'lead_port'           => 'integer',
-        'lead_slave'          => 'integer',
-        'deleted_at'          => 'datetime',
+        'water_level'     => 'float',
+        'battery_voltage' => 'float',
+        'temperature'     => 'float',
+        'recorded_at'     => 'datetime',
     ];
 
-    /**
-     * Route-model binding uses station_mn, not id.
-     */
-    public function getRouteKeyName(): string
+    public function station()
     {
-        return 'station_mn';
-    }
-
-    /**
-     * Sensor readings relationship (optional sensor_data table).
-     */
-    public function sensorData()
-    {
-        return $this->hasMany(WaterLevelSensorData::class, 'station_mn', 'station_mn');
+        return $this->belongsTo(WaterLevel::class, 'station_mn', 'station_mn');
     }
 }
