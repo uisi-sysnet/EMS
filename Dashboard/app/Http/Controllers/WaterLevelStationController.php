@@ -8,29 +8,17 @@ use Illuminate\Validation\Rule;
 
 class WaterLevelStationController extends Controller
 {
-    /**
-     * Display a listing of water level stations.
-     */
     public function index()
     {
-        $stations = WaterLevel::query()
-            // If you add the sensor_data table, this gives you sensor_data_count
-            // on each row, which the Blade already checks via $station->sensor_data_count.
-            ->withCount('sensorData')
-            ->orderBy('station_mn')
-            ->get();
+        $stations = WaterLevel::orderBy('station_mn')->get();
 
         $deletedStations = WaterLevel::onlyTrashed()
-            ->withCount('sensorData')
             ->orderBy('station_mn')
             ->get();
 
         return view('inventory.water_level', compact('stations', 'deletedStations'));
     }
 
-    /**
-     * Store a newly created station.
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -61,9 +49,6 @@ class WaterLevelStationController extends Controller
             ->with('success', "Station \"{$validated['station_mn']}\" created successfully.");
     }
 
-    /**
-     * Return a station as JSON for the edit modal.
-     */
     public function edit($station_mn)
     {
         $station = WaterLevel::where('station_mn', $station_mn)->firstOrFail();
@@ -83,9 +68,6 @@ class WaterLevelStationController extends Controller
         ]);
     }
 
-    /**
-     * Update an existing station.
-     */
     public function update(Request $request, $station_mn)
     {
         $station = WaterLevel::where('station_mn', $station_mn)->firstOrFail();
@@ -120,9 +102,6 @@ class WaterLevelStationController extends Controller
             ->with('success', "Station \"{$station->station_mn}\" updated successfully.");
     }
 
-    /**
-     * Soft-delete a station.
-     */
     public function destroy($station_mn)
     {
         $station = WaterLevel::where('station_mn', $station_mn)->firstOrFail();
@@ -133,9 +112,6 @@ class WaterLevelStationController extends Controller
             ->with('success', "Station \"{$station->station_mn}\" deleted successfully.");
     }
 
-    /**
-     * Restore a soft-deleted station.
-     */
     public function restore($station_mn)
     {
         $station = WaterLevel::onlyTrashed()
@@ -150,34 +126,19 @@ class WaterLevelStationController extends Controller
     }
 
     /**
-     * Check whether a station has sensor data (used by the delete confirm dialog).
+     * Stub — sensor_data table no longer exists.
+     * Always reports zero so the delete confirmation behaves as "no data".
      */
     public function checkData($station_mn)
     {
-        $station = WaterLevel::withTrashed()
+        $exists = WaterLevel::withTrashed()
             ->where('station_mn', $station_mn)
-            ->first();
-
-        if (!$station) {
-            return response()->json([
-                'hasData'   => false,
-                'dataCount' => 0,
-                'exists'    => false,
-            ]);
-        }
-
-        $count = 0;
-        try {
-            $count = $station->sensorData()->count();
-        } catch (\Throwable $e) {
-            // sensor_data table not created yet — silently report zero.
-            $count = 0;
-        }
+            ->exists();
 
         return response()->json([
-            'hasData'   => $count > 0,
-            'dataCount' => $count,
-            'exists'    => true,
+            'hasData'   => false,
+            'dataCount' => 0,
+            'exists'    => $exists,
         ]);
     }
 }

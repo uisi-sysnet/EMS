@@ -3,29 +3,58 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-class WaterLevelSensorData extends Model
+class WaterLevel extends Model
 {
-    protected $connection = 'water_level';
-    protected $table      = 'sensor_data';
+    use SoftDeletes;
 
+    /**
+     * The EMS database connection (registered at runtime in AppServiceProvider).
+     */
+    protected $connection = 'water_level';
+
+    /**
+     * The table associated with the model.
+     */
+    protected $table = 'stations';
+
+    /**
+     * Mass-assignable attributes.
+     */
     protected $fillable = [
         'station_mn',
-        'water_level',
-        'battery_voltage',
-        'temperature',
-        'recorded_at',
+        'station_name',
+        'enabled',
+        'location',
+        'latitude',
+        'longitude',
+        'installation_height',
+        'elevation_height',
+        'lead_ip',
+        'lead_port',
+        'lead_slave',
     ];
 
+    /**
+     * Attribute casting.
+     */
     protected $casts = [
-        'water_level'     => 'float',
-        'battery_voltage' => 'float',
-        'temperature'     => 'float',
-        'recorded_at'     => 'datetime',
+        'enabled'             => 'boolean',
+        'latitude'            => 'float',
+        'longitude'           => 'float',
+        'installation_height' => 'float',
+        'elevation_height'    => 'float',
+        'lead_port'           => 'integer',
+        'lead_slave'          => 'integer',
+        'deleted_at'          => 'datetime',
     ];
 
-    public function station()
+    /**
+     * Route-model binding uses station_mn, not id.
+     */
+    public function getRouteKeyName(): string
     {
-        return $this->belongsTo(WaterLevel::class, 'station_mn', 'station_mn');
+        return 'station_mn';
     }
 }
