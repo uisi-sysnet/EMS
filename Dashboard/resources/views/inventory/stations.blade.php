@@ -17,7 +17,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-munti-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                Add New Station
+                Add New Air Quality Station
             </h3>
             <button type="button" onclick="closeAddModal()" class="p-2 rounded-lg hover:bg-surface-700 text-text-400 hover:text-text-100 transition">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -205,7 +205,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-radar-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                 </svg>
-                Edit Station
+                Edit Air QualityStation
             </h3>
             <button type="button" onclick="closeEditModal()" class="p-2 rounded-lg hover:bg-surface-700 text-text-400 hover:text-text-100 transition">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -382,7 +382,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-munti-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                 </svg>
-                Deleted Stations
+                Deleted Air Quality Stations
             </h3>
             <button type="button" onclick="closeDeletedModal()" class="p-2 rounded-lg hover:bg-surface-700 text-text-400 hover:text-text-100 transition">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -490,7 +490,7 @@
         <!-- Header -->
         <div class="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
             <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2.5">
-                <span class="leading-tight uppercase tracking-wide">Manage Stations</span>
+                <span class="leading-tight uppercase tracking-wide">Manage Air QualityStations</span>
             </h2>
             <span class="text-xs sm:text-sm text-text-400">Create and manage your monitoring stations</span>
         </div>
@@ -517,7 +517,7 @@
                             <span class="text-xs text-text-500">{{ $stations->count() }} Station(s)</span>
 
                             {{-- Download Format --}}
-                            <a href="{{-- {{ route('cameras.download-format') }} --}}"
+                            {{-- <a href="{{ route('cameras.download-format') }}"
                                 class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-text-200 bg-surface-700/40 border border-border-600/30 rounded-md hover:bg-surface-700/60 transition whitespace-nowrap">
                                 <svg xmlns="http://www.w3.org/2000/svg"
                                     class="w-3.5 h-3.5 shrink-0"
@@ -530,10 +530,10 @@
                                         d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                 </svg>
                                 Download Format
-                            </a>
+                            </a> --}}
 
                             {{-- Export --}}
-                            <a href="{{-- {{ route('inventory.cameras.export') }} --}}"
+                            {{-- <a href="{{ route('inventory.cameras.export') }}"
                                 class="inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-munti-green-400 bg-munti-green-700/20 border border-munti-green-600/30 rounded-md hover:bg-munti-green-700/30 transition whitespace-nowrap">
                                 <svg xmlns="http://www.w3.org/2000/svg"
                                     class="w-3.5 h-3.5 shrink-0"
@@ -546,11 +546,11 @@
                                         d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                 </svg>
                                 Export
-                            </a>
+                            </a> --}}
 
                             {{-- Import --}}
-                            <form id="importForm"
-                                action="{{-- {{ route('inventory.cameras.import') }} --}}"
+                            {{-- <form id="importForm"
+                                action="{{ route('inventory.cameras.import') }}"
                                 method="POST"
                                 enctype="multipart/form-data"
                                 class="m-0">
@@ -575,7 +575,7 @@
                                     accept=".xlsx,.xls,.csv"
                                     class="hidden"
                                     onchange="this.form.submit()">
-                            </form>
+                            </form> --}}
 
                             @if($deletedStations->count() > 0)
                                 <button type="button" onclick="openDeletedModal()"
