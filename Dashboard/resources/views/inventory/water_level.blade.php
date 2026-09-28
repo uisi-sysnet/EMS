@@ -131,6 +131,7 @@
                         <div class="flex-1">
                             <label for="modal_elevation_height" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                 Elevation Height
+                                <span id="modal_elevation_status" class="ml-1 text-[10px] text-text-500 normal-case"></span>
                             </label>
                             <input type="number"
                                 step="any"
@@ -337,6 +338,7 @@
                         <div class="flex-1">
                             <label for="edit_elevation_height" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
                                 Elevation Height
+                                <span id="edit_elevation_status" class="ml-1 text-[10px] text-text-500 normal-case"></span>
                             </label>
                             <input type="number"
                                 step="any"
@@ -839,8 +841,11 @@
 // Add Station Modal
 function openAddModal() {
     document.getElementById('addModal').style.display = 'flex';
+    // Reset the "user edited" flag when opening fresh
+    if (window.addModalElevation) {
+        window.addModalElevation.resetUserEdited();
+    }
 }
-
 function closeAddModal() {
     document.getElementById('addModal').style.display = 'none';
 }
@@ -904,11 +909,17 @@ function editStation(stationMn) {
         })
         .then(data => {
             populateEditForm(data);
+            if (window.editModalElevation) {
+                window.editModalElevation.resetUserEdited();
+            }
         })
         .catch(error => {
             console.warn('Using dummy data for edit:', error);
             const data = dummyData[stationMn] || dummyData['WLS-001'];
             populateEditForm(data);
+            if (window.editModalElevation) {
+                window.editModalElevation.resetUserEdited();
+            }
         });
 }
 
@@ -1046,6 +1057,132 @@ function toggleStationForm() {
     form.classList.toggle('hidden');
     icon.classList.toggle('rotate-180');
 }
+
+/* ============================================================
+   Auto-Calculate Elevation Height from Latitude / Longitude
+   Uses the free Open-Meteo Elevation API (no API key needed)
+   Docs: https://open-meteo.com/en/docs/elevation-api
+   ============================================================ */
+
+// Debounce helper so we don't spam the API on every keystroke
+function debounce(fn, delay = 600) {
+    let timer;
+    return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
+/**
+ * Fetch elevation for a given lat/long.
+ * @param {number} lat
+ * @param {number} lon
+ * @returns {Promise<number|null>}
+ */
+async function fetchElevation(lat, lon) {
+    const url = `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Elevation API error: ${res.status}`);
+    const data = await res.json();
+
+    // API returns: { "elevation": [ 38.0 ] }
+    if (Array.isArray(data.elevation) && data.elevation.length > 0) {
+        return data.elevation[0];
+    }
+    return null;
+}
+
+/**
+ * Wire up auto-elevation for a modal.
+ * @param {string} latId       - DOM id of latitude input
+ * @param {string} lonId       - DOM id of longitude input
+ * @param {string} elevId      - DOM id of elevation input
+ * @param {string} statusId    - DOM id of the small status <span>
+ */
+function setupAutoElevation(latId, lonId, elevId, statusId) {
+    const latEl    = document.getElementById(latId);
+    const lonEl    = document.getElementById(lonId);
+    const elevEl   = document.getElementById(elevId);
+    const statusEl = document.getElementById(statusId);
+
+    if (!latEl || !lonEl || !elevEl) return;
+
+    // Track whether the user has manually edited the elevation field.
+    // If so, we don't overwrite their value automatically.
+    let userEdited = false;
+    elevEl.addEventListener('input', (e) => {
+        // Only treat as user-edit if the event was not triggered programmatically
+        if (e.isTrusted) userEdited = true;
+    });
+
+    const doFetch = debounce(async () => {
+        const lat = parseFloat(latEl.value);
+        const lon = parseFloat(lonEl.value);
+
+        // Need both valid coordinates
+        if (isNaN(lat) || isNaN(lon)) {
+            statusEl.textContent = '';
+            return;
+        }
+
+        // Skip if user manually entered an elevation
+        if (userEdited) {
+            statusEl.textContent = '(manual)';
+            statusEl.className = 'ml-1 text-[10px] text-text-500 normal-case';
+            return;
+        }
+
+        statusEl.textContent = 'calculating…';
+        statusEl.className = 'ml-1 text-[10px] text-radar-400 normal-case';
+
+        try {
+            const elevation = await fetchElevation(lat, lon);
+            if (elevation !== null && !userEdited) {
+                elevEl.value = Number(elevation).toFixed(2);
+                statusEl.textContent = '✓ from API';
+                statusEl.className = 'ml-1 text-[10px] text-munti-green-400 normal-case';
+                // Fade the status after 3 seconds
+                setTimeout(() => {
+                    if (statusEl.textContent === '✓ from API') {
+                        statusEl.textContent = '';
+                    }
+                }, 3000);
+            } else {
+                statusEl.textContent = '';
+            }
+        } catch (err) {
+            console.warn('Elevation fetch failed:', err);
+            statusEl.textContent = '✗ failed';
+            statusEl.className = 'ml-1 text-[10px] text-munti-red-400 normal-case';
+        }
+    }, 700);
+
+    // Fire on blur and on input (debounced)
+    [latEl, lonEl].forEach(el => {
+        el.addEventListener('blur', doFetch);
+        el.addEventListener('input', doFetch);
+    });
+
+    // Reset userEdited flag when the modal is reopened (call from openAddModal/openEdit)
+    return {
+        resetUserEdited: () => {
+            userEdited = false;
+            statusEl.textContent = '';
+        }
+    };
+}
+
+// Initialize both modals once the DOM is ready
+document.addEventListener('DOMContentLoaded', function () {
+    window.addModalElevation  = setupAutoElevation(
+        'modal_latitude', 'modal_longitude',
+        'modal_elevation_height', 'modal_elevation_status'
+    );
+    window.editModalElevation = setupAutoElevation(
+        'edit_latitude', 'edit_longitude',
+        'edit_elevation_height', 'edit_elevation_status'
+    );
+});
 
 </script>
 
