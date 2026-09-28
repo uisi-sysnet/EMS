@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StationController;
+use App\Http\Controllers\WaterLevelStationController;
 use App\Http\Controllers\AboutController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ApiFileController;
@@ -61,6 +62,17 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::post('/inventory/stations/{station_mn}/restore', [StationController::class, 'restore'])->name('inventory.stations.restore');
     Route::get('/inventory/stations/{station_mn}/check-data', [StationController::class, 'checkData'])->name('inventory.stations.check-data');
     Route::delete('/allowed-networks', [ApiKeyController::class, 'destroyIp'])->name('allowed-networks.destroy');
+
+    // Water Level Station Routes
+    Route::prefix('inventory/water-level-stations')->name('inventory.water-level-stations.')->group(function () {
+        Route::get('/', [WaterLevelStationController::class, 'index'])->name('index');
+        Route::post('/', [WaterLevelStationController::class, 'store'])->name('store');
+        Route::get('/{station_mn}/edit', [WaterLevelStationController::class, 'edit'])->name('edit');
+        Route::put('/{station_mn}', [WaterLevelStationController::class, 'update'])->name('update');
+        Route::delete('/{station_mn}', [WaterLevelStationController::class, 'destroy'])->name('destroy');
+        Route::post('/{station_mn}/restore', [WaterLevelStationController::class, 'restore'])->name('restore');
+        Route::get('/{station_mn}/check-data', [WaterLevelStationController::class, 'checkData'])->name('check-data');
+    });
 
     Route::get('/env-editor', [EnvEditorController::class, 'index'])->name('env.editor');
     Route::get('/load-env', [EnvEditorController::class, 'load'])->name('env.load');
