@@ -114,6 +114,34 @@
                     </div>
                 </div>
 
+                <!-- Installation Height & Elevation Height -->
+                <div class="flex flex-col">
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <label for="modal_installation_height" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Installation Height
+                            </label>
+                            <input type="number"
+                                step="any"
+                                id="modal_installation_height"
+                                name="installation_height"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                                placeholder="e.g. 3.50">
+                        </div>
+                        <div class="flex-1">
+                            <label for="modal_elevation_height" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Elevation Height
+                            </label>
+                            <input type="number"
+                                step="any"
+                                id="modal_elevation_height"
+                                name="elevation_height"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                                placeholder="e.g. 12.75">
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Lead IP -->
                 <div class="flex flex-col">
                     <label for="modal_lead_ip" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
@@ -292,6 +320,32 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Installation Height & Elevation Height -->
+                <div class="flex flex-col">
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <label for="edit_installation_height" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Installation Height
+                            </label>
+                            <input type="number"
+                                step="any"
+                                id="edit_installation_height"
+                                name="installation_height"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        </div>
+                        <div class="flex-1">
+                            <label for="edit_elevation_height" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                                Elevation Height
+                            </label>
+                            <input type="number"
+                                step="any"
+                                id="edit_elevation_height"
+                                name="elevation_height"
+                                class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                        </div>
+                    </div>
+                </div>
                 <!-- Lead IP -->
                 <div class="flex flex-col">
                     <label for="edit_lead_ip" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
@@ -402,6 +456,8 @@
                                 <th class="px-4 py-3 text-left font-medium">Data Status</th>
                                 <th class="px-4 py-3 text-left font-medium">Latitude</th>
                                 <th class="px-4 py-3 text-left font-medium">Longitude</th>
+                                <th class="px-4 py-3 text-left font-medium">Install. Height</th>
+                                <th class="px-4 py-3 text-left font-medium">Elev. Height</th>
                                 <th class="px-4 py-3 text-left font-medium">IP Address</th>
                                 <th class="px-4 py-3 text-left font-medium">Updated At</th>
                                 <th class="px-4 py-3 text-center font-medium">Actions</th>
@@ -440,6 +496,12 @@
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
                                         {{ $station->longitude }}
+                                    </td>
+                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
+                                        {{ $station->installation_height ?? '-' }}
+                                    </td>
+                                    <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
+                                        {{ $station->elevation_height ?? '-' }}
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-text-300">
                                         {{ $station->lead_ip }}
@@ -612,34 +674,38 @@
                         @php
                             // Dummy data: 2 rows only
                             $stations = $stations ?? collect([
-                                (object) [
-                                    'id' => 1,
-                                    'station_mn' => 'WLS-001',
-                                    'station_name' => 'Alabang River Level',
-                                    'enabled' => true,
-                                    'sensor_data_count' => 1240,
-                                    'location' => 'Brgy. Alabang, Muntinlupa City',
-                                    'latitude' => '14.4234',
-                                    'longitude' => '121.0342',
-                                    'lead_ip' => '192.168.1.101',
-                                    'lead_port' => 8899,
-                                    'lead_slave' => 1,
-                                    'updated_at' => now()->subMinutes(5),
-                                ],
-                                (object) [
-                                    'id' => 2,
-                                    'station_mn' => 'WLS-002',
-                                    'station_name' => 'Bayanan Creek Monitor',
-                                    'enabled' => true,
-                                    'sensor_data_count' => 0,
-                                    'location' => 'Brgy. Bayanan, Muntinlupa City',
-                                    'latitude' => '14.4089',
-                                    'longitude' => '121.0456',
-                                    'lead_ip' => '192.168.1.102',
-                                    'lead_port' => 8899,
-                                    'lead_slave' => 2,
-                                    'updated_at' => now()->subHours(2),
-                                ],
+                              (object) [
+                                  'id' => 1,
+                                  'station_mn' => 'WLS-001',
+                                  'station_name' => 'Alabang River Level',
+                                  'enabled' => true,
+                                  'sensor_data_count' => 1240,
+                                  'location' => 'Brgy. Alabang, Muntinlupa City',
+                                  'latitude' => '14.4234',
+                                  'longitude' => '121.0342',
+                                  'installation_height' => '3.50',
+                                  'elevation_height' => '12.75',
+                                  'lead_ip' => '192.168.1.101',
+                                  'lead_port' => 8899,
+                                  'lead_slave' => 1,
+                                  'updated_at' => now()->subMinutes(5),
+                              ],
+                              (object) [
+                                  'id' => 2,
+                                  'station_mn' => 'WLS-002',
+                                  'station_name' => 'Bayanan Creek Monitor',
+                                  'enabled' => true,
+                                  'sensor_data_count' => 0,
+                                  'location' => 'Brgy. Bayanan, Muntinlupa City',
+                                  'latitude' => '14.4089',
+                                  'longitude' => '121.0456',
+                                  'installation_height' => '2.25',
+                                  'elevation_height' => '8.40',
+                                  'lead_ip' => '192.168.1.102',
+                                  'lead_port' => 8899,
+                                  'lead_slave' => 2,
+                                  'updated_at' => now()->subHours(2),
+                              ],
                             ]);
                         @endphp
 
@@ -655,6 +721,8 @@
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Location</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Latitude</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Longitude</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Install. Height</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Elev. Height</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">IP Address</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Port</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Slave</th>
@@ -709,6 +777,12 @@
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
                                                 {{ $station->longitude }}
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
+                                                {{ $station->installation_height ?? '-' }}
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
+                                                {{ $station->elevation_height ?? '-' }}
                                             </td>
                                             <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-text-300">
                                                 {{ $station->lead_ip }}
@@ -793,30 +867,34 @@ function editStation(stationMn) {
     modal.style.display = 'flex';
     
     // Dummy data for edit (matches the two rows)
-    const dummyData = {
-        'WLS-001': {
-            station_mn: 'WLS-001',
-            station_name: 'Alabang River Level',
-            location: 'Brgy. Alabang, Muntinlupa City',
-            latitude: '14.4234',
-            longitude: '121.0342',
-            lead_ip: '192.168.1.101',
-            lead_port: 8899,
-            lead_slave: 1,
-            enabled: true,
-        },
-        'WLS-002': {
-            station_mn: 'WLS-002',
-            station_name: 'Bayanan Creek Monitor',
-            location: 'Brgy. Bayanan, Muntinlupa City',
-            latitude: '14.4089',
-            longitude: '121.0456',
-            lead_ip: '192.168.1.102',
-            lead_port: 8899,
-            lead_slave: 2,
-            enabled: true,
-        }
-    };
+  const dummyData = {
+      'WLS-001': {
+          station_mn: 'WLS-001',
+          station_name: 'Alabang River Level',
+          location: 'Brgy. Alabang, Muntinlupa City',
+          latitude: '14.4234',
+          longitude: '121.0342',
+          installation_height: '3.50',
+          elevation_height: '12.75',
+          lead_ip: '192.168.1.101',
+          lead_port: 8899,
+          lead_slave: 1,
+          enabled: true,
+      },
+      'WLS-002': {
+          station_mn: 'WLS-002',
+          station_name: 'Bayanan Creek Monitor',
+          location: 'Brgy. Bayanan, Muntinlupa City',
+          latitude: '14.4089',
+          longitude: '121.0456',
+          installation_height: '2.25',
+          elevation_height: '8.40',
+          lead_ip: '192.168.1.102',
+          lead_port: 8899,
+          lead_slave: 2,
+          enabled: true,
+      }
+  };
 
     // Try fetch first, fallback to dummy
     fetch(`/inventory/water-level-stations/${stationMn}/edit`)
@@ -840,16 +918,17 @@ function populateEditForm(data) {
     document.getElementById('edit_location').value = data.location || '';
     document.getElementById('edit_latitude').value = data.latitude || '';
     document.getElementById('edit_longitude').value = data.longitude || '';
+    document.getElementById('edit_installation_height').value = data.installation_height || '';
+    document.getElementById('edit_elevation_height').value = data.elevation_height || '';
     document.getElementById('edit_lead_ip').value = data.lead_ip || '';
     document.getElementById('edit_lead_port').value = data.lead_port || '';
     document.getElementById('edit_lead_slave').value = data.lead_slave || '';
-    
+
     const enabledHidden = document.querySelector('#editForm input[name="enabled"]');
     if (enabledHidden) {
         enabledHidden.value = data.enabled === true ? '1' : '0';
     }
-    
-    // Set form action
+
     document.getElementById('editForm').action = `/inventory/water-level-stations/${data.station_mn}`;
 }
 

@@ -11,7 +11,6 @@ class WaterLevelStationController extends Controller
      */
     public function index()
     {
-        // Dummy stations
         $stations = collect([
             (object) [
                 'id' => 1,
@@ -22,6 +21,8 @@ class WaterLevelStationController extends Controller
                 'location' => 'Brgy. Alabang, Muntinlupa City',
                 'latitude' => '14.4234',
                 'longitude' => '121.0342',
+                'installation_height' => '3.50',
+                'elevation_height' => '12.75',
                 'lead_ip' => '192.168.1.101',
                 'lead_port' => 8899,
                 'lead_slave' => 1,
@@ -36,6 +37,8 @@ class WaterLevelStationController extends Controller
                 'location' => 'Brgy. Bayanan, Muntinlupa City',
                 'latitude' => '14.4089',
                 'longitude' => '121.0456',
+                'installation_height' => '2.25',
+                'elevation_height' => '8.40',
                 'lead_ip' => '192.168.1.102',
                 'lead_port' => 8899,
                 'lead_slave' => 2,
@@ -43,7 +46,6 @@ class WaterLevelStationController extends Controller
             ],
         ]);
 
-        // Dummy deleted stations
         $deletedStations = collect([
             (object) [
                 'id' => 3,
@@ -54,6 +56,8 @@ class WaterLevelStationController extends Controller
                 'location' => 'Brgy. Putatan, Muntinlupa City',
                 'latitude' => '14.4010',
                 'longitude' => '121.0410',
+                'installation_height' => '1.80',
+                'elevation_height' => '6.20',
                 'lead_ip' => '192.168.1.103',
                 'lead_port' => 8899,
                 'lead_slave' => 1,
@@ -73,20 +77,21 @@ class WaterLevelStationController extends Controller
 
     public function edit($station_mn)
     {
-        // Return dummy data matching the JS fallback
         return response()->json([
-            'station_mn'   => $station_mn,
-            'station_name' => 'Dummy Station',
-            'location'     => 'Brgy. Alabang, Muntinlupa City',
-            'latitude'     => '14.4234',
-            'longitude'    => '121.0342',
-            'lead_ip'      => '192.168.1.101',
-            'lead_port'    => 8899,
-            'lead_slave'   => 1,
-            'enabled'      => true,
+            'station_mn'          => $station_mn,
+            'station_name'        => 'Dummy Station',
+            'location'            => 'Brgy. Alabang, Muntinlupa City',
+            'latitude'            => '14.4234',
+            'longitude'           => '121.0342',
+            'installation_height' => '3.50',
+            'elevation_height'    => '12.75',
+            'lead_ip'             => '192.168.1.101',
+            'lead_port'           => 8899,
+            'lead_slave'          => 1,
+            'enabled'             => true,
         ]);
     }
-
+    
     public function update(Request $request, $station_mn)
     {
         return redirect()
