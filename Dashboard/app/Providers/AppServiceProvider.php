@@ -53,11 +53,12 @@ class AppServiceProvider extends ServiceProvider
 
         // logical name => .env key holding the database name
         $databases = [
-            'aq'       => 'AQ_DB_NAME',
-            'seismic'  => 'SEISMIC_DB_NAME',
-            'sms'      => 'SMS_DB_NAME',
-            'api'      => 'API_DB_NAME',
-            'logs'     => 'LOG_DB_NAME',
+            'aq'          => 'AQ_DB_NAME',
+            'seismic'     => 'SEISMIC_DB_NAME',
+            'sms'         => 'SMS_DB_NAME',
+            'api'         => 'API_DB_NAME',
+            'logs'        => 'LOG_DB_NAME',
+            'water_level' => 'WATER_LEVEL_DB_NAME', // <-- added
         ];
 
         foreach ($databases as $connectionName => $envKey) {

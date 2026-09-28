@@ -143,6 +143,19 @@ return [
             'sslmode' => 'prefer',
         ],
 
+        'water_level' => [
+            'driver' => 'pgsql',
+            'host' => null,
+            'port' => null,
+            'database' => null,
+            'username' => null,
+            'password' => null,
+            'charset' => 'utf8',
+            'prefix' => '',
+            'schema' => 'public',
+            'sslmode' => 'prefer',
+        ],
+
         'logs' => [
             'driver' => 'pgsql',
             'host' => null,
