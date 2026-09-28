@@ -2,103 +2,118 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\WaterLevelStation;
 use Illuminate\Http\Request;
 
 class WaterLevelStationController extends Controller
 {
+    /**
+     * Display a listing of water level stations (dummy data only).
+     */
     public function index()
     {
-        $stations = WaterLevelStation::orderBy('station_name')->get();
-        $deletedStations = WaterLevelStation::onlyTrashed()->get();
-        
+        // Dummy stations
+        $stations = collect([
+            (object) [
+                'id' => 1,
+                'station_mn' => 'WLS-001',
+                'station_name' => 'Alabang River Level',
+                'enabled' => true,
+                'sensor_data_count' => 1240,
+                'location' => 'Brgy. Alabang, Muntinlupa City',
+                'latitude' => '14.4234',
+                'longitude' => '121.0342',
+                'lead_ip' => '192.168.1.101',
+                'lead_port' => 8899,
+                'lead_slave' => 1,
+                'updated_at' => now()->subMinutes(5),
+            ],
+            (object) [
+                'id' => 2,
+                'station_mn' => 'WLS-002',
+                'station_name' => 'Bayanan Creek Monitor',
+                'enabled' => true,
+                'sensor_data_count' => 0,
+                'location' => 'Brgy. Bayanan, Muntinlupa City',
+                'latitude' => '14.4089',
+                'longitude' => '121.0456',
+                'lead_ip' => '192.168.1.102',
+                'lead_port' => 8899,
+                'lead_slave' => 2,
+                'updated_at' => now()->subHours(2),
+            ],
+        ]);
+
+        // Dummy deleted stations
+        $deletedStations = collect([
+            (object) [
+                'id' => 3,
+                'station_mn' => 'WLS-003',
+                'station_name' => 'Old Putatan Station',
+                'enabled' => false,
+                'sensor_data_count' => 0,
+                'location' => 'Brgy. Putatan, Muntinlupa City',
+                'latitude' => '14.4010',
+                'longitude' => '121.0410',
+                'lead_ip' => '192.168.1.103',
+                'lead_port' => 8899,
+                'lead_slave' => 1,
+                'updated_at' => now()->subDays(3),
+            ],
+        ]);
+
         return view('inventory.water_level', compact('stations', 'deletedStations'));
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'station_mn'   => 'required|string|max:14|unique:water_level_stations,station_mn',
-            'station_name' => 'required|string|max:32|unique:water_level_stations,station_name',
-            'enabled'      => 'nullable|boolean',
-            'location'     => 'nullable|string|max:255',
-            'latitude'     => 'nullable|numeric|between:4.5,21.5',
-            'longitude'    => 'nullable|numeric|between:116.0,127.0',
-            'lead_ip'      => 'required|ip|unique:water_level_stations,lead_ip',
-            'lead_port'    => 'nullable|integer|between:1,65535',
-            'lead_slave'   => 'nullable|integer|between:1,255',
-        ]);
-
-        WaterLevelStation::create($validated);
-
         return redirect()
             ->route('inventory.water-level-stations.index')
-            ->with('success', 'Water level station created successfully.');
+            ->with('success', 'Water level station created successfully (dummy).');
     }
 
     public function edit($station_mn)
     {
-        $station = WaterLevelStation::where('station_mn', $station_mn)->firstOrFail();
-        return response()->json($station);
+        // Return dummy data matching the JS fallback
+        return response()->json([
+            'station_mn'   => $station_mn,
+            'station_name' => 'Dummy Station',
+            'location'     => 'Brgy. Alabang, Muntinlupa City',
+            'latitude'     => '14.4234',
+            'longitude'    => '121.0342',
+            'lead_ip'      => '192.168.1.101',
+            'lead_port'    => 8899,
+            'lead_slave'   => 1,
+            'enabled'      => true,
+        ]);
     }
 
     public function update(Request $request, $station_mn)
     {
-        $station = WaterLevelStation::where('station_mn', $station_mn)->firstOrFail();
-
-        $validated = $request->validate([
-            'station_mn'   => 'required|string|max:14|unique:water_level_stations,station_mn,' . $station->id,
-            'station_name' => 'required|string|max:32|unique:water_level_stations,station_name,' . $station->id,
-            'enabled'      => 'nullable|boolean',
-            'location'     => 'nullable|string|max:255',
-            'latitude'     => 'nullable|numeric|between:4.5,21.5',
-            'longitude'    => 'nullable|numeric|between:116.0,127.0',
-            'lead_ip'      => 'required|ip|unique:water_level_stations,lead_ip,' . $station->id,
-            'lead_port'    => 'nullable|integer|between:1,65535',
-            'lead_slave'   => 'nullable|integer|between:1,255',
-        ]);
-
-        $station->update($validated);
-
         return redirect()
             ->route('inventory.water-level-stations.index')
-            ->with('success', 'Water level station updated successfully.');
+            ->with('success', 'Water level station updated successfully (dummy).');
     }
 
     public function destroy($station_mn)
     {
-        $station = WaterLevelStation::where('station_mn', $station_mn)->firstOrFail();
-        $station->delete();
-
         return redirect()
             ->route('inventory.water-level-stations.index')
-            ->with('success', 'Water level station deleted successfully.');
+            ->with('success', 'Water level station deleted successfully (dummy).');
     }
 
     public function restore($station_mn)
     {
-        $station = WaterLevelStation::onlyTrashed()
-            ->where('station_mn', $station_mn)
-            ->firstOrFail();
-        
-        $station->restore();
-
         return redirect()
             ->route('inventory.water-level-stations.index')
-            ->with('success', 'Water level station restored successfully.');
+            ->with('success', 'Water level station restored successfully (dummy).');
     }
 
     public function checkData($station_mn)
     {
-        $station = WaterLevelStation::where('station_mn', $station_mn)->firstOrFail();
-        
-        // Dummy check — replace with real logic
-        $hasData = true;       // e.g. $station->sensorReadings()->exists()
-        $dataCount = 1240;     // e.g. $station->sensorReadings()->count()
-        
+        // Match the keys the JS expects: hasData, dataCount
         return response()->json([
-            'hasData'   => $hasData,
-            'dataCount' => $dataCount,
+            'hasData'   => $station_mn === 'WLS-001',
+            'dataCount' => $station_mn === 'WLS-001' ? 1240 : 0,
         ]);
     }
 }
