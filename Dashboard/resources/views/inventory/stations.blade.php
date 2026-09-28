@@ -490,7 +490,7 @@
         <!-- Header -->
         <div class="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border-800 bg-surface-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
             <h2 class="text-lg sm:text-xl font-semibold text-text-100 flex items-center gap-2.5">
-                <span class="leading-tight uppercase tracking-wide">Manage Air QualityStations</span>
+                <span class="leading-tight uppercase tracking-wide">Manage Air Quality Stations</span>
             </h2>
             <span class="text-xs sm:text-sm text-text-400">Create and manage your monitoring stations</span>
         </div>
