@@ -674,41 +674,7 @@
 
                     <div class="overflow-x-auto thin-scrollbar flex-1">
                         @php
-                            // Dummy data: 2 rows only
-                            $stations = $stations ?? collect([
-                              (object) [
-                                  'id' => 1,
-                                  'station_mn' => 'WLS-001',
-                                  'station_name' => 'Alabang River Level',
-                                  'enabled' => true,
-                                  'sensor_data_count' => 1240,
-                                  'location' => 'Brgy. Alabang, Muntinlupa City',
-                                  'latitude' => '14.4234',
-                                  'longitude' => '121.0342',
-                                  'installation_height' => '3.50',
-                                  'elevation_height' => '12.75',
-                                  'lead_ip' => '192.168.1.101',
-                                  'lead_port' => 8899,
-                                  'lead_slave' => 1,
-                                  'updated_at' => now()->subMinutes(5),
-                              ],
-                              (object) [
-                                  'id' => 2,
-                                  'station_mn' => 'WLS-002',
-                                  'station_name' => 'Bayanan Creek Monitor',
-                                  'enabled' => true,
-                                  'sensor_data_count' => 0,
-                                  'location' => 'Brgy. Bayanan, Muntinlupa City',
-                                  'latitude' => '14.4089',
-                                  'longitude' => '121.0456',
-                                  'installation_height' => '2.25',
-                                  'elevation_height' => '8.40',
-                                  'lead_ip' => '192.168.1.102',
-                                  'lead_port' => 8899,
-                                  'lead_slave' => 2,
-                                  'updated_at' => now()->subHours(2),
-                              ],
-                            ]);
+                            $stations = $stations ?? collect();
                         @endphp
 
                         @if(isset($stations) && $stations->count())
@@ -870,36 +836,6 @@ document.getElementById('addModal').addEventListener('click', function(event) {
 function editStation(stationMn) {
     const modal = document.getElementById('editModal');
     modal.style.display = 'flex';
-    
-    // Dummy data for edit (matches the two rows)
-  const dummyData = {
-      'WLS-001': {
-          station_mn: 'WLS-001',
-          station_name: 'Alabang River Level',
-          location: 'Brgy. Alabang, Muntinlupa City',
-          latitude: '14.4234',
-          longitude: '121.0342',
-          installation_height: '3.50',
-          elevation_height: '12.75',
-          lead_ip: '192.168.1.101',
-          lead_port: 8899,
-          lead_slave: 1,
-          enabled: true,
-      },
-      'WLS-002': {
-          station_mn: 'WLS-002',
-          station_name: 'Bayanan Creek Monitor',
-          location: 'Brgy. Bayanan, Muntinlupa City',
-          latitude: '14.4089',
-          longitude: '121.0456',
-          installation_height: '2.25',
-          elevation_height: '8.40',
-          lead_ip: '192.168.1.102',
-          lead_port: 8899,
-          lead_slave: 2,
-          enabled: true,
-      }
-  };
 
     // Try fetch first, fallback to dummy
     fetch(`/inventory/water-level-stations/${stationMn}/edit`)
@@ -949,19 +885,25 @@ function closeEditModal() {
 
 // Delete Station
 function deleteStation(stationMn, stationName) {
-    // First check if station has data via AJAX (fallback to dummy)
-    fetch(`/inventory/water-level-stations/${stationMn}/check-data`)
-        .then(response => response.json())
+    fetch(`/inventory/water-level-stations/${stationMn}/check-data`, {
+        headers: { 'Accept': 'application/json' }
+    })
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to check station data');
+            return response.json();
+        })
         .then(data => {
             confirmDelete(data, stationMn, stationName);
         })
         .catch(error => {
-            console.warn('Using dummy delete confirmation for:', stationMn);
-            // Dummy fallback: WLS-001 has data, WLS-002 does not
-            const dummyCheck = stationMn === 'WLS-001' 
-                ? { hasData: true, dataCount: 1240 } 
-                : { hasData: false, dataCount: 0 };
-            confirmDelete(dummyCheck, stationMn, stationName);
+            console.error('Error checking station data:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Failed to check station',
+                text: 'Could not verify station data. Please try again.',
+                background: '#1f2937',
+                color: '#f3f4f6'
+            });
         });
 }
 
