@@ -28,9 +28,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EMS_DIR="$SCRIPT_DIR"
 LARAVEL_DIR="${LARAVEL_DIR:-${SCRIPT_DIR}/Dashboard}"
-# Repo: https://github.com/uisi-sysnet/EMS — deployed branch is "version5".
-# Override if needed: GIT_BRANCH=main sudo -E ./update.sh
-GIT_BRANCH="${GIT_BRANCH:-version5}"
+# Repo: https://github.com/uisi-sysnet/EMS — releases are published on "main".
+# Override if needed: GIT_BRANCH=version9 sudo -E ./update.sh
+GIT_BRANCH="${GIT_BRANCH:-main}"
 
 log()  { echo -e "\033[1;32m[update]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[update][WARN]\033[0m $*"; }

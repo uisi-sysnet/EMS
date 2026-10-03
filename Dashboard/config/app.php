@@ -19,7 +19,7 @@ return [
 
     'system_name' => env('SYSTEM_NAME', 'Environmental Monitoring System Gateway'),
 
-    'version' => env('APP_VERSION', '8.0.0'),
+    'version' => env('APP_VERSION', '10.0.0'),
 
     /*
     |--------------------------------------------------------------------------

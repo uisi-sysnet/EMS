@@ -1,27 +1,74 @@
 # EMS Gateway
 
-EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, station management, logs, and maintenance.
+EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
+
+**Current version: 10.0.0**
 
 ## What It Runs
 
 ```text
 Air quality station(s)  ->  HJ212 TCP + Modbus TCP  ->  air_quality_ingest.py
 Seismic station(s)      ->  MQTT + optional SMS     ->  seismic_mqtt.py
+CCTV cameras            ->  ONVIF + RTSP            ->  MediaMTX (WebRTC to the browser)
 
 air_quality_ingest.py   ->  IOT_aq_sensor_data
 seismic_mqtt.py         ->  IOT_seismic_sensor_data + IOT_sms_telemetry
-api_server.py           ->  REST API over the stored data
-Laravel Dashboard       ->  Browser UI for data, config, keys, logs, and maintenance
+api_server.py           ->  REST API over the stored data (IOT_api)
+All services            ->  IOT_service_logs
+Laravel Dashboard       ->  Browser UI: dashboard, CityWatch map, CCTV, stations,
+                            water level stations, config, keys, logs, maintenance
 
 Shared services:
-PostgreSQL + TimescaleDB, Mosquitto MQTT, systemd, optional nginx/php-fpm
+PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 ```
 
-## Version Details
+## What's New in Version 10
 
-Version 9.0.2 - Fixed dashboard auto refresh bugs.
-Version 9.0.3 - Fixed and enhanced image reports.
-Version 9.0.4 - Fixed inventories table layout.
+### CityWatch — live station map
+
+A new **CityWatch** tab (`/citywatch`) shows every station on a satellite map:
+
+- One pin per station that has latitude/longitude, colored by status: **green** = everything online, **amber** = partly working, **red** = nothing reporting.
+- **Hover** a pin for a status card, **click** to pin it open. Each card shows:
+  - **Sensors** — online if the station sent data in the last 2 minutes, idle up to 3 minutes, otherwise offline (the same rules as the dashboard).
+  - **Camera** — the CCTV camera whose location matches the station name.
+  - **Network** — whether the station's lead IP answers a ping. Seismic stations report over MQTT/SMS, so their network status follows their data.
+- Summary panels (stations, sensors, cameras, network), a **Needs attention** list that flies to a station, filters (All / Air Quality / Seismic / CCTV), full screen, and a 20-second live refresh.
+- **Camera live view with PTZ:** in a station's pinned card, **View camera** opens a pop-up with the live stream. PTZ cameras get a pan/tilt/zoom pad (hold to move, release to stop), a speed slider, and keyboard control (arrow keys, `+` / `−`). Stations with several cameras get tabs. Live view and PTZ are available to admins and super admins.
+
+Satellite imagery needs internet access. Without it, the pins and status still work on a plain background.
+
+### Water Level stations
+
+A new **Stations › Water Level** inventory (`/inventory/water-level-stations`) manages water level stations, with installation height and automatic elevation lookup from latitude/longitude. They are stored in their own database, `IOT_water_level`.
+
+### One-step installation
+
+`sudo ./install.sh` now does the whole setup. It asks for (or generates) every credential, installs all required packages, applies the credentials, installs the services, and runs the health check. See [Quick Start](#quick-start).
+
+### Security
+
+- Real `.env` files are no longer stored in git. Templates hold placeholders only.
+- No hardcoded database passwords: the `postgres` password comes from the installer, the existing install, or is generated.
+- Deployed dashboards run with `APP_ENV=production` and `APP_DEBUG=false`, so error pages no longer expose configuration.
+- `update.sh` preserves each gateway's `.env` files across updates.
+
+### Fixes
+
+- New gateways no longer fail on the log pages (`column "seen_at" does not exist`) or the API settings page (`relation "allowed_ips" does not exist`).
+- `deploy.sh` creates all EMS databases (including SMS, service logs, and water level) with TimescaleDB before the services and migrations need them.
+- The dashboard finds `scripts/.env` wherever the project is installed (`EMS_SCRIPTS_ENV`).
+- The version shown in the dashboard now comes from the code, so it always matches the release.
+
+## Version History
+
+| Version | Changes |
+| ------- | ------- |
+| 10.0.0  | CityWatch map with camera live view and PTZ; water level stations; one-step installer; security hardening; setup fixes (see above). |
+| 9.0.5   | Severity labels for site status in the air quality station table; calibration API plan types. |
+| 9.0.4   | Fixed inventories table layout. |
+| 9.0.3   | Fixed and enhanced image reports. |
+| 9.0.2   | Fixed dashboard auto refresh bugs. |
 
 ## Repository Layout
 
@@ -31,14 +78,16 @@ Version 9.0.4 - Fixed inventories table layout.
 |   |-- air_quality_ingest.py     # HJ212 TCP listener + Modbus lead polling
 |   |-- seismic_mqtt.py           # MQTT telemetry + optional SIM800L SMS ingestion
 |   |-- api_server.py             # FastAPI REST API
+|   |-- db_logging.py             # Shared service logging to IOT_service_logs
 |   |-- import_stations.py        # Bulk import/update air quality station registry
 |   |-- stations.json             # Example/default station registry
 |   |-- sim800l.py                # SIM800L helper
-|   `-- .env.EMS.scripts          # Sample Python service environment file
+|   `-- .env.EMS.scripts          # Template for scripts/.env (placeholders only)
 |-- Dashboard/                    # Laravel 12 dashboard
+|-- mediamtx/                     # MediaMTX media server (CCTV streaming)
 |-- template/                     # systemd service templates
-|-- install.sh                    # Interactive gateway setup wrapper
-|-- deploy.sh                     # Installs packages, DBs, Python deps, MQTT, dashboard
+|-- install.sh                    # One-step gateway setup (network, credentials, packages, services)
+|-- deploy.sh                     # Installs packages, databases, Python deps, MQTT, dashboard
 |-- install_services.sh           # Installs/enables EMS systemd units
 |-- update.sh                     # Pulls code, reprovisions, restarts services
 |-- uninstall_services.sh         # Removes EMS systemd units only
@@ -55,7 +104,7 @@ Version 9.0.4 - Fixed inventories table layout.
 - PHP 8.2+, Composer, Node.js, and npm for the Laravel dashboard
 - Network access from sensors/stations to the gateway
 
-TimescaleDB official packages are available for `amd64` and `arm64`. A 64-bit Raspberry Pi OS image is strongly recommended.
+`install.sh` installs all of these. TimescaleDB official packages are available for `amd64` and `arm64`, so a 64-bit Raspberry Pi OS image is strongly recommended.
 
 ## Quick Start
 
@@ -72,19 +121,41 @@ sudo ./install.sh
 
 1. Configures the Raspberry Pi network (WiFi access point, eth0 DHCP/static). This step is skipped on other systems.
 2. Creates `scripts/.env` from `scripts/.env.EMS.scripts` and asks for every credential: database host, port, user and password, the `postgres` superuser password used by the Dashboard, MQTT host, port, user and password, and the database names. Leave a password blank to generate a strong random one. An API key is generated automatically.
-3. Runs `deploy.sh`, which installs all required packages (PostgreSQL + TimescaleDB, Mosquitto, Python dependencies, nginx, PHP, Composer, Node.js) and applies the credentials.
+3. Runs `deploy.sh`, which installs all required packages (PostgreSQL + TimescaleDB, Mosquitto, Python dependencies, nginx, PHP, Composer, Node.js), creates the databases, and applies the credentials.
 4. Installs the systemd services and runs `check_requirements.sh`.
 
 Generated credentials are printed once at the end, so record them. Re-running `sudo ./install.sh` offers the saved values as defaults, which makes it the way to change credentials later.
 
 The real `.env` files are not stored in git. Never commit `scripts/.env` or `Dashboard/.env`.
 
+## Upgrading a Version 9 Gateway
+
+Version 10 stops tracking the `.env` files in git. The **version 9** `update.sh` does not know this, and pulling version 10 with it would delete the gateway's `scripts/.env` and `Dashboard/.env`. Upgrade once with these steps; after that, the new `update.sh` handles it automatically.
+
+```bash
+cd /path/to/EMS
+sudo cp scripts/.env /root/ems-scripts.env.backup
+sudo cp Dashboard/.env /root/ems-dashboard.env.backup
+git fetch origin
+git checkout main
+git pull origin main
+sudo cp /root/ems-scripts.env.backup scripts/.env
+sudo cp /root/ems-dashboard.env.backup Dashboard/.env
+sudo ./update.sh
+```
+
+Then:
+
+- Add `WATER_LEVEL_DB_NAME=IOT_water_level` to `scripts/.env` if it is missing, and run `sudo ./deploy.sh` once so the new database is created.
+- If `Dashboard/.env` contains an old `APP_VERSION=9.x` line, remove it so the dashboard shows the correct version.
+- Change any passwords, API keys, and the `APP_KEY` that were stored in git before version 10 (see [Security Notes](#security-notes)).
+
 ## Configuration
 
 There are two environment files:
 
-- `scripts/.env` is used by `air_quality_ingest.py`, `seismic_mqtt.py`, `api_server.py`, and the dashboard environment editor.
-- `Dashboard/.env` is used by Laravel.
+- `scripts/.env` is used by `air_quality_ingest.py`, `seismic_mqtt.py`, `api_server.py`, and the dashboard (database connections and the environment editor).
+- `Dashboard/.env` is used by Laravel. `deploy.sh` rewrites it on every run, keeping the existing `APP_KEY` and `postgres` password.
 
 Important Python service settings:
 
@@ -96,10 +167,19 @@ Important Python service settings:
 | `SMS_DB_NAME`                                                              | Raw SMS database, default `IOT_sms_telemetry`                 |
 | `API_DB_NAME`                                                              | API keys and allowlist database, default `IOT_api`            |
 | `LOG_DB_NAME`                                                              | Centralized service logs database, default `IOT_service_logs` |
+| `WATER_LEVEL_DB_NAME`                                                      | Water level stations database, default `IOT_water_level`      |
 | `AQ_SERVER_HOST`, `AQ_SERVER_PORT`                                         | HJ212 TCP listener bind address and port                      |
 | `MQTT_BROKER_HOST`, `MQTT_BROKER_PORT`, `MQTT_TOPIC`                       | Seismic MQTT source                                           |
 | `SMS_INGESTION_ENABLED`, `SIM800_SERIAL_PORT`, `SIM800_BAUDRATE`           | Optional SIM800L SMS ingestion                                |
 | `API_BIND_HOST`, `API_PORT`, `API_KEYS`                                    | FastAPI bind address, port, and initial tokens                |
+
+Dashboard settings in `Dashboard/.env`:
+
+| Setting           | Purpose                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| `DB_*`            | Dashboard database (`IOT_api`, as the `postgres` user)                                        |
+| `EMS_SCRIPTS_ENV` | Path to `scripts/.env`; written by `deploy.sh`, defaults to `/home/system/EMS/scripts/.env`   |
+| `APP_VERSION`     | Optional override of the displayed version. Leave unset so the release version is shown.      |
 
 `API_KEYS` uses this format:
 
@@ -107,7 +187,7 @@ Important Python service settings:
 token:owner_label,another_token:another_owner
 ```
 
-The API server migrates environment API keys into its database-backed key table. The Laravel dashboard can then manage API keys and allowed client networks.
+The API server migrates environment API keys into its database-backed key table on first start. The Laravel dashboard then manages API keys and allowed client networks.
 
 ## Services
 
@@ -144,42 +224,52 @@ This does not delete the repository, `.env` files, PostgreSQL data, or Mosquitto
 
 ## Dashboard
 
-For local dashboard development:
+For production deployment on the gateway, use `sudo ./install.sh` (first time) and `sudo ./update.sh` (afterwards). They install dashboard dependencies, run migrations, build Vite assets, cache Laravel config/routes/views, and fix permissions for `storage/`, `bootstrap/cache/`, and `scripts/.env`.
+
+Main pages:
+
+| Page                                | Who          | Purpose                                                        |
+| ----------------------------------- | ------------ | -------------------------------------------------------------- |
+| `/`                                 | All users    | Dashboard: system health, station status, charts, reports      |
+| `/citywatch`                        | All users    | CityWatch map; camera live view and PTZ for admins             |
+| `/inventory/stations`               | Admins       | Air quality stations                                           |
+| `/inventory/water-level-stations`   | Admins       | Water level stations                                           |
+| `/seismic-stations`                 | Admins       | Seismic stations                                               |
+| `/inventory/cameras`                | Admins       | CCTV inventory                                                 |
+| `/maintenance/cameras/live`         | Admins       | CCTV live view with PTZ                                        |
+| `/env-editor`, `/env/mqtt-editor`   | Admins       | Python service and MQTT settings                               |
+| `/api-editor`                       | Admins       | API keys and allowed client networks                           |
+| `/logs`, `/api-logs`                | Admins       | Service and API request logs                                   |
+| `/network`, `/maintenance`          | Admins       | Network configuration and diagnostics (gateway only)           |
+| `/maintenance/services`             | Admins       | Service control and web terminal                               |
+| `/settings/telegram`                | Admins       | Telegram alerts and daily digest                               |
+| `/user`                             | Admins       | User management                                                |
+
+### Local development
 
 ```bash
 cd Dashboard
 composer install
 npm install
+cp .env.example .env
 php artisan key:generate
-php artisan migrate --seed
 npm run dev
 php artisan serve
 ```
 
-For production deployment on the gateway, use `sudo ./deploy.sh` or `sudo ./update.sh`. The deploy/update scripts install dashboard dependencies, run migrations, build Vite assets, cache Laravel config/routes/views, and fix permissions for `storage/`, `bootstrap/cache/`, and `scripts/.env`.
-
-Dashboard routes include:
-
-- `/login` and `/register`
-- `/` for the main dashboard
-- `/dashboard/data` and `/dashboard/report`
-- `/stations` and `/seismic-stations`
-- `/env-editor`, `/env/mqtt-editor`, and `/api-editor`
-- `/logs`, `/api-logs`, and `/recent-logs`
-- `/network` and `/maintenance`
-- `/maintenance/services` and `/maintenance/terminal`
+Set `EMS_SCRIPTS_ENV` in `Dashboard/.env` to your local `scripts/.env`. The local PostgreSQL needs the role from `SYSTEM_DB_USER` and the EMS databases before `php artisan migrate` will succeed; on a gateway, `deploy.sh` and the Python services create them. The network pages use `nmcli` and only work on the Linux gateway.
 
 ## REST API
 
-The API is served by `scripts/api_server.py`.
+The API is served by `scripts/api_server.py`. On a deployed gateway, nginx serves it at `/api/*` on the same host as the dashboard.
 
-Default base URL:
+Default local base URL:
 
 ```text
 http://127.0.0.1:8000
 ```
 
-If `API_PORT` is not set by deployment, `api_server.py` defaults to `8443`; the sample environment uses `8000`.
+If `API_PORT` is not set, `api_server.py` defaults to `8443`; the sample environment uses `8000`.
 
 Authentication:
 
@@ -240,21 +330,31 @@ python3 import_stations.py /path/to/stations.json
 
 The ingestion service refreshes station metadata periodically using `AQ_STATIONS_REFRESH_INTERVAL_SEC`, or immediately after a service restart.
 
+To show a station on CityWatch, give it a latitude and longitude. To link a camera to a station, set the camera's location in CCTV inventory to the station's name.
+
 ## Updating
 
-After an initial deployment:
+After the initial installation:
 
 ```bash
 sudo ./update.sh
 ```
 
-By default, the update script pulls branch `version5`. Override it when needed:
+`update.sh` pulls the `main` branch by default. Override it when needed:
 
 ```bash
-GIT_BRANCH=main sudo -E ./update.sh
+GIT_BRANCH=version9 sudo -E ./update.sh
 ```
 
-The update flow stops services, pulls code, reinstalls Python dependencies, reprovisions Laravel, rebuilds assets, fixes permissions, then restarts nginx and `ems.target`.
+The update flow stops services, backs up the gateway's `.env` files, pulls code, restores the `.env` files, reinstalls Python dependencies, reprovisions Laravel, rebuilds assets, fixes permissions, then restarts nginx and `ems.target`.
+
+Upgrading from version 9? Follow [Upgrading a Version 9 Gateway](#upgrading-a-version-9-gateway) once first.
+
+## Security Notes
+
+- Keep `scripts/.env` and `Dashboard/.env` out of git; they hold database passwords, MQTT credentials, API keys, and the Laravel `APP_KEY`.
+- Before version 10, these files and a default `postgres` password were committed to the repository. Treat those values as exposed and change them: the PostgreSQL passwords, the MQTT password, the API tokens, `TERMINAL_SHARED_SECRET`, and `APP_KEY` (`php artisan key:generate`; this logs everyone out).
+- Known issue: the login page still accepts built-in default accounts defined in `LoginController`. Plan to replace them with database users created during installation.
 
 ## Troubleshooting
 
@@ -275,13 +375,17 @@ sudo journalctl -u ems-seismic.service -n 100 --no-pager
 
 Common issues:
 
-- `scripts/.env` missing: copy `scripts/.env.EMS.scripts` to `scripts/.env` and edit it.
+- `scripts/.env` missing: run `sudo ./install.sh`, which creates it from the template and asks for the credentials.
+- `role "iot_user" does not exist` or a database does not exist: run `sudo ./deploy.sh`, which creates the role and all EMS databases.
 - API returns `401`: send a valid `X-API-Key` header or add a key through the dashboard.
 - API returns `403`: check the allowed client networks in the dashboard API editor.
 - PostgreSQL connection fails: verify `SYSTEM_DB_*` values and run `pg_isready`.
 - MQTT messages are not arriving: verify broker host, port, topic, username, password, and station publish topic.
 - SMS ingestion is not working: confirm `SMS_INGESTION_ENABLED`, serial port, baud rate, modem wiring, and SIM800L power.
 - Dashboard cannot edit Python settings: make sure the web server user can read/write `scripts/.env`; `deploy.sh` and `update.sh` normally repair this.
+- CityWatch shows no stations: add latitude and longitude to the stations.
+- CityWatch camera does not connect: check that the camera plays on the Live View page; both use the same MediaMTX stream.
+- PTZ buttons report an error: the camera must be set as PTZ in CCTV inventory and have an ONVIF profile (use Refresh on the camera).
 
 ## Development Notes
 

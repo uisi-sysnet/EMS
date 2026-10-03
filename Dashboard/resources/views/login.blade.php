@@ -1,7 +1,7 @@
 @include('layouts.header')
 
 @php
-    $appVersion = config('app.version', '7.0');
+    $appVersion = config('app.version');
 @endphp
 
 <div class="fixed inset-0 bg-background-950 flex items-center justify-center px-6 overflow-hidden">
