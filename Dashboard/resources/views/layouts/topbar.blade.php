@@ -90,6 +90,7 @@
             <div class="hidden xl:flex items-center gap-x-5 lg:gap-x-20 text-sm font-medium">
                 @if(session('role') === 'admin' || session('role') === 'superAdmin')
                     <a href="{{ route('home') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Dashboards</a>
+                    <a href="{{ route('citywatch') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">CityWatch</a>
                     <a href="{{ route('cameras.live') }}" class="text-text-400 hover:text-text-100 transition-colors py-1">Live View</a>
                     
                     <div class="relative" id="inventory-dropdown-desktop">
@@ -233,6 +234,7 @@
         <div class="px-4 pt-2 pb-4 space-y-1">
             @if(session('role') === 'admin' || session('role') === 'superAdmin')
                 <a href="{{ route('home') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">Dashboards</a>
+                <a href="{{ route('citywatch') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">CityWatch</a>
                 <a href="{{ route('cameras.live') }}" class="block px-3 py-3 rounded-xl text-base font-medium text-text-300 hover:text-text-100 hover:bg-surface-700 transition">Live View</a>
 
                 <div class="relative">

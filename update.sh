@@ -64,6 +64,19 @@ git_pull() {
     # Turn that off once; it's a per-repo, idempotent config setting.
     sudo -u "$EMS_USER" git -C "$dir" config core.fileMode false
 
+    # The real .env files used to be tracked in git and are now gitignored.
+    # Pulling the commit that untracked them makes git delete them, and the
+    # stash below would also revert any local edits to them. Back up the live
+    # copies first and put them back after the pull, so device config survives.
+    local env_backup env_rel
+    env_backup="$(mktemp -d)"
+    for env_rel in scripts/.env Dashboard/.env; do
+        if [[ -f "${dir}/${env_rel}" ]]; then
+            mkdir -p "${env_backup}/$(dirname "$env_rel")"
+            cp -p "${dir}/${env_rel}" "${env_backup}/${env_rel}"
+        fi
+    done
+
     if ! sudo -u "$EMS_USER" git -C "$dir" diff --quiet --exit-code || \
        ! sudo -u "$EMS_USER" git -C "$dir" diff --cached --quiet --exit-code; then
         warn "${dir} has uncommitted local changes. Stashing them before pulling"
@@ -73,19 +86,32 @@ git_pull() {
 
     log "Fetching from origin in ${dir}"
     sudo -u "$EMS_USER" git -C "$dir" fetch origin || \
-        die "git fetch failed in ${dir} — check network access to GitHub / remote 'origin' config."
+        { restore_env_files "$dir" "$env_backup"; die "git fetch failed in ${dir} — check network access to GitHub / remote 'origin' config."; }
 
     current_branch="$(sudo -u "$EMS_USER" git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
     if [[ -n "$GIT_BRANCH" && "$current_branch" != "$GIT_BRANCH" ]]; then
         log "${dir} is on branch '${current_branch:-detached}', switching to '${GIT_BRANCH}'"
         sudo -u "$EMS_USER" git -C "$dir" checkout "$GIT_BRANCH" 2>/dev/null || \
         sudo -u "$EMS_USER" git -C "$dir" checkout -b "$GIT_BRANCH" "origin/${GIT_BRANCH}" 2>/dev/null || \
-            die "Could not switch ${dir} to branch '${GIT_BRANCH}' — does origin/${GIT_BRANCH} exist? Check: git -C ${dir} branch -r"
+            { restore_env_files "$dir" "$env_backup"; die "Could not switch ${dir} to branch '${GIT_BRANCH}' — does origin/${GIT_BRANCH} exist? Check: git -C ${dir} branch -r"; }
     fi
 
     log "Pulling latest '${GIT_BRANCH}' in ${dir}"
     sudo -u "$EMS_USER" git -C "$dir" pull --ff-only origin "$GIT_BRANCH" || \
-        die "git pull failed in ${dir} — resolve manually (check for diverged history, local commits, or conflicts), then re-run."
+        { restore_env_files "$dir" "$env_backup"; die "git pull failed in ${dir} — resolve manually (check for diverged history, local commits, or conflicts), then re-run."; }
+
+    restore_env_files "$dir" "$env_backup"
+}
+
+restore_env_files() {
+    # $1 = repo directory, $2 = backup directory created in git_pull
+    local dir="$1" env_backup="$2" env_rel
+    for env_rel in scripts/.env Dashboard/.env; do
+        if [[ -f "${env_backup}/${env_rel}" ]]; then
+            cp -p "${env_backup}/${env_rel}" "${dir}/${env_rel}"
+        fi
+    done
+    rm -rf "$env_backup"
 }
 
 # ----------------------------------------------------------------------

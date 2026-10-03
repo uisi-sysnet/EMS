@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,23 +27,27 @@ class AppServiceProvider extends ServiceProvider
 
     private function loadEmsDatabaseConnections(): void
     {
-        $path = '/home/system/EMS/scripts/.env';
+        $path = config('database.ems_env_path');
 
-        if (!File::exists($path)) {
-            return; // fail quietly, don't break the dashboard if the file moves
+        if (!$path || !File::exists($path)) {
+            // don't break the dashboard if the file moves, but leave a trace
+            Log::warning("EMS scripts .env not found at '{$path}'; EMS database connections are not configured.");
+            return;
         }
 
         $vars = [];
-        foreach (explode("\n", File::get($path)) as $line) {
+        foreach (preg_split('/\r\n|\r|\n/', File::get($path)) as $line) {
             $trimmed = trim($line);
             if ($trimmed === '' || str_starts_with($trimmed, '#') || !str_contains($trimmed, '=')) {
                 continue;
             }
-            [$key, $value] = explode('=', $line, 2);
-            $vars[trim($key)] = trim($value);
+            [$key, $value] = explode('=', $trimmed, 2);
+            $key = trim(preg_replace('/^export\s+/', '', $key));
+            $vars[$key] = $this->parseEnvValue($value);
         }
 
         if (empty($vars)) {
+            Log::warning("EMS scripts .env at '{$path}' is empty or unreadable.");
             return;
         }
 
@@ -62,6 +67,7 @@ class AppServiceProvider extends ServiceProvider
 
         foreach ($databases as $connectionName => $envKey) {
             if (empty($vars[$envKey])) {
+                Log::warning("EMS scripts .env is missing {$envKey}; '{$connectionName}' connection is not configured.");
                 continue;
             }
 
@@ -78,5 +84,20 @@ class AppServiceProvider extends ServiceProvider
                 'sslmode'  => 'prefer',
             ]);
         }
+    }
+
+    /**
+     * Strip surrounding quotes, and inline comments from unquoted values,
+     * the same way python-dotenv reads the file for the ingestion services.
+     */
+    private function parseEnvValue(string $value): string
+    {
+        $value = trim($value);
+
+        if (preg_match('/^([\'"])(.*)\1$/s', $value, $m)) {
+            return $m[2];
+        }
+
+        return trim(preg_replace('/\s+#.*$/', '', $value));
     }
 }

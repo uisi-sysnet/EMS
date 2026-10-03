@@ -66,21 +66,18 @@ git clone https://github.com/uisi-sysnet/EMS.git
 cd EMS
 chmod +x *.sh
 sudo ./install.sh
-sudo ./install_services.sh
-./check_requirements.sh
 ```
 
-`install.sh` prepares the gateway and calls into the deployment workflow. It can configure Raspberry Pi network mode, create or use `scripts/.env`, install dependencies, and prepare the dashboard.
+`install.sh` does the whole setup in one run:
 
-If this is a fresh checkout and `scripts/.env` does not exist, copy the sample first:
+1. Configures the Raspberry Pi network (WiFi access point, eth0 DHCP/static). This step is skipped on other systems.
+2. Creates `scripts/.env` from `scripts/.env.EMS.scripts` and asks for every credential: database host, port, user and password, the `postgres` superuser password used by the Dashboard, MQTT host, port, user and password, and the database names. Leave a password blank to generate a strong random one. An API key is generated automatically.
+3. Runs `deploy.sh`, which installs all required packages (PostgreSQL + TimescaleDB, Mosquitto, Python dependencies, nginx, PHP, Composer, Node.js) and applies the credentials.
+4. Installs the systemd services and runs `check_requirements.sh`.
 
-```bash
-cp scripts/.env.EMS.scripts scripts/.env
-nano scripts/.env
-sudo ./deploy.sh
-```
+Generated credentials are printed once at the end, so record them. Re-running `sudo ./install.sh` offers the saved values as defaults, which makes it the way to change credentials later.
 
-Set real database, MQTT, and API key values before starting services.
+The real `.env` files are not stored in git. Never commit `scripts/.env` or `Dashboard/.env`.
 
 ## Configuration
 

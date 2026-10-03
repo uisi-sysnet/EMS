@@ -33,6 +33,8 @@ Route::middleware(['role:superAdmin,admin,user'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('home');
     Route::get('/dashboard/report', [DashboardController::class, 'generateReport'])->name('dashboard.report');
     Route::get('/dashboard/data', [DashboardController::class, 'data'])->name('dashboard.data');
+    Route::get('/citywatch', [DashboardController::class, 'citywatch'])->name('citywatch');
+    Route::get('/citywatch/data', [DashboardController::class, 'citywatchData'])->name('citywatch.data');
 });
 
 // Add this to your routes file (web.php) inside the superAdmin middleware group

@@ -55,8 +55,11 @@ LARAVEL_DIR="${LARAVEL_DIR:-${SCRIPT_DIR}/Dashboard}"   # override: LARAVEL_DIR=
 # Password for the Postgres 'postgres' superuser role. Also written directly
 # into the Laravel Dashboard's .env as DB_PASSWORD, since the Dashboard
 # connects as 'postgres' (see section 2 and the Laravel .env block below).
+# Resolved below: POSTGRES_PASSWORD from the environment (install.sh passes
+# it), else the existing Dashboard/.env DB_PASSWORD (re-runs keep it), else
+# a new random one. There is deliberately no hardcoded default.
 # override: POSTGRES_PASSWORD='...' sudo -E ./deploy.sh
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-UisI_2026##}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
 
 log()  { echo -e "\033[1;32m[deploy]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[deploy][WARN]\033[0m $*"; }
@@ -65,6 +68,26 @@ die()  { echo -e "\033[1;31m[deploy][ERROR]\033[0m $*" >&2; exit 1; }
 if [[ $EUID -ne 0 ]]; then
     die "Run this with sudo: sudo ./deploy.sh"
 fi
+
+if [[ -z "$POSTGRES_PASSWORD" && -f "${LARAVEL_DIR}/.env" ]]; then
+    POSTGRES_PASSWORD="$(grep -E '^DB_PASSWORD=' "${LARAVEL_DIR}/.env" | tail -1 | cut -d= -f2- || true)"
+    POSTGRES_PASSWORD="${POSTGRES_PASSWORD%$'\r'}"
+    if [[ ${#POSTGRES_PASSWORD} -ge 2 && ( "$POSTGRES_PASSWORD" == \"*\" || "$POSTGRES_PASSWORD" == \'*\' ) ]]; then
+        POSTGRES_PASSWORD="${POSTGRES_PASSWORD:1:-1}"
+    fi
+    [[ "$POSTGRES_PASSWORD" == "change_me" || "$POSTGRES_PASSWORD" == "null" ]] && POSTGRES_PASSWORD=""
+fi
+if [[ -z "$POSTGRES_PASSWORD" ]]; then
+    POSTGRES_PASSWORD=""
+    while (( ${#POSTGRES_PASSWORD} < 24 )); do
+        POSTGRES_PASSWORD+="$(head -c 64 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9')"
+    done
+    POSTGRES_PASSWORD="${POSTGRES_PASSWORD:0:24}"
+    warn "No 'postgres' password given — generated a random one (stored in ${LARAVEL_DIR}/.env as DB_PASSWORD)."
+fi
+# It is embedded in a SQL string literal and a double-quoted .env value.
+[[ "$POSTGRES_PASSWORD" =~ ^[A-Za-z0-9@%+=:,./_~^!*?#-]{8,128}$ ]] \
+    || die "POSTGRES_PASSWORD must be 8-128 characters without quotes, spaces, backslashes, '\$' or backticks."
 
 # ----------------------------------------------------------------------
 # 0b. Platform detection (Ubuntu vs Raspberry Pi OS, and CPU architecture)
@@ -300,9 +323,24 @@ load_env_file() {
 
 load_env_file "$ENV_FILE"
 
+# Older .env files predate some of these keys; use the standard names.
+: "${AQ_DB_NAME:=IOT_aq_sensor_data}"
+: "${SEISMIC_DB_NAME:=IOT_seismic_sensor_data}"
+: "${SMS_DB_NAME:=IOT_sms_telemetry}"
+: "${API_DB_NAME:=IOT_api}"
+: "${LOG_DB_NAME:=IOT_service_logs}"
+
 for v in SYSTEM_DB_USER SYSTEM_DB_PASSWORD AQ_DB_NAME SEISMIC_DB_NAME MQTT_USER MQTT_PASSWORD; do
     [[ -n "${!v:-}" ]] || die "Missing required variable '$v' in .env"
+    [[ "${!v}" != "change_me" ]] || die "'$v' in .env is still the template placeholder — run sudo ./install.sh to set real credentials."
 done
+
+# These are interpolated into SQL as identifiers / string literals below.
+for v in SYSTEM_DB_USER AQ_DB_NAME SEISMIC_DB_NAME SMS_DB_NAME API_DB_NAME LOG_DB_NAME; do
+    [[ -z "${!v:-}" || "${!v}" =~ ^[A-Za-z_][A-Za-z0-9_]{0,62}$ ]] \
+        || die "'$v' in .env must contain only letters, digits and underscores."
+done
+[[ "$SYSTEM_DB_PASSWORD" != *"'"* ]] || die "SYSTEM_DB_PASSWORD in .env must not contain a single quote."
 
 # Whether the DB/MQTT broker live on this box, derived from .env — works
 # whether .env was just generated above or already existed. Drives whether
@@ -659,6 +697,10 @@ if [[ "$DB_IS_LOCAL" == true ]]; then
     # separately) — creating it here is a no-op if that section creates it
     # first, or vice versa; either order is safe.
     ensure_db_with_extension "${API_DB_NAME:-IOT_api}" "postgres"
+    # SMS telemetry and service logs also create hypertables, so they need
+    # the extension pre-installed the same way.
+    ensure_db_with_extension "${SMS_DB_NAME:-IOT_sms_telemetry}" "${SYSTEM_DB_USER}"
+    ensure_db_with_extension "${LOG_DB_NAME:-IOT_service_logs}" "${SYSTEM_DB_USER}"
 
     # The Laravel Dashboard connects directly as the 'postgres' superuser
     # (see the Laravel .env block below), so it needs a password set for
@@ -947,11 +989,11 @@ fi
 SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 
 if [[ "$DB_IS_LOCAL" == true ]]; then
-    log "Ensuring database 'IOT_api' exists (owned by postgres)"
-    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = 'IOT_api'" | grep -q 1; then
-        sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c 'CREATE DATABASE "IOT_api" OWNER postgres;'
+    log "Ensuring database '${API_DB_NAME}' exists (owned by postgres)"
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '${API_DB_NAME}'" | grep -q 1; then
+        sudo -u postgres psql -v ON_ERROR_STOP=1 -q -c "CREATE DATABASE \"${API_DB_NAME}\" OWNER postgres;"
     else
-        log "Database 'IOT_api' already exists, skipping creation"
+        log "Database '${API_DB_NAME}' already exists, skipping creation"
     fi
 
     # IOT_api is owned by 'postgres', unlike the AQ/Seismic/etc. databases
@@ -961,13 +1003,13 @@ if [[ "$DB_IS_LOCAL" == true ]]; then
     # this grant, `php artisan migrate` fails with "permission denied for
     # schema public" the first time it tries to create a table here.
     # Re-run safe: GRANT and ALTER DEFAULT PRIVILEGES are both idempotent.
-    log "Granting '${SYSTEM_DB_USER}' schema privileges on 'IOT_api' (needed for Laravel migrations run via the 'api' connection)"
-    sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d IOT_api -c "GRANT USAGE, CREATE ON SCHEMA public TO ${SYSTEM_DB_USER};"
-    sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d IOT_api -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${SYSTEM_DB_USER};"
-    sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d IOT_api -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${SYSTEM_DB_USER};"
+    log "Granting '${SYSTEM_DB_USER}' schema privileges on '${API_DB_NAME}' (needed for Laravel migrations run via the 'api' connection)"
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d "${API_DB_NAME}" -c "GRANT USAGE, CREATE ON SCHEMA public TO ${SYSTEM_DB_USER};"
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d "${API_DB_NAME}" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${SYSTEM_DB_USER};"
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d "${API_DB_NAME}" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${SYSTEM_DB_USER};"
 else
     warn "SYSTEM_DB_HOST is remote — skipping local database creation for Laravel."
-    warn "Make sure database 'IOT_api' exists on that server and 'postgres' can log in with"
+    warn "Make sure database '${API_DB_NAME}' exists on that server and 'postgres' can log in with"
     warn "password auth from this host before running migrations."
 fi
 
@@ -980,10 +1022,12 @@ fi
 
 log "Writing ${LARAVEL_DIR}/.env (fixed template, overwritten on every run)"
 cat > "${LARAVEL_DIR}/.env" <<ENVEOF
-APP_NAME=Laravel
-APP_ENV=local
+APP_NAME="EMS Gateway"
+APP_ENV=production
 APP_KEY=
-APP_DEBUG=true
+# Never true on a deployed gateway: Laravel's debug error page shows the
+# full environment, including database passwords.
+APP_DEBUG=false
 APP_URL=http://${SERVER_IP:-localhost}
 
 APP_LOCALE=en
@@ -1000,15 +1044,19 @@ BCRYPT_ROUNDS=12
 LOG_CHANNEL=stack
 LOG_STACK=single
 LOG_DEPRECATIONS_CHANNEL=null
-LOG_LEVEL=debug
+LOG_LEVEL=warning
 
 # API Database
 DB_CONNECTION=pgsql
-DB_HOST=127.0.0.1
-DB_PORT=5432
-DB_DATABASE=IOT_api
+DB_HOST=${SYSTEM_DB_HOST:-127.0.0.1}
+DB_PORT=${SYSTEM_DB_PORT:-5432}
+DB_DATABASE=${API_DB_NAME}
 DB_USERNAME=postgres
 DB_PASSWORD="${POSTGRES_PASSWORD}"
+
+# Shared Python-side .env; AppServiceProvider builds the aq/seismic/sms/
+# api/logs connections from it.
+EMS_SCRIPTS_ENV="${ENV_FILE}"
 
 SESSION_DRIVER=file
 SESSION_LIFETIME=120
@@ -1270,7 +1318,7 @@ warn "and make sure 80/tcp (and 443/tcp once you add a domain) is open there."
 
 log "Laravel dashboard: http://${SERVER_IP:-<this-server-ip>}/"
 log "API via nginx:      http://${SERVER_IP:-<this-server-ip>}/api/..."
-warn "Dashboard DB credentials are in ${LARAVEL_DIR}/.env (DB_DATABASE=IOT_api, DB_USERNAME=postgres — the Postgres superuser, shared with api_server.py) — back that file up, it's not stored anywhere else."
+warn "Dashboard DB credentials are in ${LARAVEL_DIR}/.env (DB_DATABASE=${API_DB_NAME}, DB_USERNAME=postgres — the Postgres superuser, shared with api_server.py) — back that file up, it's not stored anywhere else."
 
 fi  # LARAVEL_DIR exists
 

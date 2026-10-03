@@ -21,6 +21,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | EMS Shared Environment File
+    |--------------------------------------------------------------------------
+    |
+    | Path to the scripts/.env file shared with the Python ingestion
+    | services. AppServiceProvider reads it to populate the EMS
+    | connections below. Override EMS_SCRIPTS_ENV for local development.
+    |
+    */
+
+    'ems_env_path' => env('EMS_SCRIPTS_ENV', '/home/system/EMS/scripts/.env'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Database Connections
     |--------------------------------------------------------------------------
     |

@@ -102,6 +102,8 @@ class PostgresLogHandler(logging.Handler):
         try:
             cur.execute(f"ALTER TABLE {self._table} ADD COLUMN IF NOT EXISTS id BIGSERIAL;")
             cur.execute(f"ALTER TABLE {self._table} ALTER COLUMN id SET NOT NULL;")
+            # The Dashboard's log pages mark entries as seen (SystemLog.seen_at).
+            cur.execute(f"ALTER TABLE {self._table} ADD COLUMN IF NOT EXISTS seen_at TIMESTAMPTZ;")
             cur.execute(f"""
                 DO $$
                 BEGIN

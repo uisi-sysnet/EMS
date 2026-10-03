@@ -683,6 +683,8 @@ def initialize_pools():
             # Idempotent — safe to run on every startup.
             cur.execute("ALTER TABLE api_request_logs ADD COLUMN IF NOT EXISTS id BIGSERIAL;")
             cur.execute("ALTER TABLE api_request_logs ALTER COLUMN id SET NOT NULL;")
+            # The Dashboard's API log page marks entries as seen (ApiLog.seen_at).
+            cur.execute("ALTER TABLE api_request_logs ADD COLUMN IF NOT EXISTS seen_at TIMESTAMPTZ;")
             cur.execute("""
                 DO $$
                 BEGIN

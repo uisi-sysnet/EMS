@@ -1,0 +1,5 @@
+# Real environment files hold credentials — never commit them.
+# Templates (.env.example, .env.laravel, .env.EMS.scripts) stay tracked.
+.env
+.env.backup
+.env.production

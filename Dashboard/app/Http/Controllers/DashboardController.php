@@ -33,6 +33,222 @@ class DashboardController extends Controller
     }
 
     /**
+     * CityWatch — full-screen satellite map of every located station with
+     * live sensor / camera / network status (citywatch.blade.php).
+     */
+    public function citywatch()
+    {
+        // Live view and PTZ are admin-only (same as the Live View page), and
+        // the MediaMTX read credential is only handed to those roles.
+        $canViewCameras = in_array(session('role'), ['admin', 'superAdmin'], true);
+
+        return view('citywatch', [
+            'mapStations'      => $this->citywatchSnapshot(),
+            'canViewCameras'   => $canViewCameras,
+            'mediamtxReadUser' => $canViewCameras ? config('services.mediamtx.read_user') : null,
+            'mediamtxReadPass' => $canViewCameras ? config('services.mediamtx.read_pass') : null,
+        ]);
+    }
+
+    /**
+     * JSON polled by CityWatch every 20s, same cadence as the dashboard.
+     */
+    public function citywatchData()
+    {
+        return response()->json([
+            'mapStations' => $this->citywatchSnapshot(),
+            'generatedAt' => now()->timezone('Asia/Manila')->format('Y-m-d h:i A'),
+        ]);
+    }
+
+    private function citywatchSnapshot(): array
+    {
+        [$airQualityData, $seismicData] = $this->buildDashboardData();
+
+        // Same online/idle/offline thresholds as the dashboard (data()).
+        $this->annotateStatus($airQualityData, 2, 3);
+        $this->annotateStatus($seismicData, 2, 3);
+
+        return $this->buildMapData($airQualityData, $seismicData);
+    }
+
+    /**
+     * One marker per located station for the dashboard's Station Map, with
+     * the status of each component at that site:
+     *
+     * - sensors: from the station's own readings — online when it has
+     *   reported data recently (annotateStatus() thresholds), so the map
+     *   always agrees with the station tables.
+     * - camera:  the camera whose `location` matches the station name (the
+     *   same join drawImgAirQualityStationTable() uses), status per
+     *   buildCameraData().
+     * - network: ping of the station's lead_ip (buildLeadSensorData(),
+     *   cached 15s). Seismic stations report over MQTT/SMS and have no
+     *   pingable address, so they have no network entry.
+     *
+     * Cameras with their own coordinates that aren't matched to any station
+     * get a marker of their own. Stations without coordinates are skipped
+     * and counted in `unlocated` so the UI can say why they're missing.
+     *
+     * Expects both collections to already carry ->status (annotateStatus()).
+     */
+    private function buildMapData($airQualityData, $seismicData): array
+    {
+        $cameras = $this->buildCameraData();
+        $camerasByStation = $cameras
+            ->filter(fn ($c) => filled($c->location))
+            ->groupBy(fn ($c) => mb_strtolower(trim($c->location)));
+        $matchedCameraKeys = [];
+
+        $leadSensors = $this->buildLeadSensorData()->keyBy('station_mn');
+
+        $cameraFor = function (string $stationName) use ($camerasByStation, &$matchedCameraKeys) {
+            $key = mb_strtolower(trim($stationName));
+            $group = $camerasByStation->get($key);
+            if (!$group || $group->isEmpty()) {
+                return null;
+            }
+            $matchedCameraKeys[$key] = true;
+            $online = $group->where('status', 'online')->count();
+
+            return [
+                'name'    => $group->pluck('name')->filter()->implode(', ') ?: 'Camera',
+                'count'   => $group->count(),
+                'online'  => $online,
+                'status'  => $online === $group->count() ? 'online' : ($online > 0 ? 'idle' : 'offline'),
+                'cameras' => $group->map(fn ($c) => $this->mapCameraEntry($c))->values()->all(),
+            ];
+        };
+
+        // online  = every installed component is online
+        // offline = nothing at the site is reachable or reporting
+        // warning = anything in between (e.g. sensors up, camera down)
+        $overall = function (array $components): string {
+            $statuses = array_column(array_filter($components), 'status');
+            $up = array_intersect($statuses, ['online', 'idle']);
+
+            if (empty($up)) {
+                return 'offline';
+            }
+            return array_unique($statuses) === ['online'] ? 'online' : 'warning';
+        };
+
+        $markers   = [];
+        $unlocated = 0;
+
+        $aqStations = Station::where(function ($q) {
+            $q->where('deleted', false)->orWhereNull('deleted');
+        })->get()->keyBy('station_mn');
+
+        foreach ($airQualityData as $item) {
+            $station = $aqStations->get($item->station_mn);
+            if (!$station) {
+                continue;   // soft-deleted
+            }
+            if ($station->latitude === null || $station->longitude === null) {
+                $unlocated++;
+                continue;
+            }
+
+            $lead = $leadSensors->get($item->station_mn);
+            $components = [
+                'sensors' => ['status' => $item->status, 'latest_at' => $item->latest_at, 'total' => (int) $item->total],
+                'camera'  => $cameraFor($item->station),
+                'network' => $lead ? ['status' => $lead->status, 'ip' => $lead->ip] : null,
+            ];
+
+            $markers[] = [
+                'id'        => 'aq:' . $item->station_mn,
+                'type'      => 'aq',
+                'name'      => $item->station,
+                'code'      => $item->station_mn,
+                'location'  => $station->location,
+                'lat'       => (float) $station->latitude,
+                'lng'       => (float) $station->longitude,
+                'status'    => $overall($components),
+                'enabled'   => $station->enabled !== false,
+            ] + $components;
+        }
+
+        $seismicStations = SeismicStation::all()->keyBy('station_id');
+
+        foreach ($seismicData as $item) {
+            $station = $seismicStations->get($item->station_id);
+            if (!$station || $station->latitude === null || $station->longitude === null) {
+                $unlocated++;
+                continue;
+            }
+
+            $components = [
+                'sensors' => ['status' => $item->status, 'latest_at' => $item->latest_at, 'total' => (int) $item->total],
+                'camera'  => $cameraFor($item->station),
+                'network' => null,
+            ];
+
+            $markers[] = [
+                'id'        => 'seismic:' . $item->station_id,
+                'type'      => 'seismic',
+                'name'      => $item->station,
+                'code'      => $item->station_id,
+                'location'  => null,
+                'lat'       => (float) $station->latitude,
+                'lng'       => (float) $station->longitude,
+                'status'    => $overall($components),
+                'enabled'   => $station->enabled !== false,
+            ] + $components;
+        }
+
+        foreach ($cameras as $i => $camera) {
+            $key = mb_strtolower(trim((string) $camera->location));
+            if (isset($matchedCameraKeys[$key]) || $camera->latitude === null || $camera->longitude === null) {
+                continue;
+            }
+            $cameraComponent = [
+                'name'    => $camera->name ?: 'Camera',
+                'count'   => 1,
+                'online'  => $camera->status === 'online' ? 1 : 0,
+                'status'  => $camera->status,
+                'cameras' => [$this->mapCameraEntry($camera)],
+            ];
+
+            $markers[] = [
+                'id'        => 'camera:' . $i,
+                'type'      => 'camera',
+                'name'      => $camera->name ?: 'Camera',
+                'code'      => null,
+                'location'  => $camera->location,
+                'lat'       => $camera->latitude,
+                'lng'       => $camera->longitude,
+                'status'    => $camera->status === 'online' ? 'online' : 'offline',
+                'enabled'   => true,
+                'sensors'   => null,
+                'camera'    => $cameraComponent,
+                'network'   => null,
+            ];
+        }
+
+        return ['markers' => $markers, 'unlocated' => $unlocated];
+    }
+
+    /**
+     * What CityWatch's camera popup needs to open a live view: the slug
+     * addresses both the MediaMTX stream (/cctv-stream/{slug}/whep) and PTZ
+     * (/cctv-stream/{slug}/ptz). Disabled cameras aren't published to
+     * MediaMTX (same rule as CameraController::live()), so they can't be
+     * viewed.
+     */
+    private function mapCameraEntry(object $camera): array
+    {
+        return [
+            'slug'     => $camera->slug,
+            'name'     => $camera->name ?: 'Camera',
+            'status'   => $camera->status,
+            'ptz'      => $camera->ptz,
+            'viewable' => $camera->enabled && filled($camera->slug),
+        ];
+    }
+
+    /**
      * Snapshot of station statuses and system health for Telegram
      * notifications (daily digest + real-time alerts). Deliberately
      * reuses the exact same helpers as the live dashboard and JSON
@@ -116,8 +332,14 @@ class DashboardController extends Controller
             }
 
             return (object) [
-                'location' => $camera->location,
-                'status'   => $status,
+                'name'      => $camera->name,
+                'slug'      => $camera->slug,
+                'ptz'       => $camera->device_type === 'PTZ',
+                'enabled'   => (bool) $camera->enabled,
+                'location'  => $camera->location,
+                'status'    => $status,
+                'latitude'  => $camera->latitude !== null ? (float) $camera->latitude : null,
+                'longitude' => $camera->longitude !== null ? (float) $camera->longitude : null,
             ];
         })->values();
     }
