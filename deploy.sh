@@ -250,6 +250,7 @@ SEISMIC_DB_NAME=IOT_seismic_sensor_data
 SMS_DB_NAME=IOT_sms_telemetry
 API_DB_NAME=IOT_api
 LOG_DB_NAME=IOT_service_logs
+WATER_LEVEL_DB_NAME=IOT_water_level
 
 # ---- Air Quality Ingestion (TCP / HJ212) ----
 AQ_SERVER_HOST=0.0.0.0
@@ -329,6 +330,7 @@ load_env_file "$ENV_FILE"
 : "${SMS_DB_NAME:=IOT_sms_telemetry}"
 : "${API_DB_NAME:=IOT_api}"
 : "${LOG_DB_NAME:=IOT_service_logs}"
+: "${WATER_LEVEL_DB_NAME:=IOT_water_level}"
 
 for v in SYSTEM_DB_USER SYSTEM_DB_PASSWORD AQ_DB_NAME SEISMIC_DB_NAME MQTT_USER MQTT_PASSWORD; do
     [[ -n "${!v:-}" ]] || die "Missing required variable '$v' in .env"
@@ -336,7 +338,7 @@ for v in SYSTEM_DB_USER SYSTEM_DB_PASSWORD AQ_DB_NAME SEISMIC_DB_NAME MQTT_USER 
 done
 
 # These are interpolated into SQL as identifiers / string literals below.
-for v in SYSTEM_DB_USER AQ_DB_NAME SEISMIC_DB_NAME SMS_DB_NAME API_DB_NAME LOG_DB_NAME; do
+for v in SYSTEM_DB_USER AQ_DB_NAME SEISMIC_DB_NAME SMS_DB_NAME API_DB_NAME LOG_DB_NAME WATER_LEVEL_DB_NAME; do
     [[ -z "${!v:-}" || "${!v}" =~ ^[A-Za-z_][A-Za-z0-9_]{0,62}$ ]] \
         || die "'$v' in .env must contain only letters, digits and underscores."
 done
@@ -701,6 +703,9 @@ if [[ "$DB_IS_LOCAL" == true ]]; then
     # the extension pre-installed the same way.
     ensure_db_with_extension "${SMS_DB_NAME:-IOT_sms_telemetry}" "${SYSTEM_DB_USER}"
     ensure_db_with_extension "${LOG_DB_NAME:-IOT_service_logs}" "${SYSTEM_DB_USER}"
+    # Water level stations: the Dashboard's migrations create its tables, so the
+    # database must exist before `php artisan migrate` runs further below.
+    ensure_db_with_extension "${WATER_LEVEL_DB_NAME:-IOT_water_level}" "${SYSTEM_DB_USER}"
 
     # The Laravel Dashboard connects directly as the 'postgres' superuser
     # (see the Laravel .env block below), so it needs a password set for

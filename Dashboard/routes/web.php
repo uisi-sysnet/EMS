@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StationController;
+use App\Http\Controllers\WaterLevelStationController;
 use App\Http\Controllers\AboutController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ApiFileController;
@@ -63,6 +64,15 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::post('/inventory/stations/{station_mn}/restore', [StationController::class, 'restore'])->name('inventory.stations.restore');
     Route::get('/inventory/stations/{station_mn}/check-data', [StationController::class, 'checkData'])->name('inventory.stations.check-data');
     Route::delete('/allowed-networks', [ApiKeyController::class, 'destroyIp'])->name('allowed-networks.destroy');
+
+    // Water Level Station Routes (mirrors inventory.stations pattern)
+    Route::get('/inventory/water-level-stations', [WaterLevelStationController::class, 'index'])->name('inventory.water-level-stations.index');
+    Route::post('/inventory/water-level-stations', [WaterLevelStationController::class, 'store'])->name('inventory.water-level-stations.store');
+    Route::put('/inventory/water-level-stations/{station_mn}', [WaterLevelStationController::class, 'update'])->name('inventory.water-level-stations.update');
+    Route::get('/inventory/water-level-stations/{station_mn}/edit', [WaterLevelStationController::class, 'edit'])->name('inventory.water-level-stations.edit');
+    Route::delete('/inventory/water-level-stations/{station_mn}', [WaterLevelStationController::class, 'destroy'])->name('inventory.water-level-stations.destroy');
+    Route::post('/inventory/water-level-stations/{station_mn}/restore', [WaterLevelStationController::class, 'restore'])->name('inventory.water-level-stations.restore');
+    Route::get('/inventory/water-level-stations/{station_mn}/check-data', [WaterLevelStationController::class, 'checkData'])->name('inventory.water-level-stations.check-data');
 
     Route::get('/env-editor', [EnvEditorController::class, 'index'])->name('env.editor');
     Route::get('/load-env', [EnvEditorController::class, 'load'])->name('env.load');

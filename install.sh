@@ -464,15 +464,16 @@ else
     ask_secret "Existing 'postgres' password on ${DB_HOST_VAL} (used by the Dashboard)" "$CURRENT_PG_PASS" PG_SUPER_PASS_VAL
 fi
 
-ask_yesno "Customize database names? (defaults: IOT_aq_sensor_data, IOT_seismic_sensor_data, IOT_sms_telemetry, IOT_api, IOT_service_logs)" "n" CUSTOM_DB_NAMES
+ask_yesno "Customize database names? (defaults: IOT_aq_sensor_data, IOT_seismic_sensor_data, IOT_sms_telemetry, IOT_api, IOT_service_logs, IOT_water_level)" "n" CUSTOM_DB_NAMES
 declare -A DB_NAME_DEFAULTS=(
     [AQ_DB_NAME]="IOT_aq_sensor_data"
     [SEISMIC_DB_NAME]="IOT_seismic_sensor_data"
     [SMS_DB_NAME]="IOT_sms_telemetry"
     [API_DB_NAME]="IOT_api"
     [LOG_DB_NAME]="IOT_service_logs"
+    [WATER_LEVEL_DB_NAME]="IOT_water_level"
 )
-for key in AQ_DB_NAME SEISMIC_DB_NAME SMS_DB_NAME API_DB_NAME LOG_DB_NAME; do
+for key in AQ_DB_NAME SEISMIC_DB_NAME SMS_DB_NAME API_DB_NAME LOG_DB_NAME WATER_LEVEL_DB_NAME; do
     current="$(get_env_var "$key")"
     current="${current:-${DB_NAME_DEFAULTS[$key]}}"
     if [[ "$CUSTOM_DB_NAMES" == "yes" ]]; then
