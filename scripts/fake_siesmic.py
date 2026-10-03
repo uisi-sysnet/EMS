@@ -9,15 +9,22 @@ import random
 import time
 import datetime
 import math
-import paho.mqtt.client as mqtt
+import os
+from pathlib import Path
 
-# MQTT Configuration (matches seismic_mqtt.py)
-MQTT_BROKER_HOST = "192.168.55.10"
-MQTT_BROKER_PORT = 1883
-MQTT_TIMEOUT_SEC = 60
-MQTT_TOPIC = "seismic/stations/+/telemetry"
-MQTT_USER = "mqtt_user_seismic"
-MQTT_PASSWORD = "UisI_2026##"
+import paho.mqtt.client as mqtt
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
+# MQTT Configuration — read from scripts/.env, same as seismic_mqtt.py.
+# Credentials must never be written into this file.
+MQTT_BROKER_HOST = os.getenv("MQTT_BROKER_HOST", "localhost")
+MQTT_BROKER_PORT = int(os.getenv("MQTT_BROKER_PORT", 1883))
+MQTT_TIMEOUT_SEC = int(os.getenv("MQTT_TIMEOUT_SEC", 60))
+MQTT_TOPIC = os.getenv("MQTT_TOPIC", "seismic/stations/+/telemetry")
+MQTT_USER = os.getenv("MQTT_USER")
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
 
 # Simulated station data (matches database schema)
 STATIONS = [
