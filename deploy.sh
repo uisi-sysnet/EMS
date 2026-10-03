@@ -252,6 +252,14 @@ API_DB_NAME=IOT_api
 LOG_DB_NAME=IOT_service_logs
 WATER_LEVEL_DB_NAME=IOT_water_level
 
+# ---- Water level GSM gateway (Nano + SIM800L on USB) ----
+# See scripts/water_level_gsm.py and firmware/. Use the stable
+# /dev/serial/by-id/... path of the Nano when possible.
+WATER_GSM_ENABLED=false
+WATER_GSM_SERIAL_PORT=/dev/ttyUSB0
+WATER_GSM_BAUDRATE=57600
+WATER_GSM_RESEND_MINUTES=30
+
 # ---- Air Quality Ingestion (TCP / HJ212) ----
 AQ_SERVER_HOST=0.0.0.0
 AQ_SERVER_PORT=1935

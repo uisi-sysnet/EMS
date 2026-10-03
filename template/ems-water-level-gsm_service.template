@@ -1,0 +1,26 @@
+[Unit]
+Description=EMS Water Level GSM Gateway (Nano + SIM800L over USB serial)
+Documentation=file://__EMS_DIR__/scripts/water_level_gsm.py
+After=network-online.target postgresql.service
+Wants=network-online.target
+PartOf=ems.target
+
+[Service]
+Type=simple
+User=__EMS_USER__
+WorkingDirectory=__EMS_DIR__/scripts
+Environment=PYTHONUNBUFFERED=1
+# Access to the gateway Nano's USB serial port (/dev/ttyUSB*, /dev/ttyACM*).
+SupplementaryGroups=dialout
+ExecStart=/usr/bin/python3 __EMS_DIR__/scripts/water_level_gsm.py
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ems-water-level-gsm
+# Uncomment to cap memory on a resource-constrained Pi; systemd kills and
+# restarts (Restart=on-failure, above) the service if it's exceeded.
+#MemoryMax=192M
+
+[Install]
+WantedBy=multi-user.target ems.target

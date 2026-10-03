@@ -29,7 +29,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EMS_DIR="$SCRIPT_DIR"
 LARAVEL_DIR="${LARAVEL_DIR:-${SCRIPT_DIR}/Dashboard}"
 # Repo: https://github.com/uisi-sysnet/EMS — releases are published on "main".
-# Override if needed: GIT_BRANCH=version9 sudo -E ./update.sh
+# Override if needed: GIT_BRANCH=version10 sudo -E ./update.sh
 GIT_BRANCH="${GIT_BRANCH:-main}"
 
 log()  { echo -e "\033[1;32m[update]\033[0m $*"; }
@@ -327,7 +327,7 @@ fi
 log "Done. Current status:"
 systemctl status nginx --no-pager || true
 if systemctl list-unit-files --no-legend 'ems.target' | grep -q ems.target; then
-    systemctl status ems-air-quality.service ems-seismic.service ems-api.service --no-pager || true
+    systemctl status ems-air-quality.service ems-seismic.service ems-api.service ems-water-level-gsm.service --no-pager || true
 fi
 
 cat <<EOF

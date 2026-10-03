@@ -34,6 +34,8 @@ class WaterLevel extends Model
         'lead_ip',
         'lead_port',
         'lead_slave',
+        'sim_number',
+        'report_interval_minutes',
     ];
 
     /**
@@ -47,8 +49,30 @@ class WaterLevel extends Model
         'elevation_height'    => 'float',
         'lead_port'           => 'integer',
         'lead_slave'          => 'integer',
+        'report_interval_minutes'  => 'integer',
+        'applied_interval_minutes' => 'integer',
+        'interval_sent_at'         => 'datetime',
+        'interval_applied_at'      => 'datetime',
         'deleted_at'          => 'datetime',
     ];
+
+    /**
+     * Readings in IOT_water_level.sensor_data. Lets the inventory page use
+     * withCount('sensorData') for its Data Status column.
+     */
+    public function sensorData()
+    {
+        return $this->hasMany(WaterLevelReading::class, 'station_mn', 'station_mn');
+    }
+
+    /**
+     * True while the dashboard's interval hasn't been confirmed by the sensor.
+     */
+    public function intervalPending(): bool
+    {
+        return filled($this->sim_number)
+            && $this->applied_interval_minutes !== $this->report_interval_minutes;
+    }
 
     /**
      * Route-model binding uses station_mn, not id.

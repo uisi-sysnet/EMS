@@ -27,7 +27,7 @@ die()  { echo -e "\033[1;31m[install][ERROR]\033[0m $*" >&2; exit 1; }
 
 [[ -d "$TEMPLATE_DIR" ]] || die "Missing template/ subfolder next to this script (expected at ${TEMPLATE_DIR})."
 
-for f in ems-air-quality_service.template ems-seismic_service.template ems-api_service.template ems.target; do
+for f in ems-air-quality_service.template ems-seismic_service.template ems-api_service.template ems-water-level-gsm_service.template ems.target; do
     [[ -f "${TEMPLATE_DIR}/${f}" ]] || die "Missing ${f} in ${TEMPLATE_DIR}."
 done
 
@@ -74,6 +74,7 @@ log "Generating unit files (from ${TEMPLATE_DIR}) and copying to ${UNIT_DEST}"
 render "ems-air-quality_service.template" "${UNIT_DEST}/ems-air-quality.service"
 render "ems-seismic_service.template"     "${UNIT_DEST}/ems-seismic.service"
 render "ems-api_service.template"         "${UNIT_DEST}/ems-api.service"
+render "ems-water-level-gsm_service.template" "${UNIT_DEST}/ems-water-level-gsm.service"
 cp "${TEMPLATE_DIR}/ems.target" "${UNIT_DEST}/"
 
 log "Reloading systemd unit definitions"
@@ -81,13 +82,13 @@ systemctl daemon-reload
 
 log "Enabling ems.target (and each service) to start on boot"
 systemctl enable ems.target
-systemctl enable ems-air-quality.service ems-seismic.service ems-api.service
+systemctl enable ems-air-quality.service ems-seismic.service ems-api.service ems-water-level-gsm.service
 
 log "Starting all three services now"
 systemctl start ems.target
 
 log "Done. Current status:"
-systemctl status ems-air-quality.service ems-seismic.service ems-api.service --no-pager || true
+systemctl status ems-air-quality.service ems-seismic.service ems-api.service ems-water-level-gsm.service --no-pager || true
 
 cat <<EOF
 
@@ -99,5 +100,6 @@ Useful commands:
   sudo journalctl -u ems-air-quality.service -f    # live logs for one service
   sudo journalctl -u ems-seismic.service -f
   sudo journalctl -u ems-api.service -f
+  sudo journalctl -u ems-water-level-gsm.service -f
 
 EOF

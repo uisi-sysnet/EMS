@@ -1,7 +1,7 @@
 [Unit]
-Description=EMS Full Stack (air quality + seismic + API)
+Description=EMS Full Stack (air quality + seismic + API + water level GSM gateway)
 After=network-online.target postgresql.service mosquitto.service
-Wants=ems-air-quality.service ems-seismic.service ems-api.service
+Wants=ems-air-quality.service ems-seismic.service ems-api.service ems-water-level-gsm.service
 
 [Install]
 WantedBy=multi-user.target

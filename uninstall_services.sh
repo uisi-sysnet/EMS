@@ -14,7 +14,7 @@
 set -euo pipefail
 
 UNIT_DIR="/etc/systemd/system"
-SERVICES=(ems-air-quality.service ems-seismic.service ems-api.service)
+SERVICES=(ems-air-quality.service ems-seismic.service ems-api.service ems-water-level-gsm.service)
 TARGET="ems.target"
 
 log()  { echo -e "\033[1;32m[uninstall]\033[0m $*"; }

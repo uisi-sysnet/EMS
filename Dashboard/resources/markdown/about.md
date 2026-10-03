@@ -1,17 +1,27 @@
 # EMS Gateway
 
-EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
+EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.0.0**
+**Current version: 10.1.0**
+
+| Branch     | Contents                                                        |
+| ---------- | --------------------------------------------------------------- |
+| `main`     | Latest release (what `update.sh` installs by default)           |
+| `version10` | Version 10.x line; fixes for version 10 gateways land here first |
+| `version9` | Previous version line (9.x)                                     |
+
+Releases are tagged (`v10.0.0`, `v10.1.0`, ...).
 
 ## What It Runs
 
 ```text
 Air quality station(s)  ->  HJ212 TCP + Modbus TCP  ->  air_quality_ingest.py
 Seismic station(s)      ->  MQTT + optional SMS     ->  seismic_mqtt.py
+Water level sensor(s)   ->  SMS -> GSM gateway Nano ->  water_level_gsm.py
 CCTV cameras            ->  ONVIF + RTSP            ->  MediaMTX (WebRTC to the browser)
 
 air_quality_ingest.py   ->  IOT_aq_sensor_data
+water_level_gsm.py      ->  IOT_water_level
 seismic_mqtt.py         ->  IOT_seismic_sensor_data + IOT_sms_telemetry
 api_server.py           ->  REST API over the stored data (IOT_api)
 All services            ->  IOT_service_logs
@@ -21,6 +31,20 @@ Laravel Dashboard       ->  Browser UI: dashboard, CityWatch map, CCTV, stations
 Shared services:
 PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 ```
+
+## What's New in Version 10.1
+
+Water level stations now appear everywhere the other sensors do:
+
+- **Dashboard:** a **Water Level Station Status** card (online / idle / offline) next to the other status cards, a **Water Level – Total per Station** chart, and a **Water Level Stations** table with the latest level reading. The system status banner counts water level stations too. Everything refreshes every 20 seconds.
+- **CityWatch:** water level stations get their own pin and a **Water Level** filter. A station's card shows the latest level and when it was recorded, the linked camera, and network status from a ping of the station's lead IP.
+- **Readings table:** water level readings are stored in `IOT_water_level.sensor_data` (`station_mn`, `water_level` in meters, `battery_voltage`, `temperature`, `recorded_at`). A station is online when it has a reading in the last 2 minutes, idle up to 3 minutes, otherwise offline, the same rule as the other sensors.
+- The station delete confirmation now reports how many readings a water level station has.
+
+- **GSM reporting:** water level sensors can report by SMS, with no internet needed. Each sensor (Arduino Nano + SIM800L + ultrasonic sensor) texts its readings to a GSM gateway (another Nano + SIM800L) plugged into the server by USB. The new `water_level_gsm.py` service saves them. Firmware for both devices and a setup guide are in [`firmware/`](firmware/README.md).
+- **Reporting interval from the dashboard:** each water level station has a SIM number and a reporting interval. Changing the interval texts it to the sensor, and the station list shows when the sensor has applied it (Pending → Sent → Applied).
+- **Status follows the interval:** a water level station is online when it has reported within its interval plus 2 minutes, and idle until it misses a second interval.
+- Stations need either an IP address or a SIM number; GSM stations don't need an IP. The station list's Data Status column now shows each station's reading count.
 
 ## What's New in Version 10
 
@@ -40,7 +64,7 @@ Satellite imagery needs internet access. Without it, the pins and status still w
 
 ### Water Level stations
 
-A new **Stations › Water Level** inventory (`/inventory/water-level-stations`) manages water level stations, with installation height and automatic elevation lookup from latitude/longitude. They are stored in their own database, `IOT_water_level`.
+A new **Stations › Water Level** inventory (`/inventory/water-level-stations`) manages water level stations, with installation height and automatic elevation lookup from latitude/longitude. They are stored in their own database, `IOT_water_level`. Since 10.1 they also appear on the dashboard and on CityWatch.
 
 ### One-step installation
 
@@ -64,6 +88,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.1.0  | Water level stations on the dashboard and CityWatch; GSM (SMS) reporting through an Arduino Nano + SIM800L gateway, with the reporting interval set from the dashboard. |
 | 10.0.0  | CityWatch map with camera live view and PTZ; water level stations; one-step installer; security hardening; setup fixes (see above). |
 | 9.0.5   | Severity labels for site status in the air quality station table; calibration API plan types. |
 | 9.0.4   | Fixed inventories table layout. |
@@ -83,6 +108,8 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 |   |-- stations.json             # Example/default station registry
 |   |-- sim800l.py                # SIM800L helper
 |   `-- .env.EMS.scripts          # Template for scripts/.env (placeholders only)
+|   |-- water_level_gsm.py        # Water level SMS readings via the GSM gateway Nano
+|-- firmware/                     # Arduino sketches: GSM gateway + water level sensor
 |-- Dashboard/                    # Laravel 12 dashboard
 |-- mediamtx/                     # MediaMTX media server (CCTV streaming)
 |-- template/                     # systemd service templates
@@ -168,6 +195,8 @@ Important Python service settings:
 | `API_DB_NAME`                                                              | API keys and allowlist database, default `IOT_api`            |
 | `LOG_DB_NAME`                                                              | Centralized service logs database, default `IOT_service_logs` |
 | `WATER_LEVEL_DB_NAME`                                                      | Water level stations database, default `IOT_water_level`      |
+| `WATER_GSM_ENABLED`, `WATER_GSM_SERIAL_PORT`, `WATER_GSM_BAUDRATE`         | GSM gateway Nano for water level SMS (off by default)         |
+| `WATER_GSM_RESEND_MINUTES`                                                 | Resend an unconfirmed interval setting after this long        |
 | `AQ_SERVER_HOST`, `AQ_SERVER_PORT`                                         | HJ212 TCP listener bind address and port                      |
 | `MQTT_BROKER_HOST`, `MQTT_BROKER_PORT`, `MQTT_TOPIC`                       | Seismic MQTT source                                           |
 | `SMS_INGESTION_ENABLED`, `SIM800_SERIAL_PORT`, `SIM800_BAUDRATE`           | Optional SIM800L SMS ingestion                                |
@@ -196,6 +225,7 @@ The API server migrates environment API keys into its database-backed key table 
 - `ems-air-quality.service`
 - `ems-seismic.service`
 - `ems-api.service`
+- `ems-water-level-gsm.service` (idles until `WATER_GSM_ENABLED=true`)
 - `ems.target`
 
 Useful commands:
@@ -212,7 +242,10 @@ sudo systemctl status ems-api.service
 sudo journalctl -u ems-air-quality.service -f
 sudo journalctl -u ems-seismic.service -f
 sudo journalctl -u ems-api.service -f
+sudo journalctl -u ems-water-level-gsm.service -f
 ```
+
+Existing gateways get the new water level GSM service by running `sudo ./install_services.sh` once after updating.
 
 Remove only the EMS service registration:
 
@@ -340,10 +373,10 @@ After the initial installation:
 sudo ./update.sh
 ```
 
-`update.sh` pulls the `main` branch by default. Override it when needed:
+`update.sh` pulls the `main` branch by default. To follow a specific version line instead:
 
 ```bash
-GIT_BRANCH=version9 sudo -E ./update.sh
+GIT_BRANCH=version10 sudo -E ./update.sh
 ```
 
 The update flow stops services, backs up the gateway's `.env` files, pulls code, restores the `.env` files, reinstalls Python dependencies, reprovisions Laravel, rebuilds assets, fixes permissions, then restarts nginx and `ems.target`.
@@ -384,6 +417,7 @@ Common issues:
 - SMS ingestion is not working: confirm `SMS_INGESTION_ENABLED`, serial port, baud rate, modem wiring, and SIM800L power.
 - Dashboard cannot edit Python settings: make sure the web server user can read/write `scripts/.env`; `deploy.sh` and `update.sh` normally repair this.
 - CityWatch shows no stations: add latitude and longitude to the stations.
+- Water level stations are always offline: check `sudo journalctl -u ems-water-level-gsm.service`, that `WATER_GSM_ENABLED=true`, and the `gsm_messages` table for rejected SMS. See [`firmware/README.md`](firmware/README.md#troubleshooting) for GSM and hardware issues.
 - CityWatch camera does not connect: check that the camera plays on the Live View page; both use the same MediaMTX stream.
 - PTZ buttons report an error: the camera must be set as PTZ in CCTV inventory and have an ONVIF profile (use Refresh on the camera).
 

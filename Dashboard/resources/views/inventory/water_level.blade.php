@@ -146,12 +146,11 @@
                 <!-- Lead IP -->
                 <div class="flex flex-col">
                     <label for="modal_lead_ip" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        IP Address <span class="text-munti-red-400">*</span>
+                        IP Address
                     </label>
                     <input type="text"
                         id="modal_lead_ip"
                         name="lead_ip"
-                        required
                         maxlength="15"
                         pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                         inputmode="decimal"
@@ -197,6 +196,36 @@
                                 class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                         </div>
                     </div>
+                </div>
+
+                <!-- GSM reporting (SIM800L sensors) -->
+                <div class="flex flex-col">
+                    <label for="modal_sim_number" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Sensor SIM Number
+                    </label>
+                    <input type="tel"
+                        id="modal_sim_number"
+                        name="sim_number"
+                        maxlength="20"
+                        autocomplete="off"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="e.g. 09171234567">
+                    <p class="mt-1.5 text-[11px] text-text-500">For GSM sensors that report by SMS. Enter a SIM number or an IP address.</p>
+                </div>
+
+                <div class="flex flex-col">
+                    <label for="modal_report_interval_minutes" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Reporting Interval (minutes)
+                    </label>
+                    <input type="number"
+                        id="modal_report_interval_minutes"
+                        name="report_interval_minutes"
+                        value="15"
+                        min="1"
+                        max="1440"
+                        list="interval_presets"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                    <p class="mt-1.5 text-[11px] text-text-500">How often the sensor sends a reading. A change is texted to the sensor automatically.</p>
                 </div>
             </div>
 
@@ -356,7 +385,6 @@
                     <input type="text"
                         id="edit_lead_ip"
                         name="lead_ip"
-                        required
                         maxlength="15"
                         pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                         inputmode="decimal"
@@ -401,6 +429,37 @@
                                 class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
                         </div>
                     </div>
+                </div>
+
+                <!-- GSM reporting (SIM800L sensors) -->
+                <div class="flex flex-col">
+                    <label for="edit_sim_number" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Sensor SIM Number
+                    </label>
+                    <input type="tel"
+                        id="edit_sim_number"
+                        name="sim_number"
+                        maxlength="20"
+                        autocomplete="off"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
+                        placeholder="e.g. 09171234567">
+                    <p class="mt-1.5 text-[11px] text-text-500">For GSM sensors that report by SMS. Enter a SIM number or an IP address.</p>
+                </div>
+
+                <div class="flex flex-col">
+                    <label for="edit_report_interval_minutes" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
+                        Reporting Interval (minutes)
+                    </label>
+                    <input type="number"
+                        id="edit_report_interval_minutes"
+                        name="report_interval_minutes"
+                        value="15"
+                        min="1"
+                        max="1440"
+                        list="interval_presets"
+                        class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                    <p class="mt-1.5 text-[11px] text-text-500">How often the sensor sends a reading. A change is texted to the sensor automatically.</p>
+                    <p id="edit_interval_status" class="mt-1.5 text-[11px] text-text-500"></p>
                 </div>
             </div>
             <!-- Note about uniqueness -->
@@ -694,6 +753,8 @@
                                         <th scope="col" class="px-4 py-3 text-left font-medium">IP Address</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Port</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Slave</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">SIM Number</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Interval</th>
                                         {{-- <th scope="col" class="px-4 py-3 text-left font-medium">Updated At</th> --}}
                                         <th scope="col" class="px-4 py-3 text-center font-medium">Actions</th>
                                     </tr>
@@ -761,6 +822,25 @@
                                             <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
                                                 {{ $station->lead_slave }}
                                             </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-text-300">
+                                                {{ $station->sim_number ?? '-' }}
+                                            </td>
+                                            <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-300">
+                                                {{ $station->report_interval_minutes ?? 15 }} min
+                                                @if($station->sim_number)
+                                                    @if($station->intervalPending())
+                                                        <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-amber-600/30 bg-amber-700/15 text-amber-400"
+                                                              title="{{ $station->interval_sent_at ? 'Sent to the sensor ' . $station->interval_sent_at->diffForHumans() . '; waiting for it to confirm.' : 'Waiting to be sent to the sensor.' }}">
+                                                            {{ $station->interval_sent_at ? 'Sent' : 'Pending' }}
+                                                        </span>
+                                                    @else
+                                                        <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-munti-green-600/30 bg-munti-green-700/15 text-munti-green-400"
+                                                              title="Confirmed by the sensor{{ $station->interval_applied_at ? ' ' . $station->interval_applied_at->diffForHumans() : '' }}.">
+                                                            Applied
+                                                        </span>
+                                                    @endif
+                                                @endif
+                                            </td>
                                             {{-- <td class="px-4 py-2.5 whitespace-nowrap text-xs text-text-500">
                                                 {{ $station->updated_at ? $station->updated_at->format('Y-m-d H:i') : '-' }}
                                             </td> --}}
@@ -802,6 +882,18 @@
         </div>
     </div>
 </div>
+<datalist id="interval_presets">
+    <option value="5"></option>
+    <option value="10"></option>
+    <option value="15"></option>
+    <option value="30"></option>
+    <option value="60"></option>
+    <option value="120"></option>
+    <option value="360"></option>
+    <option value="720"></option>
+    <option value="1440"></option>
+</datalist>
+
 <script>
 
 // Add Station Modal
@@ -870,6 +962,23 @@ function populateEditForm(data) {
     document.getElementById('edit_lead_ip').value = data.lead_ip || '';
     document.getElementById('edit_lead_port').value = data.lead_port || '';
     document.getElementById('edit_lead_slave').value = data.lead_slave || '';
+    document.getElementById('edit_sim_number').value = data.sim_number || '';
+    document.getElementById('edit_report_interval_minutes').value = data.report_interval_minutes || 15;
+
+    const intervalStatus = document.getElementById('edit_interval_status');
+    if (intervalStatus) {
+        if (!data.sim_number) {
+            intervalStatus.textContent = '';
+        } else if (data.interval_pending) {
+            intervalStatus.textContent = data.applied_interval_minutes
+                ? `Sensor is still using ${data.applied_interval_minutes} min; the new interval is waiting for its confirmation.`
+                : 'Waiting for the sensor to confirm this interval.';
+            intervalStatus.className = 'mt-1.5 text-[11px] text-amber-400';
+        } else {
+            intervalStatus.textContent = 'Confirmed by the sensor.';
+            intervalStatus.className = 'mt-1.5 text-[11px] text-munti-green-400';
+        }
+    }
 
     const enabledHidden = document.querySelector('#editForm input[name="enabled"]');
     if (enabledHidden) {

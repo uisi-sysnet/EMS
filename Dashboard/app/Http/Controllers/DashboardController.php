@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\SeismicStation;
 use App\Models\Station;
+use App\Models\WaterLevel;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\Process\Process;
 
 class DashboardController extends Controller
@@ -28,8 +30,9 @@ class DashboardController extends Controller
         $systemSummary = $this->buildSystemSummary();
         $cameraCounts = $this->getCameraStatusCounts();
         $leadSensorCounts = $this->getLeadSensorStatusCounts();
+        $waterLevelData = $this->buildWaterLevelData();
 
-        return view('index', compact('airQualityData', 'seismicData', 'systemSummary', 'cameraCounts', 'leadSensorCounts'));
+        return view('index', compact('airQualityData', 'seismicData', 'waterLevelData', 'systemSummary', 'cameraCounts', 'leadSensorCounts'));
     }
 
     /**
@@ -64,12 +67,14 @@ class DashboardController extends Controller
     private function citywatchSnapshot(): array
     {
         [$airQualityData, $seismicData] = $this->buildDashboardData();
+        $waterLevelData = $this->buildWaterLevelData();
 
         // Same online/idle/offline thresholds as the dashboard (data()).
         $this->annotateStatus($airQualityData, 2, 3);
         $this->annotateStatus($seismicData, 2, 3);
+        $this->annotateStatus($waterLevelData, 2, 3);
 
-        return $this->buildMapData($airQualityData, $seismicData);
+        return $this->buildMapData($airQualityData, $seismicData, $waterLevelData);
     }
 
     /**
@@ -90,9 +95,13 @@ class DashboardController extends Controller
      * get a marker of their own. Stations without coordinates are skipped
      * and counted in `unlocated` so the UI can say why they're missing.
      *
-     * Expects both collections to already carry ->status (annotateStatus()).
+     * Water level stations work like air quality ones: sensors from their
+     * own readings (IOT_water_level.sensor_data), network from a ping of
+     * their lead_ip.
+     *
+     * Expects all collections to already carry ->status (annotateStatus()).
      */
-    private function buildMapData($airQualityData, $seismicData): array
+    private function buildMapData($airQualityData, $seismicData, $waterLevelData = null): array
     {
         $cameras = $this->buildCameraData();
         $camerasByStation = $cameras
@@ -195,6 +204,41 @@ class DashboardController extends Controller
                 'lng'       => (float) $station->longitude,
                 'status'    => $overall($components),
                 'enabled'   => $station->enabled !== false,
+            ] + $components;
+        }
+
+        $waterLevelData = $waterLevelData ?? collect();
+        $waterPings = $this->pingHostsCached('dashboard.water_level_ping', collect($waterLevelData)->pluck('ip')->filter()->all());
+
+        foreach ($waterLevelData as $item) {
+            if ($item->latitude === null || $item->longitude === null) {
+                $unlocated++;
+                continue;
+            }
+
+            $components = [
+                'sensors' => [
+                    'status'      => $item->status,
+                    'latest_at'   => $item->latest_at,
+                    'total'       => (int) $item->total,
+                    'water_level' => $item->water_level,
+                ],
+                'camera'  => $cameraFor($item->station),
+                'network' => $item->ip
+                    ? ['status' => ($waterPings[$item->ip] ?? false) ? 'online' : 'offline', 'ip' => $item->ip]
+                    : null,
+            ];
+
+            $markers[] = [
+                'id'        => 'water:' . $item->station_mn,
+                'type'      => 'water',
+                'name'      => $item->station,
+                'code'      => $item->station_mn,
+                'location'  => $item->location,
+                'lat'       => (float) $item->latitude,
+                'lng'       => (float) $item->longitude,
+                'status'    => $overall($components),
+                'enabled'   => $item->enabled,
             ] + $components;
         }
 
@@ -469,11 +513,16 @@ class DashboardController extends Controller
         $cameraCounts     = $this->getCameraStatusCounts();
         $leadSensorCounts = $this->getLeadSensorStatusCounts();
 
+        $waterLevelData   = $this->buildWaterLevelData();
+        $waterLevelCounts = $this->annotateStatus($waterLevelData, $idleThresholdMinutes, $offlineThresholdMinutes);
+
         return response()->json([
             'airQualityData'   => $airQualityData,
             'seismicData'      => $seismicData,
+            'waterLevelData'   => $waterLevelData,
             'airQualityCounts' => $airQualityCounts,
             'seismicCounts'    => $seismicCounts,
+            'waterLevelCounts' => $waterLevelCounts,
             'cameraCounts'     => $cameraCounts,
             'leadSensorCounts' => $leadSensorCounts,
             'systemHealth'     => $this->buildSystemHealth(),
@@ -733,6 +782,103 @@ class DashboardController extends Controller
      *
      * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
      */
+    /**
+     * Water level stations with their reading stats, in the same shape as
+     * buildDashboardData()'s air quality / seismic items (station, ip,
+     * installed_at, latest_at, total) so the dashboard tables, charts and
+     * annotateStatus() treat all three alike. Also carries the latest
+     * reading and the coordinates CityWatch needs.
+     *
+     * Stations live in IOT_water_level.stations (WaterLevel model, soft
+     * deletes excluded) and readings in IOT_water_level.sensor_data. A
+     * gateway that hasn't run the sensor_data migration yet simply shows
+     * every station without data instead of erroring.
+     */
+    private function buildWaterLevelData(): \Illuminate\Support\Collection
+    {
+        try {
+            $stations = WaterLevel::orderBy('station_mn')->get();
+        } catch (\Throwable $e) {
+            // water_level connection not configured (WATER_LEVEL_DB_NAME
+            // missing from scripts/.env) or database not created yet.
+            report($e);
+            return collect();
+        }
+
+        if ($stations->isEmpty()) {
+            return collect();
+        }
+
+        $readings = collect();
+        $latest   = collect();
+        if (Schema::connection('water_level')->hasTable('sensor_data')) {
+            $readings = DB::connection('water_level')
+                ->table('sensor_data')
+                ->select(
+                    'station_mn',
+                    DB::raw('MIN(recorded_at) as installed_at'),
+                    DB::raw('MAX(recorded_at) as latest_at'),
+                    DB::raw('COUNT(*) as total')
+                )
+                ->groupBy('station_mn')
+                ->get()
+                ->keyBy('station_mn');
+
+            $latest = collect(DB::connection('water_level')->select('
+                    SELECT DISTINCT ON (station_mn) station_mn, water_level, battery_voltage, temperature
+                    FROM sensor_data
+                    ORDER BY station_mn, recorded_at DESC
+                '))
+                ->keyBy('station_mn');
+        }
+
+        return $stations
+            ->map(function ($station) use ($readings, $latest) {
+                $reading = $readings->get($station->station_mn);
+                $last    = $latest->get($station->station_mn);
+
+                return (object) [
+                    'station_mn'      => $station->station_mn,
+                    'station'         => $station->station_name ?: $station->station_mn,
+                    'ip'              => $station->lead_ip,
+                    'location'        => $station->location,
+                    'latitude'        => $station->latitude,
+                    'longitude'       => $station->longitude,
+                    'enabled'         => (bool) $station->enabled,
+                    'installed_at'    => $this->toManila($reading->installed_at ?? null),
+                    'latest_at'       => $this->toManila($reading->latest_at ?? null),
+                    'total'           => (int) ($reading->total ?? 0),
+                    'water_level'     => isset($last->water_level) ? round((float) $last->water_level, 2) : null,
+                    'battery_voltage' => isset($last->battery_voltage) ? round((float) $last->battery_voltage, 2) : null,
+                    'temperature'     => isset($last->temperature) ? round((float) $last->temperature, 1) : null,
+                    // Status thresholds follow the station's reporting
+                    // interval: online within one interval (+2 min for SMS
+                    // delivery), idle until a second interval is missed.
+                    'report_interval_minutes' => $interval = max(1, (int) ($station->report_interval_minutes ?? 15)),
+                    'online_within_minutes'   => $interval + 2,
+                    'idle_within_minutes'     => 2 * $interval + 2,
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+    }
+
+    /**
+     * pingHosts() with a short cache, same 15s window as the lead sensor
+     * pings (see buildLeadSensorData()).
+     *
+     * @param string[] $ips
+     * @return array<string,bool>
+     */
+    private function pingHostsCached(string $cacheKey, array $ips): array
+    {
+        if (empty($ips)) {
+            return [];
+        }
+
+        return Cache::remember($cacheKey, 15, fn () => $this->pingHosts($ips));
+    }
+
     private function buildDashboardData(): array
     {
         // ---------- Air Quality ----------
@@ -1320,9 +1466,11 @@ class DashboardController extends Controller
                 // back to the app's default timezone and reintroduce an
                 // 8-hour skew into the online/idle/offline calculation.
                 $minutesAgo = \Carbon\Carbon::parse($item->latest_at, 'Asia/Manila')->diffInMinutes(now());
-                if ($minutesAgo <= $idleThresholdMinutes) {
+                // Stations that report on their own interval (water level
+                // GSM sensors) carry their own thresholds.
+                if ($minutesAgo <= ($item->online_within_minutes ?? $idleThresholdMinutes)) {
                     $status = 'online';
-                } elseif ($minutesAgo <= $offlineThresholdMinutes) {
+                } elseif ($minutesAgo <= ($item->idle_within_minutes ?? $offlineThresholdMinutes)) {
                     $status = 'idle';
                 }
             }

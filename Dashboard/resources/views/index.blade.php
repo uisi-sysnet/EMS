@@ -88,9 +88,11 @@
             $status = 'offline';
             if (!empty($item->latest_at)) {
                 $minutesAgo = \Carbon\Carbon::parse($item->latest_at)->diffInMinutes(now());
-                if ($minutesAgo <= $idleThresholdMinutes) {
+                // Water level GSM stations carry thresholds based on their
+                // own reporting interval (DashboardController::buildWaterLevelData()).
+                if ($minutesAgo <= ($item->online_within_minutes ?? $idleThresholdMinutes)) {
                     $status = 'online';
-                } elseif ($minutesAgo <= $offlineThresholdMinutes) {
+                } elseif ($minutesAgo <= ($item->idle_within_minutes ?? $offlineThresholdMinutes)) {
                     $status = 'idle';
                 }
             }
@@ -108,12 +110,16 @@
 
     $airQualityData    = $airQualityData ?? [];
     $seismicData       = $seismicData ?? [];
+    $waterLevelData    = $waterLevelData ?? [];
     $airQualityCounts  = $annotateStatus($airQualityData);
     $seismicCounts     = $annotateStatus($seismicData);
+    $waterLevelCounts  = $annotateStatus($waterLevelData);
     $airQualityOnline  = $airQualityCounts['online'];
     $seismicOnline     = $seismicCounts['online'];
+    $waterLevelOnline  = $waterLevelCounts['online'];
     $airQualityTotal   = count($airQualityData);
     $seismicTotal      = count($seismicData);
+    $waterLevelTotal   = count($waterLevelData);
 
     $cameraCounts = $cameraCounts ?? ['online' => 0, 'idle' => 0, 'offline' => 0];
     $cameraOnline = $cameraCounts['online'];
@@ -131,8 +137,8 @@
     $leadSensorOffline = $leadSensorCounts['offline'];
     $leadSensorTotal = $leadSensorOnline + $leadSensorIdle + $leadSensorOffline;
 
-    $totalStations = $airQualityTotal + $seismicTotal;
-    $totalOnline   = $airQualityOnline + $seismicOnline;
+    $totalStations = $airQualityTotal + $seismicTotal + $waterLevelTotal;
+    $totalOnline   = $airQualityOnline + $seismicOnline + $waterLevelOnline;
     // Percentage used for the system status banner counts strictly-Online
     // stations only — an Idle station is a stale-data warning sign too,
     // so it doesn't count toward "fully healthy" here. If you'd rather
@@ -413,8 +419,8 @@
                     </div>
                 </div>
 
-                <!-- FOUR STATUS CARDS IN ONE ROW -->
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full min-w-0">
+                <!-- STATUS CARDS: Air Quality, Seismic, Water Level, Camera, Lead Sensor -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4 w-full min-w-0">
                     
                     <!-- Card 1: Air Quality Station Status -->
                     <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
@@ -562,7 +568,81 @@
                         </div>
                     </div>
 
-                    <!-- Card 3: Camera Devices Status -->
+
+                    <!-- Card 3: Water Level Station Status -->
+                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">Water Level Station Status</span>
+                            </h3>
+                        </div>
+
+                        <div class="p-4 sm:p-5 flex flex-col items-center gap-4 w-full min-w-0">
+                            <!-- Donut Chart -->
+                            <div class="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
+                                <canvas id="waterLevelStatusChart"></canvas>
+                                <div id="water-donut-center" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    @if($waterLevelTotal > 0)
+                                        <span class="text-lg font-bold text-text-100 leading-none">
+                                            {{ round(($waterLevelOnline / $waterLevelTotal) * 100) }}%
+                                        </span>
+                                        <span class="text-[10px] text-text-400 uppercase tracking-wide mt-0.5">Online</span>
+                                    @else
+                                        <span class="text-lg font-bold text-amber-400 leading-none">—</span>
+                                        <span class="text-[10px] text-amber-400 uppercase tracking-wide mt-0.5">No Stations</span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- Status Counts -->
+                            <div class="flex flex-col gap-2 w-full">
+                                <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                    <span class="flex items-center gap-4 min-w-0">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-munti-green-400 shadow-[0_0_6px_rgba(74,222,128,0.45)] shrink-0"></span>
+                                        <span class="text-sm text-text-300 truncate">Online</span>
+                                    </span>
+                                    <span id="water-online-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                        {{ $waterLevelCounts['online'] }}
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                    <span class="flex items-center gap-4 min-w-0">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)] shrink-0"></span>
+                                        <span class="text-sm text-text-300 truncate">Idle</span>
+                                    </span>
+                                    <span id="water-idle-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                        {{ $waterLevelCounts['idle'] }}
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center justify-between gap-4 px-3 py-1">
+                                    <span class="flex items-center gap-4 min-w-0">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)] shrink-0"></span>
+                                        <span class="text-sm text-text-300 truncate">Offline</span>
+                                    </span>
+                                    <span id="water-offline-count" class="text-sm font-semibold text-text-100 tabular-nums shrink-0">
+                                        {{ $waterLevelCounts['offline'] }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Summary Badge -->
+                            <div class="inline-flex flex-col items-center gap-1 mt-1">
+                                <span id="water-online-badge"
+                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-munti-green-400
+                                            bg-munti-green-700/20 px-4 py-2.5 rounded-full
+                                            border border-munti-green-600/30 shadow-sm whitespace-nowrap">
+                                    {{ $waterLevelOnline }}/{{ $waterLevelTotal }} Online
+                                </span>
+                                <span class="text-[10px] text-text-500 uppercase tracking-wider whitespace-nowrap">
+                                    Station Status
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: Camera Devices Status -->
                     <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
                         <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
                             <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
@@ -635,7 +715,7 @@
                         </div>
                     </div>
 
-                    <!-- Card 4: Lead Sensor Status -->
+                    <!-- Card 5: Lead Sensor Status -->
                     <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
                         <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
                             <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
@@ -856,6 +936,79 @@
 
                 </div>
 
+                <!-- WATER LEVEL: chart + table -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <!-- Graph Card -->
+                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden">
+                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">Water Level – Total per Station</span>
+                            </h3>
+                            <span id="water-chart-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
+                                {{ count($waterLevelData ?? []) }} total
+                            </span>
+                        </div>
+                        <div class="px-2 sm:px-3 pt-3 pb-1 h-[220px] sm:h-[260px] lg:h-[300px]">
+                            <canvas id="waterLevelChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Table Card -->
+                    <div class="bg-surface-800 rounded-xl shadow border border-border-700 overflow-hidden flex flex-col">
+                        <div class="px-3 py-2 border-b border-border-700 bg-surface-900/80 flex items-center justify-between gap-2">
+                            <h3 class="text-xs font-semibold text-text-200 flex items-center gap-1.5 min-w-0">
+                                <span class="truncate">Water Level Stations</span>
+                            </h3>
+                            <span id="water-table-total-badge" class="text-[10px] text-munti-green-400 bg-munti-green-700/20 px-1.5 py-0.5 rounded-full shrink-0 border border-munti-green-600/30">
+                                {{ count($waterLevelData ?? []) }} total
+                            </span>
+                        </div>
+                        <div class="overflow-x-auto max-h-[300px] sm:max-h-[330px] lg:max-h-[345px] thin-scrollbar">
+                            <table class="min-w-full divide-y divide-border-700 text-xs">
+                                <thead class="bg-surface-900 sticky top-0">
+                                    <tr class="h-10">
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">No.</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Station</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">IP Address</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Installation</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Latest</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Level</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Total</th>
+                                        <th class="px-2 py-0 text-left font-medium text-text-400 uppercase tracking-wider whitespace-nowrap">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="water-table-body" class="bg-surface-800 divide-y divide-border-800">
+                                    @forelse ($waterLevelData as $item)
+                                    <tr class="hover:bg-surface-700 transition h-10">
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-300">{{ $loop->iteration }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">{{ $item->station }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ $item->ip ?? '—' }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-400">
+                                            {{ $item->installed_at ? \Carbon\Carbon::parse($item->installed_at)->format('Y-m-d') : '—' }}
+                                        </td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-400">
+                                            {{ $item->latest_at ? \Carbon\Carbon::parse($item->latest_at)->format('Y-m-d h:i A') : '—' }}
+                                        </td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-text-200 tabular-nums">{{ $item->water_level !== null ? number_format($item->water_level, 2) . ' m' : '—' }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">{{ number_format($item->total) }}</td>
+                                        <td class="px-2 py-0 whitespace-nowrap">
+                                            @php($meta = $statusBadgeMeta[$item->status])
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-medium {{ $meta['text'] }} {{ $meta['bg'] }} border {{ $meta['border'] }} px-1.5 py-0.5 rounded-full">
+                                                <span class="w-1.5 h-1.5 rounded-full {{ $meta['dot'] }}"></span> {{ $meta['label'] }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="8" class="px-2 py-4 text-center text-text-400">No water level data available</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -956,8 +1109,10 @@
         // Initial data from Blade
         const airData = @json($airQualityData ?? []);
         const seismicDataInit = @json($seismicData ?? []);
+        const waterDataInit = @json($waterLevelData ?? []);
         const airChartData = getChartData(airData);
         const seismicChartData = getChartData(seismicDataInit);
+        const waterChartData = getChartData(waterDataInit);
 
         const airChart = new Chart(document.getElementById('airQualityChart').getContext('2d'), {
             type: 'bar',
@@ -981,6 +1136,20 @@
                     label: 'Total Records',
                     data: seismicChartData.totals,
                     backgroundColor: barColors.slice(0, seismicChartData.labels.length || 1),
+                    borderRadius: 6
+                }]
+            },
+            options: chartDefaults
+        });
+
+        const waterChart = new Chart(document.getElementById('waterLevelChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: waterChartData.labels,
+                datasets: [{
+                    label: 'Total Records',
+                    data: waterChartData.totals,
+                    backgroundColor: barColors.slice(0, waterChartData.labels.length || 1),
                     borderRadius: 6
                 }]
             },
@@ -1040,6 +1209,12 @@
             {{ $seismicCounts['idle'] ?? 0 }},
             {{ $seismicCounts['offline'] ?? 0 }}
         );
+        let waterStatusChart = makeStatusChart(
+            'waterLevelStatusChart',
+            {{ $waterLevelCounts['online'] ?? 0 }},
+            {{ $waterLevelCounts['idle'] ?? 0 }},
+            {{ $waterLevelCounts['offline'] ?? 0 }}
+        );
         let cameraStatusChart = makeStatusChart(
             'cameraStatusChart',
             {{ $cameraOnline ?? 0 }},
@@ -1070,14 +1245,33 @@
             </tr>`;
         }
 
-        function renderTable(tbodyId, collection, emptyLabel) {
+        function waterRowHtml(item, no) {
+            const meta = statusBadgeMeta[item.status] || statusBadgeMeta.offline;
+            const level = item.water_level === null || item.water_level === undefined ? '—' : `${Number(item.water_level).toFixed(2)} m`;
+            return `<tr class="hover:bg-surface-700 transition h-10">
+                <td class="px-2 py-0 whitespace-nowrap text-text-300">${no}</td>
+                <td class="px-2 py-0 whitespace-nowrap font-medium text-munti-green-400">${esc(item.station)}</td>
+                <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">${esc(item.ip ?? '—')}</td>
+                <td class="px-2 py-0 whitespace-nowrap text-text-400">${fmtDate(item.installed_at)}</td>
+                <td class="px-2 py-0 whitespace-nowrap text-text-400">${fmtDateTime(item.latest_at)}</td>
+                <td class="px-2 py-0 whitespace-nowrap text-text-200 tabular-nums">${level}</td>
+                <td class="px-2 py-0 whitespace-nowrap text-munti-green-300">${Number(item.total || 0).toLocaleString()}</td>
+                <td class="px-2 py-0 whitespace-nowrap">
+                    <span class="inline-flex items-center gap-1 text-[10px] font-medium ${meta.text} ${meta.bg} border ${meta.border} px-1.5 py-0.5 rounded-full">
+                        <span class="w-1.5 h-1.5 rounded-full ${meta.dot}"></span> ${meta.label}
+                    </span>
+                </td>
+            </tr>`;
+        }
+
+        function renderTable(tbodyId, collection, emptyLabel, rowFn = rowHtml, columns = 7) {
             const tbody = document.getElementById(tbodyId);
             if (!tbody) return;
             if (!Array.isArray(collection) || !collection.length) {
-                tbody.innerHTML = `<tr><td colspan="7" class="px-2 py-4 text-center text-text-400">${emptyLabel}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="${columns}" class="px-2 py-4 text-center text-text-400">${emptyLabel}</td></tr>`;
                 return;
             }
-            tbody.innerHTML = collection.map((item, i) => rowHtml(item, i + 1)).join('');
+            tbody.innerHTML = collection.map((item, i) => rowFn(item, i + 1)).join('');
         }
 
         function setBarTile(prefix, tileData) {
@@ -1195,13 +1389,15 @@
             }
         }
 
-        function updateStatusBanner(airCounts, seismicCounts) {
+        function updateStatusBanner(airCounts, seismicCounts, waterCounts) {
             const a = airCounts || { online: 0, idle: 0, offline: 0 };
             const s = seismicCounts || { online: 0, idle: 0, offline: 0 };
+            const w = waterCounts || { online: 0, idle: 0, offline: 0 };
 
-            const totalOnline = (a.online || 0) + (s.online || 0);
+            const totalOnline = (a.online || 0) + (s.online || 0) + (w.online || 0);
             const totalStations = (a.online || 0) + (a.idle || 0) + (a.offline || 0)
-                                + (s.online || 0) + (s.idle || 0) + (s.offline || 0);
+                                + (s.online || 0) + (s.idle || 0) + (s.offline || 0)
+                                + (w.online || 0) + (w.idle || 0) + (w.offline || 0);
             const percent = totalStations > 0 ? Math.round((totalOnline / totalStations) * 1000) / 10 : 100;
 
             let status = 'idle';
@@ -1288,6 +1484,8 @@
                 // Safe defaults so missing keys never crash the whole refresh
                 const airQualityData  = Array.isArray(data.airQualityData)  ? data.airQualityData  : [];
                 const seismicData     = Array.isArray(data.seismicData)     ? data.seismicData     : [];
+                const waterLevelData  = Array.isArray(data.waterLevelData)  ? data.waterLevelData  : [];
+                const waterCounts     = data.waterLevelCounts  || { online: 0, idle: 0, offline: 0 };
                 const airCounts       = data.airQualityCounts  || { online: 0, idle: 0, offline: 0 };
                 const seismicCounts   = data.seismicCounts     || { online: 0, idle: 0, offline: 0 };
                 const cameraCounts    = data.cameraCounts      || { online: 0, idle: 0, offline: 0 };
@@ -1298,6 +1496,8 @@
                 renderTable('seismic-table-body', seismicData, 'No seismic data available');
                 updateTotalBadges('aq', airQualityData.length);
                 updateTotalBadges('seismic', seismicData.length);
+                renderTable('water-table-body', waterLevelData, 'No water level data available', waterRowHtml, 8);
+                updateTotalBadges('water', waterLevelData.length);
 
                 // Bar charts
                 const airChartData2 = getChartData(airQualityData);
@@ -1312,20 +1512,28 @@
                 seismicChart.data.datasets[0].backgroundColor = barColors.slice(0, seismicChartData2.labels.length || 1);
                 seismicChart.update();
 
+                const waterChartData2 = getChartData(waterLevelData);
+                waterChart.data.labels = waterChartData2.labels;
+                waterChart.data.datasets[0].data = waterChartData2.totals;
+                waterChart.data.datasets[0].backgroundColor = barColors.slice(0, waterChartData2.labels.length || 1);
+                waterChart.update();
+
                 // Donut charts
                 updateStatusChart(airStatusChart, airCounts.online, airCounts.idle, airCounts.offline);
                 updateStatusChart(seismicStatusChart, seismicCounts.online, seismicCounts.idle, seismicCounts.offline);
+                updateStatusChart(waterStatusChart, waterCounts.online, waterCounts.idle, waterCounts.offline);
                 updateStatusChart(cameraStatusChart, cameraCounts.online, cameraCounts.idle, cameraCounts.offline);
                 updateStatusChart(leadSensorStatusChart, leadSensorCounts.online, leadSensorCounts.idle, leadSensorCounts.offline);
 
                 // Status cards content
                 updateDonutCard('aq', airCounts);
                 updateDonutCard('seismic', seismicCounts);
+                updateDonutCard('water', waterCounts);
                 updateDonutCard('camera', cameraCounts);
                 updateDonutCard('leadsensor', leadSensorCounts);
 
                 // Banner
-                updateStatusBanner(airCounts, seismicCounts);
+                updateStatusBanner(airCounts, seismicCounts, waterCounts);
 
                 // System tiles (safe even if endpoint doesn’t send them yet)
                 updateSystemHealth(data.systemHealth);

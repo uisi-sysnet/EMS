@@ -106,6 +106,7 @@
                 <button type="button" data-filter="all" aria-pressed="true" class="px-2.5 py-1 rounded-md transition hover:text-text-100">All</button>
                 <button type="button" data-filter="aq" aria-pressed="false" class="px-2.5 py-1 rounded-md transition hover:text-text-100">Air Quality</button>
                 <button type="button" data-filter="seismic" aria-pressed="false" class="px-2.5 py-1 rounded-md transition hover:text-text-100">Seismic</button>
+                <button type="button" data-filter="water" aria-pressed="false" class="px-2.5 py-1 rounded-md transition hover:text-text-100">Water Level</button>
                 <button type="button" data-filter="camera" aria-pressed="false" class="hidden sm:block px-2.5 py-1 rounded-md transition hover:text-text-100">CCTV</button>
             </div>
         </div>
@@ -264,11 +265,12 @@
     // Live view + PTZ are admin-only; see DashboardController::citywatch().
     const CAN_VIEW_CAMERAS = @json($canViewCameras ?? false);
     const STATUS_LABEL = { online: 'Online', idle: 'Idle', warning: 'Partial', offline: 'Offline' };
-    const TYPE_LABEL   = { aq: 'Air Quality', seismic: 'Seismic', camera: 'CCTV' };
+    const TYPE_LABEL   = { aq: 'Air Quality', seismic: 'Seismic', water: 'Water Level', camera: 'CCTV' };
     // Muntinlupa — used only until the first located station appears.
     const DEFAULT_VIEW = { center: [14.4081, 121.0415], zoom: 13 };
 
     const ICONS = {
+        water: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3s-5 5.5-5 9a5 5 0 0010 0c0-3.5-5-9-5-9zM3 20c1.5 0 1.5-1 3-1s1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1"/></svg>',
         aq: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8h11a3 3 0 10-3-3M3 12h15a3 3 0 11-3 3M3 16h7"/></svg>',
         seismic: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12h4l3-8 4 16 3-8h6"/></svg>',
         camera: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l5-3v10l-5-3M4 6h11v12H4z"/></svg>',
@@ -322,12 +324,16 @@
     function cardHtml(s, withActions = false) {
         const rows = [];
         if (s.type !== 'camera') {
-            rows.push(row('sensors', 'Sensors', s.sensors ? timeAgo(s.sensors.latest_at) : 'No sensor registered', s.sensors?.status));
+            const level = s.type === 'water' && s.sensors?.water_level != null ? `Level ${Number(s.sensors.water_level).toFixed(2)} m · ` : '';
+            rows.push(row('sensors', s.type === 'water' ? 'Water level sensor' : 'Sensors', s.sensors ? level + timeAgo(s.sensors.latest_at) : 'No sensor registered', s.sensors?.status));
         }
         rows.push(row('camera', 'Camera',
             s.camera ? (s.camera.count > 1 ? `${s.camera.online}/${s.camera.count} online · ${s.camera.name}` : s.camera.name) : 'No camera linked to this station',
             s.camera?.status) + (withActions ? cameraActions(s) : ''));
-        if (s.type === 'aq') {
+        if (s.type === 'water' && !s.network) {
+            // GSM sensor: no IP to ping; if its SMS readings arrive, the link is up.
+            rows.push(row('network', 'Network', 'GSM / SMS link (from data)', s.sensors?.status));
+        } else if (s.type === 'aq' || s.type === 'water') {
             rows.push(row('network', 'Network', s.network ? `Ping ${s.network.ip}` : 'No lead IP configured', s.network ? (s.network.status === 'online' ? 'online' : 'offline') : null));
         } else if (s.type === 'seismic') {
             // No pingable address; if MQTT/SMS data is arriving, the link is up.
