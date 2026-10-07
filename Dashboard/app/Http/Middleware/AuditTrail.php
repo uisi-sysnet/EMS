@@ -65,16 +65,22 @@ class AuditTrail
 
         // A login has no actor before the request: use who signed in, or
         // the username that was tried.
-        if ($isLogin) {
+        if ($isLogin && $result === 'failed') {
+            // Record the username that was tried, never the session's
+            // current user (someone already signed in may mistype).
+            $actor = [
+                'user_id'  => null,
+                'username' => Str::limit((string) $request->input('username'), 64, '') ?: null,
+                'role'     => null,
+            ];
+            $category = 'security';
+            $template = 'Failed sign-in attempt';
+        } elseif ($isLogin) {
             $actor = [
                 'user_id'  => session('user_id'),
-                'username' => session('username') ?? Str::limit((string) $request->input('username'), 64, ''),
+                'username' => session('username'),
                 'role'     => session('role'),
             ];
-            if ($result === 'failed') {
-                $category = 'security';
-                $template = 'Failed sign-in attempt';
-            }
         } else {
             $actor = $actorBefore;
         }
@@ -115,7 +121,9 @@ class AuditTrail
     private function result(Response $response, bool $isLogin): string
     {
         if ($isLogin) {
-            return session('authenticated') ? 'success' : 'failed';
+            $errors = session('errors');
+            $rejected = ($errors && $errors->any()) || session()->has('error') || $response->getStatusCode() >= 400;
+            return (!$rejected && session('authenticated')) ? 'success' : 'failed';
         }
         if ($response->getStatusCode() >= 400) {
             return 'failed';

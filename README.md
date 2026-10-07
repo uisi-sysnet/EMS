@@ -292,6 +292,20 @@ php artisan serve
 
 Set `EMS_SCRIPTS_ENV` in `Dashboard/.env` to your local `scripts/.env`. The local PostgreSQL needs the role from `SYSTEM_DB_USER` and the EMS databases before `php artisan migrate` will succeed; on a gateway, `deploy.sh` and the Python services create them. The network pages use `nmcli` and only work on the Linux gateway.
 
+## Logs and Audit Log
+
+**Maintenance › Logs & Audit** (`/logs`) has two tabs:
+
+- **Logs** — messages from the EMS services and device status changes, with a **category** filter:
+  - **System**: services starting, database and broker connections, errors.
+  - **Device**: station readings rejected, Modbus lead polling, clock sync, seismic telemetry and SMS, the GSM gateway, and stations, cameras and lead sensors **going offline or coming back online** (checked every minute by `php artisan logs:track-device-status`).
+  - **Security**: API requests blocked by the allowed-networks list.
+- **Audit Log** — every change made in the dashboard: who, when, from which IP, what (for example "Updated water level station WLS001"), and whether it succeeded. Includes sign-ins, failed sign-in attempts, user and station changes, settings, network changes, service start/stop and web terminal access. Filter by user, category, result and date.
+
+Both tabs export to CSV. The Audit Log stores submitted values only for non-sensitive fields; passwords, keys and other secrets are recorded by field name only. Descriptions and categories are set in `Dashboard/config/audit.php`; an action that isn't listed there is still recorded, under "Other". API request logs stay on their own page (`/api-logs`).
+
+The scheduled tasks (device status tracking, Telegram alerts and daily digest) run from a cron job that `deploy.sh` and `update.sh` install at `/etc/cron.d/ems-dashboard-scheduler`.
+
 ## REST API
 
 The API is served by `scripts/api_server.py`. On a deployed gateway, nginx serves it at `/api/*` on the same host as the dashboard.
@@ -417,6 +431,7 @@ Common issues:
 - SMS ingestion is not working: confirm `SMS_INGESTION_ENABLED`, serial port, baud rate, modem wiring, and SIM800L power.
 - Dashboard cannot edit Python settings: make sure the web server user can read/write `scripts/.env`; `deploy.sh` and `update.sh` normally repair this.
 - CityWatch shows no stations: add latitude and longitude to the stations.
+- Device events or Telegram alerts never appear: check that `/etc/cron.d/ems-dashboard-scheduler` exists (run `sudo ./update.sh` to install it).
 - Water level stations are always offline: check `sudo journalctl -u ems-water-level-gsm.service`, that `WATER_GSM_ENABLED=true`, and the `gsm_messages` table for rejected SMS. See [`firmware/README.md`](firmware/README.md#troubleshooting) for GSM and hardware issues.
 - CityWatch camera does not connect: check that the camera plays on the Live View page; both use the same MediaMTX stream.
 - PTZ buttons report an error: the camera must be set as PTZ in CCTV inventory and have an ONVIF profile (use Refresh on the camera).
