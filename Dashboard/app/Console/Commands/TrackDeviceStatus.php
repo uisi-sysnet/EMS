@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Http\Controllers\CameraController;
 use App\Http\Controllers\DashboardController;
+use App\Models\Camera;
 use App\Models\DeviceStatusState;
 use App\Models\SystemLog;
 use Illuminate\Console\Command;
@@ -72,7 +74,49 @@ class TrackDeviceStatus extends Command
             $changes++;
         }
 
+        $this->resyncRecoveredCameras($now);
+
         $this->info("{$changes} device status change(s) logged.");
         return self::SUCCESS;
+    }
+
+    /**
+     * A camera whose last stream sync failed (last_status = 'error') has no
+     * live view until it's synced again. Once it answers pings, retry the
+     * sync here instead of waiting for someone to press Refresh — at most
+     * every 5 minutes per camera, so a camera with wrong credentials isn't
+     * hammered every minute.
+     */
+    private function resyncRecoveredCameras(\Illuminate\Support\Carbon $now): void
+    {
+        $up = DeviceStatusState::where('key', 'like', 'camera:%')->where('status', 'up')->pluck('key')
+            ->map(fn ($key) => (int) substr($key, strlen('camera:')));
+
+        $cameras = Camera::where('enabled', true)
+            ->where('last_status', 'error')
+            ->whereIn('id', $up)
+            ->where('updated_at', '<', $now->copy()->subMinutes(5))
+            ->get();
+
+        foreach ($cameras as $camera) {
+            app(CameraController::class)->syncOnvifStream($camera);
+            $camera->refresh();
+            // A repeat of the same error leaves the row unchanged, so
+            // updated_at wouldn't move and the 5-minute wait would not apply.
+            $camera->touch();
+
+            $ok = $camera->last_status !== 'error';
+            SystemLog::create([
+                'created_at'  => $now,
+                'service'     => 'dashboard',
+                'level'       => $ok ? 'INFO' : 'WARNING',
+                'logger_name' => 'device_status',
+                'thread_name' => null,
+                'message'     => $ok
+                    ? "Camera {$camera->name} live view restored (stream re-synced)."
+                    : "Camera {$camera->name} is reachable but its live view can't start: {$camera->last_error}",
+                'category'    => 'device',
+            ]);
+        }
     }
 }

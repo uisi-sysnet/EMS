@@ -376,9 +376,11 @@ class DashboardController extends Controller
             }
             $devices[] = ['key' => "water:{$s->station_mn}", 'type' => 'Water level station', 'name' => $s->station, 'status' => $s->status, 'detail' => $s->latest_at ? "last data {$s->latest_at}" : 'no data yet'];
         }
-        foreach (\App\Models\Camera::where('enabled', true)->get() as $camera) {
-            $status = $camera->last_status === 'error' ? 'offline' : 'online';
-            $devices[] = ['key' => "camera:{$camera->id}", 'type' => 'Camera', 'name' => $camera->name ?: "Camera #{$camera->id}", 'status' => $status, 'detail' => $camera->location ? "at {$camera->location}" : null];
+        foreach ($this->buildCameraData() as $camera) {
+            if (!$camera->enabled) {
+                continue;
+            }
+            $devices[] = ['key' => "camera:{$camera->id}", 'type' => 'Camera', 'name' => $camera->name ?: "Camera #{$camera->id}", 'status' => $camera->status, 'detail' => trim("ping {$camera->ip}" . ($camera->location ? " at {$camera->location}" : ''))];
         }
         foreach ($this->buildLeadSensorData() as $lead) {
             $devices[] = ['key' => "lead:{$lead->station_mn}", 'type' => 'Lead sensor', 'name' => $lead->station, 'status' => $lead->status, 'detail' => "ping {$lead->ip}"];
@@ -388,12 +390,15 @@ class DashboardController extends Controller
     }
 
     /**
-     * Per-camera status list, same rules getCameraStatusCounts() has
-     * always used:
-     * - last_status = 'online' -> Online
-     * - last_status = 'error' -> Offline
+     * Per-camera status list:
      * - enabled = false -> Offline
-     * - no last_status set and enabled = true -> Online (default)
+     * - otherwise Online if the camera answers a ping, Offline if not.
+     *
+     * last_status is deliberately NOT used for this: it's only written when
+     * the camera is saved/refreshed/resynced (CameraController::
+     * syncOnvifStream()), so one failed sync left a working camera showing
+     * Offline indefinitely, and a camera that died later kept showing
+     * Online. Pings are cached 15s, same as the lead sensors.
      *
      * `location` holds the co-located AQ station's station_name (per
      * user) — this is the join key drawImgAirQualityStationTable() uses
@@ -401,26 +406,28 @@ class DashboardController extends Controller
      */
     private function buildCameraData(): \Illuminate\Support\Collection
     {
-        return \App\Models\Camera::all()->map(function ($camera) {
+        $cameras = \App\Models\Camera::all();
+        $pingResults = $this->pingHostsCached(
+            'dashboard.camera_ping',
+            $cameras->where('enabled', true)->pluck('ip_address')->filter()->values()->all()
+        );
+
+        return $cameras->map(function ($camera) use ($pingResults) {
             if (!$camera->enabled) {
                 // Disabled cameras are always offline
                 $status = 'offline';
-            } elseif ($camera->last_status === 'online') {
-                $status = 'online';
-            } elseif ($camera->last_status === 'error') {
-                $status = 'offline';
             } else {
-                // If no status set but enabled, consider it online
-                // (or you could default to offline if you prefer)
-                $status = 'online';
+                $status = ($pingResults[$camera->ip_address] ?? false) ? 'online' : 'offline';
             }
 
             return (object) [
+                'id'        => $camera->id,
                 'name'      => $camera->name,
                 'slug'      => $camera->slug,
                 'ptz'       => $camera->device_type === 'PTZ',
                 'enabled'   => (bool) $camera->enabled,
                 'location'  => $camera->location,
+                'ip'        => $camera->ip_address,
                 'status'    => $status,
                 'latitude'  => $camera->latitude !== null ? (float) $camera->latitude : null,
                 'longitude' => $camera->longitude !== null ? (float) $camera->longitude : null,
