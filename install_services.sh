@@ -87,8 +87,14 @@ systemctl enable ems-air-quality.service ems-seismic.service ems-api.service ems
 log "Starting all three services now"
 systemctl start ems.target
 
+# CCTV stream server (camera live view). Not fatal: the rest of the stack
+# runs without it.
+if [[ -f "${EMS_DIR}/install_mediamtx.sh" ]]; then
+    bash "${EMS_DIR}/install_mediamtx.sh" || warn "MediaMTX setup failed — camera live view won't work until: sudo ./install_mediamtx.sh"
+fi
+
 log "Done. Current status:"
-systemctl status ems-air-quality.service ems-seismic.service ems-api.service ems-water-level-gsm.service --no-pager || true
+systemctl status ems-air-quality.service ems-seismic.service ems-api.service ems-water-level-gsm.service ems-mediamtx.service --no-pager || true
 
 cat <<EOF
 

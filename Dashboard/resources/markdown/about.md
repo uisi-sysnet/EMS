@@ -433,7 +433,7 @@ Common issues:
 - CityWatch shows no stations: add latitude and longitude to the stations.
 - Device events or Telegram alerts never appear: check that `/etc/cron.d/ems-dashboard-scheduler` exists (run `sudo ./update.sh` to install it).
 - Water level stations are always offline: check `sudo journalctl -u ems-water-level-gsm.service`, that `WATER_GSM_ENABLED=true`, and the `gsm_messages` table for rejected SMS. See [`firmware/README.md`](firmware/README.md#troubleshooting) for GSM and hardware issues.
-- CityWatch camera does not connect: check that the camera plays on the Live View page; both use the same MediaMTX stream.
+- Camera live view says "Unable to connect": the message now gives the reason. If the stream server is not running or `/cctv-stream/` is not routed to it, run `sudo ./install_mediamtx.sh` (`update.sh` also runs it). Check it with `sudo systemctl status ems-mediamtx` and `sudo journalctl -u ems-mediamtx -n 50`. CityWatch and the Live View page use the same stream.
 - PTZ buttons report an error: the camera must be set as PTZ in CCTV inventory and have an ONVIF profile (use Refresh on the camera).
 
 ## Development Notes

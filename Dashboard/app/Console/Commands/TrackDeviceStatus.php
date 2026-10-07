@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Models\Camera;
 use App\Models\DeviceStatusState;
 use App\Models\SystemLog;
+use App\Services\Mediamtx\MediaMtxClient;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
 
@@ -81,24 +82,37 @@ class TrackDeviceStatus extends Command
     }
 
     /**
-     * A camera whose last stream sync failed (last_status = 'error') has no
-     * live view until it's synced again. Once it answers pings, retry the
-     * sync here instead of waiting for someone to press Refresh — at most
-     * every 5 minutes per camera, so a camera with wrong credentials isn't
-     * hammered every minute.
+     * Keeps the live view working without anyone pressing Refresh. A
+     * reachable camera is (re)pushed to MediaMTX when:
+     * - MediaMTX doesn't have its stream (paths added through its API are
+     *   lost whenever MediaMTX restarts), or
+     * - its last sync failed (last_status = 'error'), retried at most every
+     *   5 minutes so a camera with wrong credentials isn't hammered.
+     *
+     * Only changes are logged: a failure that repeats with the same error
+     * is not logged again.
      */
     private function resyncRecoveredCameras(\Illuminate\Support\Carbon $now): void
     {
+        try {
+            $paths = app(MediaMtxClient::class)->pathNames();
+        } catch (\Throwable $e) {
+            $this->warn("MediaMTX not reachable, skipping camera stream checks: {$e->getMessage()}");
+            return;
+        }
+
         $up = DeviceStatusState::where('key', 'like', 'camera:%')->where('status', 'up')->pluck('key')
             ->map(fn ($key) => (int) substr($key, strlen('camera:')));
 
-        $cameras = Camera::where('enabled', true)
-            ->where('last_status', 'error')
-            ->whereIn('id', $up)
-            ->where('updated_at', '<', $now->copy()->subMinutes(5))
-            ->get();
+        $cameras = Camera::where('enabled', true)->whereIn('id', $up)->get()
+            ->filter(fn ($c) => filled($c->slug))
+            ->filter(fn ($c) => $c->last_status === 'error'
+                ? $c->updated_at === null || $c->updated_at->lt($now->copy()->subMinutes(5))
+                : !in_array($c->slug, $paths, true));
 
         foreach ($cameras as $camera) {
+            $previousError = $camera->last_status === 'error' ? $camera->last_error : null;
+
             app(CameraController::class)->syncOnvifStream($camera);
             $camera->refresh();
             // A repeat of the same error leaves the row unchanged, so
@@ -106,6 +120,10 @@ class TrackDeviceStatus extends Command
             $camera->touch();
 
             $ok = $camera->last_status !== 'error';
+            if (!$ok && $camera->last_error === $previousError) {
+                continue;
+            }
+
             SystemLog::create([
                 'created_at'  => $now,
                 'service'     => 'dashboard',
@@ -113,7 +131,7 @@ class TrackDeviceStatus extends Command
                 'logger_name' => 'device_status',
                 'thread_name' => null,
                 'message'     => $ok
-                    ? "Camera {$camera->name} live view restored (stream re-synced)."
+                    ? "Camera {$camera->name} live view ready (stream registered with MediaMTX)."
                     : "Camera {$camera->name} is reachable but its live view can't start: {$camera->last_error}",
                 'category'    => 'device',
             ]);

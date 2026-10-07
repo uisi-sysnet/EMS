@@ -334,6 +334,16 @@ else
     warn "ems.target not found — skipping start (run install_services.sh to create it)."
 fi
 
+# CCTV stream server (camera live view). Older gateways never had it set
+# up, and the ems.target copy installed earlier doesn't start it, so run
+# the (idempotent) installer every update.
+if [[ -f "${EMS_DIR}/install_mediamtx.sh" ]]; then
+    if [[ -f "${EMS_DIR}/template/ems.target" && -f /etc/systemd/system/ems.target ]]; then
+        cp "${EMS_DIR}/template/ems.target" /etc/systemd/system/ems.target
+    fi
+    bash "${EMS_DIR}/install_mediamtx.sh" || warn "MediaMTX setup failed — camera live view won't work until: sudo ./install_mediamtx.sh"
+fi
+
 log "Done. Current status:"
 systemctl status nginx --no-pager || true
 if systemctl list-unit-files --no-legend 'ems.target' | grep -q ems.target; then

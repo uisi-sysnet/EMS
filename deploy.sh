@@ -1251,6 +1251,17 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
+    # CCTV live view: WebRTC signaling (WHEP) to MediaMTX on 127.0.0.1:8889
+    # (ems-mediamtx.service, see install_mediamtx.sh). Only .../whep goes
+    # there; /cctv-stream/<camera>/ptz is a dashboard route.
+    location ~ ^/cctv-stream/([^/]+/whep(/.*)?)\$ {
+        proxy_pass http://127.0.0.1:8889/\$1\$is_args\$args;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
     }
@@ -1258,12 +1269,12 @@ server {
     location /pty {
         proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
- 
-        proxy_set_header Upgrade $http_upgrade;
+
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
- 
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+
         # Interactive shells idle a lot — keep the socket open.
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;

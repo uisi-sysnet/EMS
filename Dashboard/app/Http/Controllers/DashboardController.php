@@ -380,7 +380,7 @@ class DashboardController extends Controller
             if (!$camera->enabled) {
                 continue;
             }
-            $devices[] = ['key' => "camera:{$camera->id}", 'type' => 'Camera', 'name' => $camera->name ?: "Camera #{$camera->id}", 'status' => $camera->status, 'detail' => trim("ping {$camera->ip}" . ($camera->location ? " at {$camera->location}" : ''))];
+            $devices[] = ['key' => "camera:{$camera->id}", 'type' => 'Camera', 'name' => $camera->name ?: "Camera #{$camera->id}", 'status' => $camera->status, 'detail' => trim("{$camera->ip}" . ($camera->location ? " at {$camera->location}" : ''))];
         }
         foreach ($this->buildLeadSensorData() as $lead) {
             $devices[] = ['key' => "lead:{$lead->station_mn}", 'type' => 'Lead sensor', 'name' => $lead->station, 'status' => $lead->status, 'detail' => "ping {$lead->ip}"];
@@ -392,13 +392,16 @@ class DashboardController extends Controller
     /**
      * Per-camera status list:
      * - enabled = false -> Offline
-     * - otherwise Online if the camera answers a ping, Offline if not.
+     * - otherwise Online if the camera accepts a connection on its RTSP
+     *   port (554, what the live view uses) or its ONVIF port.
      *
      * last_status is deliberately NOT used for this: it's only written when
      * the camera is saved/refreshed/resynced (CameraController::
      * syncOnvifStream()), so one failed sync left a working camera showing
      * Offline indefinitely, and a camera that died later kept showing
-     * Online. Pings are cached 15s, same as the lead sensors.
+     * Online. ICMP ping isn't used either: it's often blocked on camera
+     * networks or not permitted for the web server's user, which showed
+     * every camera Offline. Results are cached 15s, like the lead sensors.
      *
      * `location` holds the co-located AQ station's station_name (per
      * user) — this is the join key drawImgAirQualityStationTable() uses
@@ -407,17 +410,23 @@ class DashboardController extends Controller
     private function buildCameraData(): \Illuminate\Support\Collection
     {
         $cameras = \App\Models\Camera::all();
-        $pingResults = $this->pingHostsCached(
-            'dashboard.camera_ping',
-            $cameras->where('enabled', true)->pluck('ip_address')->filter()->values()->all()
-        );
+        $targets = [];
+        foreach ($cameras->where('enabled', true) as $camera) {
+            if (filled($camera->ip_address)) {
+                $targets[$camera->ip_address] = array_unique(array_merge(
+                    $targets[$camera->ip_address] ?? [],
+                    [554, (int) ($camera->onvif_port ?: 80)]
+                ));
+            }
+        }
+        $reachable = Cache::remember('dashboard.camera_reachable.' . md5(json_encode($targets)), 15, fn () => $this->tcpReachable($targets));
 
-        return $cameras->map(function ($camera) use ($pingResults) {
+        return $cameras->map(function ($camera) use ($reachable) {
             if (!$camera->enabled) {
                 // Disabled cameras are always offline
                 $status = 'offline';
             } else {
-                $status = ($pingResults[$camera->ip_address] ?? false) ? 'online' : 'offline';
+                $status = ($reachable[$camera->ip_address] ?? false) ? 'online' : 'offline';
             }
 
             return (object) [
@@ -917,6 +926,58 @@ class DashboardController extends Controller
      * @param string[] $ips
      * @return array<string,bool>
      */
+    /**
+     * TCP reachability: a host counts as up if any of its ports accepts a
+     * connection. All connections are opened at once (non-blocking), so the
+     * whole check takes at most $timeout seconds however many hosts there
+     * are.
+     *
+     * @param array<string, int[]> $targets ip => ports
+     * @return array<string, bool> ip => reachable
+     */
+    private function tcpReachable(array $targets, float $timeout = 2.0): array
+    {
+        $results = array_fill_keys(array_keys($targets), false);
+        $pending = [];
+
+        foreach ($targets as $ip => $ports) {
+            foreach ($ports as $port) {
+                $host = str_contains($ip, ':') ? "[{$ip}]" : $ip;
+                $socket = @stream_socket_client("tcp://{$host}:{$port}", $errno, $errstr, $timeout, STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT);
+                if ($socket !== false) {
+                    stream_set_blocking($socket, false);
+                    $pending[] = ['ip' => $ip, 'socket' => $socket];
+                }
+            }
+        }
+
+        $deadline = microtime(true) + $timeout;
+        while ($pending && ($left = $deadline - microtime(true)) > 0) {
+            $write = array_column($pending, 'socket');
+            $read = $except = null;
+            if (@stream_select($read, $write, $except, (int) $left, (int) (fmod($left, 1) * 1e6)) === false || !$write) {
+                break;
+            }
+            foreach ($pending as $i => $p) {
+                if (in_array($p['socket'], $write, true)) {
+                    // Writable means the connect finished; a refused
+                    // connect also turns writable, so confirm there's a peer.
+                    if (stream_socket_get_name($p['socket'], true) !== false) {
+                        $results[$p['ip']] = true;
+                    }
+                    fclose($p['socket']);
+                    unset($pending[$i]);
+                }
+            }
+        }
+
+        foreach ($pending as $p) {
+            fclose($p['socket']);
+        }
+
+        return $results;
+    }
+
     private function pingHostsCached(string $cacheKey, array $ips): array
     {
         if (empty($ips)) {

@@ -47,6 +47,24 @@ class MediaMtxClient
         }
     }
 
+    /**
+     * Names of the paths MediaMTX currently has configured. Paths added
+     * through the API are lost when MediaMTX restarts, so this is how the
+     * device tracker spots cameras that need pushing again.
+     *
+     * @return string[]
+     */
+    public function pathNames(): array
+    {
+        $response = Http::timeout(3)->get("{$this->baseUrl}/v3/config/paths/list", ['itemsPerPage' => 1000]);
+
+        if ($response->failed()) {
+            throw new RuntimeException("mediamtx path list failed: HTTP {$response->status()}");
+        }
+
+        return collect($response->json('items', []))->pluck('name')->filter()->values()->all();
+    }
+
     public function deletePath(string $name): void
     {
         $response = Http::timeout(5)->delete("{$this->baseUrl}/v3/config/paths/delete/{$name}");

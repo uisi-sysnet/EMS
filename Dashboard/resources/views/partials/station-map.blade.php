@@ -606,6 +606,30 @@
         });
     }
 
+    // Why the live view failed, from the WHEP response. MediaMTX answers
+    // errors with JSON {"error": "..."}; an HTML page means the request
+    // never reached MediaMTX (nginx has no /cctv-stream/ route to it).
+    async function whepError(res) {
+        const body = await res.text().catch(() => '');
+        let detail = '';
+        try { detail = JSON.parse(body).error || ''; } catch (e) {}
+        return Object.assign(new Error(`WHEP request failed: ${res.status} ${detail}`), {
+            status: res.status,
+            detail,
+            notMediamtx: (res.headers.get('content-type') || '').includes('text/html'),
+        });
+    }
+
+    function whepErrorText(err) {
+        const s = err && err.status;
+        if (!s) return 'Unable to connect to this camera.';
+        if (s === 502 || s === 503 || s === 504) return 'Unable to connect: the stream server (ems-mediamtx) is not running on the gateway.';
+        if (err.notMediamtx) return 'Unable to connect: the gateway is not routing /cctv-stream/ to the stream server. Run sudo ./install_mediamtx.sh on the gateway.';
+        if (s === 401 || s === 403) return 'Unable to connect: the stream server rejected the viewer credentials (MEDIAMTX_READ_USER / MEDIAMTX_READ_PASS).';
+        if (s === 404) return 'Unable to connect: the gateway has no stream for this camera yet. Press Refresh on the camera in CCTV inventory, or wait a minute.' + (err.detail ? ` (${err.detail})` : '');
+        return `Unable to connect: the stream server could not get video from this camera` + (err.detail ? `: ${err.detail}` : ` (HTTP ${s}).`);
+    }
+
     async function play(cam) {
         closeStream();
         showPlaceholder(cam.status === 'online' ? 'Connecting…' : 'Camera reported offline — trying to connect…');
@@ -639,13 +663,13 @@
                 headers: { 'Content-Type': 'application/sdp', 'Authorization': 'Basic ' + MEDIAMTX_AUTH },
                 body: peer.localDescription.sdp,
             });
-            if (!res.ok) throw new Error(`WHEP request failed: ${res.status}`);
+            if (!res.ok) throw await whepError(res);
             if (pc !== peer) return;   // user switched camera meanwhile
             await peer.setRemoteDescription({ type: 'answer', sdp: await res.text() });
         } catch (err) {
             if (pc !== peer) return;
             console.error('CityWatch camera stream error:', err);
-            showPlaceholder('Unable to connect to this camera.');
+            showPlaceholder(whepErrorText(err));
             setCamStatus('Error', 'sm-b-offline');
         }
     }
