@@ -50,6 +50,9 @@ class ResyncCameras extends Command
             if ($camera->last_status === 'error') {
                 $hadError = true;
                 $this->error("  -> {$camera->last_error}");
+            } elseif ($camera->last_error) {
+                // Live view registered; ONVIF (PTZ) failed.
+                $this->warn("  -> ok, but {$camera->last_error}");
             } else {
                 $this->info('  -> ok');
             }

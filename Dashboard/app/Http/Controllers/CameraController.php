@@ -184,7 +184,9 @@ class CameraController extends Controller
         $this->syncOnvifStream($camera);
         $camera->refresh();
 
-        return $camera->last_status === 'error'
+        // Online with a last_error means the live view works but ONVIF
+        // (PTZ) didn't — see syncOnvifStream().
+        return $camera->last_status === 'error' || $camera->last_error
             ? redirect()->route('inventory.cameras.index')
                 ->with('error', "Camera '{$camera->name}': {$camera->last_error}")
             : redirect()->route('inventory.cameras.index')
@@ -240,10 +242,14 @@ class CameraController extends Controller
                 );
             }
 
-            // Still resolve the profile token via ONVIF (useful for
-            // confirming the camera is actually reachable/authenticated,
-            // and for any future PTZ/profile-specific work) — just don't
-            // trust the stream URI it returns.
+            // Resolve the ONVIF profile token (PTZ needs it) — but don't
+            // let it block the live view: the stream URL below is Dahua's
+            // native RTSP path, which doesn't come from ONVIF. Previously an
+            // ONVIF failure (ONVIF disabled, wrong ONVIF port, slow reply)
+            // threw here, so the stream was never registered with MediaMTX
+            // and the live view failed with "path ... is not configured".
+            $onvifError = null;
+            $token = $camera->onvif_profile_token;
             try {
                 $onvif = new OnvifClient(
                     host: $camera->ip_address,
@@ -252,7 +258,6 @@ class CameraController extends Controller
                     password: $password,
                 );
 
-                $token = $camera->onvif_profile_token;
                 if (! $token) {
                     $profiles = $onvif->getProfiles();
                     $token = $profiles[0]['token'] ?? null;
@@ -262,10 +267,8 @@ class CameraController extends Controller
                     }
                 }
             } catch (Throwable $e) {
-                throw new \RuntimeException(
-                    "ONVIF handshake with {$camera->ip_address}:{$camera->onvif_port} failed: {$e->getMessage()}",
-                    previous: $e,
-                );
+                $onvifError = "Live view registered, but ONVIF (needed for PTZ) failed on {$camera->ip_address}:{$camera->onvif_port}: {$e->getMessage()}";
+                report($e);
             }
 
             // Bare (no-credentials) URI kept for display/debugging only —
@@ -277,7 +280,7 @@ class CameraController extends Controller
                 'onvif_profile_token' => $token,
                 'rtsp_uri' => $bareStreamUri,
                 'last_status' => 'online',
-                'last_error' => null,
+                'last_error' => $onvifError,
             ])->save();
 
             $authedUri = $this->dahuaRtspUri($camera);

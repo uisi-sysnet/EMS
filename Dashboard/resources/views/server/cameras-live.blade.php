@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (s === 502 || s === 503 || s === 504) return 'Unable to connect: the stream server (ems-mediamtx) is not running on the gateway.';
         if (err.notMediamtx) return 'Unable to connect: the gateway is not routing /cctv-stream/ to the stream server. Run sudo ./install_mediamtx.sh on the gateway.';
         if (s === 401 || s === 403) return 'Unable to connect: the stream server rejected the viewer credentials (MEDIAMTX_READ_USER / MEDIAMTX_READ_PASS).';
-        if (s === 404) return 'Unable to connect: the gateway has no stream for this camera yet. Press Refresh on the camera in CCTV inventory, or wait a minute.' + (err.detail ? ' (' + err.detail + ')' : '');
+        if (s === 404 || /not configured/i.test(err.detail || '')) return 'Unable to connect: the gateway has no stream for this camera yet. Press Refresh on the camera in CCTV inventory, or wait a minute.' + (err.detail ? ' (' + err.detail + ')' : '');
         return 'Unable to connect: the stream server could not get video from this camera' + (err.detail ? ': ' + err.detail : ' (HTTP ' + s + ').');
     }
 
