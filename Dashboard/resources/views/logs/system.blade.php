@@ -259,7 +259,7 @@
                             <tbody class="divide-y divide-border-800">
                                 @forelse($logs as $log)
                                     @php
-                                        $isUnseen = is_null($log->seen_at);
+                                        $isUnseen = is_null($log->seen_at) && $log->isAttentionWorthy();
                                         $badge = match($log->level) {
                                             'ERROR', 'CRITICAL' => 'bg-munti-red-700/20 text-munti-red-400 border-munti-red-600/30',
                                             'WARNING' => 'bg-munti-yellow-600/20 text-munti-yellow-400 border-munti-yellow-500/30',

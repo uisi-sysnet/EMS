@@ -25,6 +25,25 @@ class SystemLog extends Model
         return $query->whereNull('seen_at');
     }
 
+    /**
+     * Logs the user is notified about (bell, menu badge, "new" on the Logs
+     * page): errors from any service, and device problems such as a station
+     * or camera going offline. Everything else is kept for reference only.
+     */
+    public function scopeNeedsAttention($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereIn('level', ['ERROR', 'CRITICAL'])
+              ->orWhere(fn ($d) => $d->where('category', 'device')->where('level', 'WARNING'));
+        });
+    }
+
+    public function isAttentionWorthy(): bool
+    {
+        return in_array($this->level, ['ERROR', 'CRITICAL'], true)
+            || ($this->category === 'device' && $this->level === 'WARNING');
+    }
+
     // Helper method to mark as seen
     public function markAsSeen(): void
     {

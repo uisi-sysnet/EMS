@@ -29,7 +29,7 @@ class LogController extends Controller
         $tab = $request->query('tab') === 'audit' ? 'audit' : 'logs';
 
         // Shown on both tabs (header badge).
-        $unseenCount = SystemLog::where('level', '!=', 'INFO')->unseen()->count();
+        $unseenCount = SystemLog::needsAttention()->unseen()->count();
 
         if ($tab === 'audit') {
             $auditLogs = $this->auditQuery($request)

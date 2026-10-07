@@ -8,21 +8,22 @@ use Illuminate\Http\Request;
 
 class RecentLogsController extends Controller
 {
+    /**
+     * The notification bell only lists logs that need the user's attention
+     * (SystemLog::needsAttention(): service errors and devices going
+     * offline). API request logs are routine traffic, so they are left on
+     * the API Logs page and never notify.
+     */
     public function index(Request $request)
     {
-        // Fetch 50 most recent API logs
-        $apiLogs = ApiLog::latest('created_at')->limit(50)->get();
-        
-        // Fetch 50 most recent System logs
-        $systemLogs = SystemLog::where('level', '!=', 'INFO')
+        $systemLogs = SystemLog::needsAttention()
             ->latest('created_at')
             ->limit(50)
             ->get();
 
         $seenIds = $this->parseSeenIds($request->input('seen', ''));
-        
-        // Build log entries from both sources
-        $logs = $this->buildLogEntries($apiLogs, $systemLogs);
+
+        $logs = $this->buildLogEntries(collect(), $systemLogs);
 
         // Filter out logs that are in the seen list (client-side tracking)
         // but keep them in the response, just mark them as seen
@@ -45,27 +46,13 @@ class RecentLogsController extends Controller
 
     public function count(Request $request)
     {
-        // Get the 50 most recent API logs
-        $apiLogs = ApiLog::latest('created_at')->limit(50)->get();
-        $systemLogs = SystemLog::where('level', '!=', 'INFO')
-        ->latest('created_at')
-        ->limit(50)
-        ->get();
-        
-        // Count how many of these have seen_at null
-        $unseenCount = 0;
-        
-        foreach ($apiLogs as $log) {
-            if ($log->seen_at === null) {
-                $unseenCount++;
-            }
-        }
-        
-        foreach ($systemLogs as $log) {
-            if ($log->seen_at === null) {
-                $unseenCount++;
-            }
-        }
+        // Unseen among the 50 most recent logs the bell lists (see index()).
+        $unseenCount = SystemLog::needsAttention()
+            ->latest('created_at')
+            ->limit(50)
+            ->get()
+            ->whereNull('seen_at')
+            ->count();
 
         return response()->json(['count' => $unseenCount]);
     }
