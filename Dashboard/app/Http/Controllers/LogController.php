@@ -62,8 +62,10 @@ class LogController extends Controller
             ->paginate(1000)
             ->withQueryString();
 
+        // A full-table count, so cached briefly rather than run on every load.
         $categoryCounts = $hasCategory
-            ? SystemLog::selectRaw('category, count(*) as n')->groupBy('category')->pluck('n', 'category')->all()
+            ? \Illuminate\Support\Facades\Cache::remember('logs.category_counts', 60, fn () =>
+                SystemLog::selectRaw('category, count(*) as n')->groupBy('category')->pluck('n', 'category')->all())
             : [];
 
         return view('logs.system', [

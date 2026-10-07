@@ -870,7 +870,7 @@ def refresh_api_keys(initial=False):
                     "until at least one row is added/enabled in that table."
                 )
         else:
-            logger.info(f"API key registry refreshed from database ({len(keys)} key(s)).")
+            logger.debug(f"API key registry refreshed from database ({len(keys)} key(s)).")
     except Exception as e:
         logger.error(f"Failed to refresh API key registry from database: {e}")
 
@@ -946,7 +946,7 @@ def refresh_ip_allowlist(initial=False):
                     "  INSERT INTO allowed_ips (cidr, label) VALUES ('203.0.113.7', 'office');"
                 )
         else:
-            logger.info(f"IP allowlist refreshed from database ({len(networks)} entr(y/ies)).")
+            logger.debug(f"IP allowlist refreshed from database ({len(networks)} entr(y/ies)).")
     except Exception as e:
         logger.error(f"Failed to refresh IP allowlist from database: {e}")
 
@@ -1131,7 +1131,9 @@ async def monitor_and_log_api_requests(request: Request, call_next):
             f"[API] INVALID API TOKEN from {client_ip} -> {method} {path} | token used: {masked_token}"
         )
     else:
-        logger.info(
+        # DEBUG, not INFO: every request is already a row in api_request_logs
+        # (API Logs page), so logging it again here doubled the log volume.
+        logger.debug(
             f"[API] {client_ip} ({api_key_owner}, token: {masked_token}) -> {method} {path} | "
             f"Status: {status_code} | {duration_ms}ms"
         )
@@ -1222,7 +1224,7 @@ def _apply_temporary_fallback(conn, row):
         return False
 
     if all(not _needs_fallback(row.get(f)) for f in FALLBACK_FIELDS):
-        logger.info(f"[fallback] {FALLBACK_TARGET_MN}: all 4 fields already have real values — skipping.")
+        logger.debug(f"[fallback] {FALLBACK_TARGET_MN}: all 4 fields already have real values — skipping.")
         return False
 
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -1257,7 +1259,8 @@ def _apply_temporary_fallback(conn, row):
             row[field] = _jitter(source[field])
             filled_any = True
             filled_fields.append(field)
-    logger.info(
+    # Runs on every request for that station, so DEBUG to keep it out of service_logs.
+    logger.debug(
         f"[fallback] {FALLBACK_TARGET_MN}: filled {filled_fields or '(none — source also missing those fields)'} "
         f"from {FALLBACK_SOURCE_MN} (source age {age_sec:.0f}s)."
     )

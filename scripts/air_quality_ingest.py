@@ -365,7 +365,7 @@ def refresh_stations(initial=False):
         if initial:
             logger.info(f"Loaded {len(stations)} station(s) from the database.")
         else:
-            logger.info(f"Station registry refreshed from database ({len(stations)} station(s)).")
+            logger.debug(f"Station registry refreshed from database ({len(stations)} station(s)).")
     except Exception as e:
         logger.error(f"Failed to refresh station registry from database: {e}")
 
@@ -567,7 +567,8 @@ def _flush_batch(rows):
         query = f"INSERT INTO sensor_data ({', '.join(_ROW_COLUMNS)}) VALUES %s"
         execute_values(cur, query, values)
         conn.commit()
-        logger.info(f"Ingested {len(rows)} air quality reading(s) in one batch.")
+        # Every batch — DEBUG keeps this routine message out of service_logs.
+        logger.debug(f"Ingested {len(rows)} air quality reading(s) in one batch.")
     except Exception as e:
         if conn:
             conn.rollback()
@@ -632,7 +633,7 @@ def update_lead_value(mn, ip, lead, temperature):
                 f"— station's HJ212 telemetry may have gone quiet. Lead reading discarded."
             )
         else:
-            logger.info(f"Station {mn} (lead IP {ip}): synced lead={lead}, lead_temperature={temperature}.", extra=DEVICE)
+            logger.debug(f"Station {mn} (lead IP {ip}): synced lead={lead}, lead_temperature={temperature}.", extra=DEVICE)
     except Exception as e:
         if conn:
             conn.rollback()

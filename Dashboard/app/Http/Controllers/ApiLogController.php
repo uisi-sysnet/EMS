@@ -41,8 +41,9 @@ class ApiLogController extends Controller
             ->paginate(1000)
             ->withQueryString();
 
-        // Get unseen count for notification badge
-        $unseenCount = ApiLog::unseen()->count();
+        // API requests never count as unread (see logs/api.blade.php), and
+        // counting unseen rows here scanned the whole table on every load.
+        $unseenCount = 0;
 
         $defaultFrom = ApiLog::min('created_at');
         $defaultTo   = ApiLog::max('created_at');

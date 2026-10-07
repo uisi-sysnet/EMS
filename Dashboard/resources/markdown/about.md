@@ -2,7 +2,7 @@
 
 EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.1.0**
+**Current version: 10.2.0**
 
 | Branch     | Contents                                                        |
 | ---------- | --------------------------------------------------------------- |
@@ -10,7 +10,7 @@ EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-ba
 | `version10` | Version 10.x line; fixes for version 10 gateways land here first |
 | `version9` | Previous version line (9.x)                                     |
 
-Releases are tagged (`v10.0.0`, `v10.1.0`, ...).
+Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, ...).
 
 ## What It Runs
 
@@ -31,6 +31,28 @@ Laravel Dashboard       ->  Browser UI: dashboard, CityWatch map, CCTV, stations
 Shared services:
 PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 ```
+
+## What's New in Version 10.2
+
+### Logs and Audit Log
+
+- **One Logs page with two tabs.** **Logs** shows messages from the services and device events, filterable by category (**System**, **Device**, **Security**), level, service and message text. **Audit Log** records every change made in the dashboard: who, when, from which IP address, what, and whether it worked. Failed sign-ins are recorded. Passwords and keys are never stored, only the names of the fields changed. Both tabs export to CSV. See [Logs and Audit Log](#logs-and-audit-log).
+- **Device events:** stations, cameras and lead sensors going offline and coming back online are logged every minute.
+- **Notifications only when needed:** the bell, the menu badge and the "new" count only include service errors and device problems such as a station going offline. API requests and routine messages are still listed but never count as unread.
+- **Logs no longer grow forever:** old logs are deleted every hour (30 days for Logs and API Logs, 365 days for the Audit Log, adjustable). Every API request used to be logged twice, and routine messages were logged on every reading; both now stay out of the database. New indexes keep the log pages and the menu badge fast.
+
+### CCTV
+
+- **Live view works on installed gateways:** the installer now sets up the stream server (MediaMTX) as `ems-mediamtx.service`, including the right build for a Raspberry Pi, and routes the browser's stream requests to it. Run `sudo ./install_mediamtx.sh` on a gateway installed before 10.2.
+- **Cameras register even without ONVIF:** a camera whose ONVIF (PTZ) handshake fails still gets its live view; the inventory card shows a PTZ warning instead.
+- **Live camera status:** a camera is online when it accepts a connection on its stream or ONVIF port, instead of a status saved at its last refresh.
+- **Self-repair:** the stream server forgets cameras when it restarts; the dashboard re-registers them within a minute.
+- When the live view can't start, it now says why (stream server down, route missing, no stream yet, or the camera's own error).
+
+### Fixes
+
+- The dashboard's scheduled tasks (Telegram alerts and daily digest, device events, log cleanup) never ran on installed gateways. `deploy.sh` and `update.sh` now install the scheduler cron job.
+- `deploy.sh` no longer stops while writing the web server config (the web terminal section broke it).
 
 ## What's New in Version 10.1
 
@@ -88,6 +110,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.2.0  | Logs page with Logs and Audit Log tabs; device online/offline events; notifications only for errors and device problems; automatic log cleanup; CCTV live view fixes (MediaMTX installer, ONVIF-independent streams, live camera status). |
 | 10.1.0  | Water level stations on the dashboard and CityWatch; GSM (SMS) reporting through an Arduino Nano + SIM800L gateway, with the reporting interval set from the dashboard. |
 | 10.0.0  | CityWatch map with camera live view and PTZ; water level stations; one-step installer; security hardening; setup fixes (see above). |
 | 9.0.5   | Severity labels for site status in the air quality station table; calibration API plan types. |
@@ -304,7 +327,9 @@ Set `EMS_SCRIPTS_ENV` in `Dashboard/.env` to your local `scripts/.env`. The loca
 
 Both tabs export to CSV. The Audit Log stores submitted values only for non-sensitive fields; passwords, keys and other secrets are recorded by field name only. Descriptions and categories are set in `Dashboard/config/audit.php`; an action that isn't listed there is still recorded, under "Other". API request logs stay on their own page (`/api-logs`).
 
-The scheduled tasks (device status tracking, Telegram alerts and daily digest) run from a cron job that `deploy.sh` and `update.sh` install at `/etc/cron.d/ems-dashboard-scheduler`.
+The scheduled tasks (device status tracking, log cleanup, Telegram alerts and daily digest) run from a cron job that `deploy.sh` and `update.sh` install at `/etc/cron.d/ems-dashboard-scheduler`.
+
+Old logs are deleted every hour (`php artisan logs:prune`). By default the Logs tab and API Logs keep 30 days and the Audit Log keeps 365 days. Change this in `Dashboard/.env` with `LOG_RETENTION_DAYS`, `API_LOG_RETENTION_DAYS` and `AUDIT_LOG_RETENTION_DAYS` (0 keeps that log forever). Run `php artisan logs:prune --dry-run` to see how many rows would be deleted.
 
 ## REST API
 
