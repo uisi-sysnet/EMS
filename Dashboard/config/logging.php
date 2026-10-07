@@ -73,6 +73,16 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Service start/stop and nginx changes (ServicesController). Was used
+        // without being defined, so entries fell back to the emergency log.
+        'services' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/services.log'),
+            'level' => 'info',
+            'days' => 90,
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

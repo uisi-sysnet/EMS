@@ -15,6 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth' => \App\Http\Middleware\AuthenticateCustom::class,
             'role' => \App\Http\Middleware\CheckRole::class,
         ]);
+
+        // Audit Log: records every change made through the dashboard.
+        $middleware->appendToGroup('web', \App\Http\Middleware\AuditTrail::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

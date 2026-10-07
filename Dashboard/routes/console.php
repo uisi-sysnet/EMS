@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('telegram:daily-digest')->everyMinute();
 Schedule::command('telegram:check-alerts')->everyMinute();
+Schedule::command('logs:track-device-status')->everyMinute()->withoutOverlapping();

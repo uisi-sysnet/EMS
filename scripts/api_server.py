@@ -484,6 +484,11 @@ API_DB_POOL_MIN = int(os.getenv("API_DB_POOL_MIN", 2))
 API_DB_POOL_MAX = int(os.getenv("API_DB_POOL_MAX", 10))
 
 logger = logging.getLogger("monitoring_api")
+
+# Log categories for the dashboard's Logs page (stored in service_logs.category
+# by db_logging.py). Messages without one are "system".
+DEVICE = {"category": "device"}
+SECURITY = {"category": "security"}
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(threadName)s: %(message)s")
 console_handler = logging.StreamHandler()
@@ -1076,7 +1081,7 @@ async def monitor_and_log_api_requests(request: Request, call_next):
     # route/DB work — an unlisted IP never even reaches verify_api_key.
     if not is_ip_allowed(client_ip):
         duration_ms = round((time.time() - start_time) * 1000, 2)
-        logger.error(f"[API] BLOCKED (IP not allowlisted): {client_ip} -> {method} {path}")
+        logger.error(f"[API] BLOCKED (IP not allowlisted): {client_ip} -> {method} {path}", extra=SECURITY)
         threading.Thread(
             target=insert_api_log,
             args=(client_ip, method, path, 403, duration_ms, "Blocked/IP", "N/A"),

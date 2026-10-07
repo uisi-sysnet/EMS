@@ -94,6 +94,11 @@ FAIL_RETRY_MINUTES = 5     # retry a failed SMS send after this long
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("water_level_gsm")
 
+# Log categories for the dashboard's Logs page (stored in service_logs.category
+# by db_logging.py). Messages without one are "system".
+DEVICE = {"category": "device"}
+SECURITY = {"category": "security"}
+
 if DB_PASSWORD:
     from db_logging import attach_db_logging
     _log_dsn = f"host={DB_HOST} port={DB_PORT} dbname={LOG_DB_NAME} user={DB_USER} password={DB_PASSWORD}"
@@ -275,11 +280,11 @@ class Store:
                 raise
 
         if error:
-            logger.warning(f"SMS from {sender} not stored as a reading: {error} | body={body!r}")
+            logger.warning(f"SMS from {sender} not stored as a reading: {error} | body={body!r}", extra=DEVICE)
         elif msg["type"] == "reading":
-            logger.info(f"Reading from {station['station_mn']}: distance {msg['distance_m']} m, battery {msg['battery_v']} V, seq {msg['seq']}")
+            logger.info(f"Reading from {station['station_mn']}: distance {msg['distance_m']} m, battery {msg['battery_v']} V, seq {msg['seq']}", extra=DEVICE)
         else:
-            logger.info(f"{station['station_mn']} confirmed interval {msg['interval']} min")
+            logger.info(f"{station['station_mn']} confirmed interval {msg['interval']} min", extra=DEVICE)
 
     def _record_applied_interval(self, cur, station, interval: int):
         """The sensor reports its interval in every message. Record it, and
@@ -370,7 +375,7 @@ class Gateway:
         if line.startswith("+SMS|"):
             parts = line.split("|", 4)
             if len(parts) != 5:
-                logger.warning(f"Malformed SMS line from gateway: {line!r}")
+                logger.warning(f"Malformed SMS line from gateway: {line!r}", extra=DEVICE)
                 return
             _, idx, sender, modem_ts, body = parts
             try:
@@ -389,14 +394,14 @@ class Gateway:
             if station_id is None:
                 return
             if line.startswith("+SENT|"):
-                logger.info(f"Interval setting delivered to the network (station id {station_id}).")
+                logger.info(f"Interval setting delivered to the network (station id {station_id}).", extra=DEVICE)
             else:
                 reason = parts[2] if len(parts) > 2 else "unknown"
-                logger.warning(f"Sending interval setting failed (station id {station_id}): {reason}; retrying in {FAIL_RETRY_MINUTES} min.")
+                logger.warning(f"Sending interval setting failed (station id {station_id}): {reason}; retrying in {FAIL_RETRY_MINUTES} min.", extra=DEVICE)
                 self.store.mark_sent(station_id, retry_in_minutes=FAIL_RETRY_MINUTES)
 
         elif line.startswith("+READY"):
-            logger.info(f"GSM gateway ready ({line}).")
+            logger.info(f"GSM gateway ready ({line}).", extra=DEVICE)
             self.pending_sends.clear()
 
         elif line.startswith("+STATUS|"):
@@ -404,10 +409,10 @@ class Gateway:
             csq = parts[1] if len(parts) > 1 else "?"
             reg = parts[2] if len(parts) > 2 else "?"
             level = logging.INFO if reg == "1" else logging.WARNING
-            logger.log(level, f"GSM gateway status: signal CSQ {csq}/31, network {'registered' if reg == '1' else 'NOT registered'}")
+            logger.log(level, f"GSM gateway status: signal CSQ {csq}/31, network {'registered' if reg == '1' else 'NOT registered'}", extra=DEVICE)
 
         elif line.startswith("+ERR|"):
-            logger.warning(f"GSM gateway: {line[5:]}")
+            logger.warning(f"GSM gateway: {line[5:]}", extra=DEVICE)
 
         elif line == "+PONG":
             pass
@@ -427,7 +432,7 @@ class Gateway:
             self.pending_sends[ref] = row["id"]
             self.store.mark_sent(row["id"])
             self.write(f"SEND|{ref}|{row['sim_number']}|{text}")
-            logger.info(f"Sending interval {row['report_interval_minutes']} min to {row['station_mn']} ({row['sim_number']}).")
+            logger.info(f"Sending interval {row['report_interval_minutes']} min to {row['station_mn']} ({row['sim_number']}).", extra=DEVICE)
 
     def tick(self):
         now = time.monotonic()
@@ -468,7 +473,7 @@ def main():
                 gateway.open()
             gateway.run_once()
         except (serial.SerialException, OSError, ConnectionError) as e:
-            logger.error(f"GSM gateway link problem: {e}. Reconnecting in 10s.")
+            logger.error(f"GSM gateway link problem: {e}. Reconnecting in 10s.", extra=DEVICE)
             gateway.close()
             time.sleep(10)
         except psycopg2.Error as e:

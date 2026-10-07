@@ -348,6 +348,46 @@ class DashboardController extends Controller
     }
 
     /**
+     * Every monitored device with its current status, for the device status
+     * tracker (logs:track-device-status), which logs changes to the Logs
+     * page. Uses the same builders and thresholds as the dashboard, so a
+     * logged "went offline" always matches what the dashboard showed.
+     *
+     * @return array<int, array{key: string, type: string, name: string, status: string, detail: ?string}>
+     */
+    public function deviceStatusSnapshot(): array
+    {
+        [$airQualityData, $seismicData] = $this->buildDashboardData();
+        $waterLevelData = $this->buildWaterLevelData();
+        $this->annotateStatus($airQualityData, 2, 3);
+        $this->annotateStatus($seismicData, 2, 3);
+        $this->annotateStatus($waterLevelData, 2, 3);
+
+        $devices = [];
+        foreach ($airQualityData as $s) {
+            $devices[] = ['key' => "aq:{$s->station_mn}", 'type' => 'Air quality station', 'name' => $s->station, 'status' => $s->status, 'detail' => $s->latest_at ? "last data {$s->latest_at}" : 'no data yet'];
+        }
+        foreach ($seismicData as $s) {
+            $devices[] = ['key' => "seismic:{$s->station_id}", 'type' => 'Seismic station', 'name' => $s->station, 'status' => $s->status, 'detail' => $s->latest_at ? "last data {$s->latest_at}" : 'no data yet'];
+        }
+        foreach ($waterLevelData as $s) {
+            if (!$s->enabled) {
+                continue;
+            }
+            $devices[] = ['key' => "water:{$s->station_mn}", 'type' => 'Water level station', 'name' => $s->station, 'status' => $s->status, 'detail' => $s->latest_at ? "last data {$s->latest_at}" : 'no data yet'];
+        }
+        foreach (\App\Models\Camera::where('enabled', true)->get() as $camera) {
+            $status = $camera->last_status === 'error' ? 'offline' : 'online';
+            $devices[] = ['key' => "camera:{$camera->id}", 'type' => 'Camera', 'name' => $camera->name ?: "Camera #{$camera->id}", 'status' => $status, 'detail' => $camera->location ? "at {$camera->location}" : null];
+        }
+        foreach ($this->buildLeadSensorData() as $lead) {
+            $devices[] = ['key' => "lead:{$lead->station_mn}", 'type' => 'Lead sensor', 'name' => $lead->station, 'status' => $lead->status, 'detail' => "ping {$lead->ip}"];
+        }
+
+        return $devices;
+    }
+
+    /**
      * Per-camera status list, same rules getCameraStatusCounts() has
      * always used:
      * - last_status = 'online' -> Online

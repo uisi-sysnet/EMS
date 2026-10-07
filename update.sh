@@ -309,6 +309,16 @@ else
     log "Taking Laravel out of maintenance mode"
     ( cd "$LARAVEL_DIR" && sudo -u www-data php artisan up ) 2>/dev/null || \
         warn "Could not disable maintenance mode automatically — run manually: cd ${LARAVEL_DIR} && sudo -u www-data php artisan up"
+
+    # Laravel scheduler (Telegram alerts/digest, device status tracking) —
+    # same cron entry deploy.sh installs; older gateways never had one.
+    if [[ ! -f /etc/cron.d/ems-dashboard-scheduler ]]; then
+        log "Installing the Laravel scheduler cron job (/etc/cron.d/ems-dashboard-scheduler)"
+        printf '%s\n' "# EMS Dashboard scheduler — written by update.sh" \
+            "* * * * * www-data cd ${LARAVEL_DIR} && php artisan schedule:run >> /dev/null 2>&1" \
+            > /etc/cron.d/ems-dashboard-scheduler
+        chmod 644 /etc/cron.d/ems-dashboard-scheduler
+    fi
 fi
 
 # ----------------------------------------------------------------------

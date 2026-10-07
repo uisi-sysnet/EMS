@@ -1147,6 +1147,18 @@ log "Caching Laravel config/routes/views for production"
 chown -R www-data:www-data "$LARAVEL_DIR"
 chmod -R 775 "${LARAVEL_DIR}/storage" "${LARAVEL_DIR}/bootstrap/cache" 2>/dev/null || true
 
+# ---- Laravel scheduler ----
+# routes/console.php schedules the Telegram alerts and daily digest and the
+# device status tracker (Logs page > Device events). They only run if
+# something calls `schedule:run` every minute; nothing did before, so
+# install a cron entry for it (as www-data, like the web app itself).
+log "Installing the Laravel scheduler cron job (/etc/cron.d/ems-dashboard-scheduler)"
+cat > /etc/cron.d/ems-dashboard-scheduler <<CRONEOF
+# EMS Dashboard scheduler — written by deploy.sh
+* * * * * www-data cd ${LARAVEL_DIR} && php artisan schedule:run >> /dev/null 2>&1
+CRONEOF
+chmod 644 /etc/cron.d/ems-dashboard-scheduler
+
 # ---- sudo rule for the Dashboard's Network Configuration page ----
 # NetworkController.php runs `sudo -n nmcli ...` as www-data to read/edit
 # interface settings via NetworkManager. Without a NOPASSWD rule for it,

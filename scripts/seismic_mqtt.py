@@ -76,6 +76,11 @@ SMS_DB_CONN_STRING = f"{BASE_CONN_STRING} dbname={SMS_DB_NAME}"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+# Log categories for the dashboard's Logs page (stored in service_logs.category
+# by db_logging.py). Messages without one are "system".
+DEVICE = {"category": "device"}
+SECURITY = {"category": "security"}
+
 # ---- Database-backed logging ----
 # Logs are mirrored into the `service_logs` table in the shared
 # IOT_service_logs database (same one air_quality_ingest.py and
@@ -337,7 +342,7 @@ def on_message(client, userdata, msg):
             return
 
         insert_station_metrics(data, source="mqtt")
-        logging.info(f"SUCCESS: Ingested telemetry to TimescaleDB for: {data['station_id']}")
+        logging.info(f"SUCCESS: Ingested telemetry to TimescaleDB for: {data['station_id']}", extra=DEVICE)
 
     except json.JSONDecodeError:
         logging.error("Payload failed parsing: Received message is not valid JSON.")
@@ -495,20 +500,20 @@ def _send_sms_reply(modem, number, text):
         logging.info(f"Sent reply {text!r} to {number}")
         return True
     except Exception as e:
-        logging.error(f"Failed to send reply SMS to {number}: {e}")
+        logging.error(f"Failed to send reply SMS to {number}: {e}", extra=DEVICE)
         return False
 
 
 def _handle_incoming_sms(modem, index, preloaded=None):
     msg = preloaded or modem.read_message(index)
     if not msg:
-        logging.warning(f"SMS index {index} reported but could not be read — skipping.")
+        logging.warning(f"SMS index {index} reported but could not be read — skipping.", extra=DEVICE)
         return
 
     sender = msg.get("sender")
     body = msg.get("body", "")
     modem_ts = msg.get("timestamp")
-    logging.info(f"SMS received from {sender}: {body[:60]!r}")
+    logging.info(f"SMS received from {sender}: {body[:60]!r}", extra=DEVICE)
 
     is_test_command = body.strip().upper() == SMS_TEST_COMMAND
     sender_allowed = not SMS_ALLOWED_SENDERS or sender in SMS_ALLOWED_SENDERS
@@ -519,16 +524,16 @@ def _handle_incoming_sms(modem, index, preloaded=None):
         # tagged as a test) and still subject to SMS_ALLOWED_SENDERS so
         # random numbers can't use it to fish for a reply / burn SMS credit.
         if sender_allowed:
-            logging.info(f"Connectivity test SMS ('{SMS_TEST_COMMAND}') received from {sender} — replying '{SMS_TEST_REPLY}'.")
+            logging.info(f"Connectivity test SMS ('{SMS_TEST_COMMAND}') received from {sender} — replying '{SMS_TEST_REPLY}'.", extra=DEVICE)
             _send_sms_reply(modem, sender, SMS_TEST_REPLY)
             _store_sms_record(sender, modem_ts, body, parsed_ok=False,
                                parse_error="connectivity test command", station_id=None)
         else:
-            logging.warning(f"Connectivity test SMS from sender '{sender}' not in SMS_ALLOWED_SENDERS — no reply sent.")
+            logging.warning(f"Connectivity test SMS from sender '{sender}' not in SMS_ALLOWED_SENDERS — no reply sent.", extra=DEVICE)
             _store_sms_record(sender, modem_ts, body, parsed_ok=False,
                                parse_error="connectivity test command from sender not in SMS_ALLOWED_SENDERS", station_id=None)
     elif not sender_allowed:
-        logging.warning(f"SMS from sender '{sender}' not in SMS_ALLOWED_SENDERS — storing but not processing as telemetry.")
+        logging.warning(f"SMS from sender '{sender}' not in SMS_ALLOWED_SENDERS — storing but not processing as telemetry.", extra=DEVICE)
         _store_sms_record(sender, modem_ts, body, parsed_ok=False,
                            parse_error="sender not in SMS_ALLOWED_SENDERS", station_id=None)
     else:
@@ -536,9 +541,9 @@ def _handle_incoming_sms(modem, index, preloaded=None):
             data = parse_seismic_sms(body)
             insert_station_metrics(data, source="sms")
             _store_sms_record(sender, modem_ts, body, parsed_ok=True, parse_error=None, station_id=data["station_id"])
-            logging.info(f"SUCCESS: Ingested SMS telemetry for: {data['station_id']}")
+            logging.info(f"SUCCESS: Ingested SMS telemetry for: {data['station_id']}", extra=DEVICE)
         except Exception as e:
-            logging.error(f"Failed to parse/ingest SMS from {sender}: {e}")
+            logging.error(f"Failed to parse/ingest SMS from {sender}: {e}", extra=DEVICE)
             _store_sms_record(sender, modem_ts, body, parsed_ok=False, parse_error=str(e), station_id=None)
 
     try:
@@ -547,7 +552,7 @@ def _handle_incoming_sms(modem, index, preloaded=None):
         # SIM800L's on-SIM storage is small (often ~10-15 messages) — if
         # deletes keep failing, the SIM fills up and new SMS start getting
         # rejected by the network, so this is worth surfacing loudly.
-        logging.error(f"Failed to delete SMS index {index} from SIM storage: {e}")
+        logging.error(f"Failed to delete SMS index {index} from SIM storage: {e}", extra=DEVICE)
 
 
 def sms_listener_loop():
@@ -563,7 +568,7 @@ def sms_listener_loop():
             modem.initialize()
             break
         except Exception as e:
-            logging.error(f"SIM800L init failed ({e}) — retrying in 30s. Check wiring/SIM800_SERIAL_PORT/power.")
+            logging.error(f"SIM800L init failed ({e}) — retrying in 30s. Check wiring/SIM800_SERIAL_PORT/power.", extra=DEVICE)
             time.sleep(30)
 
     last_sweep = 0.0
@@ -578,13 +583,13 @@ def sms_listener_loop():
                 last_sweep = time.time()
 
         except (SIM800LError, OSError) as e:
-            logging.error(f"SMS listener lost the modem ({e}) — reinitializing in 10s.")
+            logging.error(f"SMS listener lost the modem ({e}) — reinitializing in 10s.", extra=DEVICE)
             modem.close()
             time.sleep(10)
             try:
                 modem.initialize()
             except Exception as e2:
-                logging.error(f"SIM800L reinit failed: {e2} — will keep retrying.")
+                logging.error(f"SIM800L reinit failed: {e2} — will keep retrying.", extra=DEVICE)
                 time.sleep(30)
         except Exception as e:
             # Anything unexpected: log and keep the loop alive rather than

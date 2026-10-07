@@ -11,7 +11,7 @@ class SystemLog extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'created_at', 'service', 'level', 'logger_name', 'thread_name', 'message', 'seen_at'
+        'created_at', 'service', 'level', 'logger_name', 'thread_name', 'message', 'seen_at', 'category'
     ];
 
     protected $casts = [

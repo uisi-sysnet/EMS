@@ -134,6 +134,11 @@ STATIONS = {}
 _stations_lock = threading.RLock()
 
 logger = logging.getLogger("air_quality_ingest")
+
+# Log categories for the dashboard's Logs page (stored in service_logs.category
+# by db_logging.py). Messages without one are "system".
+DEVICE = {"category": "device"}
+SECURITY = {"category": "security"}
 logger.setLevel(logging.INFO)
 log_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(threadName)s: %(message)s")
 
@@ -209,7 +214,7 @@ def _log_station_reading_rejected(mn, ip_address, reason):
         if now_mono - last < AQ_STATION_REJECT_LOG_COOLDOWN_MIN * 60:
             return
         _last_station_reject_warn[mn] = now_mono
-    logger.warning(f"Station {mn} (IP {ip_address}) {reason} — reading discarded, not saved.")
+    logger.warning(f"Station {mn} (IP {ip_address}) {reason} — reading discarded, not saved.", extra=DEVICE)
 
 
 def create_database_if_not_exists():
@@ -515,7 +520,7 @@ def insert_sensor_data(data, ip_address, station_conn=None):
                 if AQ_TIME_SYNC_ENABLED and station_conn is not None:
                     request_sensor_time_sync(station_conn, mn)
         except ValueError:
-            logger.warning(f"Station {mn}: unparseable DataTime '{cp.get('DataTime')}' — using server time.")
+            logger.warning(f"Station {mn}: unparseable DataTime '{cp.get('DataTime')}' — using server time.", extra=DEVICE)
 
     row = {"station_mn": mn, "ip_address": ip_address, "data_time": data_time}
     got_any_value = False
@@ -627,11 +632,11 @@ def update_lead_value(mn, ip, lead, temperature):
                 f"— station's HJ212 telemetry may have gone quiet. Lead reading discarded."
             )
         else:
-            logger.info(f"Station {mn} (lead IP {ip}): synced lead={lead}, lead_temperature={temperature}.")
+            logger.info(f"Station {mn} (lead IP {ip}): synced lead={lead}, lead_temperature={temperature}.", extra=DEVICE)
     except Exception as e:
         if conn:
             conn.rollback()
-        logger.error(f"Station {mn} (lead IP {ip}): error updating Modbus lead values: {e}")
+        logger.error(f"Station {mn} (lead IP {ip}): error updating Modbus lead values: {e}", extra=DEVICE)
     finally:
         if conn:
             release_connection(conn)
@@ -729,9 +734,9 @@ def request_sensor_time_sync(conn, mn):
         conn.sendall(frame.encode())
         with _pending_time_syncs_lock:
             _pending_time_syncs[qn] = {"mn": mn, "sent_at": now_mono}
-        logger.info(f"Station {mn}: sent HJ212 CN=1012 time-sync command to correct its clock.")
+        logger.info(f"Station {mn}: sent HJ212 CN=1012 time-sync command to correct its clock.", extra=DEVICE)
     except Exception as e:
-        logger.error(f"Station {mn}: failed to send time-sync command: {e}")
+        logger.error(f"Station {mn}: failed to send time-sync command: {e}", extra=DEVICE)
 
 
 def handle_command_response(frame: str):
@@ -749,14 +754,14 @@ def handle_command_response(frame: str):
     if cn == "9011":
         qnrtn = get_field(frame, "QnRtn")
         if qnrtn != "1":
-            logger.warning(f"Station {mn}: time-sync command rejected by station (QnRtn={qnrtn}).")
+            logger.warning(f"Station {mn}: time-sync command rejected by station (QnRtn={qnrtn}).", extra=DEVICE)
             with _pending_time_syncs_lock:
                 _pending_time_syncs.pop(qn, None)
         # QnRtn==1: station accepted the request, wait for CN=9012 execution result.
     elif cn == "9012":
         exertn = get_field(frame, "ExeRtn")
         if exertn == "1":
-            logger.info(f"Station {mn}: sensor clock corrected successfully via HJ212 time-sync.")
+            logger.info(f"Station {mn}: sensor clock corrected successfully via HJ212 time-sync.", extra=DEVICE)
         else:
             logger.warning(
                 f"Station {mn}: time-sync execution failed (ExeRtn={exertn}). "
@@ -811,7 +816,7 @@ def poll_station(mn, station):
     ip, port, slave = station["lead_ip"], station["lead_port"], station["lead_slave"]
     client = ModbusTcpClient(host=ip, port=port, framer=FramerType.RTU, timeout=3)
     if not client.connect():
-        logger.error(f"[MODBUS] Station {mn} (IP {ip}): could not connect.")
+        logger.error(f"[MODBUS] Station {mn} (IP {ip}): could not connect.", extra=DEVICE)
         return
     try:
         rr = None
@@ -826,7 +831,7 @@ def poll_station(mn, station):
         if rr and not rr.isError():
             update_lead_value(mn, ip, rr.registers[2] / 10.0, rr.registers[1] / 10.0)
     except Exception as e:
-        logger.error(f"[MODBUS] Station {mn} (IP {ip}): {e}")
+        logger.error(f"[MODBUS] Station {mn} (IP {ip}): {e}", extra=DEVICE)
     finally:
         client.close()
 

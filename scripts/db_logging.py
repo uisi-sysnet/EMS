@@ -59,7 +59,12 @@ class PostgresLogHandler(logging.Handler):
     def emit(self, record):
         try:
             msg = self.format(record)
-            item = (record.created, record.levelname, record.name, record.threadName, msg)
+            # Category for the dashboard's Logs page: callers tag device/
+            # security events with extra={"category": ...}; the rest is system.
+            category = getattr(record, "category", "system")
+            if category not in ("system", "device", "security"):
+                category = "system"
+            item = (record.created, record.levelname, record.name, record.threadName, msg, category)
             try:
                 self._queue.put_nowait(item)
             except queue.Full:
@@ -93,6 +98,10 @@ class PostgresLogHandler(logging.Handler):
                 PRIMARY KEY (id, created_at)
             );
         """)
+        # Inserts below write a category (system / device / security, shown as
+        # a filter on the dashboard's Logs page), so this column must exist
+        # before anything is logged — kept outside the best-effort upgrades.
+        cur.execute(f"ALTER TABLE {self._table} ADD COLUMN IF NOT EXISTS category VARCHAR(16) NOT NULL DEFAULT 'system';")
         # Self-heal for a table that already existed before the id column
         # was introduced: CREATE TABLE IF NOT EXISTS above is a no-op
         # against it, so patch it in place. Every statement here is
@@ -164,9 +173,10 @@ class PostgresLogHandler(logging.Handler):
                 cur = self._conn.cursor()
                 cur.executemany(
                     f"INSERT INTO {self._table} "
-                    f"(created_at, service, level, logger_name, thread_name, message) "
-                    f"VALUES (to_timestamp(%s), %s, %s, %s, %s, %s)",
-                    [(ts, self._service_name, level, name, thread, msg) for ts, level, name, thread, msg in batch],
+                    f"(created_at, service, level, logger_name, thread_name, message, category) "
+                    f"VALUES (to_timestamp(%s), %s, %s, %s, %s, %s, %s)",
+                    [(ts, self._service_name, level, name, thread, msg, category)
+                     for ts, level, name, thread, msg, category in batch],
                 )
                 cur.close()
                 return
