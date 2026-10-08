@@ -2,7 +2,7 @@
 
 EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.2.0**
+**Current version: 10.3.0**
 
 | Branch     | Contents                                                        |
 | ---------- | --------------------------------------------------------------- |
@@ -10,7 +10,7 @@ EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-ba
 | `version10` | Version 10.x line; fixes for version 10 gateways land here first |
 | `version9` | Previous version line (9.x)                                     |
 
-Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, ...).
+Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, ...).
 
 ## What It Runs
 
@@ -31,6 +31,10 @@ Laravel Dashboard       ->  Browser UI: dashboard, CityWatch map, CCTV, stations
 Shared services:
 PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 ```
+
+## What's New in Version 10.3
+
+- **Uplink Sentinel reporting:** the EMS can send every sensor's status (air quality per measurement, seismic, water level, cameras) to Uplink Sentinel on a schedule and when a status changes, with retries that never affect the EMS. Off by default; `php artisan sentinel:test` checks the link. See [Uplink Sentinel Reporting](#uplink-sentinel-reporting).
 
 ## What's New in Version 10.2
 
@@ -110,6 +114,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.3.0  | Uplink Sentinel status reporting (scheduled and on change, with retry), `sentinel:test` connection test. |
 | 10.2.0  | Logs page with Logs and Audit Log tabs; device online/offline events; notifications only for errors and device problems; automatic log cleanup; CCTV live view fixes (MediaMTX installer, ONVIF-independent streams, live camera status). |
 | 10.1.0  | Water level stations on the dashboard and CityWatch; GSM (SMS) reporting through an Arduino Nano + SIM800L gateway, with the reporting interval set from the dashboard. |
 | 10.0.0  | CityWatch map with camera live view and PTZ; water level stations; one-step installer; security hardening; setup fixes (see above). |
@@ -330,6 +335,43 @@ Both tabs export to CSV. The Audit Log stores submitted values only for non-sens
 The scheduled tasks (device status tracking, log cleanup, Telegram alerts and daily digest) run from a cron job that `deploy.sh` and `update.sh` install at `/etc/cron.d/ems-dashboard-scheduler`.
 
 Old logs are deleted every hour (`php artisan logs:prune`). By default the Logs tab and API Logs keep 30 days and the Audit Log keeps 365 days. Change this in `Dashboard/.env` with `LOG_RETENTION_DAYS`, `API_LOG_RETENTION_DAYS` and `AUDIT_LOG_RETENTION_DAYS` (0 keeps that log forever). Run `php artisan logs:prune --dry-run` to see how many rows would be deleted.
+
+## Uplink Sentinel Reporting
+
+The dashboard can send every sensor's status to **Uplink Sentinel**, our project-monitoring system. Sentinel only receives; it never calls the EMS. Reporting is off by default.
+
+**What is sent:** one unit per sensor, every time:
+
+- Air quality: one unit per measurement a station reports, ID `<station MN>-<code>` (e.g. `STN01-PM25`, `STN01-CO`, `STN01-TEMP`), with the latest value.
+- Seismic stations: `SEIS-<station id>`. Water level stations: `WL-<station MN>`, with the latest level. Cameras: `CAM-<id>`.
+- Units are grouped by station (`<MN> · <name>`); a camera goes under the station named in its location.
+
+**Status words:** `online` (data within 2 minutes), `stale` (2-3 minutes), `offline` (the station has stopped sending), `no_data` (the station reports but not this measurement). Water level stations use their own reporting interval. Cameras are `online`, `unreachable`, or `fault` (reachable, but the live view isn't set up).
+
+**When:** every `SENTINEL_EMS_INTERVAL_MINUTES` (default 30), and within about 2 minutes of any status change. On a timeout, connection error, 429 or 5xx it retries after 1, 2, 5, then every 10 minutes, always with a fresh snapshot. On 401/403 it waits 30 minutes. A 400/422 is logged and not retried.
+
+**Enable it:**
+
+1. Add these to `scripts/.env`, or edit them in the dashboard's Env Editor:
+   ```bash
+   SENTINEL_EMS_URL=http://SENTINEL_HOST:8090/api/ems/status
+   SENTINEL_EMS_TOKEN=<token from Sentinel>
+   SENTINEL_EMS_INTERVAL_MINUTES=30
+   SENTINEL_EMS_SYSTEM=EMS-AQ
+   SENTINEL_EMS_ENABLED=false
+   ```
+2. Test the link. This sends one report and prints Sentinel's response, even while reporting is off:
+   ```bash
+   cd Dashboard && sudo -u www-data php artisan sentinel:test
+   ```
+   To see the JSON without sending it, or to test with curl:
+   ```bash
+   sudo -u www-data php artisan sentinel:test --dry-run > sample.json
+   curl -X POST http://SENTINEL_HOST:8090/api/ems/status -H "Authorization: Bearer <token>" -H "Content-Type: application/json" --data-binary @sample.json
+   ```
+3. Set `SENTINEL_EMS_ENABLED=true`. The scheduler cron job (`/etc/cron.d/ems-dashboard-scheduler`) runs `php artisan sentinel:push` every minute.
+
+Every send is logged on the **Logs** page (service `dashboard`, logger `sentinel`): HTTP code, matched / added / changes counts and any warnings. The token is never logged. A wrong token, a disabled link or a rejected report is logged as an error, so it shows in the notification bell.
 
 ## REST API
 

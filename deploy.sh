@@ -281,6 +281,14 @@ SIM800_BAUDRATE=115200
 SMS_POLL_INTERVAL_SEC=30
 SMS_ALLOWED_SENDERS=
 
+# ---- Uplink Sentinel (outbound status reports, read by the Dashboard) ----
+# Off by default. Test with: cd Dashboard && php artisan sentinel:test
+SENTINEL_EMS_ENABLED=false
+SENTINEL_EMS_URL=
+SENTINEL_EMS_TOKEN=
+SENTINEL_EMS_INTERVAL_MINUTES=30
+SENTINEL_EMS_SYSTEM=EMS-AQ
+
 # ---- API Server ----
 API_PORT=8000
 # Format: token:owner_label,token:owner_label,...

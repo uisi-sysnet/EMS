@@ -407,6 +407,14 @@ class DashboardController extends Controller
      * user) — this is the join key drawImgAirQualityStationTable() uses
      * to match a camera to its station for the Remarks column.
      */
+    /**
+     * Per-camera status (buildCameraData()), for the Uplink Sentinel report.
+     */
+    public function cameraStatusList(): \Illuminate\Support\Collection
+    {
+        return $this->buildCameraData();
+    }
+
     private function buildCameraData(): \Illuminate\Support\Collection
     {
         $cameras = \App\Models\Camera::all();
@@ -438,6 +446,8 @@ class DashboardController extends Controller
                 'location'  => $camera->location,
                 'ip'        => $camera->ip_address,
                 'status'    => $status,
+                // Set when the camera is reachable but its live view couldn't be set up.
+                'stream_error' => $camera->last_status === 'error' ? $camera->last_error : null,
                 'latitude'  => $camera->latitude !== null ? (float) $camera->latitude : null,
                 'longitude' => $camera->longitude !== null ? (float) $camera->longitude : null,
             ];

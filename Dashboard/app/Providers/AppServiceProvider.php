@@ -66,6 +66,22 @@ class AppServiceProvider extends ServiceProvider
             'water_level' => 'WATER_LEVEL_DB_NAME', // <-- added
         ];
 
+        // Uplink Sentinel settings (config/sentinel.php) live in scripts/.env
+        // too, so they can be changed in the Env Editor without a config
+        // cache rebuild.
+        $sentinel = [
+            'SENTINEL_EMS_ENABLED'          => ['enabled', fn ($v) => filter_var($v, FILTER_VALIDATE_BOOLEAN)],
+            'SENTINEL_EMS_URL'              => ['url', fn ($v) => $v],
+            'SENTINEL_EMS_TOKEN'            => ['token', fn ($v) => $v],
+            'SENTINEL_EMS_INTERVAL_MINUTES' => ['interval_minutes', fn ($v) => max(1, (int) $v)],
+            'SENTINEL_EMS_SYSTEM'           => ['system', fn ($v) => $v],
+        ];
+        foreach ($sentinel as $envKey => [$configKey, $cast]) {
+            if (isset($vars[$envKey]) && $vars[$envKey] !== '') {
+                Config::set("sentinel.{$configKey}", $cast($vars[$envKey]));
+            }
+        }
+
         foreach ($databases as $connectionName => $envKey) {
             if (empty($vars[$envKey])) {
                 Log::warning("EMS scripts .env is missing {$envKey}; '{$connectionName}' connection is not configured.");
