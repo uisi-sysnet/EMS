@@ -20,6 +20,7 @@ use App\Http\Controllers\SeismicStationController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\TerminalAuthController;
 use App\Http\Controllers\TelegramSettingsController;
+use App\Http\Controllers\SentinelSettingsController;
 use App\Http\Controllers\CameraController;
 use App\Http\Controllers\CalibrationController; 
 use App\Models\Camera;
@@ -139,6 +140,10 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::get('/settings/telegram', [TelegramSettingsController::class, 'edit'])->name('settings.telegram.edit');
     Route::put('/settings/telegram', [TelegramSettingsController::class, 'update'])->name('settings.telegram.update');
     Route::post('/settings/telegram/test', [TelegramSettingsController::class, 'test'])->name('settings.telegram.test');
+
+    Route::get('/settings/sentinel', [SentinelSettingsController::class, 'edit'])->name('settings.sentinel.edit');
+    Route::put('/settings/sentinel', [SentinelSettingsController::class, 'update'])->name('settings.sentinel.update');
+    Route::post('/settings/sentinel/test', [SentinelSettingsController::class, 'test'])->name('settings.sentinel.test');
     
     Route::get('/inventory/cameras', [CameraController::class, 'index'])->name('inventory.cameras.index');
     Route::get('/inventory/cameras/live', [CameraController::class, 'live'])->name('inventory.cameras.live');

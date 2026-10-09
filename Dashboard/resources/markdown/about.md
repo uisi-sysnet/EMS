@@ -2,7 +2,7 @@
 
 EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.3.0**
+**Current version: 10.3.1**
 
 | Branch     | Contents                                                        |
 | ---------- | --------------------------------------------------------------- |
@@ -10,7 +10,7 @@ EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-ba
 | `version10` | Version 10.x line; fixes for version 10 gateways land here first |
 | `version9` | Previous version line (9.x)                                     |
 
-Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, ...).
+Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, ...).
 
 ## What It Runs
 
@@ -35,6 +35,7 @@ PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 ## What's New in Version 10.3
 
 - **Uplink Sentinel reporting:** the EMS can send every sensor's status (air quality per measurement, seismic, water level, cameras) to Uplink Sentinel on a schedule and when a status changes, with retries that never affect the EMS. Off by default; `php artisan sentinel:test` checks the link. See [Uplink Sentinel Reporting](#uplink-sentinel-reporting).
+- **10.3.1 — Settings › Sentinel page:** enter the Sentinel IP address, port and key, turn reporting on or off, and use **Test Connection** to send one report and see Sentinel's reply. The key is stored encrypted. The page shows the last report's time and result.
 
 ## What's New in Version 10.2
 
@@ -114,6 +115,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.3.1  | Settings › Sentinel page: Sentinel IP address, port and key, on/off switch, Test Connection button, last report status. |
 | 10.3.0  | Uplink Sentinel status reporting (scheduled and on change, with retry), `sentinel:test` connection test. |
 | 10.2.0  | Logs page with Logs and Audit Log tabs; device online/offline events; notifications only for errors and device problems; automatic log cleanup; CCTV live view fixes (MediaMTX installer, ONVIF-independent streams, live camera status). |
 | 10.1.0  | Water level stations on the dashboard and CityWatch; GSM (SMS) reporting through an Arduino Nano + SIM800L gateway, with the reporting interval set from the dashboard. |
@@ -348,28 +350,22 @@ The dashboard can send every sensor's status to **Uplink Sentinel**, our project
 
 **Status words:** `online` (data within 2 minutes), `stale` (2-3 minutes), `offline` (the station has stopped sending), `no_data` (the station reports but not this measurement). Water level stations use their own reporting interval. Cameras are `online`, `unreachable`, or `fault` (reachable, but the live view isn't set up).
 
-**When:** every `SENTINEL_EMS_INTERVAL_MINUTES` (default 30), and within about 2 minutes of any status change. On a timeout, connection error, 429 or 5xx it retries after 1, 2, 5, then every 10 minutes, always with a fresh snapshot. On 401/403 it waits 30 minutes. A 400/422 is logged and not retried.
+**When:** every *Send every (minutes)* (default 30), and within about 2 minutes of any status change. On a timeout, connection error, 429 or 5xx it retries after 1, 2, 5, then every 10 minutes, always with a fresh snapshot. On 401/403 it waits 30 minutes. A 400/422 is logged and not retried.
 
-**Enable it:**
+**Enable it** on **Settings › Sentinel** (admins):
 
-1. Add these to `scripts/.env`, or edit them in the dashboard's Env Editor:
-   ```bash
-   SENTINEL_EMS_URL=http://SENTINEL_HOST:8090/api/ems/status
-   SENTINEL_EMS_TOKEN=<token from Sentinel>
-   SENTINEL_EMS_INTERVAL_MINUTES=30
-   SENTINEL_EMS_SYSTEM=EMS-AQ
-   SENTINEL_EMS_ENABLED=false
-   ```
-2. Test the link. This sends one report and prints Sentinel's response, even while reporting is off:
-   ```bash
-   cd Dashboard && sudo -u www-data php artisan sentinel:test
-   ```
-   To see the JSON without sending it, or to test with curl:
-   ```bash
-   sudo -u www-data php artisan sentinel:test --dry-run > sample.json
-   curl -X POST http://SENTINEL_HOST:8090/api/ems/status -H "Authorization: Bearer <token>" -H "Content-Type: application/json" --data-binary @sample.json
-   ```
-3. Set `SENTINEL_EMS_ENABLED=true`. The scheduler cron job (`/etc/cron.d/ems-dashboard-scheduler`) runs `php artisan sentinel:push` every minute.
+1. Enter the **Sentinel IP address** (or hostname) and **port** (default 8090). Reports go to `http://<IP>:<port>/api/ems/status`; tick **Use HTTPS** if Sentinel is served over HTTPS.
+2. Paste the **key from Sentinel**. It's stored encrypted and never shown again; leave the field blank later to keep it.
+3. Click **Save Settings**, then **Test Connection**. It sends one report and shows Sentinel's reply on the page, even while reporting is off.
+4. Tick **Enable reporting** and save. The scheduler cron job (`/etc/cron.d/ems-dashboard-scheduler`) runs `php artisan sentinel:push` every minute. The page shows the time and result of the last report.
+
+From a terminal: `cd Dashboard && sudo -u www-data php artisan sentinel:test` does the same test, and `--dry-run > sample.json` saves the JSON for a curl test:
+
+```bash
+curl -X POST http://SENTINEL_HOST:8090/api/ems/status -H "Authorization: Bearer <key>" -H "Content-Type: application/json" --data-binary @sample.json
+```
+
+Until the page has been saved with an address and key, the `SENTINEL_EMS_URL`, `SENTINEL_EMS_TOKEN`, `SENTINEL_EMS_ENABLED`, `SENTINEL_EMS_INTERVAL_MINUTES` and `SENTINEL_EMS_SYSTEM` values in `scripts/.env` are used instead.
 
 Every send is logged on the **Logs** page (service `dashboard`, logger `sentinel`): HTTP code, matched / added / changes counts and any warnings. The token is never logged. A wrong token, a disabled link or a rejected report is logged as an error, so it shows in the notification bell.
 

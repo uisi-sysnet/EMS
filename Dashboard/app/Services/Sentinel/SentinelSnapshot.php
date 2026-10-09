@@ -90,7 +90,7 @@ class SentinelSnapshot
         };
 
         return [
-            'system'      => (string) config('sentinel.system', 'EMS-AQ'),
+            'system'      => (string) \App\Models\SentinelSetting::effective()['system'],
             'reported_at' => $this->now->toIso8601String(),
             'overall'     => $overall,
             'units'       => $units,

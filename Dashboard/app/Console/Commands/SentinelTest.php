@@ -28,12 +28,13 @@ class SentinelTest extends Command
             return self::SUCCESS;
         }
 
+        $settings = $reporter->settings();
         if (!$reporter->configured()) {
-            $this->error('Set SENTINEL_EMS_URL and SENTINEL_EMS_TOKEN in scripts/.env first.');
+            $this->error('Set the Sentinel address and key on Settings > Sentinel (or SENTINEL_EMS_URL and SENTINEL_EMS_TOKEN in scripts/.env) first.');
             return self::FAILURE;
         }
 
-        $this->line('Sending to ' . config('sentinel.url') . ' ...');
+        $this->line("Sending to {$settings['url']} (settings from {$settings['source']}) ...");
         $result = $reporter->sendNow();
 
         $this->line('Units sent: ' . count($result['payload']['units'])
@@ -45,8 +46,8 @@ class SentinelTest extends Command
             : (string) ($result['body'] ?? '(none)'));
         $result['code'] === 202 ? $this->info($result['summary']) : $this->error($result['summary']);
 
-        if (!config('sentinel.enabled')) {
-            $this->warn('Scheduled reporting is off. Set SENTINEL_EMS_ENABLED=true in scripts/.env to turn it on.');
+        if (!$settings['enabled']) {
+            $this->warn('Scheduled reporting is off. Turn on "Enable reporting" on Settings > Sentinel.');
         }
 
         return $result['code'] === 202 ? self::SUCCESS : self::FAILURE;

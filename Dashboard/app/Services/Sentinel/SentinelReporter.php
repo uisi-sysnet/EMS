@@ -2,6 +2,7 @@
 
 namespace App\Services\Sentinel;
 
+use App\Models\SentinelSetting;
 use App\Models\SystemLog;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
@@ -37,20 +38,28 @@ class SentinelReporter
     {
     }
 
+    /** Link settings: Settings > Sentinel, else scripts/.env (SentinelSetting::effective()). */
+    public function settings(): array
+    {
+        return SentinelSetting::effective();
+    }
+
     public function configured(): bool
     {
-        return filled(config('sentinel.url')) && filled(config('sentinel.token'));
+        $s = $this->settings();
+        return filled($s['url']) && filled($s['token']);
     }
 
     /** Scheduled entry point. Returns a one-line summary for the console. */
     public function tick(): string
     {
         try {
-            if (!config('sentinel.enabled')) {
-                return 'Sentinel reporting is disabled (SENTINEL_EMS_ENABLED=false).';
+            $settings = $this->settings();
+            if (!$settings['enabled']) {
+                return "Sentinel reporting is disabled ({$settings['source']}).";
             }
             if (!$this->configured()) {
-                return 'Sentinel reporting is enabled but SENTINEL_EMS_URL or SENTINEL_EMS_TOKEN is not set.';
+                return "Sentinel reporting is enabled but the Sentinel address or key is missing ({$settings['source']}).";
             }
 
             $state = Cache::get(self::STATE_KEY, []);
@@ -64,7 +73,7 @@ class SentinelReporter
             $signature = $this->signature($payload);
 
             $intervalDue = empty($state['last_sent_at'])
-                || $now - $state['last_sent_at'] >= 60 * (int) config('sentinel.interval_minutes');
+                || $now - $state['last_sent_at'] >= 60 * (int) $settings['interval_minutes'];
 
             $changeDue = false;
             if (isset($state['last_sent_signature']) && $signature !== $state['last_sent_signature']) {
@@ -108,6 +117,12 @@ class SentinelReporter
         return $this->send($payload, 'manual test') + ['payload' => $payload];
     }
 
+    /** After the link settings change: send on the next run, clear any backoff. */
+    public function resetSchedule(): void
+    {
+        Cache::forget(self::STATE_KEY);
+    }
+
     public function buildPayload(): array
     {
         return $this->snapshot->build();
@@ -118,19 +133,28 @@ class SentinelReporter
      */
     private function send(array $payload, string $reason): array
     {
+        $result = $this->doSend($payload, $reason);
+        SentinelSetting::recordResult($result['code'], $result['summary'], $result['outcome'] === 'ok');
+
+        return $result;
+    }
+
+    private function doSend(array $payload, string $reason): array
+    {
+        $settings = $this->settings();
         $units = count($payload['units']);
         $code = null;
         $body = null;
         $retryAfter = null;
 
         try {
-            $response = Http::withToken((string) config('sentinel.token'))
+            $response = Http::withToken((string) $settings['token'])
                 ->acceptJson()
                 ->connectTimeout((int) config('sentinel.timeout_seconds', 15))
                 ->timeout((int) config('sentinel.timeout_seconds', 15))
                 ->withBody(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE),
                     'application/json; charset=utf-8')
-                ->post((string) config('sentinel.url'));
+                ->post((string) $settings['url']);
 
             $code = $response->status();
             $body = $response->json() ?? mb_substr($response->body(), 0, 500);
@@ -140,6 +164,10 @@ class SentinelReporter
         } catch (\Throwable $e) {
             $error = $e->getMessage();
         }
+
+        // A manual test doesn't schedule retries, so don't promise one.
+        $manual = $reason === 'manual test';
+        $retry = $manual ? '' : ' Retrying in ' . self::AUTH_RETRY_MINUTES . ' minutes.';
 
         // Never include the token: messages are built from the response only.
         if ($code === 202) {
@@ -164,20 +192,20 @@ class SentinelReporter
 
         if ($code === 401 || $code === 403) {
             $summary = $code === 401
-                ? "Sentinel refused the report: HTTP 401, wrong token. Check SENTINEL_EMS_TOKEN. Retrying in " . self::AUTH_RETRY_MINUTES . ' minutes.'
-                : "Sentinel refused the report: HTTP 403, the link is disabled in Sentinel or this gateway's IP isn't allowed. Retrying in " . self::AUTH_RETRY_MINUTES . ' minutes.';
+                ? "Sentinel refused the report: HTTP 401, wrong key. Check the key on Settings > Sentinel." . $retry
+                : "Sentinel refused the report: HTTP 403, the link is disabled in Sentinel or this gateway's IP isn't allowed." . $retry;
             $this->log('ERROR', $summary);
             return compact('code', 'body', 'summary') + ['outcome' => 'auth', 'retry_after' => null];
         }
 
         if ($code === 429 || ($code !== null && $code >= 500) || $code === null) {
             $what = $code === null ? 'could not reach Sentinel (' . mb_substr($error ?? 'unknown error', 0, 300) . ')' : "Sentinel answered HTTP {$code}";
-            $summary = "Sentinel report ({$reason}) failed: {$what}. Will retry with backoff.";
+            $summary = "Sentinel report ({$reason}) failed: {$what}." . ($manual ? '' : ' Will retry with backoff.');
             $this->log('WARNING', $summary);
             return compact('code', 'body', 'summary') + ['outcome' => 'retry', 'retry_after' => $retryAfter];
         }
 
-        $summary = "Sentinel report ({$reason}) got an unexpected HTTP {$code}. Check SENTINEL_EMS_URL. Retrying in " . self::AUTH_RETRY_MINUTES . ' minutes.';
+        $summary = "Sentinel report ({$reason}) got an unexpected HTTP {$code}. Check the Sentinel IP address and port." . $retry;
         $this->log('ERROR', $summary);
         return compact('code', 'body', 'summary') + ['outcome' => 'auth', 'retry_after' => null];
     }
