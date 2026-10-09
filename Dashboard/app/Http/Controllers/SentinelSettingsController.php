@@ -43,7 +43,7 @@ class SentinelSettingsController extends Controller
         // A blank key field keeps the saved key (it is never shown again).
         if (!filled($validated['token'] ?? null)) {
             unset($validated['token']);
-            if (!filled($settings->token)) {
+            if ($settings->key() === null) {
                 return back()->withInput()->withErrors(['token' => 'Enter the key from Sentinel.']);
             }
         }

@@ -51,6 +51,27 @@ class TelegramSetting extends Model
 
     public function isConfigured(): bool
     {
-        return filled($this->bot_token) && filled($this->chat_id);
+        return filled($this->botToken()) && filled($this->chat_id);
+    }
+
+    /**
+     * The bot token, or null if none is saved or it can't be decrypted.
+     * Reading $this->bot_token directly throws "The MAC is invalid" when
+     * APP_KEY has changed since the token was saved, which used to crash
+     * every digest and alert (and the settings page).
+     */
+    public function botToken(): ?string
+    {
+        try {
+            return $this->bot_token;
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            return null;
+        }
+    }
+
+    /** A token is saved but was encrypted with a different APP_KEY. */
+    public function tokenUnreadable(): bool
+    {
+        return filled($this->getRawOriginal('bot_token')) && $this->botToken() === null;
     }
 }

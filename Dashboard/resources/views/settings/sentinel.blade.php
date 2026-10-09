@@ -32,6 +32,13 @@
                 </div>
             @endif
 
+            @if ($settings->keyUnreadable())
+                <div class="mb-4 sm:mb-6 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 text-sm px-4 py-3">
+                    The saved Sentinel key can't be read: <span class="font-mono">APP_KEY</span> in Dashboard/.env has changed since it was saved,
+                    so no reports are being sent. Paste the key again below and save.
+                </div>
+            @endif
+
             @if ($errors->any())
                 <div class="mb-4 sm:mb-6 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 text-sm px-4 py-3">
                     <ul class="list-disc list-inside">
@@ -90,7 +97,7 @@
                             <div class="min-w-0">
                                 <label for="token" class="{{ $labelCls }}">Key from Sentinel</label>
                                 <input type="password" id="token" name="token" autocomplete="off"
-                                       placeholder="{{ filled($settings->token) ? 'Saved — leave blank to keep it' : 'Paste the EMS link key from Sentinel' }}"
+                                       placeholder="{{ $settings->keySaved() ? 'Saved — leave blank to keep it' : 'Paste the EMS link key from Sentinel' }}"
                                        class="{{ $inputCls }} font-mono">
                                 <p class="text-xs text-text-500 mt-1.5">Stored encrypted and never shown again. Leave blank to keep the saved key.</p>
                             </div>

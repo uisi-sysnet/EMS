@@ -27,7 +27,7 @@ class CheckTelegramAlerts extends Command
     {
         $settings = TelegramSetting::current();
 
-        if (! $settings->isConfigured()) {
+        if (! TelegramNotifier::ready($settings, $this)) {
             return self::SUCCESS;
         }
 

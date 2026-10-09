@@ -35,7 +35,7 @@ PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 ## What's New in Version 10.3
 
 - **Uplink Sentinel reporting:** the EMS can send every sensor's status (air quality per measurement, seismic, water level, cameras) to Uplink Sentinel on a schedule and when a status changes, with retries that never affect the EMS. Off by default; `php artisan sentinel:test` checks the link. See [Uplink Sentinel Reporting](#uplink-sentinel-reporting).
-- **10.3.2 — Telegram fix:** digests and alerts stopped being sent when the scheduler couldn't write the dashboard's cache (it now carries on without it). A digest missed at its set time is now sent up to 2 hours later instead of being skipped for the day, and Telegram send failures appear on the Logs page and in the bell.
+- **10.3.2 — Telegram fix:** digests and alerts stopped when the saved bot token couldn't be decrypted after an `APP_KEY` change (the settings page and Logs page now say so; see Troubleshooting for `APP_PREVIOUS_KEYS`), or when the scheduler couldn't write the dashboard's cache (it now carries on without it). A digest missed at its set time is now sent up to 2 hours later instead of being skipped for the day, and Telegram send failures appear on the Logs page and in the bell.
 - **10.3.1 — Settings › Sentinel page:** enter the Sentinel IP address, port and key, turn reporting on or off, and use **Test Connection** to send one report and see Sentinel's reply. The key is stored encrypted. The page shows the last report's time and result.
 
 ## What's New in Version 10.2
@@ -116,7 +116,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
-| 10.3.2  | Telegram digests/alerts no longer stop when the cache isn't writable; missed digests catch up within 2 hours; Telegram failures shown on the Logs page. |
+| 10.3.2  | Telegram digests/alerts: clear message when the saved token can't be decrypted after an `APP_KEY` change (`APP_PREVIOUS_KEYS` supported); no longer stop when the cache isn't writable; missed digests catch up within 2 hours; Telegram failures shown on the Logs page. |
 | 10.3.1  | Settings › Sentinel page: Sentinel IP address, port and key, on/off switch, Test Connection button, last report status. |
 | 10.3.0  | Uplink Sentinel status reporting (scheduled and on change, with retry), `sentinel:test` connection test. |
 | 10.2.0  | Logs page with Logs and Audit Log tabs; device online/offline events; notifications only for errors and device problems; automatic log cleanup; CCTV live view fixes (MediaMTX installer, ONVIF-independent streams, live camera status). |
@@ -465,7 +465,7 @@ Upgrading from version 9? Follow [Upgrading a Version 9 Gateway](#upgrading-a-ve
 ## Security Notes
 
 - Keep `scripts/.env` and `Dashboard/.env` out of git; they hold database passwords, MQTT credentials, API keys, and the Laravel `APP_KEY`.
-- Before version 10, these files and a default `postgres` password were committed to the repository. Treat those values as exposed and change them: the PostgreSQL passwords, the MQTT password, the API tokens, `TERMINAL_SHARED_SECRET`, and `APP_KEY` (`php artisan key:generate`; this logs everyone out).
+- Before version 10, these files and a default `postgres` password were committed to the repository. Treat those values as exposed and change them: the PostgreSQL passwords, the MQTT password, the API tokens, `TERMINAL_SHARED_SECRET`, and `APP_KEY` (`php artisan key:generate`; this logs everyone out). `APP_KEY` also encrypts the saved Telegram bot token, camera passwords and Sentinel key: before generating a new key, copy the current one into `Dashboard/.env` as `APP_PREVIOUS_KEYS=base64:...` (comma-separate several), then run `php artisan config:cache`, so those stay readable. Otherwise re-enter them on Settings › Telegram, Settings › Sentinel and each camera in CCTV inventory.
 - Known issue: the login page still accepts built-in default accounts defined in `LoginController`. Plan to replace them with database users created during installation.
 
 ## Troubleshooting
@@ -496,6 +496,7 @@ Common issues:
 - SMS ingestion is not working: confirm `SMS_INGESTION_ENABLED`, serial port, baud rate, modem wiring, and SIM800L power.
 - Dashboard cannot edit Python settings: make sure the web server user can read/write `scripts/.env`; `deploy.sh` and `update.sh` normally repair this.
 - CityWatch shows no stations: add latitude and longitude to the stations.
+- `The MAC is invalid` (Telegram not sending, cameras failing with "Could not decrypt stored password", Sentinel key unreadable): `APP_KEY` in `Dashboard/.env` changed after those secrets were saved. Put the previous key in `Dashboard/.env` as `APP_PREVIOUS_KEYS=base64:...` and run `php artisan config:cache`, or re-enter the bot token, Sentinel key and camera passwords. The settings pages and the Logs page say when this is the problem.
 - Telegram digests/alerts, device events or Sentinel reports stop: the scheduler must run every minute **as `www-data`**. Check `/etc/cron.d/ems-dashboard-scheduler` exists and contains `* * * * * www-data cd <EMS>/Dashboard && php artisan schedule:run`, and remove any older `schedule:run` line from another user's crontab (`crontab -l`, `sudo crontab -l`), since running it as another user fails on the cache folder. Problems sending to Telegram are listed on the Logs page (logger `telegram`). Test with `sudo -u www-data php artisan telegram:daily-digest --force`.
 - Water level stations are always offline: check `sudo journalctl -u ems-water-level-gsm.service`, that `WATER_GSM_ENABLED=true`, and the `gsm_messages` table for rejected SMS. See [`firmware/README.md`](firmware/README.md#troubleshooting) for GSM and hardware issues.
 - Camera live view says "Unable to connect": the message now gives the reason. If the stream server is not running or `/cctv-stream/` is not routed to it, run `sudo ./install_mediamtx.sh` (`update.sh` also runs it). Check it with `sudo systemctl status ems-mediamtx` and `sudo journalctl -u ems-mediamtx -n 50`. CityWatch and the Live View page use the same stream.

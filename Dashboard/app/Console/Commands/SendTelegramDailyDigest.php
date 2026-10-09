@@ -38,8 +38,10 @@ class SendTelegramDailyDigest extends Command
         $settings = TelegramSetting::current();
         $force    = (bool) $this->option('force');
 
-        if (! $settings->isConfigured()) {
-            $this->warn('Telegram bot token / chat ID not configured — nothing sent.');
+        if (! TelegramNotifier::ready($settings, $this)) {
+            if (! $settings->tokenUnreadable()) {
+                $this->warn('Telegram bot token / chat ID not configured — nothing sent.');
+            }
             return self::SUCCESS;
         }
 

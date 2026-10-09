@@ -45,7 +45,31 @@ class SentinelSetting extends Model
 
     public function isConfigured(): bool
     {
-        return filled($this->host) && filled($this->token);
+        return filled($this->host) && filled($this->key());
+    }
+
+    /**
+     * The saved key, or null if none is saved or it can't be decrypted
+     * (APP_KEY changed since it was saved; reading $this->token directly
+     * would throw "The MAC is invalid").
+     */
+    public function key(): ?string
+    {
+        try {
+            return $this->token;
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            return null;
+        }
+    }
+
+    public function keySaved(): bool
+    {
+        return filled($this->getRawOriginal('token'));
+    }
+
+    public function keyUnreadable(): bool
+    {
+        return $this->keySaved() && $this->key() === null;
     }
 
     public function url(): ?string
@@ -74,7 +98,7 @@ class SentinelSetting extends Model
                 'source'           => 'settings page',
                 'enabled'          => (bool) $row->enabled,
                 'url'              => $row->url(),
-                'token'            => $row->token,
+                'token'            => $row->key(),
                 'interval_minutes' => max(1, (int) $row->interval_minutes),
                 'system'           => $row->system_name ?: 'EMS-AQ',
             ];

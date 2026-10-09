@@ -47,7 +47,7 @@ class TelegramNotifier
                 $payload['parse_mode'] = 'HTML';
             }
 
-            $response = $request->post("https://api.telegram.org/bot{$settings->bot_token}/sendPhoto", $payload);
+            $response = $request->post("https://api.telegram.org/bot{$settings->botToken()}/sendPhoto", $payload);
 
             if ($response->failed()) {
                 Log::error('Telegram sendPhoto failed', [
@@ -62,7 +62,7 @@ class TelegramNotifier
             return true;
         } catch (\Throwable $e) {
             Log::error('Telegram sendPhoto exception', ['message' => $e->getMessage()]);
-            self::logProblem('Telegram digest photo was not sent: ' . self::withoutToken($e->getMessage(), $settings->bot_token));
+            self::logProblem('Telegram digest photo was not sent: ' . self::withoutToken($e->getMessage(), $settings->botToken()));
 
             return false;
         }
@@ -99,6 +99,25 @@ class TelegramNotifier
         }
     }
 
+    public const UNREADABLE_TOKEN = 'Telegram is not sending: the saved bot token can\'t be decrypted because APP_KEY in Dashboard/.env has changed since it was saved. '
+        . 'Re-enter the bot token on Settings > Telegram, or add the old key to Dashboard/.env as APP_PREVIOUS_KEYS.';
+
+    /**
+     * For the scheduled commands: true if Telegram can be used. When the
+     * saved token can't be decrypted, says so on the Logs page and the
+     * console instead of silently doing nothing.
+     */
+    public static function ready(TelegramSetting $settings, ?\Illuminate\Console\Command $console = null): bool
+    {
+        if ($settings->tokenUnreadable()) {
+            self::logProblem(self::UNREADABLE_TOKEN);
+            $console?->error(self::UNREADABLE_TOKEN);
+            return false;
+        }
+
+        return $settings->isConfigured();
+    }
+
     /** Connection errors quote the request URL, which contains the bot token. */
     private static function withoutToken(string $message, ?string $token): string
     {
@@ -127,7 +146,7 @@ class TelegramNotifier
             $response = Http::timeout(10)
                 ->withOptions(['curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4]])
                 ->post(
-                    "https://api.telegram.org/bot{$settings->bot_token}/sendMessage",
+                    "https://api.telegram.org/bot{$settings->botToken()}/sendMessage",
                     [
                         'chat_id'    => $settings->chat_id,
                         'text'       => $text,
@@ -148,7 +167,7 @@ class TelegramNotifier
             return true;
         } catch (\Throwable $e) {
             Log::error('Telegram sendMessage exception', ['message' => $e->getMessage()]);
-            self::logProblem('Telegram alert was not sent: ' . self::withoutToken($e->getMessage(), $settings->bot_token));
+            self::logProblem('Telegram alert was not sent: ' . self::withoutToken($e->getMessage(), $settings->botToken()));
 
             return false;
         }

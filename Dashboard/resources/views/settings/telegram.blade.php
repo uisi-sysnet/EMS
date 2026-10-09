@@ -21,6 +21,13 @@
                 </div>
             @endif
 
+            @if ($settings->tokenUnreadable())
+                <div class="mb-4 sm:mb-6 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 text-sm px-4 py-3">
+                    The saved bot token can't be read: <span class="font-mono">APP_KEY</span> in Dashboard/.env has changed since it was saved,
+                    so no digests or alerts are being sent. Paste the bot token again below and save.
+                </div>
+            @endif
+
             @if ($errors->any())
                 <div class="mb-4 sm:mb-6 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 text-sm px-4 py-3">
                     <ul class="list-disc list-inside">
