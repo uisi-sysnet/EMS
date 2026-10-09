@@ -54,6 +54,7 @@ class TelegramNotifier
                     'status' => $response->status(),
                     'body'   => $response->body(),
                 ]);
+                self::logProblem("Telegram digest photo was not sent: HTTP {$response->status()} " . ($response->json('description') ?? ''));
 
                 return false;
             }
@@ -61,9 +62,47 @@ class TelegramNotifier
             return true;
         } catch (\Throwable $e) {
             Log::error('Telegram sendPhoto exception', ['message' => $e->getMessage()]);
+            self::logProblem('Telegram digest photo was not sent: ' . self::withoutToken($e->getMessage(), $settings->bot_token));
 
             return false;
         }
+    }
+
+    /**
+     * Records a Telegram problem on the Logs page (logger "telegram"), so a
+     * digest or alert that silently stopped going out shows up there and in
+     * the notification bell instead of only in laravel.log. The same message
+     * is recorded at most once every 30 minutes, since the alert check runs
+     * every minute. Never throws.
+     */
+    public static function logProblem(string $message): void
+    {
+        try {
+            $message = mb_substr($message, 0, 2000);
+            $recent = \App\Models\SystemLog::where('logger_name', 'telegram')
+                ->where('message', $message)
+                ->where('created_at', '>', now()->subMinutes(30))
+                ->exists();
+            if (! $recent) {
+                \App\Models\SystemLog::create([
+                    'created_at'  => now(),
+                    'service'     => 'dashboard',
+                    'level'       => 'ERROR',
+                    'logger_name' => 'telegram',
+                    'thread_name' => null,
+                    'message'     => $message,
+                    'category'    => 'system',
+                ]);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /** Connection errors quote the request URL, which contains the bot token. */
+    private static function withoutToken(string $message, ?string $token): string
+    {
+        return filled($token) ? str_replace($token, '***', $message) : $message;
     }
 
     /**
@@ -101,6 +140,7 @@ class TelegramNotifier
                     'status' => $response->status(),
                     'body'   => $response->body(),
                 ]);
+                self::logProblem("Telegram alert was not sent: HTTP {$response->status()} " . ($response->json('description') ?? ''));
 
                 return false;
             }
@@ -108,6 +148,7 @@ class TelegramNotifier
             return true;
         } catch (\Throwable $e) {
             Log::error('Telegram sendMessage exception', ['message' => $e->getMessage()]);
+            self::logProblem('Telegram alert was not sent: ' . self::withoutToken($e->getMessage(), $settings->bot_token));
 
             return false;
         }

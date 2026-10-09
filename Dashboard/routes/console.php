@@ -9,6 +9,9 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('telegram:daily-digest')->everyMinute();
+// No withoutOverlapping() on the Telegram tasks: its lock lives in the cache,
+// and if the cache isn't writable by the scheduler's user the lock fails and
+// the task is skipped, which is how alerts silently stop.
 Schedule::command('telegram:check-alerts')->everyMinute();
 Schedule::command('logs:track-device-status')->everyMinute()->withoutOverlapping();
 Schedule::command('logs:prune')->hourly()->withoutOverlapping();

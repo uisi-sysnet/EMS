@@ -2,7 +2,7 @@
 
 EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.3.1**
+**Current version: 10.3.2**
 
 | Branch     | Contents                                                        |
 | ---------- | --------------------------------------------------------------- |
@@ -10,7 +10,7 @@ EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-ba
 | `version10` | Version 10.x line; fixes for version 10 gateways land here first |
 | `version9` | Previous version line (9.x)                                     |
 
-Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, ...).
+Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, ...).
 
 ## What It Runs
 
@@ -35,6 +35,7 @@ PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 ## What's New in Version 10.3
 
 - **Uplink Sentinel reporting:** the EMS can send every sensor's status (air quality per measurement, seismic, water level, cameras) to Uplink Sentinel on a schedule and when a status changes, with retries that never affect the EMS. Off by default; `php artisan sentinel:test` checks the link. See [Uplink Sentinel Reporting](#uplink-sentinel-reporting).
+- **10.3.2 — Telegram fix:** digests and alerts stopped being sent when the scheduler couldn't write the dashboard's cache (it now carries on without it). A digest missed at its set time is now sent up to 2 hours later instead of being skipped for the day, and Telegram send failures appear on the Logs page and in the bell.
 - **10.3.1 — Settings › Sentinel page:** enter the Sentinel IP address, port and key, turn reporting on or off, and use **Test Connection** to send one report and see Sentinel's reply. The key is stored encrypted. The page shows the last report's time and result.
 
 ## What's New in Version 10.2
@@ -115,6 +116,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.3.2  | Telegram digests/alerts no longer stop when the cache isn't writable; missed digests catch up within 2 hours; Telegram failures shown on the Logs page. |
 | 10.3.1  | Settings › Sentinel page: Sentinel IP address, port and key, on/off switch, Test Connection button, last report status. |
 | 10.3.0  | Uplink Sentinel status reporting (scheduled and on change, with retry), `sentinel:test` connection test. |
 | 10.2.0  | Logs page with Logs and Audit Log tabs; device online/offline events; notifications only for errors and device problems; automatic log cleanup; CCTV live view fixes (MediaMTX installer, ONVIF-independent streams, live camera status). |
@@ -494,7 +496,7 @@ Common issues:
 - SMS ingestion is not working: confirm `SMS_INGESTION_ENABLED`, serial port, baud rate, modem wiring, and SIM800L power.
 - Dashboard cannot edit Python settings: make sure the web server user can read/write `scripts/.env`; `deploy.sh` and `update.sh` normally repair this.
 - CityWatch shows no stations: add latitude and longitude to the stations.
-- Device events or Telegram alerts never appear: check that `/etc/cron.d/ems-dashboard-scheduler` exists (run `sudo ./update.sh` to install it).
+- Telegram digests/alerts, device events or Sentinel reports stop: the scheduler must run every minute **as `www-data`**. Check `/etc/cron.d/ems-dashboard-scheduler` exists and contains `* * * * * www-data cd <EMS>/Dashboard && php artisan schedule:run`, and remove any older `schedule:run` line from another user's crontab (`crontab -l`, `sudo crontab -l`), since running it as another user fails on the cache folder. Problems sending to Telegram are listed on the Logs page (logger `telegram`). Test with `sudo -u www-data php artisan telegram:daily-digest --force`.
 - Water level stations are always offline: check `sudo journalctl -u ems-water-level-gsm.service`, that `WATER_GSM_ENABLED=true`, and the `gsm_messages` table for rejected SMS. See [`firmware/README.md`](firmware/README.md#troubleshooting) for GSM and hardware issues.
 - Camera live view says "Unable to connect": the message now gives the reason. If the stream server is not running or `/cctv-stream/` is not routed to it, run `sudo ./install_mediamtx.sh` (`update.sh` also runs it). Check it with `sudo systemctl status ems-mediamtx` and `sudo journalctl -u ems-mediamtx -n 50`. CityWatch and the Live View page use the same stream.
 - PTZ buttons report an error: the camera must be set as PTZ in CCTV inventory and have an ONVIF profile (use Refresh on the camera).

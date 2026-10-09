@@ -427,7 +427,7 @@ class DashboardController extends Controller
                 ));
             }
         }
-        $reachable = Cache::remember('dashboard.camera_reachable.' . md5(json_encode($targets)), 15, fn () => $this->tcpReachable($targets));
+        $reachable = $this->remember('dashboard.camera_reachable.' . md5(json_encode($targets)), 15, fn () => $this->tcpReachable($targets));
 
         return $cameras->map(function ($camera) use ($reachable) {
             if (!$camera->enabled) {
@@ -531,7 +531,7 @@ class DashboardController extends Controller
             return collect();
         }
 
-        $pingResults = Cache::remember('dashboard.lead_sensor_ping', 15, function () use ($stations) {
+        $pingResults = $this->remember('dashboard.lead_sensor_ping', 15, function () use ($stations) {
             return $this->pingHosts($stations->pluck('lead_ip')->all());
         });
 
@@ -988,13 +988,36 @@ class DashboardController extends Controller
         return $results;
     }
 
+    /**
+     * Cache::remember() that never fails the caller. The scheduled tasks
+     * (Telegram alerts and digest, device tracker) use these lookups too,
+     * and when the scheduler runs as a user that can't write the cache
+     * folder (owned by www-data), Cache::remember() threw "Permission
+     * denied" and the whole task died without sending anything. On any
+     * cache error the value is just computed fresh.
+     */
+    private function remember(string $key, int $seconds, \Closure $compute)
+    {
+        try {
+            return Cache::remember($key, $seconds, $compute);
+        } catch (\Throwable $e) {
+            $value = $compute();
+            // The log file may not be writable by this user either.
+            try {
+                report($e);
+            } catch (\Throwable) {
+            }
+            return $value;
+        }
+    }
+
     private function pingHostsCached(string $cacheKey, array $ips): array
     {
         if (empty($ips)) {
             return [];
         }
 
-        return Cache::remember($cacheKey, 15, fn () => $this->pingHosts($ips));
+        return $this->remember($cacheKey, 15, fn () => $this->pingHosts($ips));
     }
 
     private function buildDashboardData(): array
@@ -1206,7 +1229,7 @@ class DashboardController extends Controller
      */
     private function buildSystemSummary(): array
     {
-        return Cache::remember('dashboard.system_summary', 300, function () {
+        return $this->remember('dashboard.system_summary', 300, function () {
             $ports = $this->detectNetworkPorts();
 
             return [

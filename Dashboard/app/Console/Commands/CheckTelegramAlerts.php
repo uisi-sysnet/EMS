@@ -31,7 +31,17 @@ class CheckTelegramAlerts extends Command
             return self::SUCCESS;
         }
 
-        $snapshot = $dashboard->telegramSnapshot();
+        try {
+            $snapshot = $dashboard->telegramSnapshot();
+        } catch (\Throwable $e) {
+            // Previously this failed silently every minute (only in
+            // laravel.log), so alerts just stopped. Recorded on the Logs
+            // page first, since the log file may not be writable either.
+            TelegramNotifier::logProblem("Telegram alerts are not being checked: {$e->getMessage()}");
+            rescue(fn () => report($e), null, false);
+            $this->error($e->getMessage());
+            return self::FAILURE;
+        }
 
         if ($settings->offline_alert_enabled) {
             $this->checkStations($snapshot['airQualityData'], 'Air Quality', $telegram);

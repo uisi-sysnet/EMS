@@ -11,7 +11,8 @@ use Illuminate\Console\Command;
  * Fires the morning and/or afternoon digest, whichever is due right now.
  * Register this to run every minute (see routes/console.php or
  * App\Console\Kernel::schedule()) — each slot only actually sends once
- * the current Asia/Manila time matches that slot's configured time AND
+ * the current Asia/Manila time has reached that slot's configured time
+ * (catching up for up to CATCH_UP_HOURS if that minute was missed) AND
  * that slot hasn't already sent today, so it's safe for the underlying
  * cron to invoke `schedule:run` every minute without risking a duplicate
  * send, and the two slots track their own "already sent today" state
@@ -28,6 +29,9 @@ class SendTelegramDailyDigest extends Command
         {--force : Skip the scheduled-time and already-sent-today checks and send both digests immediately — for testing}';
 
     protected $description = 'Send the morning/afternoon Telegram digest image, if either is due right now.';
+
+    /** A digest missed at its time is still sent up to this many hours later. */
+    private const CATCH_UP_HOURS = 2;
 
     public function handle(DashboardController $dashboard, TelegramNotifier $telegram): int
     {
@@ -80,20 +84,33 @@ class SendTelegramDailyDigest extends Command
         }
 
         if (! $force) {
-            // substr guards against DB drivers/column types that return
-            // "HH:MM:SS" for a TIME column instead of the "HH:MM" that
-            // was saved — without this, the digest would silently never
-            // fire on schedule and only ever send via --force.
-            if (substr($time, 0, 5) !== $now->format('H:i')) {
-                return;
-            }
-
             if ($lastSentDate?->isSameDay($now)) {
                 return; // this slot already sent today
             }
+
+            // Due from the configured time until CATCH_UP_HOURS later. This
+            // used to require the exact minute, so a scheduler run that was
+            // late, skipped or failed in that one minute lost the whole
+            // day's digest. Since it's only marked sent on success, a failed
+            // send is retried every minute within the window. substr guards
+            // against a TIME column returning "HH:MM:SS".
+            $slot = $now->copy()->setTimeFromTimeString(substr($time, 0, 5));
+            if ($now->lt($slot) || $now->gte($slot->copy()->addHours(self::CATCH_UP_HOURS))) {
+                return;
+            }
         }
 
-        $image   = $dashboard->buildReportImageJpeg();
+        try {
+            $image = $dashboard->buildReportImageJpeg();
+        } catch (\Throwable $e) {
+            // Recorded on the Logs page first: the log file may not be
+            // writable by the scheduler's user, so report() could throw.
+            TelegramNotifier::logProblem("{$label} was not sent: building the report image failed: {$e->getMessage()}");
+            rescue(fn () => report($e), null, false);
+            $this->error("{$label}: building the report image failed: {$e->getMessage()}");
+            return;
+        }
+
         $caption = "📊 <b>{$label}</b> — {$now->format('M j, Y g:i A')}";
 
         $ok = $telegram->sendPhoto($image, $caption);
