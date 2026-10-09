@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class TelegramSetting extends Model
 {
+    use \App\Models\Concerns\ForgetsUnreadableSecrets;
+
     protected $fillable = [
         'bot_token',
         'chat_id',

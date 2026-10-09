@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Schema;
  */
 class SentinelSetting extends Model
 {
+    use \App\Models\Concerns\ForgetsUnreadableSecrets;
+
     public const PATH = '/api/ems/status';
 
     protected $fillable = [

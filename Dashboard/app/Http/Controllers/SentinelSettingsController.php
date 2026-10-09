@@ -46,6 +46,10 @@ class SentinelSettingsController extends Controller
             if ($settings->key() === null) {
                 return back()->withInput()->withErrors(['token' => 'Enter the key from Sentinel.']);
             }
+        } else {
+            // An old key saved under a different APP_KEY would make this
+            // save fail with "The MAC is invalid".
+            $settings->forgetUnreadable('token');
         }
 
         $validated['enabled']   = $request->boolean('enabled');

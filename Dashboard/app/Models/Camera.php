@@ -7,6 +7,8 @@ use Illuminate\Support\Str;
 
 class Camera extends Model
 {
+    use \App\Models\Concerns\ForgetsUnreadableSecrets;
+
     protected $fillable = [
         'name', 'location', 'channel',
         'ip_address', 'onvif_port', 'username', 'password',

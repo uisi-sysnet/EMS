@@ -122,6 +122,10 @@ class CameraController extends Controller
         // Only update password if provided
         if (empty($validated['password'])) {
             unset($validated['password']);
+        } else {
+            // An old password saved under a different APP_KEY would make
+            // this save fail with "The MAC is invalid".
+            $camera->forgetUnreadable('password');
         }
 
         $validated['enabled'] = $request->boolean('enabled', true);

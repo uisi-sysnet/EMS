@@ -32,6 +32,10 @@ class TelegramSettingsController extends Controller
         // never overwrite a working token with nothing.
         if (! filled($validated['bot_token'] ?? null)) {
             unset($validated['bot_token']);
+        } else {
+            // An old token saved under a different APP_KEY would make this
+            // save fail with "The MAC is invalid".
+            $settings->forgetUnreadable('bot_token');
         }
 
         // Checkboxes are absent from the request entirely when unchecked,
