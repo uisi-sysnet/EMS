@@ -2,7 +2,7 @@
 
 EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.3.3**
+**Current version: 10.4.0**
 
 | Branch     | Contents                                                        |
 | ---------- | --------------------------------------------------------------- |
@@ -10,7 +10,7 @@ EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-ba
 | `version10` | Version 10.x line; fixes for version 10 gateways land here first |
 | `version9` | Previous version line (9.x)                                     |
 
-Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, ...).
+Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, ...).
 
 ## What It Runs
 
@@ -31,6 +31,10 @@ Laravel Dashboard       ->  Browser UI: dashboard, CityWatch map, CCTV, stations
 Shared services:
 PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 ```
+
+## What's New in Version 10.4
+
+- **Live MQTT messages:** Settings › MQTT has a **Live MQTT Messages** panel. Enter a topic (it starts with the seismic service's topic; `#` shows everything), choose 5, 10 or 30 seconds and click **Listen** to see the messages arriving on the broker: topic, time, retained flag and content (JSON is formatted). It uses the saved broker settings, only listens (never publishes), and says clearly when the broker can't be reached or rejects the login. The MQTT password field is now masked, with a show/hide button. The MQTT and database editors now also find `scripts/.env` wherever EMS is installed, instead of assuming `/home/system/EMS`.
 
 ## What's New in Version 10.3
 
@@ -117,6 +121,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.4.0  | Live MQTT Messages panel on Settings › MQTT (listen to a topic and see the messages); MQTT password masked; env editors find `scripts/.env` wherever EMS is installed. |
 | 10.3.3  | Saving a new Telegram bot token, Sentinel key or camera password no longer fails with "The MAC is invalid" after an `APP_KEY` change. |
 | 10.3.2  | Telegram digests/alerts: clear message when the saved token can't be decrypted after an `APP_KEY` change (`APP_PREVIOUS_KEYS` supported); no longer stop when the cache isn't writable; missed digests catch up within 2 hours; Telegram failures shown on the Logs page. |
 | 10.3.1  | Settings › Sentinel page: Sentinel IP address, port and key, on/off switch, Test Connection button, last report status. |

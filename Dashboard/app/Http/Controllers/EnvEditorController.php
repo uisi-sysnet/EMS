@@ -9,8 +9,9 @@ class EnvEditorController extends Controller
 {
     private function getEnvPath()
     {
-        /* return 'C:/Users/JUREEN/Desktop/Emergency-Warning-System-main/.env'; */
-        return '/home/system/EMS/scripts/.env';
+        // Same scripts/.env the rest of the dashboard uses (EMS_SCRIPTS_ENV,
+        // see config/database.php), so the editors work wherever EMS is installed.
+        return config('database.ems_env_path') ?: '/home/system/EMS/scripts/.env';
     }
 
     // ------------------------------------------------------------
@@ -352,5 +353,56 @@ class EnvEditorController extends Controller
 
         File::put($path, $newFull);
         return response()->json(['success' => true]);
+    }
+
+    // ------------------------------------------------------------
+    // LIVE MQTT MESSAGES (Settings > MQTT)
+    // ------------------------------------------------------------
+
+    /**
+     * Listens to the broker for a few seconds (scripts/mqtt_peek.py, the
+     * same paho-mqtt and scripts/.env settings as seismic_mqtt.py) and
+     * returns what arrived, so an admin can see whether data is reaching
+     * MQTT. Read-only: it subscribes and never publishes. The broker
+     * password stays on the server.
+     */
+    public function peekMqtt(Request $request)
+    {
+        $validated = $request->validate([
+            // MQTT topic filter: printable, no NUL/control characters.
+            'topic'   => ['required', 'string', 'max:200', 'regex:/^[^\x00-\x1F\x7F]+$/'],
+            'seconds' => ['required', 'integer', 'between:1,30'],
+        ]);
+
+        $script = dirname($this->getEnvPath()) . DIRECTORY_SEPARATOR . 'mqtt_peek.py';
+        if (!File::exists($script)) {
+            return response()->json(['ok' => false, 'error' => "mqtt_peek.py not found next to scripts/.env ({$script})."], 500);
+        }
+
+        // The same interpreter the EMS services run with (template/*_service:
+        // /usr/bin/python3, packages installed system-wide by deploy.sh), so
+        // paho-mqtt and python-dotenv are there. PYTHON_BIN overrides it.
+        $python = env('PYTHON_BIN')
+            ?: (PHP_OS_FAMILY === 'Windows' ? 'python' : (is_executable('/usr/bin/python3') ? '/usr/bin/python3' : 'python3'));
+        $process = new \Symfony\Component\Process\Process(
+            [$python, $script, '--topic', $validated['topic'], '--seconds', (string) $validated['seconds'], '--max', '200'],
+            dirname($script)
+        );
+        $process->setTimeout($validated['seconds'] + 20);
+
+        try {
+            $process->run();
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'error' => 'Could not run the MQTT listener: ' . $e->getMessage()], 500);
+        }
+
+        $result = json_decode(trim($process->getOutput()), true);
+        if (!is_array($result)) {
+            $stderr = trim($process->getErrorOutput());
+            return response()->json(['ok' => false, 'error' => 'The MQTT listener failed'
+                . ($stderr !== '' ? ': ' . mb_substr($stderr, -600) : ' (no output).')], 500);
+        }
+
+        return response()->json($result);
     }
 }

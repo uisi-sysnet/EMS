@@ -26,6 +26,7 @@ return [
         'recent-logs.mark-seen',
         'logs.mark-all-seen',
         'cameras.ptz',
+        'env.mqtt.peek',   // read-only: listening to MQTT messages
     ],
 
     // Input fields whose values are safe and useful to keep (e.g. which

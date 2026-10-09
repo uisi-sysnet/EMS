@@ -82,6 +82,7 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::get('/env/mqtt-editor', [EnvEditorController::class, 'mqttIndex'])->name('mqtt.editor');
     Route::get('/env/mqtt/load', [EnvEditorController::class, 'loadMqtt'])->name('env.mqtt.load');
     Route::post('/env/mqtt/save', [EnvEditorController::class, 'saveMqtt'])->name('env.mqtt.save');
+    Route::post('/env/mqtt/peek', [EnvEditorController::class, 'peekMqtt'])->name('env.mqtt.peek');
 
     Route::get('/api-editor', [ApiKeyController::class, 'index'])->name('api.editor');
     Route::post('/api-keys/save', [ApiKeyController::class, 'save'])->name('api.keys.save');
