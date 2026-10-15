@@ -146,6 +146,12 @@
                                 class="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition">
                             Mark All as Archived
                         </button>
+                        @if(session('role') === 'superAdmin')
+                            <button type="button" id="deleteAllLogsBtn"
+                                    class="text-xs px-3 py-1.5 bg-munti-red-700/20 hover:bg-munti-red-700/40 text-munti-red-400 border border-munti-red-600/30 rounded-lg transition">
+                                Delete All Logs
+                            </button>
+                        @endif
                     @else
                         <span class="text-xs sm:text-sm text-text-400">Who changed what in the dashboard</span>
                         @if(($failedToday ?? 0) > 0)
@@ -437,6 +443,37 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('deleteAllLogsBtn')?.addEventListener('click', async function() {
+            const confirmResult = await Swal.fire({
+                title: 'Delete all logs?',
+                html: 'This permanently deletes every entry on the Logs tab. It cannot be undone.<br><br>The Audit Log is kept. Type <b>DELETE</b> to confirm.',
+                icon: 'warning',
+                input: 'text',
+                inputPlaceholder: 'DELETE',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Delete all logs',
+                background: '#1f2937',
+                color: '#f3f4f6',
+                preConfirm: value => value === 'DELETE' || Swal.showValidationMessage('Type DELETE to confirm'),
+            });
+            if (!confirmResult.isConfirmed) return;
+
+            try {
+                const response = await fetch('{{ route("logs.delete-all") }}', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
+                });
+                const data = await response.json().catch(() => ({ success: false, message: `Server error (HTTP ${response.status})` }));
+                await Swal.fire({ icon: data.success ? 'success' : 'error', title: data.success ? 'Logs deleted' : 'Error', text: data.message,
+                                  background: '#1f2937', color: '#f3f4f6', confirmButtonColor: '#3b82f6' });
+                if (data.success) location.href = '{{ route("logs.index") }}';
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Could not delete the logs.', background: '#1f2937', color: '#f3f4f6' });
+            }
+        });
+
         document.getElementById('markAllSeenBtn')?.addEventListener('click', async function() {
             const confirmResult = await Swal.fire({
                 title: 'Mark All as Seen?',

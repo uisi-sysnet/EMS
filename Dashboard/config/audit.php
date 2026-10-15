@@ -86,6 +86,7 @@ return [
         'allowed-networks.destroy'  => ['security', 'Removed allowed network {cidr}'],
         'settings.telegram.update'  => ['settings', 'Changed Telegram alert settings'],
         'settings.telegram.test'    => ['settings', 'Sent a Telegram test message'],
+        'logs.delete-all'           => ['maintenance', 'Deleted all service logs'],
         'settings.sentinel.update'  => ['settings', 'Changed Uplink Sentinel link settings'],
         'settings.sentinel.test'    => ['settings', 'Tested the Uplink Sentinel connection'],
         'settings.calibration.store'   => ['settings', 'Added calibration API {name}'],

@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 import paho.mqtt.client as mqtt
+from log_throttle import throttled
 import psycopg
 from psycopg import sql
 from dotenv import load_dotenv
@@ -326,7 +327,8 @@ def on_connect(client, userdata, flags, rc, properties=None):
 def on_message(client, userdata, msg):
     """Processes network telemetry queues, parses topics dynamically, and saves them to the hypertable."""
     try:
-        logging.info(f"Incoming message caught on topic: {msg.topic}")
+        # DEBUG: one line per MQTT message filled service_logs.
+        logging.debug(f"Incoming message caught on topic: {msg.topic}")
 
         topic_parts = msg.topic.split('/')
         extracted_station_id = topic_parts[2] if len(topic_parts) >= 4 else "UNKNOWN"
@@ -338,11 +340,14 @@ def on_message(client, userdata, msg):
             data['station_id'] = extracted_station_id
 
         if not data.get('timestamp'):
-            logging.error("Payload rejected: 'timestamp' key is missing from JSON.")
+            # Once per station per 30 min: a misconfigured device repeats this
+            # on every message, which would flood the log and the bell.
+            if throttled(f"no-timestamp:{data['station_id']}"):
+                logging.error(f"Payload rejected: 'timestamp' key is missing from JSON (station {data['station_id']}, topic {msg.topic}). Repeats are not logged for 30 minutes.", extra=DEVICE)
             return
 
         insert_station_metrics(data, source="mqtt")
-        logging.info(f"SUCCESS: Ingested telemetry to TimescaleDB for: {data['station_id']}", extra=DEVICE)
+        logging.debug(f"SUCCESS: Ingested telemetry to TimescaleDB for: {data['station_id']}", extra=DEVICE)
 
     except json.JSONDecodeError:
         logging.error("Payload failed parsing: Received message is not valid JSON.")
@@ -541,7 +546,7 @@ def _handle_incoming_sms(modem, index, preloaded=None):
             data = parse_seismic_sms(body)
             insert_station_metrics(data, source="sms")
             _store_sms_record(sender, modem_ts, body, parsed_ok=True, parse_error=None, station_id=data["station_id"])
-            logging.info(f"SUCCESS: Ingested SMS telemetry for: {data['station_id']}", extra=DEVICE)
+            logging.debug(f"SUCCESS: Ingested SMS telemetry for: {data['station_id']}", extra=DEVICE)
         except Exception as e:
             logging.error(f"Failed to parse/ingest SMS from {sender}: {e}", extra=DEVICE)
             _store_sms_record(sender, modem_ts, body, parsed_ok=False, parse_error=str(e), station_id=None)

@@ -20,6 +20,7 @@ from pathlib import Path
 
 import psycopg2
 import psycopg2.errors  # UndefinedTable in the water level endpoints
+from log_throttle import throttled
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
 
@@ -1234,7 +1235,8 @@ async def monitor_and_log_api_requests(request: Request, call_next):
         rate_limit_key = hashed_token if hashed_token else f"ip:{client_ip}"
         if _is_rate_limited(rate_limit_key):
             duration_ms = round((time.time() - start_time) * 1000, 2)
-            logger.warning(
+            if throttled(f"rate-limited:{rate_limit_key}", minutes=5):  # every blocked request otherwise
+              logger.warning(
                 f"[API] RATE LIMITED: {client_ip} ({api_key_owner}, token: {masked_token}) -> {method} {path}"
             )
             threading.Thread(
@@ -1366,7 +1368,8 @@ def _apply_temporary_fallback(conn, row):
     """, (FALLBACK_SOURCE_MN,))
     source = cur.fetchone()
     if not source or not source["data_time"]:
-        logger.warning(f"[fallback] {FALLBACK_TARGET_MN}: source {FALLBACK_SOURCE_MN} has no sensor_data rows at all — skipping.")
+        if throttled("fallback-no-source"):  # every request otherwise
+            logger.warning(f"[fallback] {FALLBACK_TARGET_MN}: source {FALLBACK_SOURCE_MN} has no sensor_data rows at all — skipping.")
         return False
 
     # data_time is naive Manila local time (see map_aq_station_row_to_json) —
@@ -1375,7 +1378,8 @@ def _apply_temporary_fallback(conn, row):
     source_time_utc = source["data_time"].replace(tzinfo=manila_tz).astimezone(timezone.utc)
     age_sec = (datetime.now(timezone.utc) - source_time_utc).total_seconds()
     if age_sec > FALLBACK_MAX_SOURCE_AGE_SEC:
-        logger.warning(
+        if throttled("fallback-stale"):  # every request otherwise
+          logger.warning(
             f"[fallback] {FALLBACK_TARGET_MN}: source {FALLBACK_SOURCE_MN}'s latest reading is "
             f"{age_sec:.0f}s old (max {FALLBACK_MAX_SOURCE_AGE_SEC}s) — skipping rather than "
             f"serving a stale value under a fresh timestamp."

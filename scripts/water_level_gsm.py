@@ -288,7 +288,8 @@ class Store:
             if msg["distance_m"] is None:
                 logger.warning(f"Reading from {station['station_mn']}: the sensor got no echo (check the sensor and its power), battery {msg['battery_v']} V, seq {msg['seq']}", extra=DEVICE)
             else:
-                logger.info(f"Reading from {station['station_mn']}: distance {msg['distance_m']} m, battery {msg['battery_v']} V, seq {msg['seq']}", extra=DEVICE)
+                # DEBUG: every SMS is already kept in gsm_messages.
+                logger.debug(f"Reading from {station['station_mn']}: distance {msg['distance_m']} m, battery {msg['battery_v']} V, seq {msg['seq']}", extra=DEVICE)
         else:
             logger.info(f"{station['station_mn']} confirmed interval {msg['interval']} min", extra=DEVICE)
 
@@ -345,6 +346,7 @@ class Gateway:
         self.port_factory = port_factory or (lambda: serial.Serial(SERIAL_PORT, BAUDRATE, timeout=1))
         self.port = None
         self.pending_sends = {}          # ref -> station id
+        self.last_status = None          # (registered, weak signal) last logged
         self.next_ref = 1
         self.last_heard = 0.0
         self.last_ping = 0.0
@@ -409,13 +411,20 @@ class Gateway:
         elif line.startswith("+READY"):
             logger.info(f"GSM gateway ready ({line}).", extra=DEVICE)
             self.pending_sends.clear()
+            self.last_status = None
 
         elif line.startswith("+STATUS|"):
+            # Sent every minute: log only when registration or weak/OK signal
+            # changes, not 1440 identical lines a day.
             parts = line.split("|")
             csq = parts[1] if len(parts) > 1 else "?"
             reg = parts[2] if len(parts) > 2 else "?"
-            level = logging.INFO if reg == "1" else logging.WARNING
-            logger.log(level, f"GSM gateway status: signal CSQ {csq}/31, network {'registered' if reg == '1' else 'NOT registered'}", extra=DEVICE)
+            weak = not csq.isdigit() or int(csq) < 10 or int(csq) == 99
+            state = (reg == "1", weak)
+            if state != self.last_status:
+                self.last_status = state
+                level = logging.INFO if reg == "1" and not weak else logging.WARNING
+                logger.log(level, f"GSM gateway status: signal CSQ {csq}/31{' (weak)' if weak else ''}, network {'registered' if reg == '1' else 'NOT registered'}", extra=DEVICE)
 
         elif line.startswith("+ERR|"):
             logger.warning(f"GSM gateway: {line[5:]}", extra=DEVICE)

@@ -42,6 +42,7 @@ Route::middleware(['role:superAdmin,admin,user'])->group(function () {
 // Add this to your routes file (web.php) inside the superAdmin middleware group
 Route::middleware(['role:superAdmin'])->group(function () {
     Route::post('/change-password', [UserController::class, 'changePassword'])->name('password.change');
+    Route::post('/logs/delete-all', [LogController::class, 'deleteAll'])->name('logs.delete-all');
 });
 
 Route::middleware(['role:superAdmin,admin'])->group(function () {

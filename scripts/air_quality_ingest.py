@@ -16,6 +16,7 @@ import threading
 import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from log_throttle import throttled
 from typing import Optional
 
 import psycopg2
@@ -511,7 +512,8 @@ def insert_sensor_data(data, ip_address, station_conn=None):
             if drift_secs <= MAX_SENSOR_CLOCK_DRIFT.total_seconds():
                 data_time = candidate_time
             else:
-                logger.warning(
+                if throttled(f"clock-drift:{mn}"):  # every reading otherwise
+                  logger.warning(
                     f"Station {mn}: sensor-reported DataTime '{cp['DataTime']}' is "
                     f"{drift_secs / 3600:.1f}h off from server time — looks like the "
                     f"sensor's clock reset (dead RTC battery / power loss). Using "
@@ -520,7 +522,8 @@ def insert_sensor_data(data, ip_address, station_conn=None):
                 if AQ_TIME_SYNC_ENABLED and station_conn is not None:
                     request_sensor_time_sync(station_conn, mn)
         except ValueError:
-            logger.warning(f"Station {mn}: unparseable DataTime '{cp.get('DataTime')}' — using server time.", extra=DEVICE)
+            if throttled(f"bad-datatime:{mn}"):
+                logger.warning(f"Station {mn}: unparseable DataTime '{cp.get('DataTime')}' — using server time.", extra=DEVICE)
 
     row = {"station_mn": mn, "ip_address": ip_address, "data_time": data_time}
     got_any_value = False
@@ -627,7 +630,8 @@ def update_lead_value(mn, ip, lead, temperature):
             """, (lead, temperature, mn, mn, cutoff))
         conn.commit()
         if cur.rowcount == 0:
-            logger.warning(
+            if throttled(f"lead-orphan:{mn}"):  # every lead poll otherwise
+              logger.warning(
                 f"Station {mn} (lead IP {ip}): read a Modbus lead value but found no "
                 f"sensor_data row from the last {AQ_LEAD_MAX_ROW_AGE_SEC}s to attach it to "
                 f"— station's HJ212 telemetry may have gone quiet. Lead reading discarded."

@@ -141,6 +141,33 @@ class LogController extends Controller
         return $query;
     }
 
+    /**
+     * Deletes every entry on the Logs tab (service_logs), super admins only.
+     * The Audit Log is kept: it records who did what, including this.
+     */
+    public function deleteAll()
+    {
+        try {
+            $count = SystemLog::count();
+            \Illuminate\Support\Facades\DB::connection('logs')->statement('TRUNCATE service_logs');
+            \Illuminate\Support\Facades\Cache::forget('logs.category_counts');
+
+            SystemLog::create([
+                'created_at'  => now(),
+                'service'     => 'dashboard',
+                'level'       => 'INFO',
+                'logger_name' => 'logs',
+                'message'     => "All logs were deleted by " . (session('username') ?: 'an admin') . " ({$count} entries).",
+                'category'    => 'system',
+            ]);
+
+            return response()->json(['success' => true, 'message' => "Deleted {$count} log entries."]);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['success' => false, 'message' => 'Could not delete the logs: ' . $e->getMessage()], 500);
+        }
+    }
+
     // Mark logs as seen
     public function markAsSeen(Request $request)
     {
