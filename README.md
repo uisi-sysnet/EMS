@@ -2,7 +2,7 @@
 
 EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.6.0**
+**Current version: 10.6.1**
 
 | Branch     | Contents                                                        |
 | ---------- | --------------------------------------------------------------- |
@@ -10,7 +10,7 @@ EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-ba
 | `version10` | Version 10.x line; fixes for version 10 gateways land here first |
 | `version9` | Previous version line (9.x)                                     |
 
-Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, ...).
+Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, `v10.6.1`, ...).
 
 ## What It Runs
 
@@ -34,6 +34,7 @@ PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 
 ## What's New in Version 10.6
 
+- **10.6.1 — Connect to any serial port:** the **GSM Gateway (USB)** panel's **Scan ports** now lists every available serial port (USB adapters plus real built-in/on-board ones: `ttyS*`, Raspberry Pi `ttyAMA*`, Jetson `ttyTHS*`), each with a **Connect** button. After Connect it follows the gateway service for up to 30 seconds and shows **Gateway ready** or the error. A wrong port no longer logs an error every 10 seconds (once per 30 minutes per problem).
 - **Delete All Logs:** super admins have a **Delete All Logs** button on the Logs tab (type DELETE to confirm). It empties the service logs and leaves one entry saying who did it; the Audit Log is kept and records the action.
 - **Fewer stored logs:** routine messages no longer go to the database: two lines per seismic MQTT message, one per water level reading, and the GSM gateway's per-minute status (now logged only when registration or signal changes). Problems that repeat on every reading or request (sensor clock drift, bad payloads, stale API fallback, rate limiting) are logged once per 30 minutes per station instead of every time.
 
@@ -133,6 +134,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.6.1  | Scan lists every serial port (USB and built-in) with a Connect button and live connection status; gateway link errors logged once per 30 min. |
 | 10.6.0  | Delete All Logs button (super admins, Audit Log kept); fewer routine and repeated log entries stored. |
 | 10.5.0  | GSM gateway USB port detection on Stations › Water Level; URM06-PULSE station firmware; water level API endpoints; no-echo readings no longer stored as a false high water level. |
 | 10.4.0  | Live MQTT Messages panel on Settings › MQTT (listen to a topic and see the messages); MQTT password masked; env editors find `scripts/.env` wherever EMS is installed. |

@@ -69,6 +69,7 @@ from pathlib import Path
 import psycopg2
 import psycopg2.extras
 import serial
+from log_throttle import throttled
 from dotenv import load_dotenv
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -488,7 +489,9 @@ def main():
                 gateway.open()
             gateway.run_once()
         except (serial.SerialException, OSError, ConnectionError) as e:
-            logger.error(f"GSM gateway link problem: {e}. Reconnecting in 10s.", extra=DEVICE)
+            # Retried every 10s: log each distinct problem once per 30 min, not 8640 times a day.
+            if throttled(f"gsm-link:{e}"):
+                logger.error(f"GSM gateway link problem: {e}. Reconnecting every 10s; repeats are not logged for 30 minutes.", extra=DEVICE)
             gateway.close()
             time.sleep(10)
         except psycopg2.Error as e:

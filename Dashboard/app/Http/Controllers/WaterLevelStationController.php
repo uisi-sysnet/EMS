@@ -236,6 +236,28 @@ class WaterLevelStationController extends Controller
         }
         unset($port);
 
+        // Link state from the service's own messages, so the panel can show
+        // whether Connect worked: "Opened…" -> "GSM gateway ready", or a link problem.
+        $link = null;
+        try {
+            $last = \App\Models\SystemLog::where('service', 'water_level_gsm')
+                ->where(fn ($q) => $q->where('message', 'like', 'Opened GSM gateway on%')
+                    ->orWhere('message', 'like', 'GSM gateway ready%')
+                    ->orWhere('message', 'like', 'GSM gateway link problem%'))
+                ->orderByDesc('created_at')->first(['created_at', 'message']);
+            if ($last) {
+                $link = [
+                    'state'   => str_starts_with($last->message, 'GSM gateway ready') ? 'ready'
+                        : (str_starts_with($last->message, 'Opened') ? 'opening' : 'error'),
+                    'at'      => $last->created_at?->timestamp,
+                    'time'    => $last->created_at?->timezone('Asia/Manila')->format('M j, H:i:s'),
+                    'message' => $last->message,
+                ];
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         $logs = [];
         try {
             $logs = \App\Models\SystemLog::where('service', 'water_level_gsm')
@@ -258,6 +280,8 @@ class WaterLevelStationController extends Controller
             'service'          => $this->unitState(self::GSM_SERVICE),
             'ports'            => $ports,
             'warnings'         => $this->serialWarnings(),
+            'link'             => $link,
+            'server_time'      => now()->timestamp,
             'logs'             => $logs,
         ]);
     }
@@ -273,6 +297,8 @@ class WaterLevelStationController extends Controller
             'port' => ['required', 'string', Rule::in($paths)],
         ], ['port.in' => 'That port is no longer connected. Refresh the list and pick again.']);
 
+        // Taken before the restart: the service may log "Opened…" while it restarts.
+        $since = now()->timestamp;
         $error = $this->writeScriptsEnv([
             'WATER_GSM_SERIAL_PORT' => $validated['port'],
             'WATER_GSM_ENABLED'     => 'true',
@@ -288,6 +314,7 @@ class WaterLevelStationController extends Controller
         return response()->json([
             'ok'      => $restart->isSuccessful(),
             'port'    => $validated['port'],
+            'since'   => $since,
             'message' => $restart->isSuccessful()
                 ? "Saved {$validated['port']} and restarted the GSM gateway service."
                 : "Saved {$validated['port']}, but the service didn't restart: " . trim($restart->getErrorOutput() ?: $restart->getOutput())
@@ -311,7 +338,19 @@ class WaterLevelStationController extends Controller
                 $byDevice[$device] = $link;
             }
         }
-        foreach (array_merge(glob("{$root}/dev/ttyUSB*") ?: [], glob("{$root}/dev/ttyACM*") ?: []) as $device) {
+        // USB adapters, plus built-in / on-board UARTs (ttyS*, Raspberry Pi
+        // ttyAMA*, Jetson ttyTHS*). Linux always creates ttyS0-31; only the
+        // ones with real hardware have a non-zero UART type in sysfs.
+        $candidates = [];
+        foreach (['ttyUSB*', 'ttyACM*', 'ttyAMA*', 'ttyTHS*', 'ttyS*'] as $pattern) {
+            $candidates = array_merge($candidates, glob("{$root}/dev/{$pattern}") ?: []);
+        }
+        foreach ($candidates as $device) {
+            $tty = basename($device);
+            $type = "{$root}/sys/class/tty/{$tty}/type";
+            if (str_starts_with($tty, 'ttyS') && (!is_file($type) || trim((string) @file_get_contents($type)) === '0')) {
+                continue;   // placeholder with no hardware behind it
+            }
             $device = realpath($device) ?: $device;
             $byDevice[$device] ??= $device;
         }
@@ -324,7 +363,8 @@ class WaterLevelStationController extends Controller
             $ports[] = [
                 'path'           => $root === '' ? $path : substr($path, strlen($root)),
                 'device'         => $root === '' ? $device : substr($device, strlen($root)),
-                'name'           => trim(($usb['manufacturer'] ?? '') . ' ' . ($usb['product_name'] ?? '')) ?: $tty,
+                'name'           => trim(($usb['manufacturer'] ?? '') . ' ' . ($usb['product_name'] ?? ''))
+                                    ?: (preg_match('/^tty(S|AMA|THS)\d/', $tty) ? "Built-in serial port ({$tty})" : $tty),
                 'vendor_product' => $id,
                 'chip'           => $id ? (self::KNOWN_USB_SERIAL[$id] ?? null) : null,
                 'likely_gateway' => $id !== null && isset(self::KNOWN_USB_SERIAL[$id]),
