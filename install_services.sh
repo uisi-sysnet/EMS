@@ -87,6 +87,11 @@ systemctl enable ems-air-quality.service ems-seismic.service ems-api.service ems
 log "Starting all three services now"
 systemctl start ems.target
 
+# Dashboard web terminal bridge. Not fatal either.
+if [[ -f "${EMS_DIR}/install_terminal.sh" ]]; then
+    bash "${EMS_DIR}/install_terminal.sh" || warn "Web terminal setup failed — run: sudo ./install_terminal.sh"
+fi
+
 # CCTV stream server (camera live view). Not fatal: the rest of the stack
 # runs without it.
 if [[ -f "${EMS_DIR}/install_mediamtx.sh" ]]; then

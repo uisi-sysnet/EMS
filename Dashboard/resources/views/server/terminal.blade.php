@@ -96,18 +96,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 method: 'POST',
                 headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
             });
+            if (!res.ok) throw new Error(res.status === 500 ? 'TERMINAL_SHARED_SECRET is not configured. Run: sudo ./install_terminal.sh' : `HTTP ${res.status}`);
             ({ token } = await res.json());
         } catch (e) {
             setTermStatus('Auth failed', 'err');
+            term.writeln(`\r\n\x1b[31mCould not get a terminal token: ${e.message}\x1b[0m`);
             return;
         }
 
-        const wsUrl = @json(config('services.terminal_ws_url'));
-        if (!wsUrl) {
-            setTermStatus('Terminal not configured', 'err');
-            term.writeln('\r\n\x1b[31mEMS_TERMINAL_WS_URL is not set.\x1b[0m');
-            return;
-        }
+        // Same host the dashboard is served from (nginx proxies /pty to the bridge).
+        const wsUrl = @json(config('services.terminal_ws_url'))
+            || `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/pty`;
 
         ws = new WebSocket(wsUrl);
 
@@ -129,7 +128,10 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         ws.onclose = () => setTermStatus('Disconnected', 'err');
-        ws.onerror = () => setTermStatus('Connection error', 'err');
+        ws.onerror = () => {
+            setTermStatus('Connection error', 'err');
+            term.writeln(`\r\n\x1b[31mCould not reach the terminal service at ${wsUrl}. On the server: sudo systemctl status ems-terminal (install it with sudo ./install_terminal.sh).\x1b[0m`);
+        };
 
         term.onData((data) => {
             if (ws && ws.readyState === WebSocket.OPEN) {

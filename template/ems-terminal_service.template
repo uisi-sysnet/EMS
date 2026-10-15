@@ -1,0 +1,22 @@
+[Unit]
+Description=EMS Web Terminal bridge (dashboard Maintenance > Terminal, 127.0.0.1:3001)
+Documentation=file://__EMS_DIR__/scripts/terminal_server.py
+After=network-online.target
+Wants=network-online.target
+PartOf=ems.target
+
+[Service]
+Type=simple
+# The dashboard's terminal is a login shell as this user.
+User=__EMS_USER__
+WorkingDirectory=__EMS_DIR__/scripts
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 __EMS_DIR__/scripts/terminal_server.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ems-terminal
+
+[Install]
+WantedBy=multi-user.target ems.target

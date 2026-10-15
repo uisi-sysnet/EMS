@@ -20,3 +20,6 @@ pyserial>=3.5   # SIM800L AT-command SMS ingestion channel
 # api_server.py
 fastapi>=0.110.0
 uvicorn>=0.29.0
+
+# terminal_server.py (dashboard web terminal)
+websockets>=10.4

@@ -22,7 +22,12 @@ class TerminalAuthController extends Controller
      */
     public function issue(Request $request): JsonResponse
     {
-        $secret = config('services.terminal_secret'); // see config/services.php + .env
+        // The route sits in the admin group, but a token opens a server shell.
+        abort_unless(session('role') === 'superAdmin', 403);
+
+        // TERMINAL_SHARED_SECRET from scripts/.env (shared with the bridge,
+        // scripts/terminal_server.py) or Dashboard/.env; see AppServiceProvider.
+        $secret = config('services.terminal_secret');
 
         if (empty($secret)) {
             abort(500, 'TERMINAL_SHARED_SECRET is not configured.');
