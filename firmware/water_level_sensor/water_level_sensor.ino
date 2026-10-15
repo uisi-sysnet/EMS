@@ -1,5 +1,5 @@
 /*
- * EMS Water Level Sensor — Arduino Nano + SIM800L + JSN-SR04T
+ * EMS Water Level Sensor — Arduino Nano + SIM800L + DFRobot URM06-PULSE
  * ============================================================
  * Measures the distance from the sensor down to the water surface and texts
  * a reading to the EMS GSM gateway every <interval> minutes. The interval is
@@ -19,8 +19,11 @@
  *   SIM800L          same as the gateway: TXD -> D2, RXD <- D3 via 1k/2k
  *                    divider, RST <- D4, VCC from a 3.7-4.2 V / 2 A supply
  *                    (Li-ion cell), 470-1000 uF capacitor at the module.
- *   JSN-SR04T        TRIG <- D5, ECHO -> D6, VCC 5 V, GND.
- *                    Mount it pointing straight down at the water.
+ *   URM06-PULSE      Trig <- D5, Echo -> D6, VCC 6-12 V (5 V works but is
+ *   (DFRobot SEN0151) not recommended), GND. Range 20 cm - 10 m. Mount it
+ *                    pointing straight down at the water, at least 20 cm
+ *                    above the highest expected level. The Nano can run from
+ *                    the same 7-12 V supply on its VIN pin.
  *   Battery voltage  battery + -- 100k --+-- 100k -- GND, middle -> A0
  *                    (set BATTERY_DIVIDER to match your resistors).
  *   DS18B20 (opt.)   DATA -> D7 with a 4.7k pull-up to 5 V. Set USE_DS18B20 1
@@ -59,7 +62,8 @@
 #define MODEM_BAUD          9600UL
 #define FIRST_SEND_MS       60000UL     // first reading 1 min after power-up
 #define SEND_RETRY_MS       120000UL    // retry a failed send after 2 min
-#define MAX_DISTANCE_CM     600         // JSN-SR04T range limit
+#define MIN_DISTANCE_CM     20          // URM06-PULSE range: 20 cm - 10 m
+#define MAX_DISTANCE_CM     1000
 
 #if USE_DS18B20
   #include <OneWire.h>
@@ -243,15 +247,16 @@ long readDistanceCm() {
   uint8_t good = 0;
   for (uint8_t i = 0; i < 5; i++) {
     wdt_reset();
+    // URM06-PULSE: a LOW pulse over 50 us on Trig starts one measurement
+    // (Trig idles HIGH; held LOW it would re-measure every 100 ms). Echo is a
+    // HIGH pulse of 1 us per mm; 15000 us means the sensor failed to measure.
     digitalWrite(PIN_TRIG, LOW);
-    delayMicroseconds(5);
+    delayMicroseconds(60);
     digitalWrite(PIN_TRIG, HIGH);
-    delayMicroseconds(20);           // JSN-SR04T needs a longer trigger than HC-SR04
-    digitalWrite(PIN_TRIG, LOW);
-    unsigned long us = pulseIn(PIN_ECHO, HIGH, 40000UL);
-    long cm = (long)(us / 58UL);
-    if (us > 0 && cm > 0 && cm <= MAX_DISTANCE_CM) samples[good++] = cm;
-    delay(80);
+    unsigned long us = pulseIn(PIN_ECHO, HIGH, 60000UL);
+    long cm = (long)((us + 5UL) / 10UL);
+    if (us > 0 && us < 15000UL && cm >= MIN_DISTANCE_CM && cm <= MAX_DISTANCE_CM) samples[good++] = cm;
+    delay(100);
   }
   if (good == 0) return -1;
   for (uint8_t i = 1; i < good; i++) {   // insertion sort
@@ -360,8 +365,8 @@ void handleStoredSms() {
 void setup() {
   wdt_disable();
   pinMode(PIN_TRIG, OUTPUT);
+  digitalWrite(PIN_TRIG, HIGH);    // URM06-PULSE triggers on LOW; idle HIGH
   pinMode(PIN_ECHO, INPUT);
-  digitalWrite(PIN_TRIG, LOW);
   modem.begin(MODEM_BAUD);
 #if USE_DS18B20
   tempSensor.begin();

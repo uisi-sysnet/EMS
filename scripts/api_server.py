@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import psycopg2
+import psycopg2.errors  # UndefinedTable in the water level endpoints
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
 
@@ -304,11 +305,54 @@ class SeismicStationGraphResponse(BaseModel):
     station: SeismicStationGraph
 
 
+# ---- Water level ----
+class WaterLevelLocation(BaseModel):
+    name: Optional[str] = Field(None, examples=["Marikina River, Sto. Nino Bridge"])
+    latitude: Optional[float] = Field(None, examples=[14.6335])
+    longitude: Optional[float] = Field(None, examples=[121.0960])
+
+class WaterLevelStation(BaseModel):
+    station_mn: str = Field(..., examples=["WLS001"])
+    station_name: Optional[str] = Field(None, examples=["Sto. Nino Bridge"])
+    location: WaterLevelLocation
+    status: str = Field(..., examples=["online"], description="'online' if it reported within its reporting interval + 2 minutes, 'idle' until it misses a second interval, else 'offline'.")
+    report_interval_minutes: int = Field(..., examples=[15])
+    last_update: Optional[str] = Field(None, examples=["2026-10-15T09:15:32.000+08:00"])
+    water_level_m: Optional[float] = Field(None, examples=[2.35], description="Installation height minus measured distance. Null when the sensor got no echo or no installation height is set.")
+    distance_m: Optional[float] = Field(None, examples=[3.15], description="Distance from the sensor down to the water. Null when the sensor got no echo.")
+    installation_height_m: Optional[float] = Field(None, examples=[5.5])
+    battery_v: Optional[float] = Field(None, examples=[3.91])
+    temperature_c: Optional[float] = Field(None, examples=[28.1])
+
+class WaterLevelStationsLatestResponse(BaseModel):
+    timestamp: str = Field(..., examples=["2026-10-15T09:16:00.000+08:00"])
+    total_stations: int = Field(..., examples=[9])
+    stations: List[WaterLevelStation]
+
+class WaterLevelStationLatestResponse(BaseModel):
+    timestamp: str = Field(..., examples=["2026-10-15T09:16:00.000+08:00"])
+    station: WaterLevelStation
+
+class WaterLevelReading(BaseModel):
+    recorded_at: str = Field(..., examples=["2026-10-15T09:15:32.000+08:00"])
+    water_level_m: Optional[float] = Field(None, examples=[2.35])
+    distance_m: Optional[float] = Field(None, examples=[3.15])
+    battery_v: Optional[float] = Field(None, examples=[3.91])
+    temperature_c: Optional[float] = Field(None, examples=[28.1])
+
+class WaterLevelHistoryResponse(BaseModel):
+    station_mn: str = Field(..., examples=["WLS001"])
+    hours: int = Field(..., examples=[24])
+    total_readings: int = Field(..., examples=[96])
+    readings: List[WaterLevelReading]
+
+
 # ---- System ----
 class SubsystemStatus(BaseModel):
     air_quality_db_pool: str = Field(..., examples=["initialized"])
     seismic_db_pool: str = Field(..., examples=["initialized"])
     api_db_pool: str = Field(..., examples=["initialized"])
+    water_level_db_pool: Optional[str] = Field(None, examples=["initialized"])
 
 class SystemStatusResponse(BaseModel):
     status: str = Field(..., examples=["operational"])
@@ -469,6 +513,16 @@ LOG_DB = dict(
     password=os.getenv("SYSTEM_DB_PASSWORD"),
 )
 
+# Water level stations and readings (written by the dashboard and
+# water_level_gsm.py). Same server/credentials, different database.
+WATER_DB = dict(
+    host=os.getenv("SYSTEM_DB_HOST", "127.0.0.1"),
+    port=int(os.getenv("SYSTEM_DB_PORT", 5432)),
+    dbname=os.getenv("WATER_LEVEL_DB_NAME", "IOT_water_level"),
+    user=os.getenv("SYSTEM_DB_USER", "aq_user"),
+    password=os.getenv("SYSTEM_DB_PASSWORD"),
+)
+
 # Connection pool sizing — kept modest by default since air_quality_ingest.py
 # and seismic_mqtt.py may all be running on the same low-memory Raspberry Pi.
 AQ_DB_POOL_MIN = int(os.getenv("AQ_DB_POOL_MIN", 2))
@@ -532,6 +586,7 @@ _aq_pool = None
 _seismic_pool = None
 _log_pool = None
 _api_pool = None
+_water_pool = None
 _pool_lock = threading.Lock()
 
 
@@ -627,7 +682,7 @@ def _ensure_aq_tables_exist():
 
 
 def initialize_pools():
-    global _aq_pool, _seismic_pool, _log_pool, _api_pool
+    global _aq_pool, _seismic_pool, _log_pool, _api_pool, _water_pool
     _validate_config()
     with _pool_lock:
         if _aq_pool is None:
@@ -658,6 +713,15 @@ def initialize_pools():
             _ensure_database_exists(API_DB, label="ahead of API DB pool init")
             _api_pool = pool.ThreadedConnectionPool(minconn=API_DB_POOL_MIN, maxconn=API_DB_POOL_MAX, **API_DB)
             logger.info("API DB pool ready.")
+        if _water_pool is None:
+            # Optional: the water level endpoints answer 503 without it,
+            # everything else keeps working.
+            try:
+                _ensure_database_exists(WATER_DB, label="ahead of water level DB pool init")
+                _water_pool = pool.ThreadedConnectionPool(minconn=1, maxconn=5, **WATER_DB)
+                logger.info("Water level DB pool ready.")
+            except Exception as e:
+                logger.error(f"Water level DB pool not available: {e}")
 
         # api_request_logs lives in the API DB (IOT_api) — this server's own
         # housekeeping data, not sensor data, so it doesn't belong in AQ_DB.
@@ -996,6 +1060,72 @@ def release_seismic_conn(conn):
             _seismic_pool.putconn(conn)
         except Exception:
             conn.close()
+
+
+def get_water_conn():
+    if _water_pool is None:
+        raise HTTPException(status_code=503, detail="Water level database is not available.")
+    return _water_pool.getconn()
+
+
+def release_water_conn(conn):
+    if conn:
+        try:
+            _water_pool.putconn(conn)
+        except Exception:
+            conn.close()
+
+
+def _num(v, digits=3):
+    return round(float(v), digits) if v is not None else None
+
+
+def water_level_status(last_update, interval_minutes, now):
+    """Same rule as the dashboard: online within one reporting interval
+    (+2 min for SMS delivery), idle until a second interval is missed."""
+    if last_update is None:
+        return "offline"
+    minutes = (now - last_update).total_seconds() / 60
+    if minutes <= interval_minutes + 2:
+        return "online"
+    if minutes <= 2 * interval_minutes + 2:
+        return "idle"
+    return "offline"
+
+
+def map_water_station_to_json(row, now):
+    interval = max(1, int(row.get("report_interval_minutes") or 15))
+    return {
+        "station_mn": row["station_mn"],
+        "station_name": row.get("station_name"),
+        "location": {"name": row.get("location"), "latitude": _num(row.get("latitude"), 7), "longitude": _num(row.get("longitude"), 7)},
+        "status": water_level_status(row.get("recorded_at"), interval, now),
+        "report_interval_minutes": interval,
+        "last_update": format_api_datetime(row["recorded_at"]) if row.get("recorded_at") else None,
+        "water_level_m": _num(row.get("water_level")),
+        "distance_m": _num(row.get("distance")),
+        "installation_height_m": _num(row.get("installation_height"), 2),
+        "battery_v": _num(row.get("battery_voltage"), 2),
+        "temperature_c": _num(row.get("temperature"), 1),
+    }
+
+
+# Latest reading per enabled station. sensor_data.distance arrived in a later
+# dashboard migration, hence the to_jsonb() lookup instead of a column name.
+WATER_LATEST_SQL = """
+    SELECT s.station_mn, s.station_name, s.location, s.latitude, s.longitude,
+           s.installation_height, s.report_interval_minutes,
+           r.recorded_at, r.water_level, r.battery_voltage, r.temperature,
+           (to_jsonb(r) ->> 'distance')::double precision AS distance
+    FROM stations s
+    LEFT JOIN LATERAL (
+        SELECT * FROM sensor_data d
+        WHERE d.station_mn = s.station_mn
+        ORDER BY d.recorded_at DESC LIMIT 1
+    ) r ON TRUE
+    WHERE s.deleted_at IS NULL AND s.enabled {extra}
+    ORDER BY s.station_mn
+"""
 
 
 def get_log_conn():
@@ -1830,6 +1960,115 @@ def seismic_events(
 
 
 # ----------------------------------------------------------
+# Water level
+# ----------------------------------------------------------
+@app.get(
+    "/api/water-level/stations/latest",
+    tags=["Water Level - Live"],
+    summary="Latest reading for every water level station",
+    description="Returns each enabled water level station with its most recent reading (water level, distance, battery) and status.",
+    response_model=WaterLevelStationsLatestResponse,
+    responses=AUTHED_RESPONSES,
+)
+def water_level_latest_all(api_key: str = Depends(verify_api_key)):
+    conn = get_water_conn()
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(WATER_LATEST_SQL.format(extra=""))
+        now = datetime.now(timezone.utc)
+        stations_list = [map_water_station_to_json(r, now) for r in cur.fetchall()]
+        return {"timestamp": format_api_datetime(now), "total_stations": len(stations_list), "stations": stations_list}
+    except psycopg2.errors.UndefinedTable:
+        conn.rollback()
+        return {"timestamp": format_api_datetime(datetime.now(timezone.utc)), "total_stations": 0, "stations": []}
+    except Exception as e:
+        logger.error(f"Water level latest error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    finally:
+        release_water_conn(conn)
+
+
+@app.get(
+    "/api/water-level/stations/{station_mn}/latest",
+    tags=["Water Level - Live"],
+    summary="Latest reading for one water level station",
+    description="Returns the most recent reading and status for one water level station, by its station_mn.",
+    response_model=WaterLevelStationLatestResponse,
+    responses=AUTHED_LOOKUP_RESPONSES,
+)
+def water_level_latest_station(
+    station_mn: str = ApiPath(..., description="Water level station code, e.g. 'WLS001'."),
+    api_key: str = Depends(verify_api_key),
+):
+    conn = get_water_conn()
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(WATER_LATEST_SQL.format(extra="AND s.station_mn = %s"), (station_mn,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Station Identifier not found in database records.")
+        now = datetime.now(timezone.utc)
+        return {"timestamp": format_api_datetime(now), "station": map_water_station_to_json(row, now)}
+    except HTTPException:
+        raise
+    except psycopg2.errors.UndefinedTable:
+        conn.rollback()
+        raise HTTPException(status_code=404, detail="Station Identifier not found in database records.")
+    except Exception as e:
+        logger.error(f"Water level single station error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    finally:
+        release_water_conn(conn)
+
+
+@app.get(
+    "/api/water-level/stations/{station_mn}/history",
+    tags=["Water Level - History"],
+    summary="Readings from one water level station",
+    description="Returns the station's readings from the last `hours` hours (default 24, up to 720), oldest first.",
+    response_model=WaterLevelHistoryResponse,
+    responses=AUTHED_LOOKUP_RESPONSES,
+)
+def water_level_history(
+    station_mn: str = ApiPath(..., description="Water level station code, e.g. 'WLS001'."),
+    hours: int = Query(24, ge=1, le=720, description="How many hours back to return."),
+    api_key: str = Depends(verify_api_key),
+):
+    conn = get_water_conn()
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT 1 FROM stations WHERE station_mn = %s AND deleted_at IS NULL", (station_mn,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Station Identifier not found in database records.")
+        cur.execute("""
+            SELECT d.recorded_at, d.water_level, d.battery_voltage, d.temperature,
+                   (to_jsonb(d) ->> 'distance')::double precision AS distance
+            FROM sensor_data d
+            WHERE d.station_mn = %s AND d.recorded_at > NOW() - make_interval(hours => %s)
+            ORDER BY d.recorded_at
+            LIMIT 5000
+        """, (station_mn, hours))
+        readings = [{
+            "recorded_at": format_api_datetime(r["recorded_at"]),
+            "water_level_m": _num(r["water_level"]),
+            "distance_m": _num(r["distance"]),
+            "battery_v": _num(r["battery_voltage"], 2),
+            "temperature_c": _num(r["temperature"], 1),
+        } for r in cur.fetchall()]
+        return {"station_mn": station_mn, "hours": hours, "total_readings": len(readings), "readings": readings}
+    except HTTPException:
+        raise
+    except psycopg2.errors.UndefinedTable:
+        conn.rollback()
+        raise HTTPException(status_code=404, detail="Station Identifier not found in database records.")
+    except Exception as e:
+        logger.error(f"Water level history error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    finally:
+        release_water_conn(conn)
+
+
+# ----------------------------------------------------------
 # SYSTEM LOGS
 # ----------------------------------------------------------
 @app.get(
@@ -1901,6 +2140,7 @@ def system_health_check():
             "air_quality_db_pool": "initialized" if _aq_pool else "not initialized",
             "seismic_db_pool": "initialized" if _seismic_pool else "not initialized",
             "api_db_pool": "initialized" if _api_pool else "not initialized",
+            "water_level_db_pool": "initialized" if _water_pool else "not initialized",
         },
     }
 

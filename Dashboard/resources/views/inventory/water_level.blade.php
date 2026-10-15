@@ -879,9 +879,100 @@
                     </div>
                 </div>
             </div>
+
+            <!-- GSM gateway: the master Nano + SIM800L on a USB serial port -->
+            <div class="mt-6 bg-surface-800 rounded-xl border border-border-700 overflow-hidden shadow-sm">
+                <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider">GSM Gateway (USB)</h3>
+                    <button type="button" id="gw-refresh"
+                            class="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-text-200 bg-surface-700/40 border border-border-600/30 rounded-md hover:bg-surface-700/60 transition self-start sm:self-auto">
+                        Detect ports
+                    </button>
+                </div>
+                <div class="p-5 space-y-4 text-sm">
+                    <p class="text-text-400">Stations text their readings to the master Arduino Nano + SIM800L, which passes them to this server over USB. Plug the master in, click <span class="text-text-100">Detect ports</span>, then <span class="text-text-100">Use this port</span>.</p>
+                    <div id="gw-status" class="text-text-400">Loading…</div>
+                    <div id="gw-warnings" class="space-y-2"></div>
+                    <div id="gw-ports" class="space-y-2"></div>
+                    <details id="gw-logs-wrap" class="hidden">
+                        <summary class="cursor-pointer text-xs text-text-400 hover:text-text-100">Latest messages from the gateway service</summary>
+                        <ul id="gw-logs" class="mt-2 space-y-1 font-mono text-xs text-text-300"></ul>
+                    </details>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+(() => {
+    const el = id => document.getElementById(id);
+    const esc = s => { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; };
+    const pill = (text, cls) => `<span class="px-2 py-0.5 rounded-full text-[11px] font-medium border ${cls}">${esc(text)}</span>`;
+    const good = 'bg-munti-green-700/20 text-munti-green-400 border-munti-green-600/30';
+    const bad = 'bg-munti-red-700/20 text-munti-red-400 border-munti-red-600/30';
+    const muted = 'bg-surface-700 text-text-400 border-border-600';
+
+    async function load() {
+        el('gw-status').textContent = 'Looking for USB serial ports…';
+        try {
+            const res = await fetch('{{ route('inventory.water-level-gateway') }}', { headers: { Accept: 'application/json' } });
+            const d = await res.json();
+            const svc = d.service === 'active' ? pill('service running', good) : pill('service ' + d.service, d.service === 'unknown' ? muted : bad);
+            el('gw-status').innerHTML = `
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-text-400">Configured port:</span>
+                    <span class="font-mono text-text-100 break-all">${esc(d.configured_port)}</span>
+                    ${d.configured_found ? pill('connected', good) : pill('not found', bad)}
+                    ${d.enabled ? pill('gateway on', good) : pill('gateway off', muted)}
+                    ${svc}
+                    <span class="text-xs text-text-500">${esc(d.baudrate)} baud</span>
+                </div>`;
+            el('gw-warnings').innerHTML = d.warnings.map(w =>
+                `<div class="rounded-lg border border-munti-yellow-500/30 bg-munti-yellow-600/10 text-munti-yellow-400 px-3 py-2 text-xs">${esc(w)}</div>`).join('');
+            el('gw-ports').innerHTML = d.ports.length ? d.ports.map(p => `
+                <div class="rounded-lg border ${p.selected ? 'border-munti-green-600/40' : 'border-border-700'} bg-surface-900 px-3 py-2 flex flex-col sm:flex-row sm:items-center gap-2">
+                    <div class="min-w-0 flex-1">
+                        <div class="font-mono text-xs text-text-100 break-all">${esc(p.path)}</div>
+                        <div class="text-xs text-text-500">${esc(p.name)}${p.chip ? ' · ' + esc(p.chip) : ''}${p.vendor_product ? ' · USB ' + esc(p.vendor_product) : ''} · ${esc(p.device)}</div>
+                    </div>
+                    ${p.selected ? pill('in use', good)
+                        : `<button type="button" data-port="${esc(p.path)}" class="gw-use px-3 py-1.5 text-xs font-semibold rounded-lg bg-radar-600 hover:bg-radar-500 text-text-100 border border-radar-500/40 transition disabled:opacity-50">Use this port</button>`}
+                </div>`).join('')
+                : `<div class="text-munti-yellow-400 text-xs">No USB serial ports found. Check the USB cable (some are charge-only), plug the master Nano in, then click Detect ports. On a terminal, <span class="font-mono">ls /dev/serial/by-id/</span> lists them too.</div>`;
+            el('gw-logs').innerHTML = d.logs.map(l =>
+                `<li><span class="text-text-500">${esc(l.time)}</span> <span class="${l.level === 'INFO' ? 'text-text-400' : 'text-munti-yellow-400'}">${esc(l.level)}</span> ${esc(l.message)}</li>`).join('');
+            el('gw-logs-wrap').classList.toggle('hidden', d.logs.length === 0);
+        } catch (e) {
+            el('gw-status').innerHTML = `<span class="text-munti-red-400">Could not check the serial ports.</span>`;
+        }
+    }
+
+    el('gw-ports').addEventListener('click', async e => {
+        const btn = e.target.closest('.gw-use');
+        if (!btn) return;
+        if (!confirm(`Use ${btn.dataset.port} for the GSM gateway? This turns the gateway on and restarts its service.`)) return;
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        try {
+            const res = await fetch('{{ route('inventory.water-level-gateway.save') }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json',
+                           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                body: JSON.stringify({ port: btn.dataset.port }),
+            });
+            const d = await res.json();
+            alert(d.message || d.error || Object.values(d.errors || {}).flat().join(' ') || 'Could not save.');
+        } catch (err) {
+            alert('Could not save the port.');
+        }
+        load();
+    });
+
+    el('gw-refresh').addEventListener('click', load);
+    load();
+})();
+</script>
 <datalist id="interval_presets">
     <option value="5"></option>
     <option value="10"></option>

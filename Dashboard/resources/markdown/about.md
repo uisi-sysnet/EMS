@@ -2,7 +2,7 @@
 
 EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.4.0**
+**Current version: 10.5.0**
 
 | Branch     | Contents                                                        |
 | ---------- | --------------------------------------------------------------- |
@@ -10,7 +10,7 @@ EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-ba
 | `version10` | Version 10.x line; fixes for version 10 gateways land here first |
 | `version9` | Previous version line (9.x)                                     |
 
-Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, ...).
+Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, ...).
 
 ## What It Runs
 
@@ -31,6 +31,13 @@ Laravel Dashboard       ->  Browser UI: dashboard, CityWatch map, CCTV, stations
 Shared services:
 PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 ```
+
+## What's New in Version 10.5
+
+- **GSM gateway port detection:** **Stations › Water Level** has a **GSM Gateway (USB)** panel. Plug the master Arduino Nano + SIM800L into the server, click **Detect ports** and **Use this port**: it lists the USB serial ports (marking CH340/FTDI Nanos as the likely gateway), saves the stable `/dev/serial/by-id/...` name, turns the gateway on and restarts its service. It also shows the service state and its latest messages, and warns about **brltty** and **ModemManager**, which interfere with USB serial gateways on Ubuntu.
+- **URM06-PULSE sensor:** the station firmware (`firmware/water_level_sensor`) now drives the DFRobot URM06-PULSE (20 cm – 10 m, 6–12 V) instead of the JSN-SR04T. See [`firmware/README.md`](firmware/README.md).
+- **Water level in the API:** `GET /api/water-level/stations/latest`, `/api/water-level/stations/{station_mn}/latest` and `/api/water-level/stations/{station_mn}/history` (see [REST API](#rest-api)).
+- **Fix:** a station reading with no echo (distance 0) was stored as a water level equal to the installation height, which looked like a flood. It is now stored as "no reading" and logged as a Device warning.
 
 ## What's New in Version 10.4
 
@@ -121,6 +128,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.5.0  | GSM gateway USB port detection on Stations › Water Level; URM06-PULSE station firmware; water level API endpoints; no-echo readings no longer stored as a false high water level. |
 | 10.4.0  | Live MQTT Messages panel on Settings › MQTT (listen to a topic and see the messages); MQTT password masked; env editors find `scripts/.env` wherever EMS is installed. |
 | 10.3.3  | Saving a new Telegram bot token, Sentinel key or camera password no longer fails with "The MAC is invalid" after an `APP_KEY` change. |
 | 10.3.2  | Telegram digests/alerts: clear message when the saved token can't be decrypted after an `APP_KEY` change (`APP_PREVIOUS_KEYS` supported); no longer stop when the cache isn't writable; missed digests catch up within 2 hours; Telegram failures shown on the Logs page. |
@@ -418,6 +426,9 @@ Main API endpoints:
 | `GET /api/seismic/stations/{station_id}/graph/latest`    | Latest graph payload for one seismic station   |
 | `GET /api/seismic/stations/{station_id}/history?hours=1` | Raw seismic history, 1 to 24 hours             |
 | `GET /api/seismic/events?min_peis=1&hours=24`            | PEIS-filtered seismic events                   |
+| `GET /api/water-level/stations/latest`                   | Latest reading and status for every water level station |
+| `GET /api/water-level/stations/{station_mn}/latest`      | Latest reading for one water level station     |
+| `GET /api/water-level/stations/{station_mn}/history?hours=24` | Water level readings, 1 to 720 hours      |
 | `GET /api/system/logs`                                   | Centralized service logs                       |
 
 Interactive API docs are available from FastAPI at:

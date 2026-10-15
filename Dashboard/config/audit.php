@@ -35,7 +35,7 @@ return [
     'keep_values' => [
         'action', 'username', 'role', 'name', 'station_name', 'station_mn', 'station_id',
         'location', 'enabled', 'report_interval_minutes', 'sim_number', 'lead_ip',
-        'ip_address', 'interface', 'host', 'target', 'device_type',
+        'ip_address', 'interface', 'host', 'target', 'device_type', 'port',
     ],
 
     // Route parameters that are secrets; only their last 4 characters are kept.
@@ -62,6 +62,7 @@ return [
         'inventory.water-level-stations.update'  => ['stations', 'Updated water level station {station_mn}'],
         'inventory.water-level-stations.destroy' => ['stations', 'Deleted water level station {station_mn}'],
         'inventory.water-level-stations.restore' => ['stations', 'Restored water level station {station_mn}'],
+        'inventory.water-level-gateway.save'     => ['stations', 'Set the water level GSM gateway port'],
         'seismic-stations.store'      => ['stations', 'Added seismic station {name}'],
         'seismic-stations.update'     => ['stations', 'Updated seismic station {station_id}'],
         'seismic-stations.destroy'    => ['stations', 'Deleted seismic station {station_id}'],

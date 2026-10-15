@@ -176,11 +176,14 @@ def parse_sensor_sms(body: str) -> dict:
         temperature = None
         if temp.upper() != "NA":
             temperature = _int(temp, "temperature", -400, 1000) / 10.0
+        # 0 = the sensor got no echo. Stored as "no reading": as 0 m it would
+        # make water_level equal the installation height, a false flood.
+        distance = _int(distance_cm, "distance_cm", 0, 10000)
         return {
             "type": "reading",
             "station_mn": station_mn,
             "seq": _int(seq, "seq", 0, 2**31 - 1),
-            "distance_m": _int(distance_cm, "distance_cm", 0, 10000) / 100.0,
+            "distance_m": distance / 100.0 if distance > 0 else None,
             "battery_v": _int(battery_mv, "battery_mV", 0, 20000) / 1000.0,
             "temperature": temperature,
             "interval": _int(interval, "interval", 1, 1440),
@@ -282,7 +285,10 @@ class Store:
         if error:
             logger.warning(f"SMS from {sender} not stored as a reading: {error} | body={body!r}", extra=DEVICE)
         elif msg["type"] == "reading":
-            logger.info(f"Reading from {station['station_mn']}: distance {msg['distance_m']} m, battery {msg['battery_v']} V, seq {msg['seq']}", extra=DEVICE)
+            if msg["distance_m"] is None:
+                logger.warning(f"Reading from {station['station_mn']}: the sensor got no echo (check the sensor and its power), battery {msg['battery_v']} V, seq {msg['seq']}", extra=DEVICE)
+            else:
+                logger.info(f"Reading from {station['station_mn']}: distance {msg['distance_m']} m, battery {msg['battery_v']} V, seq {msg['seq']}", extra=DEVICE)
         else:
             logger.info(f"{station['station_mn']} confirmed interval {msg['interval']} min", extra=DEVICE)
 
