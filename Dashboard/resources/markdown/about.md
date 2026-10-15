@@ -2,7 +2,7 @@
 
 EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.6.0**
+**Current version: 10.6.2**
 
 | Branch     | Contents                                                        |
 | ---------- | --------------------------------------------------------------- |
@@ -10,7 +10,7 @@ EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-ba
 | `version10` | Version 10.x line; fixes for version 10 gateways land here first |
 | `version9` | Previous version line (9.x)                                     |
 
-Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, ...).
+Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, `v10.6.1`, `v10.6.2`, ...).
 
 ## What It Runs
 
@@ -34,6 +34,8 @@ PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 
 ## What's New in Version 10.6
 
+- **10.6.2 — Web terminal works:** Maintenance › Terminal had no server behind it (the bridge was never part of the repo, and the page pointed at a placeholder address). New `scripts/terminal_server.py` (`ems-terminal.service`, 127.0.0.1:3001 behind nginx `/pty`) opens a login shell as the EMS user after checking the dashboard's signed one-minute, single-use token. Install it once with `sudo ./install_terminal.sh` (also run by `install_services.sh` and `update.sh`). The page now connects to its own host, and only **super admins** can open it or get a terminal token (admins could before by calling the URL directly).
+- **10.6.1 — Connect to any serial port:** the **GSM Gateway (USB)** panel's **Scan ports** now lists every available serial port (USB adapters plus real built-in/on-board ones: `ttyS*`, Raspberry Pi `ttyAMA*`, Jetson `ttyTHS*`), each with a **Connect** button. After Connect it follows the gateway service for up to 30 seconds and shows **Gateway ready** or the error. A wrong port no longer logs an error every 10 seconds (once per 30 minutes per problem).
 - **Delete All Logs:** super admins have a **Delete All Logs** button on the Logs tab (type DELETE to confirm). It empties the service logs and leaves one entry saying who did it; the Audit Log is kept and records the action.
 - **Fewer stored logs:** routine messages no longer go to the database: two lines per seismic MQTT message, one per water level reading, and the GSM gateway's per-minute status (now logged only when registration or signal changes). Problems that repeat on every reading or request (sensor clock drift, bad payloads, stale API fallback, rate limiting) are logged once per 30 minutes per station instead of every time.
 
@@ -133,6 +135,8 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.6.2  | Web terminal works: Python bridge `ems-terminal` + `install_terminal.sh`; terminal restricted to super admins. |
+| 10.6.1  | Scan lists every serial port (USB and built-in) with a Connect button and live connection status; gateway link errors logged once per 30 min. |
 | 10.6.0  | Delete All Logs button (super admins, Audit Log kept); fewer routine and repeated log entries stored. |
 | 10.5.0  | GSM gateway USB port detection on Stations › Water Level; URM06-PULSE station firmware; water level API endpoints; no-echo readings no longer stored as a false high water level. |
 | 10.4.0  | Live MQTT Messages panel on Settings › MQTT (listen to a topic and see the messages); MQTT password masked; env editors find `scripts/.env` wherever EMS is installed. |
@@ -279,6 +283,7 @@ The API server migrates environment API keys into its database-backed key table 
 - `ems-seismic.service`
 - `ems-api.service`
 - `ems-water-level-gsm.service` (idles until `WATER_GSM_ENABLED=true`)
+- `ems-terminal.service` (dashboard web terminal bridge, 127.0.0.1:3001; installed by `install_terminal.sh`)
 - `ems.target`
 
 Useful commands:
@@ -521,6 +526,7 @@ Common issues:
 - Dashboard cannot edit Python settings: make sure the web server user can read/write `scripts/.env`; `deploy.sh` and `update.sh` normally repair this.
 - CityWatch shows no stations: add latitude and longitude to the stations.
 - `The MAC is invalid` (Telegram not sending, cameras failing with "Could not decrypt stored password", Sentinel key unreadable): `APP_KEY` in `Dashboard/.env` changed after those secrets were saved. Put the previous key in `Dashboard/.env` as `APP_PREVIOUS_KEYS=base64:...` and run `php artisan config:cache`, or re-enter the bot token, Sentinel key and camera passwords (from 10.3.3; on older versions saving them also fails with this error, so first clear the old token: `sudo -u www-data php artisan tinker --execute="DB::table('telegram_settings')->update(['bot_token' => null]);"`). The settings pages and the Logs page say when this is the problem.
+- Maintenance › Terminal shows "Connection error": run `sudo ./install_terminal.sh`, then check `sudo systemctl status ems-terminal` and `sudo journalctl -u ems-terminal -n 30`. "Not authorised: invalid token signature" means the dashboard and the bridge use different `TERMINAL_SHARED_SECRET`s: keep it only in `scripts/.env` and run `php artisan config:cache`.
 - Telegram digests/alerts, device events or Sentinel reports stop: the scheduler must run every minute **as `www-data`**. Check `/etc/cron.d/ems-dashboard-scheduler` exists and contains `* * * * * www-data cd <EMS>/Dashboard && php artisan schedule:run`, and remove any older `schedule:run` line from another user's crontab (`crontab -l`, `sudo crontab -l`), since running it as another user fails on the cache folder. Problems sending to Telegram are listed on the Logs page (logger `telegram`). Test with `sudo -u www-data php artisan telegram:daily-digest --force`.
 - Water level stations are always offline: check `sudo journalctl -u ems-water-level-gsm.service`, that `WATER_GSM_ENABLED=true`, and the `gsm_messages` table for rejected SMS. See [`firmware/README.md`](firmware/README.md#troubleshooting) for GSM and hardware issues.
 - Camera live view says "Unable to connect": the message now gives the reason. If the stream server is not running or `/cctv-stream/` is not routed to it, run `sudo ./install_mediamtx.sh` (`update.sh` also runs it). Check it with `sudo systemctl status ems-mediamtx` and `sudo journalctl -u ems-mediamtx -n 50`. CityWatch and the Live View page use the same stream.

@@ -82,6 +82,12 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
+        // Web terminal: the bridge (scripts/terminal_server.py) reads the same
+        // secret from scripts/.env; Dashboard/.env is mode 600 for www-data.
+        if (!empty($vars['TERMINAL_SHARED_SECRET'])) {
+            Config::set('services.terminal_secret', $vars['TERMINAL_SHARED_SECRET']);
+        }
+
         foreach ($databases as $connectionName => $envKey) {
             if (empty($vars[$envKey])) {
                 Log::warning("EMS scripts .env is missing {$envKey}; '{$connectionName}' connection is not configured.");

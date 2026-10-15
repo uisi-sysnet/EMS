@@ -58,7 +58,7 @@ How the sketch reads it: Trig idles HIGH; a LOW pulse of 60 µs starts one measu
    - `DEFAULT_INTERVAL` — interval used until the dashboard sends one
    For the DS18B20 probe, set `USE_DS18B20 1` and install the **OneWire** and **DallasTemperature** libraries first.
 4. **Dashboard:** in **Stations › Water Level**, add the station with the sensor's **SIM number** (the IP address can stay empty), **Installation Height**, and **Reporting Interval**.
-5. **Server:** plug the gateway Nano into a USB port of the EMS server. In **Stations › Water Level**, scroll to **GSM Gateway (USB)**, click **Detect ports**, then **Use this port** on the Nano (a CH340 / FTDI chip is marked as the likely gateway). This saves `WATER_GSM_SERIAL_PORT` (the stable `/dev/serial/by-id/...` name) and `WATER_GSM_ENABLED=true` in `scripts/.env` and restarts `ems-water-level-gsm.service`. The panel also warns if **brltty** (takes over CH340 ports on Ubuntu) or **ModemManager** (disturbs the SIM800L) is present.
+5. **Server:** plug the gateway Nano into a USB port of the EMS server. In **Stations › Water Level**, scroll to **GSM Gateway (USB)**, click **Scan ports**, then **Connect** on the Nano's port (a CH340 / FTDI chip is marked as the likely gateway). This saves `WATER_GSM_SERIAL_PORT` (the stable `/dev/serial/by-id/...` name) and `WATER_GSM_ENABLED=true` in `scripts/.env` and restarts `ems-water-level-gsm.service`. The panel also warns if **brltty** (takes over CH340 ports on Ubuntu) or **ModemManager** (disturbs the SIM800L) is present.
 6. **Check:** `sudo journalctl -u ems-water-level-gsm.service -f` should show `GSM gateway ready`, a signal/registration line every minute, and the interval being sent to the sensor. The sensor sends its first reading one minute after power-up.
 
 ## Changing the interval
@@ -105,4 +105,4 @@ To watch the gateway directly, stop the service and open the Nano's port in the 
 - **Readings logged as "no station has SIM number":** the station's SIM number in the dashboard doesn't match the sender. Numbers are compared in `+63...` form; `09...` is converted automatically.
 - **Water level shows "—" but distance is stored:** set the station's Installation Height.
 - **"the sensor got no echo" on the Logs page:** check the URM06 wiring (Trig D5, Echo D6), its 6–12 V supply, and that nothing is within 20 cm of the sensor or blocking its beam.
-- **The gateway Nano isn't listed under Detect ports:** try another USB cable (some are charge-only) and run `ls /dev/serial/by-id/`. On Ubuntu, remove brltty (`sudo apt remove brltty`), which takes over CH340 ports.
+- **The gateway Nano isn't listed under Scan ports:** try another USB cable (some are charge-only) and run `ls /dev/serial/by-id/`. On Ubuntu, remove brltty (`sudo apt remove brltty`), which takes over CH340 ports.

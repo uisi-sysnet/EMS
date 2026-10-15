@@ -58,6 +58,9 @@ class ServicesController extends Controller
      */
     public function terminal()
     {
+        // A shell on the server: super admins only (the menu link already is).
+        abort_unless(session('role') === 'superAdmin', 403);
+
         return view('server.terminal');
     }
 

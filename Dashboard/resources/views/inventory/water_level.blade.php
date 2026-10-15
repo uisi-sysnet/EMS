@@ -886,12 +886,13 @@
                     <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider">GSM Gateway (USB)</h3>
                     <button type="button" id="gw-refresh"
                             class="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-text-200 bg-surface-700/40 border border-border-600/30 rounded-md hover:bg-surface-700/60 transition self-start sm:self-auto">
-                        Detect ports
+                        Scan ports
                     </button>
                 </div>
                 <div class="p-5 space-y-4 text-sm">
-                    <p class="text-text-400">Stations text their readings to the master Arduino Nano + SIM800L, which passes them to this server over USB. Plug the master in, click <span class="text-text-100">Detect ports</span>, then <span class="text-text-100">Use this port</span>.</p>
+                    <p class="text-text-400">Stations text their readings to the master Arduino Nano + SIM800L, which passes them to this server over USB. Plug the master in, click <span class="text-text-100">Scan ports</span>, then <span class="text-text-100">Connect</span> on its port.</p>
                     <div id="gw-status" class="text-text-400">Loading…</div>
+                    <div id="gw-link" class="text-sm"></div>
                     <div id="gw-warnings" class="space-y-2"></div>
                     <div id="gw-ports" class="space-y-2"></div>
                     <details id="gw-logs-wrap" class="hidden">
@@ -928,6 +929,12 @@
                     ${svc}
                     <span class="text-xs text-text-500">${esc(d.baudrate)} baud</span>
                 </div>`;
+            const link = d.link;
+            el('gw-link').innerHTML = !link ? '' : link.state === 'ready'
+                ? `<span class="text-munti-green-400">Gateway ready</span> <span class="text-text-500 text-xs">(${esc(link.time)})</span>`
+                : link.state === 'opening'
+                    ? `<span class="text-radar-400">Port opened, waiting for the Nano…</span> <span class="text-text-500 text-xs">(${esc(link.time)})</span>`
+                    : `<span class="text-munti-red-400">${esc(link.message)}</span> <span class="text-text-500 text-xs">(${esc(link.time)})</span>`;
             el('gw-warnings').innerHTML = d.warnings.map(w =>
                 `<div class="rounded-lg border border-munti-yellow-500/30 bg-munti-yellow-600/10 text-munti-yellow-400 px-3 py-2 text-xs">${esc(w)}</div>`).join('');
             el('gw-ports').innerHTML = d.ports.length ? d.ports.map(p => `
@@ -936,10 +943,12 @@
                         <div class="font-mono text-xs text-text-100 break-all">${esc(p.path)}</div>
                         <div class="text-xs text-text-500">${esc(p.name)}${p.chip ? ' · ' + esc(p.chip) : ''}${p.vendor_product ? ' · USB ' + esc(p.vendor_product) : ''} · ${esc(p.device)}</div>
                     </div>
-                    ${p.selected ? pill('in use', good)
-                        : `<button type="button" data-port="${esc(p.path)}" class="gw-use px-3 py-1.5 text-xs font-semibold rounded-lg bg-radar-600 hover:bg-radar-500 text-text-100 border border-radar-500/40 transition disabled:opacity-50">Use this port</button>`}
+                    ${p.selected && d.enabled
+                        ? (d.service === 'active' && link?.state === 'ready' ? pill('connected', good) : pill('selected', muted))
+                        : ''}
+                    <button type="button" data-port="${esc(p.path)}" class="gw-use px-3 py-1.5 text-xs font-semibold rounded-lg bg-radar-600 hover:bg-radar-500 text-text-100 border border-radar-500/40 transition disabled:opacity-50">${p.selected && d.enabled ? 'Reconnect' : 'Connect'}</button>
                 </div>`).join('')
-                : `<div class="text-munti-yellow-400 text-xs">No USB serial ports found. Check the USB cable (some are charge-only), plug the master Nano in, then click Detect ports. On a terminal, <span class="font-mono">ls /dev/serial/by-id/</span> lists them too.</div>`;
+                : `<div class="text-munti-yellow-400 text-xs">No serial ports found. Check the USB cable (some are charge-only), plug the master Nano in, then click Scan ports. On a terminal, <span class="font-mono">ls /dev/serial/by-id/</span> lists them too.</div>`;
             el('gw-logs').innerHTML = d.logs.map(l =>
                 `<li><span class="text-text-500">${esc(l.time)}</span> <span class="${l.level === 'INFO' ? 'text-text-400' : 'text-munti-yellow-400'}">${esc(l.level)}</span> ${esc(l.message)}</li>`).join('');
             el('gw-logs-wrap').classList.toggle('hidden', d.logs.length === 0);
@@ -951,9 +960,9 @@
     el('gw-ports').addEventListener('click', async e => {
         const btn = e.target.closest('.gw-use');
         if (!btn) return;
-        if (!confirm(`Use ${btn.dataset.port} for the GSM gateway? This turns the gateway on and restarts its service.`)) return;
+        if (!confirm(`Connect the GSM gateway on ${btn.dataset.port}? This turns the gateway on and restarts its service.`)) return;
         btn.disabled = true;
-        btn.textContent = 'Saving…';
+        btn.textContent = 'Connecting…';
         try {
             const res = await fetch('{{ route('inventory.water-level-gateway.save') }}', {
                 method: 'POST',
@@ -962,12 +971,29 @@
                 body: JSON.stringify({ port: btn.dataset.port }),
             });
             const d = await res.json();
-            alert(d.message || d.error || Object.values(d.errors || {}).flat().join(' ') || 'Could not save.');
+            if (!d.since) {   // validation error or .env not writable
+                el('gw-link').innerHTML = `<span class="text-munti-red-400">${esc(d.message || d.error || Object.values(d.errors || {}).flat().join(' ') || 'Could not connect.')}</span>`;
+                return load();
+            }
+            await waitForGateway(d.since, d.ok ? '' : d.message);
         } catch (err) {
-            alert('Could not save the port.');
+            el('gw-link').innerHTML = `<span class="text-munti-red-400">Could not connect to the port.</span>`;
         }
         load();
     });
+
+    // After Connect: follow the service's messages for up to 30 s.
+    async function waitForGateway(since, note) {
+        for (let left = 30; left > 0; left -= 3) {
+            el('gw-link').innerHTML = `<span class="text-radar-400">Connecting… waiting for the gateway Nano (${left}s)</span>`
+                + (note ? `<div class="text-munti-yellow-400 text-xs mt-1">${esc(note)}</div>` : '');
+            await new Promise(r => setTimeout(r, 3000));
+            const d = await (await fetch('{{ route('inventory.water-level-gateway') }}', { headers: { Accept: 'application/json' } })).json();
+            if (d.link && d.link.at >= since && d.link.state !== 'opening') return;   // ready or error: load() shows it
+        }
+        el('gw-link').innerHTML = `<span class="text-munti-yellow-400">No answer from the gateway yet. Check that the Nano runs the gsm_gateway sketch and that this is its port; the latest messages are below.</span>`;
+        await new Promise(r => setTimeout(r, 5000));
+    }
 
     el('gw-refresh').addEventListener('click', load);
     load();

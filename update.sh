@@ -343,6 +343,9 @@ if [[ -f "${EMS_DIR}/install_mediamtx.sh" ]]; then
     fi
     bash "${EMS_DIR}/install_mediamtx.sh" || warn "MediaMTX setup failed — camera live view won't work until: sudo ./install_mediamtx.sh"
 fi
+if [[ -f "${EMS_DIR}/install_terminal.sh" ]]; then
+    bash "${EMS_DIR}/install_terminal.sh" || warn "Web terminal setup failed — run: sudo ./install_terminal.sh"
+fi
 
 log "Done. Current status:"
 systemctl status nginx --no-pager || true

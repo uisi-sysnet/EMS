@@ -15,7 +15,8 @@ return [
     */
 
     'terminal_secret' => env('TERMINAL_SHARED_SECRET'),
-    'terminal_ws_url' => env('TERMINAL_WS_URL', 'wss://your-domain.example/pty'),
+    // Empty: the page uses ws(s)://<the dashboard's own host>/pty.
+    'terminal_ws_url' => env('TERMINAL_WS_URL'),
 
     'mediamtx' => [
         'api_url' => env('MEDIAMTX_API_URL', 'http://127.0.0.1:9997'),
