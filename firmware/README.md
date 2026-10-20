@@ -30,9 +30,9 @@ Both devices connect the SIM800L the same way:
 
 | SIM800L | Nano | Notes |
 | ------- | ---- | ----- |
-| TXD | D2 | |
-| RXD | D3 | Through a divider: D3 → 1 kΩ → RXD, and RXD → 2 kΩ → GND |
-| RST | D4 | Lets the Nano restart a hung modem |
+| TXD | D8 | |
+| RXD | D9 | Through a divider: D9 → 1 kΩ → RXD, and RXD → 2 kΩ → GND |
+| RST | D4 (gateway only, optional) | Lets the gateway Nano restart a hung modem. Not used on the stations: their D4 drives the RS485 module, and they restart the modem with `AT+CFUN=1,1` |
 | VCC | — | Separate 3.7–4.2 V / 2 A supply, **not** the Nano's 5V or 3V3 pin |
 | GND | GND | Common ground with the Nano and the supply |
 
@@ -40,7 +40,9 @@ Sensor only:
 
 | Part | Nano |
 | ---- | ---- |
-| URM06-PULSE Trig / Echo | D5 / D6 (sensor VCC 6–12 V, GND common with the Nano) |
+| URM06-PULSE Trig / Echo | D2 / D3 (sensor VCC 6–12 V, GND common with the Nano) |
+| TTL-to-RS485 module (MAX485) RO / DI | D0 (RX) / D1 (TX) |
+| TTL-to-RS485 DE + RE (tied together) | D4 |
 | Battery divider midpoint (battery + → 100 kΩ → A0 → 100 kΩ → GND) | A0 |
 | DS18B20 data (optional) | D7 |
 
@@ -48,14 +50,49 @@ Mount the URM06-PULSE pointing straight down at the water, **at least 20 cm abov
 
 How the sketch reads it: Trig idles HIGH; a LOW pulse of 60 µs starts one measurement; Echo returns a HIGH pulse of **1 µs per mm**. A 15,000 µs pulse means the sensor couldn't measure. Each reading is the median of 5 measurements. If none succeed, the station sends distance `0`, which EMS stores as "no echo" (no water level) and logs as a Device warning.
 
+### Second path: RS485 → LAN (Modbus)
+
+Besides SMS, each station is a **Modbus RTU slave** on RS485. An **RS485-to-LAN converter** at the station puts it on the network, and the EMS server reads it every minute (`water_level_gsm.py`, `WATER_LAN_POLL_SEC`, default 60). Both paths save into the same readings table: the LAN gives a reading every minute, SMS keeps working when the network is down.
+
+```text
+URM06 -> station Nano -+-> SIM800L --SMS--> SMS gateway Nano --USB--> EMS server
+                       +-> TTL-to-RS485 -> RS485-to-LAN converter --LAN (Modbus RTU over TCP)--> EMS server
+```
+
+- **Converter settings:** TCP server, **transparent mode** (also called "None"/"TCP Server", not Modbus TCP gateway), port **8899**, serial side **9600 8N1**. Give it a fixed IP.
+- **Dashboard:** in **Stations › Water Level**, set the station's **RS485-to-LAN Converter IP**, **Port** (8899) and **Modbus Address** (the sketch's `MODBUS_ID`). Leave the IP empty for SMS-only stations. Each station needs its own converter IP.
+- **Wiring:** RS485 A/B from the station's TTL-to-RS485 module to the converter's A/B (120 Ω terminator across A/B at long cable runs).
+- **Address:** set `MODBUS_ID` in the sketch: 1–247. With one converter per station it can be 1 everywhere, but giving each station its own (WLS001 = 1 … WLS009 = 9) avoids mistakes.
+- **Functions:** 03 (read holding registers) and 04 (read input registers) return the same map. It is read-only.
+
+| Register (0-based) | Value | Unit |
+| ------------------ | ----- | ---- |
+| 0 | Distance to the water | cm (0 = no echo) |
+| 1 | Battery | mV |
+| 2 | Temperature | 0.1 °C, signed (−32768 = no probe fitted) |
+| 3 | Reporting interval | minutes |
+| 4 | SMS sequence number (low 16 bits) | — |
+| 5 | Age of the measurement | s (65535 = not measured yet) |
+
+The station measures every 30 s and before each SMS. While it is sending an SMS (up to about a minute) or measuring (under a second), it doesn't answer; a master that retries after a timeout gets the next reply.
+
+Test from the server with a USB-to-RS485 adapter (`sudo apt install mbpoll`):
+
+```bash
+mbpoll -m rtu -a 1 -b 9600 -P none -t 3 -r 1 -c 6 /dev/ttyUSB0
+```
+
+`-t 3` reads input registers, and `-r 1` is register 0 (mbpoll counts from 1). **Unplug the RS485 module (or its RO wire) while uploading the sketch**: D0/D1 are also the Nano's USB serial.
+
 ## Setup
 
 1. **Install the Arduino IDE** and select **Tools › Board › Arduino Nano**, **Processor › ATmega328P**. (Many clone Nanos need **ATmega328P (Old Bootloader)** — use that if the upload fails.)
 2. **Gateway:** open `gsm_gateway/gsm_gateway.ino` and upload it. Nothing to edit.
-3. **Sensor:** open `water_level_sensor/water_level_sensor.ino`, set the three `>>>` settings at the top, and upload:
+3. **Sensor:** open `water_level_sensor/water_level_sensor.ino`, set the four `>>>` settings at the top, and upload (with the RS485 module unplugged):
    - `STATION_MN` — the station's Station MN in the dashboard
    - `GATEWAY_NUMBER` — the gateway SIM's number, e.g. `+639171234567`
    - `DEFAULT_INTERVAL` — interval used until the dashboard sends one
+   - `MODBUS_ID` — this station's Modbus address on the RS485 bus (different for each station)
    For the DS18B20 probe, set `USE_DS18B20 1` and install the **OneWire** and **DallasTemperature** libraries first.
 4. **Dashboard:** in **Stations › Water Level**, add the station with the sensor's **SIM number** (the IP address can stay empty), **Installation Height**, and **Reporting Interval**.
 5. **Server:** plug the gateway Nano into a USB port of the EMS server. In **Stations › Water Level**, scroll to **GSM Gateway (USB)**, click **Scan ports**, then **Connect** on the Nano's port (a CH340 / FTDI chip is marked as the likely gateway). This saves `WATER_GSM_SERIAL_PORT` (the stable `/dev/serial/by-id/...` name) and `WATER_GSM_ENABLED=true` in `scripts/.env` and restarts `ems-water-level-gsm.service`. The panel also warns if **brltty** (takes over CH340 ports on Ubuntu) or **ModemManager** (disturbs the SIM800L) is present.
@@ -104,5 +141,5 @@ To watch the gateway directly, stop the service and open the Nano's port in the 
 - **`network NOT registered`:** check the antenna, the SIM (PIN lock off, active, has load), and signal (CSQ below 10 is weak; 2G coverage is required by the SIM800L).
 - **Readings logged as "no station has SIM number":** the station's SIM number in the dashboard doesn't match the sender. Numbers are compared in `+63...` form; `09...` is converted automatically.
 - **Water level shows "—" but distance is stored:** set the station's Installation Height.
-- **"the sensor got no echo" on the Logs page:** check the URM06 wiring (Trig D5, Echo D6), its 6–12 V supply, and that nothing is within 20 cm of the sensor or blocking its beam.
+- **"the sensor got no echo" on the Logs page:** check the URM06 wiring (Trig D2, Echo D3), its 6–12 V supply, and that nothing is within 20 cm of the sensor or blocking its beam.
 - **The gateway Nano isn't listed under Scan ports:** try another USB cable (some are charge-only) and run `ls /dev/serial/by-id/`. On Ubuntu, remove brltty (`sudo apt remove brltty`), which takes over CH340 ports.

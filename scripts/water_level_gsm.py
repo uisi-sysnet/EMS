@@ -51,6 +51,8 @@ CONFIGURATION (scripts/.env)
   WATER_GSM_SERIAL_PORT=/dev/ttyUSB0      prefer /dev/serial/by-id/... (stable across reboots)
   WATER_GSM_BAUDRATE=57600                must match GATEWAY_BAUD in the Nano firmware
   WATER_GSM_RESEND_MINUTES=30             resend an unconfirmed interval after this long
+  WATER_LAN_POLL_SEC=60                   read stations with an RS485-to-LAN converter (their IP /
+                                          Port / Modbus address in the dashboard) this often; 0 = off
 plus the shared SYSTEM_DB_* settings and WATER_LEVEL_DB_NAME.
 
 The service user needs access to the serial device (member of the
@@ -62,6 +64,7 @@ import os
 import re
 import signal
 import sys
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -86,6 +89,12 @@ GSM_ENABLED = os.getenv("WATER_GSM_ENABLED", "false").strip().lower() in ("1", "
 SERIAL_PORT = os.getenv("WATER_GSM_SERIAL_PORT", "/dev/ttyUSB0")
 BAUDRATE = int(os.getenv("WATER_GSM_BAUDRATE", 57600))
 RESEND_MINUTES = int(os.getenv("WATER_GSM_RESEND_MINUTES", 30))
+# LAN path: stations with an RS485-to-LAN converter (its IP/port/Modbus
+# address are the station's IP / Port / Slave in the dashboard) are read over
+# Modbus RTU-over-TCP this often. 0 = off.
+LAN_POLL_SEC = int(os.getenv("WATER_LAN_POLL_SEC", 60))
+LAN_DEFAULT_PORT = 8899
+LAN_STALE_SEC = 300        # station's own measurement older than this is not stored
 
 SEND_CHECK_SEC = 15        # how often to look for settings to send
 PING_SEC = 60              # liveness check of the Nano
@@ -94,6 +103,10 @@ FAIL_RETRY_MINUTES = 5     # retry a failed SMS send after this long
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("water_level_gsm")
+# pymodbus logs an ERROR for every failed LAN poll; the root logger is saved to
+# service_logs, so an offline converter would add one a minute. Our own
+# throttled warning in poll_lan_station() reports it instead.
+logging.getLogger("pymodbus").setLevel(logging.CRITICAL)
 
 # Log categories for the dashboard's Logs page (stored in service_logs.category
 # by db_logging.py). Messages without one are "system".
@@ -235,6 +248,27 @@ class Store:
                 WHERE sim_number = %s AND deleted_at IS NULL
             """, (sender,))
             return cur.fetchone()
+
+    def lan_stations(self):
+        """Enabled stations with an RS485-to-LAN converter address."""
+        with self._cur() as cur:
+            cur.execute("""
+                SELECT station_mn, installation_height, lead_ip, lead_port, lead_slave
+                FROM stations
+                WHERE deleted_at IS NULL AND enabled AND COALESCE(lead_ip, '') <> ''
+                ORDER BY station_mn
+            """)
+            rows = cur.fetchall()
+        self.conn.commit()
+        return rows
+
+    def insert_lan_reading(self, station_mn, r):
+        with self._cur() as cur:
+            cur.execute("""
+                INSERT INTO sensor_data (station_mn, water_level, distance, battery_voltage, temperature, seq, recorded_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (station_mn, r["water_level"], r["distance_m"], r["battery_v"], r["temperature"], r["seq"], r["recorded_at"]))
+        self.conn.commit()
 
     def log_message(self, cur, sender, modem_ts, body, ok, error, station_mn):
         cur.execute("""
@@ -468,12 +502,85 @@ class Gateway:
         self.tick()
 
 
+# ----------------------------------------------------------------------
+# LAN path: station Nano -> RS485 -> RS485-to-LAN converter -> Modbus
+# ----------------------------------------------------------------------
+def decode_station_registers(regs, installation_height, now):
+    """The station sketch's 6 input registers (see water_level_sensor.ino) ->
+    a reading, or None when the station hasn't measured yet or its value is stale."""
+    distance_cm, battery_mv, temp_raw, _interval, seq, age_s = regs[:6]
+    if age_s == 0xFFFF or age_s > LAN_STALE_SEC:
+        return None
+    distance_m = distance_cm / 100.0 if distance_cm > 0 else None   # 0 = no echo
+    temp = temp_raw - 0x10000 if temp_raw >= 0x8000 else temp_raw
+    return {
+        "distance_m": distance_m,
+        "water_level": water_level_from(installation_height, distance_m),
+        "battery_v": battery_mv / 1000.0,
+        "temperature": None if temp == -32768 else temp / 10.0,
+        "seq": seq,
+        "recorded_at": now - timedelta(seconds=age_s),
+    }
+
+
+def poll_lan_station(store, station, client_factory=None):
+    from pymodbus.client import ModbusTcpClient
+    from pymodbus.framer import FramerType
+
+    mn, ip = station["station_mn"], station["lead_ip"]
+    port, slave = station["lead_port"] or LAN_DEFAULT_PORT, station["lead_slave"] or 1
+    # Converters in transparent mode pass Modbus RTU frames through TCP
+    # (same as the air quality lead sensors).
+    client = (client_factory or ModbusTcpClient)(host=ip, port=port, framer=FramerType.RTU, timeout=3)
+    try:
+        if not client.connect():
+            raise ConnectionError(f"could not connect to {ip}:{port}")
+        import inspect
+        unit = {"device_id" if "device_id" in inspect.signature(client.read_input_registers).parameters else "slave": slave}
+        rr = client.read_input_registers(0, count=6, **unit)
+        if rr.isError():
+            raise IOError(f"Modbus error reply from address {slave}: {rr}")
+        reading = decode_station_registers(rr.registers, station["installation_height"], datetime.now(timezone.utc))
+        if reading is None:
+            if throttled(f"lan-stale:{mn}"):
+                logger.warning(f"LAN reading from {mn}: the station has no fresh measurement (sensor problem?).", extra=DEVICE)
+            return
+        store.insert_lan_reading(mn, reading)
+        logger.debug(f"LAN reading from {mn}: distance {reading['distance_m']} m, battery {reading['battery_v']} V")
+    except psycopg2.Error:
+        raise
+    except Exception as e:
+        if throttled(f"lan:{mn}:{type(e).__name__}"):
+            logger.warning(f"LAN reading from {mn} ({ip}:{port}, Modbus address {slave}) failed: {e}. Repeats are not logged for 30 minutes.", extra=DEVICE)
+    finally:
+        client.close()
+
+
+def lan_loop():
+    store = Store()
+    while _running:
+        try:
+            for station in store.lan_stations():
+                poll_lan_station(store, station)
+        except psycopg2.Error as e:
+            logger.error(f"LAN polling database problem: {e}. Retrying.")
+            store.close()
+        for _ in range(LAN_POLL_SEC):
+            if not _running:
+                break
+            time.sleep(1)
+    store.close()
+
+
 def main():
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
 
+    if LAN_POLL_SEC > 0:
+        threading.Thread(target=lan_loop, daemon=True, name="LanPoll").start()
+
     if not GSM_ENABLED:
-        logger.info("WATER_GSM_ENABLED is not true in scripts/.env — GSM gateway disabled. Sleeping.")
+        logger.info("WATER_GSM_ENABLED is not true in scripts/.env — GSM gateway disabled (LAN polling still runs).")
         # Stay alive (systemd Restart=on-failure would otherwise loop);
         # enabling it later only needs a service restart.
         while _running:
@@ -504,5 +611,24 @@ def main():
     return 0
 
 
+def _self_check():
+    """python3 water_level_gsm.py --check"""
+    now = datetime(2026, 10, 20, 1, 0, tzinfo=timezone.utc)
+    r = decode_station_registers([315, 3912, 281, 15, 77, 12], 5.5, now)
+    assert r["distance_m"] == 3.15 and r["water_level"] == 2.35 and r["battery_v"] == 3.912
+    assert r["temperature"] == 28.1 and r["seq"] == 77 and r["recorded_at"] == now - timedelta(seconds=12)
+    r = decode_station_registers([0, 3700, 0x10000 - 45, 15, 1, 5], 5.5, now)
+    assert r["distance_m"] is None and r["water_level"] is None, "no echo -> no water level"
+    assert r["temperature"] == -4.5
+    assert decode_station_registers([300, 3700, 0x8000, 15, 1, 5], None, now)["temperature"] is None
+    assert decode_station_registers([300, 3700, 0, 15, 1, 5], None, now)["water_level"] is None   # no height set
+    assert decode_station_registers([300, 3700, 0, 15, 1, 0xFFFF], 5.5, now) is None, "not measured yet"
+    assert decode_station_registers([300, 3700, 0, 15, 1, LAN_STALE_SEC + 1], 5.5, now) is None, "stale"
+    print("water_level_gsm LAN decoding OK")
+
+
 if __name__ == "__main__":
+    if "--check" in sys.argv:
+        _self_check()
+        sys.exit(0)
     sys.exit(main())

@@ -16,10 +16,15 @@
  *
  * WIRING
  * ------
- *   SIM800L          same as the gateway: TXD -> D2, RXD <- D3 via 1k/2k
- *                    divider, RST <- D4, VCC from a 3.7-4.2 V / 2 A supply
+ *   SIM800L          same as the gateway: TXD -> D8, RXD <- D9 via 1k/2k
+ *                    divider, GND common, VCC from a 3.7-4.2 V / 2 A supply
  *                    (Li-ion cell), 470-1000 uF capacitor at the module.
- *   URM06-PULSE      Trig <- D5, Echo -> D6, VCC 6-12 V (5 V works but is
+ *                    RST is not used (a hung modem is restarted with AT+CFUN=1,1).
+ *   TTL-to-RS485     RO -> D0 (RX), DI <- D1 (TX), DE + RE tied together <- D4,
+ *   (MAX485 module)  VCC 5 V, GND. A/B to the RS485 bus; 120 ohm terminator at
+ *                    each end of the bus. Unplug the module (or its RO wire)
+ *                    while uploading: D0/D1 are also the Nano's USB serial.
+ *   URM06-PULSE      Trig <- D2, Echo -> D3, VCC 6-12 V (5 V works but is
  *   (DFRobot SEN0151) not recommended), GND. Range 20 cm - 10 m. Mount it
  *                    pointing straight down at the water, at least 20 cm
  *                    above the highest expected level. The Nano can run from
@@ -30,7 +35,19 @@
  *                    and install the "OneWire" and "DallasTemperature" libraries.
  *   All grounds connected together.
  *
- * Fill in the three settings marked >>> below before uploading.
+ * MODBUS RTU SLAVE (RS485, 9600 8N1, read-only)
+ *   Functions 03 (holding) and 04 (input registers) return the same map.
+ *   Register (0-based)                     Unit
+ *     0  distance to the water             cm, 0 = no echo
+ *     1  battery                           mV
+ *     2  temperature                       0.1 C (signed), -32768 = not fitted
+ *     3  reporting interval                minutes
+ *     4  SMS sequence number (low 16 bits)
+ *     5  age of this measurement           s (65535 = not measured yet)
+ *   Measured every 30 s, and before each SMS. While the station is busy
+ *   sending an SMS (up to about a minute) it doesn't answer Modbus requests.
+ *
+ * Fill in the four settings marked >>> below before uploading.
  * The SIM needs its PIN lock disabled and load / an unlimited-text promo:
  * this SIM pays for every reading it sends.
  */
@@ -46,16 +63,20 @@
 #define GATEWAY_NUMBER      "+639170000000"
 // >>> Interval used until the dashboard sends one (minutes, 1-1440).
 #define DEFAULT_INTERVAL    15
+// >>> Modbus slave address on the RS485 bus (1-247, different for every station).
+#define MODBUS_ID           1
+#define MODBUS_BAUD         9600UL
+#define MODBUS_MEASURE_MS   30000UL    // keep the Modbus registers fresh
 
 #define USE_DS18B20         0          // 1 = read a DS18B20 temperature probe on D7
 #define BATTERY_DIVIDER     2.0f       // (R1 + R2) / R2 of the battery divider
 #define ADC_REF_MV          5000.0f    // Nano ADC reference (5 V when USB/5V powered)
 
-#define PIN_MODEM_RX        2
-#define PIN_MODEM_TX        3
-#define PIN_MODEM_RST       4
-#define PIN_TRIG            5
-#define PIN_ECHO            6
+#define PIN_MODEM_RX        8          // Nano receives on D8 (from SIM800L TXD)
+#define PIN_MODEM_TX        9          // Nano transmits on D9 (to SIM800L RXD, via divider)
+#define PIN_RS485_DE        4          // DE + RE of the RS485 module (HIGH = transmit)
+#define PIN_TRIG            2
+#define PIN_ECHO            3
 #define PIN_DS18B20         7
 #define PIN_BATTERY         A0
 
@@ -88,6 +109,18 @@ uint8_t modemLen = 0;
 unsigned long nextSendAt = 0;
 uint8_t smsToHandle[31];   // slots announced by +CMTI, handled from loop()
 uint8_t smsQueued = 0;
+
+// Latest measurement, shared by the SMS reading and the Modbus registers.
+const int16_t TEMP_NA = -32768;
+long lastDistanceCm = 0;           // 0 = no echo
+long lastBatteryMv = 0;
+int16_t lastTempTenths = TEMP_NA;
+unsigned long lastMeasuredAt = 0;
+bool measuredOnce = false;
+
+uint8_t mbFrame[64];               // Modbus request being received
+uint8_t mbLen = 0;
+unsigned long mbLastByteUs = 0;
 
 // ---------------------------------------------------------------- storage --
 void loadSettings() {
@@ -148,13 +181,12 @@ bool at(const char *cmd, const char *expect = "OK", unsigned long timeoutMs = 20
   return waitFor(expect, timeoutMs);
 }
 
+// RST isn't wired (D4 drives the RS485 module), so restart the modem by
+// command. shortcut: can't revive a modem that stops answering AT at all;
+// wire RST to a free pin (e.g. D5) if that happens in the field.
 void resetModem() {
-  pinMode(PIN_MODEM_RST, OUTPUT);
-  digitalWrite(PIN_MODEM_RST, LOW);
-  delay(200);
-  digitalWrite(PIN_MODEM_RST, HIGH);
-  pinMode(PIN_MODEM_RST, INPUT);
-  for (uint8_t i = 0; i < 10; i++) { wdt_reset(); delay(500); }
+  modem.println(F("AT+CFUN=1,1"));
+  for (uint8_t i = 0; i < 20; i++) { wdt_reset(); delay(500); }
 }
 
 bool initModem() {
@@ -274,31 +306,37 @@ long readBatteryMv() {
   return (long)((sum / 8.0f) * ADC_REF_MV / 1023.0f * BATTERY_DIVIDER);
 }
 
-// Temperature in tenths of a degree, written into `out` ("281" or "NA").
-void readTemperature(char *out, uint8_t outSize) {
+// Temperature in tenths of a degree, or TEMP_NA without a probe.
+int16_t readTemperatureTenths() {
 #if USE_DS18B20
   tempSensor.requestTemperatures();
   float c = tempSensor.getTempCByIndex(0);
-  if (c > -55.0f && c < 125.0f) {
-    snprintf(out, outSize, "%d", (int)(c * 10.0f + (c >= 0 ? 0.5f : -0.5f)));
-    return;
-  }
+  if (c > -55.0f && c < 125.0f) return (int16_t)(c * 10.0f + (c >= 0 ? 0.5f : -0.5f));
 #endif
-  snprintf(out, outSize, "NA");
+  return TEMP_NA;
+}
+
+// Takes a fresh reading into the shared values (SMS and Modbus).
+void measure() {
+  long distance = readDistanceCm();
+  lastDistanceCm = distance < 0 ? 0 : distance;   // 0 = no echo; the server stores it as "no reading"
+  lastBatteryMv = readBatteryMv();
+  lastTempTenths = readTemperatureTenths();
+  lastMeasuredAt = millis();
+  measuredOnce = true;
 }
 
 // ---------------------------------------------------------------- actions --
 bool sendReading() {
-  long distance = readDistanceCm();
-  if (distance < 0) distance = 0;   // 0 = no echo; the server stores it as-is
-  long battery = readBatteryMv();
+  measure();
   char temp[8];
-  readTemperature(temp, sizeof(temp));
+  if (lastTempTenths == TEMP_NA) snprintf(temp, sizeof(temp), "NA");
+  else snprintf(temp, sizeof(temp), "%d", lastTempTenths);
 
   settings.seq++;
   char text[100];
   snprintf(text, sizeof(text), "WL1,%s,%lu,%ld,%ld,%s,%u",
-           STATION_MN, (unsigned long)settings.seq, distance, battery, temp, settings.intervalMin);
+           STATION_MN, (unsigned long)settings.seq, lastDistanceCm, lastBatteryMv, temp, settings.intervalMin);
 
   if (!waitForNetwork(30000)) return false;
   bool ok = sendSms(GATEWAY_NUMBER, text);
@@ -361,12 +399,95 @@ void handleStoredSms() {
   for (uint8_t idx = 1; idx <= 30; idx++) if (present[idx]) handleSms(idx);
 }
 
+// ------------------------------------------------------- Modbus RTU slave --
+uint16_t modbusCrc(const uint8_t *buf, uint8_t len) {
+  uint16_t crc = 0xFFFF;
+  for (uint8_t i = 0; i < len; i++) {
+    crc ^= buf[i];
+    for (uint8_t b = 0; b < 8; b++) crc = (crc & 1) ? (crc >> 1) ^ 0xA001 : crc >> 1;
+  }
+  return crc;
+}
+
+void modbusSend(uint8_t *buf, uint8_t len) {   // appends the CRC
+  uint16_t crc = modbusCrc(buf, len);
+  buf[len++] = crc & 0xFF;
+  buf[len++] = crc >> 8;
+  digitalWrite(PIN_RS485_DE, HIGH);
+  Serial.write(buf, len);
+  Serial.flush();                    // wait until the last byte has left
+  digitalWrite(PIN_RS485_DE, LOW);
+}
+
+uint16_t modbusRegister(uint16_t addr) {
+  switch (addr) {
+    case 0: return (uint16_t)lastDistanceCm;
+    case 1: return (uint16_t)lastBatteryMv;
+    case 2: return (uint16_t)lastTempTenths;
+    case 3: return settings.intervalMin;
+    case 4: return (uint16_t)(settings.seq & 0xFFFF);
+    default: {
+      if (!measuredOnce) return 0xFFFF;
+      unsigned long age = (millis() - lastMeasuredAt) / 1000UL;
+      return age > 0xFFFE ? 0xFFFE : (uint16_t)age;
+    }
+  }
+}
+const uint16_t MODBUS_REGISTERS = 6;
+
+// Answers one complete request frame (address, function, ..., CRC).
+void modbusHandle(const uint8_t *req, uint8_t len) {
+  if (len < 8 || req[0] != MODBUS_ID) return;              // not for us (or broadcast)
+  if (modbusCrc(req, len - 2) != (uint16_t)(req[len - 2] | (req[len - 1] << 8))) return;
+
+  uint8_t resp[5 + 2 * MODBUS_REGISTERS + 2];
+  resp[0] = MODBUS_ID;
+  uint8_t fn = req[1];
+  uint16_t start = (req[2] << 8) | req[3];
+  uint16_t count = (req[4] << 8) | req[5];
+  if (fn != 3 && fn != 4) { resp[1] = fn | 0x80; resp[2] = 1; modbusSend(resp, 3); return; }   // illegal function
+  if (count < 1 || count > MODBUS_REGISTERS || start + count > MODBUS_REGISTERS) {
+    resp[1] = fn | 0x80; resp[2] = 2; modbusSend(resp, 3); return;                          // illegal address
+  }
+  resp[1] = fn;
+  resp[2] = count * 2;
+  for (uint16_t i = 0; i < count; i++) {
+    uint16_t v = modbusRegister(start + i);
+    resp[3 + 2 * i] = v >> 8;
+    resp[4 + 2 * i] = v & 0xFF;
+  }
+  modbusSend(resp, 3 + count * 2);
+}
+
+// RTU frames end with a silence of 3.5 characters (about 4 ms at 9600 baud).
+void modbusPoll() {
+  while (Serial.available()) {
+    uint8_t b = Serial.read();
+    if (mbLen < sizeof(mbFrame)) mbFrame[mbLen++] = b;
+    mbLastByteUs = micros();
+  }
+  if (mbLen > 0 && micros() - mbLastByteUs > 4000UL) {
+    modbusHandle(mbFrame, mbLen);
+    mbLen = 0;
+  }
+}
+
+// After a long blocking step (SMS, measurement) any buffered request is
+// stale: the master has already timed out, so drop it instead of answering late.
+void modbusDropStale() {
+  while (Serial.available()) Serial.read();
+  mbLen = 0;
+}
+
 // -------------------------------------------------------------- main loop --
 void setup() {
   wdt_disable();
   pinMode(PIN_TRIG, OUTPUT);
   digitalWrite(PIN_TRIG, HIGH);    // URM06-PULSE triggers on LOW; idle HIGH
   pinMode(PIN_ECHO, INPUT);
+  pinMode(PIN_RS485_DE, OUTPUT);
+  digitalWrite(PIN_RS485_DE, LOW);   // listen on the RS485 bus
+  Serial.begin(MODBUS_BAUD);
   modem.begin(MODEM_BAUD);
 #if USE_DS18B20
   tempSensor.begin();
@@ -380,14 +501,20 @@ void setup() {
   }
   waitForNetwork(60000);
   handleStoredSms();
+  measure();
+  modbusDropStale();
   nextSendAt = millis() + FIRST_SEND_MS;
 }
 
 void loop() {
   wdt_reset();
+  modbusPoll();
   if (modemReadLine()) noteUrc();
 
-  while (smsQueued > 0) handleSms(smsToHandle[--smsQueued]);
+  if (smsQueued > 0) {
+    while (smsQueued > 0) handleSms(smsToHandle[--smsQueued]);
+    modbusDropStale();
+  }
 
   if ((long)(millis() - nextSendAt) >= 0) {
     if (sendReading()) {
@@ -397,5 +524,9 @@ void loop() {
       if (!at("AT", "OK", 2000)) { resetModem(); initModem(); }
       nextSendAt = millis() + SEND_RETRY_MS;
     }
+    modbusDropStale();
+  } else if (millis() - lastMeasuredAt >= MODBUS_MEASURE_MS) {
+    measure();
+    modbusDropStale();
   }
 }

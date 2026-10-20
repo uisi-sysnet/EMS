@@ -23,6 +23,7 @@ class ServicesController extends Controller
         'ems-air-quality.service' => 'EMS Air Quality',
         'ems-seismic.service'     => 'EMS Seismic',
         'ems-api.service'         => 'EMS API',
+        'ems-water-level-gsm.service' => 'EMS Water Level (SMS + LAN)',
         'mosquitto.service'       => 'Mosquitto (MQTT Broker)',
         'postgresql.service'      => 'PostgreSQL',
         'nginx.service'           => 'Nginx',

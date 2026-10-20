@@ -146,7 +146,7 @@
                 <!-- Lead IP -->
                 <div class="flex flex-col">
                     <label for="modal_lead_ip" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        IP Address
+                        RS485-to-LAN Converter IP
                     </label>
                     <input type="text"
                         id="modal_lead_ip"
@@ -185,7 +185,7 @@
                         </div>
                         <div class="flex-1">
                             <label for="modal_lead_slave" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                Slave
+                                Modbus Address
                             </label>
                             <input type="number" 
                                 id="modal_lead_slave" 
@@ -380,7 +380,7 @@
                 <!-- Lead IP -->
                 <div class="flex flex-col">
                     <label for="edit_lead_ip" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                        IP Address
+                        RS485-to-LAN Converter IP
                     </label>
                     <input type="text"
                         id="edit_lead_ip"
@@ -418,7 +418,7 @@
                         </div>
                         <div class="flex-1">
                             <label for="edit_lead_slave" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                Slave
+                                Modbus Address
                             </label>
                             <input type="number" 
                                 id="edit_lead_slave" 
@@ -750,9 +750,9 @@
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Longitude</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Install. Height</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Elev. Height</th>
-                                        <th scope="col" class="px-4 py-3 text-left font-medium">IP Address</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Converter IP</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Port</th>
-                                        <th scope="col" class="px-4 py-3 text-left font-medium">Slave</th>
+                                        <th scope="col" class="px-4 py-3 text-left font-medium">Modbus Addr</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">SIM Number</th>
                                         <th scope="col" class="px-4 py-3 text-left font-medium">Interval</th>
                                         {{-- <th scope="col" class="px-4 py-3 text-left font-medium">Updated At</th> --}}

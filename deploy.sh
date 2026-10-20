@@ -1214,6 +1214,9 @@ www-data ALL=(ALL) NOPASSWD: \
     /usr/bin/systemctl start ems-api.service, \
     /usr/bin/systemctl stop ems-api.service, \
     /usr/bin/systemctl restart ems-api.service, \
+    /usr/bin/systemctl start ems-water-level-gsm.service, \
+    /usr/bin/systemctl stop ems-water-level-gsm.service, \
+    /usr/bin/systemctl restart ems-water-level-gsm.service, \
     /usr/bin/systemctl start mosquitto.service, \
     /usr/bin/systemctl stop mosquitto.service, \
     /usr/bin/systemctl restart mosquitto.service, \

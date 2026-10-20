@@ -11,8 +11,8 @@
  *
  * WIRING
  * ------
- *   SIM800L TXD  -> Nano D2   (SoftwareSerial RX)
- *   SIM800L RXD  <- Nano D3   through a voltage divider: D3 -- 1k --+-- SIM800L RXD
+ *   SIM800L TXD  -> Nano D8   (SoftwareSerial RX)
+ *   SIM800L RXD  <- Nano D9   through a voltage divider: D9 -- 1k --+-- SIM800L RXD
  *                                                                  |
  *                                                                 2k
  *                                                                  |
@@ -45,8 +45,8 @@
 #define FW_VERSION        "gw-1.0"
 #define GATEWAY_BAUD      57600UL   // USB serial to the server (WATER_GSM_BAUDRATE)
 #define MODEM_BAUD        9600UL    // SoftwareSerial is reliable up to 9600
-#define PIN_MODEM_RX      2         // Nano receives on D2  (from SIM800L TXD)
-#define PIN_MODEM_TX      3         // Nano transmits on D3 (to SIM800L RXD, via divider)
+#define PIN_MODEM_RX      8         // Nano receives on D8  (from SIM800L TXD)
+#define PIN_MODEM_TX      9         // Nano transmits on D9 (to SIM800L RXD, via divider)
 #define PIN_MODEM_RST     4         // SIM800L RST (active low)
 #define SIM_SLOTS         30        // SMS storage slots on a typical SIM
 #define RESCAN_MS         30000UL   // look for un-ACKed SMS on the SIM this often
