@@ -2,7 +2,7 @@
 
 EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.7.0**
+**Current version: 10.7.1**
 
 | Branch     | Contents                                                        |
 | ---------- | --------------------------------------------------------------- |
@@ -10,7 +10,7 @@ EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-ba
 | `version10` | Version 10.x line; fixes for version 10 gateways land here first |
 | `version9` | Previous version line (9.x)                                     |
 
-Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, `v10.6.1`, `v10.6.2`, `v10.7.0`, ...).
+Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, `v10.6.1`, `v10.6.2`, `v10.7.0`, `v10.7.1`, ...).
 
 ## What It Runs
 
@@ -38,6 +38,7 @@ PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 - **Modbus RTU over RS485 on the stations:** with a TTL-to-RS485 (MAX485) module on D0/D1 and DE/RE on D4, each station answers Modbus RTU requests (9600 8N1, functions 03/04, its own `MODBUS_ID`) with its distance, battery, temperature, interval, sequence number and measurement age. SMS reporting is unchanged. The stations no longer use the SIM800L RST pin; a hung modem is restarted with `AT+CFUN=1,1`.
 - **Second data path over LAN:** stations with an **RS485-to-LAN converter** (transparent mode, port 8899) are read by the water level service every minute over Modbus RTU-over-TCP and saved alongside the SMS readings, so SMS becomes the backup path. Set the converter's IP, port and the station's Modbus address on **Stations › Water Level** (labels renamed: RS485-to-LAN Converter IP / Port / Modbus Address); `WATER_LAN_POLL_SEC` changes the rate. The SMS gateway stays on USB.
 - **Water level service on the Services page:** `ems-water-level-gsm.service` now shows running/stopped on **Server › Services** with Start, Stop and Restart buttons.
+- **10.7.1 — Station power-on SMS, 3-minute readings, live USB view:** each station texts `WLON,<station>,<interval>` right after it powers up (logged as "<station> powered on"; retried with the next reading if there's no network). New stations report every **3 minutes** by default (existing stations: change **Reporting Interval** on **Stations › Water Level**). The station's USB Serial Monitor (9600) shows a live distance every second and `SMS SENT OK` / `SMS FAILED (<reason>)` for every SMS. URM06 reading fixed: the station now waits up to 200 ms for the echo and needs 3 of 5 pings to agree, so stray echoes no longer show up as jumping distances. SMS gateway firmware `gw-1.1`: a station SMS arriving while the gateway is sending no longer makes that send report `+FAIL` (which caused a duplicate send).
 
 ## What's New in Version 10.6
 
@@ -142,6 +143,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.7.1  | Station power-on SMS (`WLON`), 3-minute default interval, live USB readout with SMS result, steadier URM06 readings (200 ms echo wait, 3 of 5 pings must agree). |
 | 10.7.0  | Station firmware: new pins (SIM800L D8/D9, URM06 D2/D3) and Modbus RTU slave over RS485 (D0/D1, DE/RE D4). Stations also read over LAN via RS485-to-LAN converters (Modbus RTU over TCP, every minute). |
 | 10.6.2  | Web terminal works: Python bridge `ems-terminal` + `install_terminal.sh`; terminal restricted to super admins. |
 | 10.6.1  | Scan lists every serial port (USB and built-in) with a Connect button and live connection status; gateway link errors logged once per 30 min. |

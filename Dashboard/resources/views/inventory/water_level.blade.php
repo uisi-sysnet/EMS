@@ -220,7 +220,7 @@
                     <input type="number"
                         id="modal_report_interval_minutes"
                         name="report_interval_minutes"
-                        value="15"
+                        value="3"
                         min="1"
                         max="1440"
                         list="interval_presets"

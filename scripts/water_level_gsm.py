@@ -27,6 +27,7 @@ SMS FORMAT (sensor firmware: firmware/water_level_sensor/water_level_sensor.ino)
   Reading  (sensor -> gateway):  WL1,<station_mn>,<seq>,<distance_cm>,<battery_mV>,<temp_tenths_C|NA>,<interval_min>
            e.g. WL1,WLS001,42,153,3912,281,15
   Ack      (sensor -> gateway):  WLACK,<station_mn>,<interval_min>
+  Power-on (sensor -> gateway):  WLON,<station_mn>,<interval_min>   (once after each power-up)
   Setting  (gateway -> sensor):  WLCFG,<interval_min>
 
   distance_cm is the ultrasonic distance from the sensor down to the water.
@@ -203,10 +204,11 @@ def parse_sensor_sms(body: str) -> dict:
             "interval": _int(interval, "interval", 1, 1440),
         }
 
-    if kind == "WLACK":
+    if kind in ("WLACK", "WLON"):
         if len(parts) != 3:
-            raise ParseError(f"WLACK needs 3 fields, got {len(parts)}")
-        return {"type": "ack", "station_mn": parts[1], "interval": _int(parts[2], "interval", 1, 1440)}
+            raise ParseError(f"{kind} needs 3 fields, got {len(parts)}")
+        return {"type": "ack" if kind == "WLACK" else "power_on",
+                "station_mn": parts[1], "interval": _int(parts[2], "interval", 1, 1440)}
 
     raise ParseError(f"unknown message type {kind!r}")
 
@@ -325,6 +327,8 @@ class Store:
             else:
                 # DEBUG: every SMS is already kept in gsm_messages.
                 logger.debug(f"Reading from {station['station_mn']}: distance {msg['distance_m']} m, battery {msg['battery_v']} V, seq {msg['seq']}", extra=DEVICE)
+        elif msg["type"] == "power_on":
+            logger.info(f"{station['station_mn']} powered on (interval {msg['interval']} min)", extra=DEVICE)
         else:
             logger.info(f"{station['station_mn']} confirmed interval {msg['interval']} min", extra=DEVICE)
 
@@ -614,6 +618,8 @@ def main():
 def _self_check():
     """python3 water_level_gsm.py --check"""
     now = datetime(2026, 10, 20, 1, 0, tzinfo=timezone.utc)
+    assert parse_sensor_sms("WLON,WLS001,3") == {"type": "power_on", "station_mn": "WLS001", "interval": 3}
+    assert parse_sensor_sms("WLACK,WLS001,3")["type"] == "ack"
     r = decode_station_registers([315, 3912, 281, 15, 77, 12], 5.5, now)
     assert r["distance_m"] == 3.15 and r["water_level"] == 2.35 and r["battery_v"] == 3.912
     assert r["temperature"] == 28.1 and r["seq"] == 77 and r["recorded_at"] == now - timedelta(seconds=12)

@@ -42,7 +42,7 @@
 #include <avr/wdt.h>
 
 // ---------------------------------------------------------------- settings --
-#define FW_VERSION        "gw-1.0"
+#define FW_VERSION        "gw-1.1"
 #define GATEWAY_BAUD      57600UL   // USB serial to the server (WATER_GSM_BAUDRATE)
 #define MODEM_BAUD        9600UL    // SoftwareSerial is reliable up to 9600
 #define PIN_MODEM_RX      8         // Nano receives on D8  (from SIM800L TXD)
@@ -64,6 +64,8 @@ unsigned long forwardedAt[SIM_SLOTS + 1];  // 0 = not forwarded / ACKed
 unsigned long lastRescan = 0;
 unsigned long lastStatus = 0;
 uint8_t modemFailures = 0;
+uint8_t newSms[SIM_SLOTS];   // slots announced by +CMTI, forwarded from loop()
+uint8_t newSmsCount = 0;
 
 // ------------------------------------------------------------ host output --
 void hostSend(const char *a, const char *b = nullptr, const char *c = nullptr) {
@@ -226,11 +228,13 @@ void rescanSim() {
   }
 }
 
-// Unsolicited modem lines, e.g. '+CMTI: "SM",3' for a new SMS.
+// Unsolicited modem lines, e.g. '+CMTI: "SM",3' for a new SMS. Only queued
+// here: this can run inside waitFor() during another command (e.g. a send),
+// and reading the SMS right away would swallow that command's reply.
 void handleModemUrc() {
   if (strncmp(modemLine, "+CMTI:", 6) == 0) {
     const char *comma = strchr(modemLine, ',');
-    if (comma) forwardSms((uint8_t)atoi(comma + 1));
+    if (comma && newSmsCount < sizeof(newSms)) newSms[newSmsCount++] = (uint8_t)atoi(comma + 1);
   }
 }
 
@@ -356,6 +360,7 @@ void loop() {
   wdt_reset();
   readHost();
   if (modemReadLine()) handleModemUrc();
+  while (newSmsCount > 0) forwardSms(newSms[--newSmsCount]);
 
   if (millis() - lastRescan >= RESCAN_MS) {
     lastRescan = millis();

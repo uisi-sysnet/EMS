@@ -10,6 +10,7 @@
  * SMS FORMAT (parsed by scripts/water_level_gsm.py)
  *   Reading:  WL1,<station_mn>,<seq>,<distance_cm>,<battery_mV>,<temp_tenths_C|NA>,<interval_min>
  *   Ack:      WLACK,<station_mn>,<interval_min>
+ *   Power-on: WLON,<station_mn>,<interval_min>   (once after each power-up/reset)
  * The server turns distance into water level using the station's
  * installation height set in the dashboard, so the sensor never needs
  * reprogramming when the mounting height changes.
@@ -44,7 +45,7 @@
  *     3  reporting interval                minutes
  *     4  SMS sequence number (low 16 bits)
  *     5  age of this measurement           s (65535 = not measured yet)
- *   Measured every 30 s, and before each SMS. While the station is busy
+ *   Measured every second, and before each SMS. While the station is busy
  *   sending an SMS (up to about a minute) it doesn't answer Modbus requests.
  *
  * Fill in the four settings marked >>> below before uploading.
@@ -60,14 +61,15 @@
 #define STATION_MN          "WLS001"
 // >>> The GSM gateway's SIM number. Readings go here, and settings are only
 //     accepted from here.
-#define GATEWAY_NUMBER      "+639170000000"
+#define GATEWAY_NUMBER      "+639995787215"
 // >>> Interval used until the dashboard sends one (minutes, 1-1440).
-#define DEFAULT_INTERVAL    15
+#define DEFAULT_INTERVAL    3
 // >>> Modbus slave address on the RS485 bus (1-247, different for every station).
 #define MODBUS_ID           1
 #define MODBUS_BAUD         9600UL
-#define MODBUS_MEASURE_MS   30000UL    // keep the Modbus registers fresh
+#define MEASURE_MS          1000UL     // live reading for USB and Modbus (one measurement takes under 1 s)
 
+#define SERIAL_DEBUG        1          // 1 = print each measurement on the USB Serial Monitor (9600)
 #define USE_DS18B20         0          // 1 = read a DS18B20 temperature probe on D7
 #define BATTERY_DIVIDER     2.0f       // (R1 + R2) / R2 of the battery divider
 #define ADC_REF_MV          5000.0f    // Nano ADC reference (5 V when USB/5V powered)
@@ -109,6 +111,7 @@ uint8_t modemLen = 0;
 unsigned long nextSendAt = 0;
 uint8_t smsToHandle[31];   // slots announced by +CMTI, handled from loop()
 uint8_t smsQueued = 0;
+bool powerOnPending = true;   // WLON not delivered yet; retried with each reading
 
 // Latest measurement, shared by the SMS reading and the Modbus registers.
 const int16_t TEMP_NA = -32768;
@@ -116,6 +119,8 @@ long lastDistanceCm = 0;           // 0 = no echo
 long lastBatteryMv = 0;
 int16_t lastTempTenths = TEMP_NA;
 unsigned long lastMeasuredAt = 0;
+unsigned long lastEchoUs = 0;      // raw echo pulse of the last ping, for the USB printout
+uint8_t lastGoodPings = 0;         // pings (of 5) that agreed on the distance
 bool measuredOnce = false;
 
 uint8_t mbFrame[64];               // Modbus request being received
@@ -186,7 +191,17 @@ bool at(const char *cmd, const char *expect = "OK", unsigned long timeoutMs = 20
 // wire RST to a free pin (e.g. D5) if that happens in the field.
 void resetModem() {
   modem.println(F("AT+CFUN=1,1"));
-  for (uint8_t i = 0; i < 20; i++) { wdt_reset(); delay(500); }
+  idle(10000);
+}
+
+// Waits without going quiet: the live reading (USB) and Modbus keep running.
+void idle(unsigned long ms) {
+  unsigned long start = millis();
+  while (millis() - start < ms) {
+    wdt_reset();
+    modbusPoll();
+    if (millis() - lastMeasuredAt >= MEASURE_MS) measure();
+  }
 }
 
 bool initModem() {
@@ -214,7 +229,7 @@ bool waitForNetwork(unsigned long timeoutMs) {
       waitFor("OK", 1000);
       if (stat == 1 || stat == 5) return true;
     }
-    for (uint8_t i = 0; i < 4; i++) { wdt_reset(); delay(500); }
+    idle(2000);
   }
   return false;
 }
@@ -232,13 +247,24 @@ bool sendSms(const char *number, const char *text) {
       if (modem.read() == '>') { prompt = true; break; }
     }
   }
-  if (!prompt) { modem.write(27); return false; }
+  if (!prompt) { modem.write(27); smsResult(F("modem gave no > prompt"), text); return false; }
 
   modem.print(text);
   modem.write(26);
-  if (!waitFor("+CMGS:", 60000)) return false;
+  if (!waitFor("+CMGS:", 60000)) { smsResult(F("network did not accept it"), text); return false; }
   waitFor("OK", 2000);
+  smsResult(NULL, text);
   return true;
+}
+
+// Shows every SMS attempt on the USB Serial Monitor. fail = NULL means it was sent.
+void smsResult(const __FlashStringHelper *fail, const char *text) {
+#if SERIAL_DEBUG
+  if (fail) { Serial.print(F("SMS FAILED (")); Serial.print(fail); Serial.print(F("): ")); }
+  else Serial.print(F("SMS SENT OK: "));
+  Serial.println(text);
+  Serial.flush();
+#endif
 }
 
 // Pulls the n-th double-quoted field out of a header line.
@@ -285,19 +311,29 @@ long readDistanceCm() {
     digitalWrite(PIN_TRIG, LOW);
     delayMicroseconds(60);
     digitalWrite(PIN_TRIG, HIGH);
-    unsigned long us = pulseIn(PIN_ECHO, HIGH, 60000UL);
+    // The echo pulse comes only after the sensor's own measuring cycle (it repeats
+    // every 100 ms), so allow 200 ms; a shorter wait reads the previous ping's pulse.
+    unsigned long us = pulseIn(PIN_ECHO, HIGH, 200000UL);
+    lastEchoUs = us;
     long cm = (long)((us + 5UL) / 10UL);
     if (us > 0 && us < 15000UL && cm >= MIN_DISTANCE_CM && cm <= MAX_DISTANCE_CM) samples[good++] = cm;
     delay(100);
   }
-  if (good == 0) return -1;
+  lastGoodPings = good;
+  if (good < 3) return -1;                // mostly failed pings: report no echo, not a stray value
   for (uint8_t i = 1; i < good; i++) {   // insertion sort
     long v = samples[i];
     int8_t j = i - 1;
     while (j >= 0 && samples[j] > v) { samples[j + 1] = samples[j]; j--; }
     samples[j + 1] = v;
   }
-  return samples[good / 2];
+  // At least 3 pings must agree (within 5 cm or 2 %) — noise gives scattered values.
+  long median = samples[good / 2];
+  long tol = max(5L, median / 50);
+  uint8_t agree = 0;
+  for (uint8_t i = 0; i < good; i++) if (labs(samples[i] - median) <= tol) agree++;
+  lastGoodPings = agree;
+  return agree >= 3 ? median : -1;
 }
 
 long readBatteryMv() {
@@ -324,6 +360,20 @@ void measure() {
   lastTempTenths = readTemperatureTenths();
   lastMeasuredAt = millis();
   measuredOnce = true;
+#if SERIAL_DEBUG
+  // USB and RS485 share D1, but DE is LOW here so the text never reaches the bus.
+  // flush() empties the buffer so none of it is still sending when a Modbus reply sets DE HIGH.
+  Serial.print(F("Distance: "));
+  if (lastDistanceCm == 0) Serial.print(F("no echo"));
+  else { Serial.print(lastDistanceCm); Serial.print(F(" cm")); }
+  // 0 us = no pulse on D3 (wiring/power), 15000 = sensor error, under 200 = closer than 20 cm.
+  Serial.print(F(" (")); Serial.print(lastGoodPings); Serial.print(F("/5 pings agree, last echo "));
+  Serial.print(lastEchoUs); Serial.print(F(" us)"));
+  Serial.print(F("  Battery: ")); Serial.print(lastBatteryMv); Serial.print(F(" mV  Temp: "));
+  if (lastTempTenths == TEMP_NA) Serial.println(F("NA"));
+  else Serial.println(lastTempTenths / 10.0, 1);
+  Serial.flush();
+#endif
 }
 
 // ---------------------------------------------------------------- actions --
@@ -338,11 +388,20 @@ bool sendReading() {
   snprintf(text, sizeof(text), "WL1,%s,%lu,%ld,%ld,%s,%u",
            STATION_MN, (unsigned long)settings.seq, lastDistanceCm, lastBatteryMv, temp, settings.intervalMin);
 
-  if (!waitForNetwork(30000)) return false;
-  bool ok = sendSms(GATEWAY_NUMBER, text);
+  bool ok = false;
+  if (!waitForNetwork(30000)) smsResult(F("no network"), text);
+  else ok = sendSms(GATEWAY_NUMBER, text);
   if (ok) saveSettings();          // persist seq only after a successful send
   else settings.seq--;
   return ok;
+}
+
+// Tells the gateway this station just powered on: WLON,<station_mn>,<interval_min>.
+bool sendPowerOn() {
+  char text[48];
+  snprintf(text, sizeof(text), "WLON,%s,%u", STATION_MN, settings.intervalMin);
+  if (!waitForNetwork(30000)) { smsResult(F("no network"), text); return false; }
+  return sendSms(GATEWAY_NUMBER, text);
 }
 
 // Reads SMS `idx`; applies "WLCFG,<minutes>" from the gateway; deletes it.
@@ -495,13 +554,31 @@ void setup() {
   wdt_enable(WDTO_8S);
 
   loadSettings();
-  if (!initModem()) {
+#if SERIAL_DEBUG
+  Serial.print(F("\nEMS water level station ")); Serial.print(F(STATION_MN));
+  Serial.print(F("  Modbus ID ")); Serial.print(MODBUS_ID);
+  Serial.print(F("  interval ")); Serial.print(settings.intervalMin); Serial.println(F(" min"));
+  Serial.flush();
+#endif
+  measure();                       // first reading right away, before the slow modem start
+#if SERIAL_DEBUG
+  Serial.println(F("SIM800L: starting (up to 1 min)..."));
+  Serial.flush();
+#endif
+  bool modemOk = initModem();
+  if (!modemOk) {
     resetModem();
-    initModem();
+    modemOk = initModem();
   }
-  waitForNetwork(60000);
-  handleStoredSms();
-  measure();
+  bool networkOk = modemOk && waitForNetwork(60000);
+#if SERIAL_DEBUG
+  Serial.println(!modemOk ? F("SIM800L: not answering (check D8/D9 wiring and its power)")
+                 : networkOk ? F("SIM800L: OK, registered on the network")
+                 : F("SIM800L: OK, but no network (check SIM, PIN lock, antenna)"));
+  Serial.flush();
+#endif
+  if (modemOk) handleStoredSms();
+  if (networkOk && sendPowerOn()) powerOnPending = false;
   modbusDropStale();
   nextSendAt = millis() + FIRST_SEND_MS;
 }
@@ -517,6 +594,7 @@ void loop() {
   }
 
   if ((long)(millis() - nextSendAt) >= 0) {
+    if (powerOnPending && sendPowerOn()) powerOnPending = false;
     if (sendReading()) {
       nextSendAt = millis() + (unsigned long)settings.intervalMin * 60000UL;
     } else {
@@ -525,8 +603,9 @@ void loop() {
       nextSendAt = millis() + SEND_RETRY_MS;
     }
     modbusDropStale();
-  } else if (millis() - lastMeasuredAt >= MODBUS_MEASURE_MS) {
+  } else if (millis() - lastMeasuredAt >= MEASURE_MS) {
+    // No modbusDropStale() here: a request that came in during this short
+    // measurement is still answered within the master's 3 s timeout.
     measure();
-    modbusDropStale();
   }
 }

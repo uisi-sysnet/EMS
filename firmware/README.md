@@ -26,6 +26,8 @@ GSM gateway (Nano + SIM800L)  --USB serial-->  scripts/water_level_gsm.py  -->  
 
 ## Wiring
 
+![Water level station wiring](water_level_station_wiring.png)
+
 Both devices connect the SIM800L the same way:
 
 | SIM800L | Nano | Notes |
@@ -74,7 +76,7 @@ URM06 -> station Nano -+-> SIM800L --SMS--> SMS gateway Nano --USB--> EMS server
 | 4 | SMS sequence number (low 16 bits) | — |
 | 5 | Age of the measurement | s (65535 = not measured yet) |
 
-The station measures every 30 s and before each SMS. While it is sending an SMS (up to about a minute) or measuring (under a second), it doesn't answer; a master that retries after a timeout gets the next reply.
+The station measures every second and before each SMS. A request that arrives during a measurement is answered right after it (under a second late). While it is sending an SMS (up to about a minute) it doesn't answer; a master that retries after a timeout gets the next reply.
 
 Test from the server with a USB-to-RS485 adapter (`sudo apt install mbpoll`):
 
@@ -83,6 +85,8 @@ mbpoll -m rtu -a 1 -b 9600 -P none -t 3 -r 1 -c 6 /dev/ttyUSB0
 ```
 
 `-t 3` reads input registers, and `-r 1` is register 0 (mbpoll counts from 1). **Unplug the RS485 module (or its RO wire) while uploading the sketch**: D0/D1 are also the Nano's USB serial.
+
+**Watching the readings on USB:** with `SERIAL_DEBUG 1` (the default), open the Serial Monitor at **9600** to see a live line every second, for example `Distance: 315 cm  Battery: 3912 mV  Temp: NA`, plus `SMS SENT OK: …` or `SMS FAILED (<reason>): …` for every SMS the station sends (power-on, readings and interval confirmations). This works with the RS485 module connected: the text doesn't reach the RS485 bus. Set `SERIAL_DEBUG 0` to turn it off.
 
 ## Setup
 
@@ -96,7 +100,7 @@ mbpoll -m rtu -a 1 -b 9600 -P none -t 3 -r 1 -c 6 /dev/ttyUSB0
    For the DS18B20 probe, set `USE_DS18B20 1` and install the **OneWire** and **DallasTemperature** libraries first.
 4. **Dashboard:** in **Stations › Water Level**, add the station with the sensor's **SIM number** (the IP address can stay empty), **Installation Height**, and **Reporting Interval**.
 5. **Server:** plug the gateway Nano into a USB port of the EMS server. In **Stations › Water Level**, scroll to **GSM Gateway (USB)**, click **Scan ports**, then **Connect** on the Nano's port (a CH340 / FTDI chip is marked as the likely gateway). This saves `WATER_GSM_SERIAL_PORT` (the stable `/dev/serial/by-id/...` name) and `WATER_GSM_ENABLED=true` in `scripts/.env` and restarts `ems-water-level-gsm.service`. The panel also warns if **brltty** (takes over CH340 ports on Ubuntu) or **ModemManager** (disturbs the SIM800L) is present.
-6. **Check:** `sudo journalctl -u ems-water-level-gsm.service -f` should show `GSM gateway ready`, a signal/registration line every minute, and the interval being sent to the sensor. The sensor sends its first reading one minute after power-up.
+6. **Check:** `sudo journalctl -u ems-water-level-gsm.service -f` should show `GSM gateway ready`, a signal/registration line every minute, and the interval being sent to the sensor. Right after power-up the sensor texts `WLON,<station>,<interval>` (logged as "<station> powered on"; retried with each reading until it goes through), and sends its first reading one minute later, then one every interval (default **3 min**).
 
 ## Changing the interval
 

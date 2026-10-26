@@ -50,7 +50,7 @@ class WaterLevelStationController extends Controller
         ], $this->messages());
 
         $validated['enabled'] = $request->boolean('enabled', true);
-        $validated['report_interval_minutes'] ??= 15;
+        $validated['report_interval_minutes'] ??= 3;
 
         WaterLevel::create($validated);
 
