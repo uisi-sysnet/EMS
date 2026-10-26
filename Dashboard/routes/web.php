@@ -75,6 +75,8 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::delete('/inventory/water-level-stations/{station_mn}', [WaterLevelStationController::class, 'destroy'])->name('inventory.water-level-stations.destroy');
     Route::post('/inventory/water-level-stations/{station_mn}/restore', [WaterLevelStationController::class, 'restore'])->name('inventory.water-level-stations.restore');
     Route::get('/inventory/water-level-stations/{station_mn}/check-data', [WaterLevelStationController::class, 'checkData'])->name('inventory.water-level-stations.check-data');
+    Route::post('/inventory/water-level-stations/{station_mn}/sms-test', [WaterLevelStationController::class, 'smsTest'])->name('inventory.water-level-stations.sms-test');
+    Route::get('/inventory/water-level-stations/{station_mn}/sms-test', [WaterLevelStationController::class, 'smsTestStatus'])->name('inventory.water-level-stations.sms-test-status');
     Route::get('/inventory/water-level-gateway', [WaterLevelStationController::class, 'gateway'])->name('inventory.water-level-gateway');
     Route::post('/inventory/water-level-gateway', [WaterLevelStationController::class, 'gatewaySave'])->name('inventory.water-level-gateway.save');
 

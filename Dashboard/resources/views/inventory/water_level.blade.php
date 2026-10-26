@@ -846,8 +846,20 @@
                                             </td> --}}
                                             <td class="px-4 py-2.5 whitespace-nowrap text-center">
                                                 <div class="flex items-center justify-center gap-1.5">
+                                                    @if($station->sim_number)
+                                                    <!-- SMS Test Button -->
+                                                    <button type="button"
+                                                            onclick="smsTest(this, '{{ $station->station_mn }}')"
+                                                            class="p-1.5 rounded-lg text-text-400 hover:text-munti-green-400 hover:bg-surface-700/70 transition-all duration-200 disabled:opacity-50"
+                                                            title="Test SMS: text the station and wait for its reply">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                                                        </svg>
+                                                    </button>
+                                                    @endif
+
                                                     <!-- Edit Button -->
-                                                    <button type="button" 
+                                                    <button type="button"
                                                             onclick="editStation('{{ $station->station_mn }}')"
                                                             class="p-1.5 rounded-lg text-text-400 hover:text-radar-400 hover:bg-surface-700/70 transition-all duration-200 group"
                                                             title="Edit Station">
@@ -866,6 +878,7 @@
                                                         </svg>
                                                     </button>
                                                 </div>
+                                                <div class="sms-test-msg mt-1 text-[11px] whitespace-normal max-w-[240px] mx-auto" role="status"></div>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -890,7 +903,7 @@
                     </button>
                 </div>
                 <div class="p-5 space-y-4 text-sm">
-                    <p class="text-text-400">Stations text their readings to the master Arduino Nano + SIM800L, which passes them to this server over USB. Plug the master in, click <span class="text-text-100">Scan ports</span>, then <span class="text-text-100">Connect</span> on its port.</p>
+                    <p class="text-text-400">Stations text their readings to the master Arduino Nano + SIM800L, which passes them to this server over USB. Plug the master in, click <span class="text-text-100">Scan ports</span>, pick its port from the list, then click <span class="text-text-100">Connect</span>.</p>
                     <div id="gw-status" class="text-text-400">Loading…</div>
                     <div id="gw-link" class="text-sm"></div>
                     <div id="gw-warnings" class="space-y-2"></div>
@@ -921,6 +934,10 @@
             const d = await res.json();
             const svc = d.service === 'active' ? pill('service running', good) : pill('service ' + d.service, d.service === 'unknown' ? muted : bad);
             el('gw-status').innerHTML = `
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                    <span class="text-text-400">Detected system:</span>
+                    <span class="text-text-100">${esc(d.os)}</span>
+                </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="text-text-400">Configured port:</span>
                     <span class="font-mono text-text-100 break-all">${esc(d.configured_port)}</span>
@@ -937,30 +954,40 @@
                     : `<span class="text-munti-red-400">${esc(link.message)}</span> <span class="text-text-500 text-xs">(${esc(link.time)})</span>`;
             el('gw-warnings').innerHTML = d.warnings.map(w =>
                 `<div class="rounded-lg border border-munti-yellow-500/30 bg-munti-yellow-600/10 text-munti-yellow-400 px-3 py-2 text-xs">${esc(w)}</div>`).join('');
-            el('gw-ports').innerHTML = d.ports.length ? d.ports.map(p => `
-                <div class="rounded-lg border ${p.selected ? 'border-munti-green-600/40' : 'border-border-700'} bg-surface-900 px-3 py-2 flex flex-col sm:flex-row sm:items-center gap-2">
-                    <div class="min-w-0 flex-1">
-                        <div class="font-mono text-xs text-text-100 break-all">${esc(p.path)}</div>
-                        <div class="text-xs text-text-500">${esc(p.name)}${p.chip ? ' · ' + esc(p.chip) : ''}${p.vendor_product ? ' · USB ' + esc(p.vendor_product) : ''} · ${esc(p.device)}</div>
-                    </div>
-                    ${p.selected && d.enabled
-                        ? (d.service === 'active' && link?.state === 'ready' ? pill('connected', good) : pill('selected', muted))
-                        : ''}
-                    <button type="button" data-port="${esc(p.path)}" class="gw-use px-3 py-1.5 text-xs font-semibold rounded-lg bg-radar-600 hover:bg-radar-500 text-text-100 border border-radar-500/40 transition disabled:opacity-50">${p.selected && d.enabled ? 'Reconnect' : 'Connect'}</button>
-                </div>`).join('')
-                : `<div class="text-munti-yellow-400 text-xs">No serial ports found. Check the USB cable (some are charge-only), plug the master Nano in, then click Scan ports. On a terminal, <span class="font-mono">ls /dev/serial/by-id/</span> lists them too.</div>`;
+            // The port in use, else the likely gateway (the list is sorted with it first).
+            const pick = d.ports.find(p => p.selected) || d.ports[0];
+            el('gw-ports').innerHTML = d.ports.length ? `
+                <label for="gw-port" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">Detected ports (${d.ports.length})</label>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <select id="gw-port" class="flex-1 min-w-0 px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm">
+                        ${d.ports.map(p => `<option value="${esc(p.path)}" data-in-use="${p.selected && d.enabled ? 1 : 0}" ${p === pick ? 'selected' : ''}>`
+                            + esc(`${p.path} — ${p.name}${p.chip ? ' · ' + p.chip : ''}${p.likely_gateway ? ' (likely gateway)' : ''}${p.selected && d.enabled ? ' · in use' : ''}`)
+                            + `</option>`).join('')}
+                    </select>
+                    <button type="button" id="gw-connect" class="px-5 py-2.5 text-sm font-semibold rounded-lg bg-radar-600 hover:bg-radar-500 text-text-100 border border-radar-500/40 transition disabled:opacity-50">Connect</button>
+                </div>`
+                : `<div class="text-munti-yellow-400 text-xs">No serial ports found. Check the USB cable (some are charge-only), plug the master Nano in, then click Scan ports. Ubuntu: <span class="font-mono">ls /dev/serial/by-id/</span> lists them too. Windows: Device Manager › Ports (COM &amp; LPT); a CH340 Nano needs the CH340 driver.</div>`;
             el('gw-logs').innerHTML = d.logs.map(l =>
                 `<li><span class="text-text-500">${esc(l.time)}</span> <span class="${l.level === 'INFO' ? 'text-text-400' : 'text-munti-yellow-400'}">${esc(l.level)}</span> ${esc(l.message)}</li>`).join('');
             el('gw-logs-wrap').classList.toggle('hidden', d.logs.length === 0);
+            connectLabel();
         } catch (e) {
             el('gw-status').innerHTML = `<span class="text-munti-red-400">Could not check the serial ports.</span>`;
         }
     }
 
+    // "Reconnect" when the chosen port is the one already in use.
+    function connectLabel() {
+        const sel = el('gw-port');
+        if (sel) el('gw-connect').textContent = sel.selectedOptions[0]?.dataset.inUse === '1' ? 'Reconnect' : 'Connect';
+    }
+    el('gw-ports').addEventListener('change', e => { if (e.target.id === 'gw-port') connectLabel(); });
+
     el('gw-ports').addEventListener('click', async e => {
-        const btn = e.target.closest('.gw-use');
+        const btn = e.target.closest('#gw-connect');
         if (!btn) return;
-        if (!confirm(`Connect the GSM gateway on ${btn.dataset.port}? This turns the gateway on and restarts its service.`)) return;
+        const port = el('gw-port').value;
+        if (!confirm(`Connect the GSM gateway on ${port}? This turns the gateway on and restarts its service.`)) return;
         btn.disabled = true;
         btn.textContent = 'Connecting…';
         try {
@@ -968,12 +995,15 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json',
                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
-                body: JSON.stringify({ port: btn.dataset.port }),
+                body: JSON.stringify({ port }),
             });
             const d = await res.json();
-            if (!d.since) {   // validation error or .env not writable
-                el('gw-link').innerHTML = `<span class="text-munti-red-400">${esc(d.message || d.error || Object.values(d.errors || {}).flat().join(' ') || 'Could not connect.')}</span>`;
-                return load();
+            if (d.manual || !d.since) {   // Windows (restart the script by hand), or a validation / .env error
+                await load();             // shown after the reload so it isn't overwritten
+                el('gw-link').innerHTML = d.manual
+                    ? `<span class="text-munti-yellow-400">${esc(d.message)}</span>`
+                    : `<span class="text-munti-red-400">${esc(d.message || d.error || Object.values(d.errors || {}).flat().join(' ') || 'Could not connect.')}</span>`;
+                return;
             }
             await waitForGateway(d.since, d.ok ? '' : d.message);
         } catch (err) {
@@ -1110,6 +1140,35 @@ function closeEditModal() {
 }
 
 // Delete Station
+// Test SMS: the service texts WLPING to the station; follow it until the
+// station's WLPONG reply arrives (up to 5 minutes).
+async function smsTest(btn, stationMn) {
+    const msg = btn.closest('td').querySelector('.sms-test-msg');
+    const url = '{{ url('/inventory/water-level-stations') }}/' + encodeURIComponent(stationMn) + '/sms-test';
+    const show = (text, color) => { msg.className = 'sms-test-msg mt-1 text-[11px] whitespace-normal max-w-[240px] mx-auto ' + color; msg.textContent = text; };
+    btn.disabled = true;
+    try {
+        let res = await fetch(url, { method: 'POST', headers: { Accept: 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } });
+        let d = await res.json();
+        if (!res.ok) return show(d.message || 'Could not start the test.', 'text-munti-red-400');
+        for (let i = 0; i < 60; i++) {   // 60 x 5 s = 5 min
+            if (d.state === 'replied') return show(`Replied in ${d.seconds} s. ${d.result}`, 'text-munti-green-400');
+            if (d.state === 'failed') return show(d.result, 'text-munti-red-400');
+            show(d.state === 'sent' ? `SMS sent, waiting for the station's reply… (${d.age} s)` : `Waiting for the gateway service to send it… (${d.age} s)`, 'text-radar-400');
+            await new Promise(r => setTimeout(r, 5000));
+            d = await (await fetch(url, { headers: { Accept: 'application/json' } })).json();
+        }
+        show(d.state === 'sent'
+            ? 'No reply after 5 min. The SMS left the gateway; check the station\'s power, signal and SIM load.'
+            : 'Not sent after 5 min. Check that the GSM gateway is connected and water_level_gsm.py is running.', 'text-munti-yellow-400');
+    } catch (e) {
+        show('Could not check the test.', 'text-munti-red-400');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
 function deleteStation(stationMn, stationName) {
     fetch(`/inventory/water-level-stations/${stationMn}/check-data`, {
         headers: { 'Accept': 'application/json' }

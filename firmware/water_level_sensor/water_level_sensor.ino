@@ -11,6 +11,8 @@
  *   Reading:  WL1,<station_mn>,<seq>,<distance_cm>,<battery_mV>,<temp_tenths_C|NA>,<interval_min>
  *   Ack:      WLACK,<station_mn>,<interval_min>
  *   Power-on: WLON,<station_mn>,<interval_min>   (once after each power-up/reset)
+ *   Test:     gateway sends WLPING (dashboard Test SMS button); reply
+ *             WLPONG,<station_mn>,<interval_min>,<distance_cm>,<battery_mV>
  * The server turns distance into water level using the station's
  * installation height set in the dashboard, so the sensor never needs
  * reprogramming when the mounting height changes.
@@ -61,7 +63,7 @@
 #define STATION_MN          "WLS001"
 // >>> The GSM gateway's SIM number. Readings go here, and settings are only
 //     accepted from here.
-#define GATEWAY_NUMBER      "+639995787215"
+#define GATEWAY_NUMBER      "+639667891619"
 // >>> Interval used until the dashboard sends one (minutes, 1-1440).
 #define DEFAULT_INTERVAL    3
 // >>> Modbus slave address on the RS485 bus (1-247, different for every station).
@@ -404,7 +406,7 @@ bool sendPowerOn() {
   return sendSms(GATEWAY_NUMBER, text);
 }
 
-// Reads SMS `idx`; applies "WLCFG,<minutes>" from the gateway; deletes it.
+// Reads SMS `idx`; from the gateway, answers "WLPING" or applies "WLCFG,<minutes>"; deletes it.
 void handleSms(uint8_t idx) {
   char cmd[16];
   snprintf(cmd, sizeof(cmd), "AT+CMGR=%u", idx);
@@ -424,6 +426,14 @@ void handleSms(uint8_t idx) {
   at(cmd, "OK", 5000);
 
   if (strcmp(sender, gateway) != 0) return;         // settings only from the gateway
+
+  if (strncmp(body, "WLPING", 6) == 0) {            // dashboard SMS test: answer with a fresh reading
+    measure();
+    char pong[64];
+    snprintf(pong, sizeof(pong), "WLPONG,%s,%u,%ld,%ld", STATION_MN, settings.intervalMin, lastDistanceCm, lastBatteryMv);
+    sendSms(GATEWAY_NUMBER, pong);
+    return;
+  }
   if (strncmp(body, "WLCFG,", 6) != 0) return;
 
   long minutes = atol(body + 6);

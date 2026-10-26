@@ -102,6 +102,17 @@ mbpoll -m rtu -a 1 -b 9600 -P none -t 3 -r 1 -c 6 /dev/ttyUSB0
 5. **Server:** plug the gateway Nano into a USB port of the EMS server. In **Stations › Water Level**, scroll to **GSM Gateway (USB)**, click **Scan ports**, then **Connect** on the Nano's port (a CH340 / FTDI chip is marked as the likely gateway). This saves `WATER_GSM_SERIAL_PORT` (the stable `/dev/serial/by-id/...` name) and `WATER_GSM_ENABLED=true` in `scripts/.env` and restarts `ems-water-level-gsm.service`. The panel also warns if **brltty** (takes over CH340 ports on Ubuntu) or **ModemManager** (disturbs the SIM800L) is present.
 6. **Check:** `sudo journalctl -u ems-water-level-gsm.service -f` should show `GSM gateway ready`, a signal/registration line every minute, and the interval being sent to the sensor. Right after power-up the sensor texts `WLON,<station>,<interval>` (logged as "<station> powered on"; retried with each reading until it goes through), and sends its first reading one minute later, then one every interval (default **3 min**).
 
+## Testing the SMS link
+
+On **Stations › Water Level**, click the **Test SMS** (speech bubble) button on a station's row. The server texts `WLPING` to the station through the gateway; the station (only from `GATEWAY_NUMBER`) measures and answers `WLPONG,<station>,<interval>,<distance_cm>,<battery_mV>`. The row shows:
+
+- **Replied in N s** with the station's fresh reading — the whole SMS path works both ways
+- **Gateway could not send…** — the gateway's SIM800L / SIM / load
+- **No reply after 5 min** (SMS sent) — the station's power, signal, SIM or `GATEWAY_NUMBER`
+- **Not sent after 5 min** — the gateway isn't connected or `water_level_gsm.py` isn't running
+
+A test that couldn't be sent within 10 minutes is dropped, so an old test isn't texted after an outage.
+
 ## Changing the interval
 
 Edit the station in **Stations › Water Level** and change **Reporting Interval**. The Interval column shows:

@@ -53,6 +53,9 @@ class WaterLevel extends Model
         'applied_interval_minutes' => 'integer',
         'interval_sent_at'         => 'datetime',
         'interval_applied_at'      => 'datetime',
+        'sms_test_requested_at'    => 'datetime',
+        'sms_test_sent_at'         => 'datetime',
+        'sms_test_replied_at'      => 'datetime',
         'deleted_at'          => 'datetime',
     ];
 

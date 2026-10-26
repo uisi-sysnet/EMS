@@ -203,6 +203,48 @@ class WaterLevelStationController extends Controller
         ]);
     }
 
+    /**
+     * Starts an SMS test: the GSM service texts "WLPING" to the station, which
+     * answers "WLPONG,..." (scripts/water_level_gsm.py does the sending).
+     */
+    public function smsTest($station_mn)
+    {
+        $station = WaterLevel::where('station_mn', $station_mn)->firstOrFail();
+        if (blank($station->sim_number)) {
+            return response()->json(['message' => 'This station has no SIM number, so it can\'t be tested by SMS.'], 422);
+        }
+
+        $station->forceFill([
+            'sms_test_requested_at' => now(),
+            'sms_test_sent_at'      => null,
+            'sms_test_replied_at'   => null,
+            'sms_test_result'       => 'Waiting for the GSM gateway service to send it.',
+        ])->save();
+
+        return $this->smsTestStatus($station_mn);
+    }
+
+    /** Status of the station's latest SMS test, polled by the Test SMS button. */
+    public function smsTestStatus($station_mn)
+    {
+        $s = WaterLevel::where('station_mn', $station_mn)->firstOrFail();
+        $requested = $s->sms_test_requested_at;
+        $state = match (true) {
+            $requested === null => 'none',
+            $s->sms_test_replied_at !== null && $s->sms_test_replied_at->gte($requested) => 'replied',
+            $s->sms_test_sent_at !== null && str_starts_with((string) $s->sms_test_result, 'Gateway could not') => 'failed',
+            $s->sms_test_sent_at !== null => 'sent',
+            default => 'waiting',
+        };
+
+        return response()->json([
+            'state'   => $state,
+            'result'  => $s->sms_test_result,
+            'seconds' => $state === 'replied' ? (int) $requested->diffInSeconds($s->sms_test_replied_at) : null,
+            'age'     => $requested ? (int) $requested->diffInSeconds(now()) : null,
+        ]);
+    }
+
     // ------------------------------------------------------------------
     // GSM gateway (master Nano + SIM800L on a USB serial port)
     // ------------------------------------------------------------------
@@ -228,7 +270,9 @@ class WaterLevelStationController extends Controller
         $env = $this->readScriptsEnv();
         $configured = $env['WATER_GSM_SERIAL_PORT'] ?? '/dev/ttyUSB0';
         $ports = self::detectSerialPorts();
-        $configuredDevice = @realpath($configured) ?: null;
+        $configuredDevice = PHP_OS_FAMILY === 'Windows'
+            ? (in_array(strtoupper($configured), array_column($ports, 'path'), true) ? strtoupper($configured) : null)
+            : (@realpath($configured) ?: null);
 
         foreach ($ports as &$port) {
             $port['selected'] = $port['path'] === $configured
@@ -273,7 +317,8 @@ class WaterLevelStationController extends Controller
         }
 
         return response()->json([
-            'enabled'          => in_array(strtolower($env['WATER_GSM_ENABLED'] ?? 'false'), ['1', 'true', 'yes', 'on'], true),
+            'os'               => self::hostOs(),
+            'enabled'          => in_array(strtolower($env['WATER_GSM_ENABLED'] ?? 'false'), ['1', 'true', 'yes', 'on', 'enabled'], true),
             'configured_port'  => $configured,
             'configured_found' => $configuredDevice !== null,
             'baudrate'         => $env['WATER_GSM_BAUDRATE'] ?? '57600',
@@ -307,6 +352,16 @@ class WaterLevelStationController extends Controller
             return response()->json(['ok' => false, 'error' => $error], 500);
         }
 
+        if (PHP_OS_FAMILY === 'Windows') {   // no systemd: the script is started by hand
+            return response()->json([
+                'ok'     => true,
+                'port'   => $validated['port'],
+                'manual' => true,
+                'message' => "Saved {$validated['port']}. On Windows, restart water_level_gsm.py to use it: "
+                    . 'press Ctrl+C in its window, then run "python water_level_gsm.py" again from the scripts folder.',
+            ]);
+        }
+
         $restart = new \Symfony\Component\Process\Process(['sudo', '/usr/bin/systemctl', 'restart', self::GSM_SERVICE]);
         $restart->setTimeout(30);
         $restart->run();
@@ -331,6 +386,10 @@ class WaterLevelStationController extends Controller
      */
     public static function detectSerialPorts(string $root = ''): array
     {
+        if (PHP_OS_FAMILY === 'Windows' && $root === '') {
+            return self::windowsSerialPorts();
+        }
+
         $byDevice = [];
         foreach (glob("{$root}/dev/serial/by-id/*") ?: [] as $link) {
             $device = realpath($link);
@@ -375,6 +434,73 @@ class WaterLevelStationController extends Controller
         return $ports;
     }
 
+    /** The server's system for the panel: "Windows", "Ubuntu 24.04.4 LTS", "Raspberry Pi OS (Debian GNU/Linux 12 (bookworm))"… */
+    public static function hostOs(): string
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            return 'Windows';
+        }
+        $release = @parse_ini_file('/etc/os-release') ?: [];
+        $name = $release['PRETTY_NAME'] ?? PHP_OS_FAMILY;
+        // 64-bit Raspberry Pi OS calls itself plain Debian; the board model gives it away.
+        $model = trim((string) @file_get_contents('/proc/device-tree/model'), "\0 \n");
+        if (str_contains($model, 'Raspberry Pi') && !str_contains($name, 'Raspbian')) {
+            $name = "Raspberry Pi OS ({$name})";
+        }
+        return $name;
+    }
+
+    /** COM ports on Windows, with the USB chip from the device id (USB\VID_1A86&PID_7523\...). */
+    private static function windowsSerialPorts(): array
+    {
+        return self::parseWindowsPorts(self::powershell(
+            "Get-CimInstance Win32_PnPEntity -Filter \"Name LIKE '%(COM%'\" | Select-Object Name, DeviceID | ConvertTo-Json -Compress"));
+    }
+
+    /**
+     * Runs a PowerShell command, returns its output. shell_exec, not Symfony Process:
+     * "php artisan serve" gives the server no TEMP, and Process needs a temp file on Windows.
+     * shortcut: no timeout (these queries take ~2 s); add one if a query can hang.
+     */
+    private static function powershell(string $script): string
+    {
+        $encoded = base64_encode(mb_convert_encoding("\$ProgressPreference = 'SilentlyContinue'; {$script}", 'UTF-16LE', 'UTF-8'));
+        // Full path: the server's PATH may not reach powershell.exe.
+        $exe = (getenv('SystemRoot') ?: 'C:\\Windows') . '\\System32\\WindowsPowerShell\\v1.0\\powershell.exe';
+        return (string) shell_exec("\"{$exe}\" -NoProfile -NonInteractive -EncodedCommand {$encoded} 2>&1");
+    }
+
+    /** @internal public for the self-check: parses the PowerShell JSON (one object or a list). */
+    public static function parseWindowsPorts(string $json): array
+    {
+        $rows = json_decode($json, true) ?: [];
+        $rows = isset($rows['Name']) ? [$rows] : $rows;
+        $ports = [];
+        foreach ($rows as $row) {
+            if (!preg_match('/\((COM\d+)\)/i', (string) ($row['Name'] ?? ''), $m)) {
+                continue;
+            }
+            $id = preg_match('/VID_([0-9A-F]{4})&PID_([0-9A-F]{4})/i', (string) ($row['DeviceID'] ?? ''), $v)
+                ? strtolower("{$v[1]}:{$v[2]}") : null;
+            $com = strtoupper($m[1]);
+            if (isset($ports[$com]) && ($ports[$com]['vendor_product'] || !$id)) {
+                continue;   // Bluetooth COM ports are listed twice; keep one (the USB one if any)
+            }
+            $ports[$com] = [
+                'path'           => $com,
+                'device'         => $com,
+                'name'           => trim(preg_replace('/\s*\(COM\d+\)/i', '', $row['Name'])),
+                'vendor_product' => $id,
+                'chip'           => $id ? (self::KNOWN_USB_SERIAL[$id] ?? null) : null,
+                'likely_gateway' => $id !== null && isset(self::KNOWN_USB_SERIAL[$id]),
+            ];
+        }
+        $ports = array_values($ports);
+        usort($ports, fn ($a, $b) => ($b['likely_gateway'] <=> $a['likely_gateway']) ?: strnatcmp($a['path'], $b['path']));
+
+        return $ports;
+    }
+
     /** USB ids for a tty: idVendor/idProduct live a few levels above it in sysfs. */
     private static function usbInfo(string $sysDevice): ?array
     {
@@ -408,6 +534,11 @@ class WaterLevelStationController extends Controller
 
     private function unitState(string $unit): string
     {
+        if (PHP_OS_FAMILY === 'Windows' && $unit === self::GSM_SERVICE) {
+            // No systemd: "active" when a python process is running water_level_gsm.py.
+            $count = self::powershell("@(Get-CimInstance Win32_Process -Filter \"Name LIKE 'python%'\" | Where-Object { \$_.CommandLine -like '*water_level_gsm.py*' }).Count");
+            return (int) trim($count) > 0 ? 'active' : 'inactive';
+        }
         if (PHP_OS_FAMILY !== 'Linux') {
             return 'unknown';
         }

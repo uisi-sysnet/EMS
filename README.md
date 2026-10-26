@@ -2,7 +2,7 @@
 
 EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.7.1**
+**Current version: 10.7.2**
 
 | Branch     | Contents                                                        |
 | ---------- | --------------------------------------------------------------- |
@@ -10,7 +10,7 @@ EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-ba
 | `version10` | Version 10.x line; fixes for version 10 gateways land here first |
 | `version9` | Previous version line (9.x)                                     |
 
-Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, `v10.6.1`, `v10.6.2`, `v10.7.0`, `v10.7.1`, ...).
+Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, `v10.6.1`, `v10.6.2`, `v10.7.0`, `v10.7.1`, `v10.7.2`, ...).
 
 ## What It Runs
 
@@ -39,6 +39,9 @@ PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 - **Second data path over LAN:** stations with an **RS485-to-LAN converter** (transparent mode, port 8899) are read by the water level service every minute over Modbus RTU-over-TCP and saved alongside the SMS readings, so SMS becomes the backup path. Set the converter's IP, port and the station's Modbus address on **Stations › Water Level** (labels renamed: RS485-to-LAN Converter IP / Port / Modbus Address); `WATER_LAN_POLL_SEC` changes the rate. The SMS gateway stays on USB.
 - **Water level service on the Services page:** `ems-water-level-gsm.service` now shows running/stopped on **Server › Services** with Start, Stop and Restart buttons.
 - **10.7.1 — Station power-on SMS, 3-minute readings, live USB view:** each station texts `WLON,<station>,<interval>` right after it powers up (logged as "<station> powered on"; retried with the next reading if there's no network). New stations report every **3 minutes** by default (existing stations: change **Reporting Interval** on **Stations › Water Level**). The station's USB Serial Monitor (9600) shows a live distance every second and `SMS SENT OK` / `SMS FAILED (<reason>)` for every SMS. URM06 reading fixed: the station now waits up to 200 ms for the echo and needs 3 of 5 pings to agree, so stray echoes no longer show up as jumping distances. SMS gateway firmware `gw-1.1`: a station SMS arriving while the gateway is sending no longer makes that send report `+FAIL` (which caused a duplicate send).
+- **10.7.2 — GSM gateway panel on Windows, port dropdown:** the **GSM Gateway (USB)** panel works on Windows as well as Ubuntu and Raspberry Pi OS, and shows the detected system. Pick the port from a **dropdown** of the detected ports (the port in use, else the likely gateway, is preselected) and click **Connect**. Scan ports lists `COM` ports (a CH340/FTDI Nano is marked as the likely gateway), the service pill shows whether `water_level_gsm.py` is running, and Connect saves the port to `scripts/.env` (on Windows, restart the script by hand; Ubuntu still restarts the service).
+- **10.7.2 — Test SMS button:** each water level station with a SIM number has a **Test SMS** button. The service texts `WLPING` through the gateway; the station answers `WLPONG,<station>,<interval>,<distance_cm>,<battery_mV>` with a fresh reading, and the row shows "Replied in N s" with that reading, "Gateway could not send…", or "No reply after 5 min". Needs the updated station sketch and `php artisan migrate --force` (adds four `sms_test_*` columns to the water level `stations` table).
+- **10.7.2 — Seismic stations shown offline while MQTT has data:** `seismic_mqtt.py` now accepts Unix-epoch timestamps (seconds or milliseconds; the database rejected them before, so nothing was stored), and warns once per station per 30 min when a reading is stored more than 10 minutes away from the server clock, naming the station and the timestamp it sent. The usual cause is a time without a time zone (e.g. `2026-10-26 07:40:00` in UTC) read as local time and stored 8 h in the past. Insert errors are logged once per station per 30 min instead of on every message.
 
 ## What's New in Version 10.6
 
@@ -143,6 +146,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.7.2  | GSM Gateway (USB) panel works on Windows, Ubuntu and Raspberry Pi OS (detected system shown): port dropdown + Connect, COM port scan, script running check. Test SMS button per station (WLPING/WLPONG round trip; needs migrate). Seismic: epoch timestamps accepted, clock-skew warning, throttled insert errors. |
 | 10.7.1  | Station power-on SMS (`WLON`), 3-minute default interval, live USB readout with SMS result, steadier URM06 readings (200 ms echo wait, 3 of 5 pings must agree). |
 | 10.7.0  | Station firmware: new pins (SIM800L D8/D9, URM06 D2/D3) and Modbus RTU slave over RS485 (D0/D1, DE/RE D4). Stations also read over LAN via RS485-to-LAN converters (Modbus RTU over TCP, every minute). |
 | 10.6.2  | Web terminal works: Python bridge `ems-terminal` + `install_terminal.sh`; terminal restricted to super admins. |

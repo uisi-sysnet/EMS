@@ -28,6 +28,8 @@ SMS FORMAT (sensor firmware: firmware/water_level_sensor/water_level_sensor.ino)
            e.g. WL1,WLS001,42,153,3912,281,15
   Ack      (sensor -> gateway):  WLACK,<station_mn>,<interval_min>
   Power-on (sensor -> gateway):  WLON,<station_mn>,<interval_min>   (once after each power-up)
+  SMS test (gateway -> sensor):  WLPING                             (dashboard Test SMS button)
+  Test reply (sensor -> gateway): WLPONG,<station_mn>,<interval_min>,<distance_cm>,<battery_mV>
   Setting  (gateway -> sensor):  WLCFG,<interval_min>
 
   distance_cm is the ultrasonic distance from the sensor down to the water.
@@ -86,7 +88,7 @@ DB_PASSWORD = os.getenv("SYSTEM_DB_PASSWORD")
 DB_NAME = os.getenv("WATER_LEVEL_DB_NAME", "IOT_water_level")
 LOG_DB_NAME = os.getenv("LOG_DB_NAME", "IOT_service_logs")
 
-GSM_ENABLED = os.getenv("WATER_GSM_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
+GSM_ENABLED = os.getenv("WATER_GSM_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on", "enabled")
 SERIAL_PORT = os.getenv("WATER_GSM_SERIAL_PORT", "/dev/ttyUSB0")
 BAUDRATE = int(os.getenv("WATER_GSM_BAUDRATE", 57600))
 RESEND_MINUTES = int(os.getenv("WATER_GSM_RESEND_MINUTES", 30))
@@ -204,6 +206,19 @@ def parse_sensor_sms(body: str) -> dict:
             "interval": _int(interval, "interval", 1, 1440),
         }
 
+    if kind == "WLPONG":   # answer to the dashboard's SMS test (WLPING)
+        if len(parts) != 5:
+            raise ParseError(f"WLPONG needs 5 fields, got {len(parts)}")
+        _, station_mn, interval, distance_cm, battery_mv = parts
+        distance = _int(distance_cm, "distance_cm", 0, 10000)
+        return {
+            "type": "pong",
+            "station_mn": station_mn,
+            "interval": _int(interval, "interval", 1, 1440),
+            "distance_m": distance / 100.0 if distance > 0 else None,
+            "battery_v": _int(battery_mv, "battery_mV", 0, 20000) / 1000.0,
+        }
+
     if kind in ("WLACK", "WLON"):
         if len(parts) != 3:
             raise ParseError(f"{kind} needs 3 fields, got {len(parts)}")
@@ -211,6 +226,11 @@ def parse_sensor_sms(body: str) -> dict:
                 "station_mn": parts[1], "interval": _int(parts[2], "interval", 1, 1440)}
 
     raise ParseError(f"unknown message type {kind!r}")
+
+
+def pong_summary(msg: dict) -> str:
+    distance = f"distance {msg['distance_m']:.2f} m" if msg["distance_m"] is not None else "no echo from the sensor"
+    return f"Station {msg['station_mn']}: {distance}, battery {msg['battery_v']:.2f} V, interval {msg['interval']} min."
 
 
 def water_level_from(installation_height, distance_m):
@@ -313,6 +333,10 @@ class Store:
                             water_level_from(station["installation_height"], msg["distance_m"]),
                             msg["distance_m"], msg["battery_v"], msg["temperature"], msg["seq"], recorded_at,
                         ))
+                    elif msg["type"] == "pong":
+                        cur.execute(
+                            "UPDATE stations SET sms_test_replied_at = NOW(), sms_test_result = %s WHERE id = %s",
+                            (pong_summary(msg), station["id"]))
                     self._record_applied_interval(cur, station, msg["interval"])
                 self.conn.commit()
             except Exception:
@@ -327,6 +351,8 @@ class Store:
             else:
                 # DEBUG: every SMS is already kept in gsm_messages.
                 logger.debug(f"Reading from {station['station_mn']}: distance {msg['distance_m']} m, battery {msg['battery_v']} V, seq {msg['seq']}", extra=DEVICE)
+        elif msg["type"] == "pong":
+            logger.info(f"{station['station_mn']} answered the SMS test: {pong_summary(msg)}", extra=DEVICE)
         elif msg["type"] == "power_on":
             logger.info(f"{station['station_mn']} powered on (interval {msg['interval']} min)", extra=DEVICE)
         else:
@@ -362,6 +388,30 @@ class Store:
         self.conn.commit()
         return rows
 
+    def tests_to_send(self):
+        """Stations with a dashboard SMS test (Test SMS button) not sent yet."""
+        with self._cur() as cur:
+            cur.execute("""
+                SELECT id, station_mn, sim_number
+                FROM stations
+                WHERE deleted_at IS NULL
+                  AND sim_number IS NOT NULL
+                  AND sms_test_requested_at > NOW() - INTERVAL '10 minutes'   -- don't send a stale test after an outage
+                  AND sms_test_sent_at IS NULL
+                ORDER BY id
+            """)
+            rows = cur.fetchall()
+        self.conn.commit()
+        return rows
+
+    def set_test_status(self, station_id, result, sent=False):
+        """Updates the SMS test status shown on the dashboard (sent=True also stamps the send)."""
+        with self._cur() as cur:
+            cur.execute(
+                f"UPDATE stations SET sms_test_result = %s{', sms_test_sent_at = NOW()' if sent else ''} WHERE id = %s",
+                (result, station_id))
+        self.conn.commit()
+
     def mark_sent(self, station_id, retry_in_minutes=None):
         """Records a send. With retry_in_minutes (failed send), backdates
         interval_sent_at so settings_to_send() picks it up again sooner."""
@@ -384,7 +434,7 @@ class Gateway:
         self.store = store
         self.port_factory = port_factory or (lambda: serial.Serial(SERIAL_PORT, BAUDRATE, timeout=1))
         self.port = None
-        self.pending_sends = {}          # ref -> station id
+        self.pending_sends = {}          # ref -> ("interval" | "test", station id)
         self.last_status = None          # (registered, weak signal) last logged
         self.next_ref = 1
         self.last_heard = 0.0
@@ -437,10 +487,17 @@ class Gateway:
         elif line.startswith("+SENT|") or line.startswith("+FAIL|"):
             parts = line.split("|", 2)
             ref = parts[1] if len(parts) > 1 else ""
-            station_id = self.pending_sends.pop(ref, None)
+            kind, station_id = self.pending_sends.pop(ref, (None, None))
             if station_id is None:
                 return
-            if line.startswith("+SENT|"):
+            if kind == "test":
+                if line.startswith("+SENT|"):
+                    self.store.set_test_status(station_id, "SMS sent to the station; waiting for its reply.")
+                else:
+                    reason = parts[2] if len(parts) > 2 else "unknown"
+                    self.store.set_test_status(station_id, f"Gateway could not send the test SMS: {reason}.")
+                    logger.warning(f"SMS test to station id {station_id} not sent: {reason}", extra=DEVICE)
+            elif line.startswith("+SENT|"):
                 logger.info(f"Interval setting delivered to the network (station id {station_id}).", extra=DEVICE)
             else:
                 reason = parts[2] if len(parts) > 2 else "unknown"
@@ -475,18 +532,27 @@ class Gateway:
             logger.debug(f"Gateway: {line}")
 
     # -- outgoing --
+    def _new_ref(self, kind, station_id):
+        ref = str(self.next_ref)
+        self.next_ref = self.next_ref % 99999 + 1
+        self.pending_sends[ref] = (kind, station_id)
+        return ref
+
     def send_due_settings(self):
         busy = set(self.pending_sends.values())
         for row in self.store.settings_to_send():
-            if row["id"] in busy:
+            if ("interval", row["id"]) in busy:
                 continue
-            ref = str(self.next_ref)
-            self.next_ref = self.next_ref % 99999 + 1
+            ref = self._new_ref("interval", row["id"])
             text = f"WLCFG,{row['report_interval_minutes']}"
-            self.pending_sends[ref] = row["id"]
             self.store.mark_sent(row["id"])
             self.write(f"SEND|{ref}|{row['sim_number']}|{text}")
             logger.info(f"Sending interval {row['report_interval_minutes']} min to {row['station_mn']} ({row['sim_number']}).", extra=DEVICE)
+        for row in self.store.tests_to_send():
+            ref = self._new_ref("test", row["id"])
+            self.store.set_test_status(row["id"], "Test SMS handed to the gateway; sending…", sent=True)
+            self.write(f"SEND|{ref}|{row['sim_number']}|WLPING")
+            logger.info(f"Sending SMS test to {row['station_mn']} ({row['sim_number']}).", extra=DEVICE)
 
     def tick(self):
         now = time.monotonic()
@@ -620,6 +686,10 @@ def _self_check():
     now = datetime(2026, 10, 20, 1, 0, tzinfo=timezone.utc)
     assert parse_sensor_sms("WLON,WLS001,3") == {"type": "power_on", "station_mn": "WLS001", "interval": 3}
     assert parse_sensor_sms("WLACK,WLS001,3")["type"] == "ack"
+    pong = parse_sensor_sms("WLPONG,WLS001,3,161,8750")
+    assert pong == {"type": "pong", "station_mn": "WLS001", "interval": 3, "distance_m": 1.61, "battery_v": 8.75}
+    assert pong_summary(pong) == "Station WLS001: distance 1.61 m, battery 8.75 V, interval 3 min."
+    assert "no echo" in pong_summary(parse_sensor_sms("WLPONG,WLS001,3,0,8750"))
     r = decode_station_registers([315, 3912, 281, 15, 77, 12], 5.5, now)
     assert r["distance_m"] == 3.15 and r["water_level"] == 2.35 and r["battery_v"] == 3.912
     assert r["temperature"] == 28.1 and r["seq"] == 77 and r["recorded_at"] == now - timedelta(seconds=12)

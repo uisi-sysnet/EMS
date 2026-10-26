@@ -257,11 +257,44 @@ def reset_sms_connection():
         _sms_conn = None
 
 
+def epoch_to_iso(value):
+    """Unix epoch seconds or milliseconds (number or digit string) -> ISO UTC.
+    Postgres rejects a number for the timestamptz column, so epoch payloads
+    used to fail on every message. Anything else is returned unchanged."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) or (isinstance(value, str) and re.fullmatch(r"\d{9,13}(\.\d+)?", value.strip())):
+        seconds = float(value)
+        if seconds > 1e11:          # milliseconds
+            seconds /= 1000
+        return datetime.fromtimestamp(seconds, tz=timezone.utc).isoformat()
+    return value
+
+
+SKEW_WARN_SEC = 600
+
+
+def skew_warning(station_id, sent_timestamp, behind_sec):
+    """Text for a station whose stored time is far from the server clock (or None).
+    behind_sec > 0: the reading is stored in the past, so the dashboard shows the
+    station idle/offline even though MQTT messages arrive."""
+    if behind_sec is None or abs(behind_sec) < SKEW_WARN_SEC:
+        return None
+    hours = abs(behind_sec) / 3600
+    side = "behind" if behind_sec > 0 else "ahead of"
+    effect = "so the dashboard shows it offline" if behind_sec > 0 else "so its times look wrong"
+    return (f"Station {station_id}'s readings are stored {hours:.1f} h {side} the server clock "
+            f"(it sent timestamp {sent_timestamp!r}), {effect}. Send UTC with 'Z' or an offset "
+            f"(e.g. 2026-10-26T07:40:00Z) or Unix epoch seconds, and check the device clock. "
+            f"Repeats are not logged for 30 minutes.")
+
+
 def insert_station_metrics(data: dict, source: str):
     """Shared insert path for both ingestion channels. `data` uses the same
     shape as the MQTT JSON payload: station_id, timestamp, location{},
     measurements{acceleration{},velocity{},displacement{}}, pga, peis.
-    `source` is 'mqtt' or 'sms', recorded per-row for traceability."""
+    `source` is 'mqtt' or 'sms', recorded per-row for traceability.
+    Returns how many seconds the stored time is behind the DB clock."""
     loc = data.get('location', {}) or {}
     measurements = data.get('measurements', {}) or {}
     acc = measurements.get('acceleration', {}) or {}
@@ -288,7 +321,8 @@ def insert_station_metrics(data: dict, source: str):
             disp_x, disp_y, disp_z,
             graph_x, graph_y, graph_z, graph_scale, graph_center,
             pga, peis, source
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING EXTRACT(EPOCH FROM (now() - time));
     """
     params = (
         timestamp_value,
@@ -310,10 +344,12 @@ def insert_station_metrics(data: dict, source: str):
         conn = get_data_connection()
         with conn.cursor() as cur:
             cur.execute(query, params)
+            row = cur.fetchone()
         conn.commit()
     except Exception as e:
         reset_data_connection()
         raise RuntimeError(f"station_metrics insert failed: {e}") from e
+    return float(row[0]) if row and row[0] is not None else None
 
 
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -326,6 +362,7 @@ def on_connect(client, userdata, flags, rc, properties=None):
 
 def on_message(client, userdata, msg):
     """Processes network telemetry queues, parses topics dynamically, and saves them to the hypertable."""
+    data = {}
     try:
         # DEBUG: one line per MQTT message filled service_logs.
         logging.debug(f"Incoming message caught on topic: {msg.topic}")
@@ -346,13 +383,22 @@ def on_message(client, userdata, msg):
                 logging.error(f"Payload rejected: 'timestamp' key is missing from JSON (station {data['station_id']}, topic {msg.topic}). Repeats are not logged for 30 minutes.", extra=DEVICE)
             return
 
-        insert_station_metrics(data, source="mqtt")
+        sent = data['timestamp']
+        data['timestamp'] = epoch_to_iso(sent)
+        behind = insert_station_metrics(data, source="mqtt")
         logging.debug(f"SUCCESS: Ingested telemetry to TimescaleDB for: {data['station_id']}", extra=DEVICE)
+        warning = skew_warning(data['station_id'], sent, behind)
+        if warning and throttled(f"skew:{data['station_id']}"):
+            logging.warning(warning, extra=DEVICE)
 
     except json.JSONDecodeError:
-        logging.error("Payload failed parsing: Received message is not valid JSON.")
+        if throttled(f"bad-json:{msg.topic}"):
+            logging.error(f"Payload failed parsing: message on {msg.topic} is not valid JSON. Repeats are not logged for 30 minutes.")
     except Exception as e:
-        logging.error(f"Database insertion failed: {e}")
+        # Once per station per 30 min: a bad field repeats on every message.
+        station = data.get('station_id', 'UNKNOWN') if isinstance(data, dict) else 'UNKNOWN'
+        if throttled(f"insert:{station}"):
+            logging.error(f"Database insertion failed for station {station}: {e}. Repeats are not logged for 30 minutes.")
 
 
 # ============================================================
@@ -641,5 +687,21 @@ def main():
     client.loop_forever()  # blocks the main thread; SMS listener (if any) runs alongside it
 
 
+def _self_check():
+    """python3 seismic_mqtt.py --check"""
+    assert epoch_to_iso(1792999590) == "2026-10-26T07:26:30+00:00"
+    assert epoch_to_iso("1792999590000") == "2026-10-26T07:26:30+00:00"   # milliseconds
+    assert epoch_to_iso("2026-10-26T07:40:00Z") == "2026-10-26T07:40:00Z"  # ISO kept
+    assert epoch_to_iso("2026-10-26 15:40:00") == "2026-10-26 15:40:00"
+    assert skew_warning("S1", "x", 30) is None and skew_warning("S1", "x", None) is None
+    assert "8.0 h behind" in skew_warning("S1", "2026-10-26 07:40:00", 8 * 3600)
+    assert "ahead of" in skew_warning("S1", "x", -8 * 3600)
+    print("seismic_mqtt checks OK")
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+    if "--check" in sys.argv:
+        _self_check()
+    else:
+        main()
