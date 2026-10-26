@@ -1,5 +1,5 @@
 @php
-    $envPath = '/home/system/EMS/scripts/.env';
+    $envPath = config('database.ems_env_path');
     $smsEnabled = false;
     
     if (file_exists($envPath)) {

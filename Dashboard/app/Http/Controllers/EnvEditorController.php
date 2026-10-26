@@ -11,7 +11,7 @@ class EnvEditorController extends Controller
     {
         // Same scripts/.env the rest of the dashboard uses (EMS_SCRIPTS_ENV,
         // see config/database.php), so the editors work wherever EMS is installed.
-        return config('database.ems_env_path') ?: '/home/system/EMS/scripts/.env';
+        return config('database.ems_env_path');
     }
 
     // ------------------------------------------------------------

@@ -46,15 +46,15 @@ else
     warn "No SUDO_USER detected — using the folder owner '${EMS_USER}' as the service user."
 fi
 
-for py in air_quality_ingest.py seismic_mqtt.py api_server.py; do
-    [[ -f "${EMS_DIR}/${py}" ]] || warn "${py} not found in ${EMS_DIR} — the corresponding service will fail to start until it's there."
+for py in air_quality_ingest.py seismic_mqtt.py api_server.py water_level_gsm.py; do
+    [[ -f "${EMS_DIR}/scripts/${py}" ]] || warn "${py} not found in ${EMS_DIR}/scripts — the corresponding service will fail to start until it's there."
 done
 
 # db_logging.py is imported (unconditionally, when DB_LOG_ENABLED=true) by
-# all three scripts — unlike sim800l.py, that import isn't soft-caught, so
+# all the scripts — unlike sim800l.py, that import isn't soft-caught, so
 # a missing file here would crash every service, not just seismic's SMS path.
-[[ -f "${EMS_DIR}/db_logging.py" ]] || warn "db_logging.py not found in ${EMS_DIR} — all three services will crash on startup if DB_LOG_ENABLED=true (the default)."
-[[ -f "${EMS_DIR}/sim800l.py" ]] || warn "sim800l.py not found in ${EMS_DIR} — SMS ingestion will be disabled automatically (MQTT ingestion is unaffected)."
+[[ -f "${EMS_DIR}/scripts/db_logging.py" ]] || warn "db_logging.py not found in ${EMS_DIR}/scripts — every service will crash on startup if DB_LOG_ENABLED=true (the default)."
+[[ -f "${EMS_DIR}/scripts/sim800l.py" ]] || warn "sim800l.py not found in ${EMS_DIR}/scripts — SMS ingestion will be disabled automatically (MQTT ingestion is unaffected)."
 
 log "Detected project directory: ${EMS_DIR}"
 log "Detected service user:      ${EMS_USER}"

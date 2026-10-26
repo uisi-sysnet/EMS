@@ -2,7 +2,7 @@
 
 EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.7.2**
+**Current version: 10.7.3**
 
 | Branch     | Contents                                                        |
 | ---------- | --------------------------------------------------------------- |
@@ -10,7 +10,7 @@ EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-ba
 | `version10` | Version 10.x line; fixes for version 10 gateways land here first |
 | `version9` | Previous version line (9.x)                                     |
 
-Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, `v10.6.1`, `v10.6.2`, `v10.7.0`, `v10.7.1`, `v10.7.2`, ...).
+Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, `v10.6.1`, `v10.6.2`, `v10.7.0`, `v10.7.1`, `v10.7.2`, `v10.7.3`, ...).
 
 ## What It Runs
 
@@ -42,6 +42,7 @@ PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 - **10.7.2 — GSM gateway panel on Windows, port dropdown:** the **GSM Gateway (USB)** panel works on Windows as well as Ubuntu and Raspberry Pi OS, and shows the detected system. Pick the port from a **dropdown** of the detected ports (the port in use, else the likely gateway, is preselected) and click **Connect**. Scan ports lists `COM` ports (a CH340/FTDI Nano is marked as the likely gateway), the service pill shows whether `water_level_gsm.py` is running, and Connect saves the port to `scripts/.env` (on Windows, restart the script by hand; Ubuntu still restarts the service).
 - **10.7.2 — Test SMS button:** each water level station with a SIM number has a **Test SMS** button. The service texts `WLPING` through the gateway; the station answers `WLPONG,<station>,<interval>,<distance_cm>,<battery_mV>` with a fresh reading, and the row shows "Replied in N s" with that reading, "Gateway could not send…", or "No reply after 5 min". Needs the updated station sketch and `php artisan migrate --force` (adds four `sms_test_*` columns to the water level `stations` table).
 - **10.7.2 — Seismic stations shown offline while MQTT has data:** `seismic_mqtt.py` now accepts Unix-epoch timestamps (seconds or milliseconds; the database rejected them before, so nothing was stored), and warns once per station per 30 min when a reading is stored more than 10 minutes away from the server clock, naming the station and the timestamp it sent. The usual cause is a time without a time zone (e.g. `2026-10-26 07:40:00` in UTC) read as local time and stored 8 h in the past. Insert errors are logged once per station per 30 min instead of on every message.
+- **10.7.3 — Installs into `/var/www/EMS`:** `sudo ./install.sh` copies the project to `/var/www/EMS` and continues from there (an existing install keeps its `.env` files, storage and dependencies), so nginx serves `/var/www/EMS/Dashboard/public` and the services, cron job and sudo rules use `/var/www/EMS`. It then applies the file permissions on every run (see Quick Start). The Dashboard no longer assumes `/home/system/EMS`: it finds `scripts/.env` next to its own folder. `install_services.sh` checks the service scripts in `scripts/`, where they are (it warned that they were missing before).
 
 ## What's New in Version 10.6
 
@@ -146,6 +147,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.7.3  | `install.sh` installs into `/var/www/EMS` and applies file permissions; nginx and services follow; Dashboard finds `scripts/.env` next to its folder. |
 | 10.7.2  | GSM Gateway (USB) panel works on Windows, Ubuntu and Raspberry Pi OS (detected system shown): port dropdown + Connect, COM port scan, script running check. Test SMS button per station (WLPING/WLPONG round trip; needs migrate). Seismic: epoch timestamps accepted, clock-skew warning, throttled insert errors. |
 | 10.7.1  | Station power-on SMS (`WLON`), 3-minute default interval, live USB readout with SMS result, steadier URM06 readings (200 ms echo wait, 3 of 5 pings must agree). |
 | 10.7.0  | Station firmware: new pins (SIM800L D8/D9, URM06 D2/D3) and Modbus RTU slave over RS485 (D0/D1, DE/RE D4). Stations also read over LAN via RS485-to-LAN converters (Modbus RTU over TCP, every minute). |
@@ -215,12 +217,25 @@ chmod +x *.sh
 sudo ./install.sh
 ```
 
+Run it from your normal user account with `sudo` (not from a root shell): the EMS services run as that user.
+
 `install.sh` does the whole setup in one run:
 
+0. **Installs EMS in `/var/www/EMS`.** Run from anywhere else (like the clone above), it copies the project there and continues from that copy, so nginx, the systemd services and the cron job all use `/var/www/EMS`. Re-running over an existing `/var/www/EMS` keeps its `.env` files, `Dashboard/storage` and installed dependencies. You can delete the clone afterwards. Another location: `sudo EMS_INSTALL_DIR=/path ./install.sh`.
 1. Configures the Raspberry Pi network (WiFi access point, eth0 DHCP/static). This step is skipped on other systems.
 2. Creates `scripts/.env` from `scripts/.env.EMS.scripts` and asks for every credential: database host, port, user and password, the `postgres` superuser password used by the Dashboard, MQTT host, port, user and password, and the database names. Leave a password blank to generate a strong random one. An API key is generated automatically.
 3. Runs `deploy.sh`, which installs all required packages (PostgreSQL + TimescaleDB, Mosquitto, Python dependencies, nginx, PHP, Composer, Node.js), creates the databases, and applies the credentials.
-4. Installs the systemd services and runs `check_requirements.sh`.
+4. Installs the systemd services, applies the file permissions and runs `check_requirements.sh`:
+
+   | Path | Owner | Mode |
+   |---|---|---|
+   | `/var/www/EMS` (code, scripts) | the service user | readable by all, writable by the owner |
+   | `Dashboard/` | `www-data` (nginx + PHP-FPM) | `storage/` and `bootstrap/cache/` writable (775) |
+   | `Dashboard/.env` | `www-data` | 600 |
+   | `scripts/.env` | the service user's group, with `www-data` in it | 660 (the services read it, the Dashboard edits it) |
+   | `*.sh` | the service user | 755 |
+
+   nginx serves the Dashboard from `/var/www/EMS/Dashboard/public` and proxies `/api/` to the API service (site `ems-dashboard`; the default site is removed).
 
 Generated credentials are printed once at the end, so record them. Re-running `sudo ./install.sh` offers the saved values as defaults, which makes it the way to change credentials later.
 
@@ -278,7 +293,7 @@ Dashboard settings in `Dashboard/.env`:
 | Setting           | Purpose                                                                                       |
 | ----------------- | --------------------------------------------------------------------------------------------- |
 | `DB_*`            | Dashboard database (`IOT_api`, as the `postgres` user)                                        |
-| `EMS_SCRIPTS_ENV` | Path to `scripts/.env`; written by `deploy.sh`, defaults to `/home/system/EMS/scripts/.env`   |
+| `EMS_SCRIPTS_ENV` | Path to `scripts/.env`; written by `deploy.sh`, defaults to the `scripts/.env` next to the Dashboard folder (`/var/www/EMS/scripts/.env`) |
 | `APP_VERSION`     | Optional override of the displayed version. Leave unset so the release version is shown.      |
 
 `API_KEYS` uses this format:

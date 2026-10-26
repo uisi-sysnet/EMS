@@ -30,7 +30,8 @@ return [
     |
     */
 
-    'ems_env_path' => env('EMS_SCRIPTS_ENV', '/home/system/EMS/scripts/.env'),
+    // Default: the scripts/.env next to this Dashboard folder (e.g. /var/www/EMS/scripts/.env).
+    'ems_env_path' => env('EMS_SCRIPTS_ENV', dirname(__DIR__, 2) . '/scripts/.env'),
 
     /*
     |--------------------------------------------------------------------------
@@ -118,7 +119,7 @@ return [
         | These five connections are NOT populated from this app's own
         | .env file. They are overwritten at runtime in
         | App\Providers\AppServiceProvider::loadEmsDatabaseConnections(),
-        | which reads /home/system/EMS/scripts/.env (shared with the
+        | which reads the EMS scripts/.env (ems_env_path above, shared with the
         | Python ingestion services) and calls Config::set() for each
         | one during boot(), before any request is handled.
         |

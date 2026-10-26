@@ -94,7 +94,7 @@ class ServicesController extends Controller
         $action = $validated['action'];
 
         // Define .env file path
-        $envPath = '/home/system/EMS/scripts/.env';
+        $envPath = config('database.ems_env_path');
 
         // If SMS service, update .env file only
         if ($service === 'sms.service') {
@@ -170,8 +170,8 @@ class ServicesController extends Controller
      */
     private function getSmsStatus(): bool
     {
-        $envPath = '/home/system/EMS/scripts/.env';
-        
+        $envPath = config('database.ems_env_path');
+
         if (!file_exists($envPath)) {
             return false;
         }

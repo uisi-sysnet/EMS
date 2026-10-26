@@ -17,7 +17,7 @@ use Illuminate\Console\Command;
  * Wire this into ems-mediamtx's systemd unit as an ExecStartPost so it
  * runs automatically every time the service (re)starts:
  *
- *   ExecStartPost=/bin/sh -c 'sleep 2 && /usr/bin/php8.3 /home/system/EMS/Dashboard/artisan cameras:resync'
+ *   ExecStartPost=/bin/sh -c 'sleep 2 && /usr/bin/php8.3 /var/www/EMS/Dashboard/artisan cameras:resync'
  *
  * The short sleep gives mediamtx's own API listener (127.0.0.1:9997) a
  * moment to come up before this starts POSTing to it — its API starts

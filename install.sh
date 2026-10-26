@@ -17,11 +17,18 @@
 #      TimescaleDB, Mosquitto, Python deps, nginx, PHP, Composer, Node) and
 #      applies the credentials above (roles, databases, MQTT accounts,
 #      Dashboard .env).
-#   5. Installs the systemd services and runs check_requirements.sh.
+#   5. Installs the systemd services, applies file permissions and runs
+#      check_requirements.sh.
+#
+# The project is installed in /var/www/EMS: run from anywhere else (e.g. a
+# fresh git clone in your home folder), this copies it there first and
+# continues from that copy. nginx, the services and the cron job then all
+# use /var/www/EMS. An existing /var/www/EMS keeps its .env files, storage
+# and installed dependencies.
 #
 # Safe to re-run: existing values are offered as defaults (press Enter to keep).
 #
-# Usage: sudo ./install.sh
+# Usage: sudo ./install.sh       (from your normal user account, not a root shell)
 
 set -euo pipefail
 
@@ -48,6 +55,34 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 [[ -t 0 ]] || die "install.sh is interactive — run it from a terminal."
+
+# ----------------------------------------------------------------------
+# 0a. Install location: /var/www/EMS
+# ----------------------------------------------------------------------
+# Every script finds the project from its own location, so once setup runs
+# from /var/www/EMS, the nginx site, systemd services, cron job and sudo
+# rules all point there. Other path: sudo EMS_INSTALL_DIR=/path ./install.sh
+INSTALL_DIR="${EMS_INSTALL_DIR:-/var/www/EMS}"
+# The services run as the user who ran sudo, never as root.
+EMS_USER="${SUDO_USER:-$(stat -c '%U' "$SCRIPT_DIR")}"
+[[ "$EMS_USER" != "root" ]] || die "Run this from your normal user account with sudo (sudo ./install.sh), not from a root shell: the EMS services must not run as root."
+
+if [[ "$(realpath -m "$SCRIPT_DIR")" != "$(realpath -m "$INSTALL_DIR")" ]]; then
+    log "Installing EMS into ${INSTALL_DIR} (copying from ${SCRIPT_DIR})"
+    mkdir -p "$INSTALL_DIR"
+    # Re-running over an existing install keeps its settings, data and dependencies.
+    KEEP_EXCLUDES=()
+    for keep in scripts/.env Dashboard/.env Dashboard/storage Dashboard/vendor Dashboard/node_modules mediamtx/mediamtx; do
+        [[ -e "${INSTALL_DIR}/${keep}" ]] && KEEP_EXCLUDES+=("--exclude=./${keep}")
+    done
+    tar -C "$SCRIPT_DIR" ${KEEP_EXCLUDES[@]+"${KEEP_EXCLUDES[@]}"} -cf - . | tar -C "$INSTALL_DIR" -xf - \
+        || die "Could not copy the project to ${INSTALL_DIR}."
+    chown -R "${EMS_USER}:${EMS_USER}" "$INSTALL_DIR"
+    chmod 755 "$INSTALL_DIR"
+    log "Continuing from ${INSTALL_DIR}. ${SCRIPT_DIR} is no longer used; delete it once the new install works."
+    exec "${INSTALL_DIR}/install.sh" "$@"
+fi
+log "Install directory: ${SCRIPT_DIR} (service user: ${EMS_USER})"
 
 [[ -f "$DEPLOY_SCRIPT" ]] || die "deploy.sh not found next to this script (expected at $DEPLOY_SCRIPT)."
 [[ -f "$INSTALL_SERVICES_SCRIPT" ]] || die "install_services.sh not found next to this script (expected at $INSTALL_SERVICES_SCRIPT)."
@@ -589,7 +624,36 @@ ask_yesno "Install and start the EMS services now (start on boot)?" "y" INSTALL_
 if [[ "$INSTALL_SERVICES" == "yes" ]]; then
     "$INSTALL_SERVICES_SCRIPT" || warn "install_services.sh failed — see the error above, then run: sudo ./install_services.sh"
 else
-    log "Skipped. Run later with: sudo ./install_services.sh"
+    log "Skipped. Run later with: sudo ${SCRIPT_DIR}/install_services.sh"
+fi
+
+# ----------------------------------------------------------------------
+# 9. Permissions (applied on every run, so a re-run repairs them)
+# ----------------------------------------------------------------------
+#   project         service user, readable by all, writable by its owner only
+#   Dashboard/      www-data (nginx + PHP-FPM); storage/ and bootstrap/cache/ writable
+#   Dashboard/.env  www-data, 600: holds the database superuser password
+#   scripts/.env    660 in the service user's group, which www-data belongs to
+#                   (deploy.sh/update.sh use the same rule; keep them in step)
+#   *.sh            executable
+echo
+log "Applying permissions in ${SCRIPT_DIR}"
+find "$SCRIPT_DIR" -path "${SCRIPT_DIR}/Dashboard" -prune -o -exec chown -h "${EMS_USER}:${EMS_USER}" {} +
+find "$SCRIPT_DIR" -path "${SCRIPT_DIR}/Dashboard" -prune -o ! -name '.env' -exec chmod u+rwX,go+rX,go-w {} +
+chmod 755 "$SCRIPT_DIR" "$SCRIPT_DIR"/*.sh
+if [[ -d "${SCRIPT_DIR}/Dashboard" ]]; then
+    chown -R www-data:www-data "${SCRIPT_DIR}/Dashboard"
+    chmod -R u+rwX,go+rX,go-w "${SCRIPT_DIR}/Dashboard"
+    chmod -R 775 "${SCRIPT_DIR}/Dashboard/storage" "${SCRIPT_DIR}/Dashboard/bootstrap/cache" 2>/dev/null || true
+    [[ -f "$LARAVEL_ENV_FILE" ]] && chmod 600 "$LARAVEL_ENV_FILE"
+fi
+chmod 660 "$ENV_FILE"
+id -nG www-data 2>/dev/null | grep -qw "$(stat -c '%G' "$ENV_FILE")" \
+    || warn "www-data is not in the '$(stat -c '%G' "$ENV_FILE")' group, so the Dashboard can't edit ${ENV_FILE}. Fix: sudo usermod -aG $(stat -c '%G' "$ENV_FILE") www-data && sudo systemctl restart php*-fpm"
+if sudo -u www-data test -r "${SCRIPT_DIR}/Dashboard/public/index.php" && sudo -u www-data test -w "$ENV_FILE"; then
+    log "Verified: www-data can read the Dashboard and edit scripts/.env."
+else
+    warn "www-data can't read ${SCRIPT_DIR}/Dashboard/public/index.php or write ${ENV_FILE}; check with: namei -l ${ENV_FILE}"
 fi
 
 echo
@@ -607,6 +671,7 @@ if (( ${#GENERATED_SECRETS[@]} > 0 )); then
 fi
 
 echo
+log "EMS is installed in ${SCRIPT_DIR}; nginx serves ${SCRIPT_DIR}/Dashboard/public."
 if (( CHECK_STATUS == 0 )); then
     log "Setup complete."
 else
