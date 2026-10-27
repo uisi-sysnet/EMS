@@ -266,6 +266,10 @@ detect_os() {
         source /etc/os-release
         OS_PRETTY_NAME="${PRETTY_NAME:-${NAME:-Unknown}}"
 
+        # Ubuntu on Pi hardware still says "Raspberry Pi" in /proc/cpuinfo,
+        # but manages its network with netplan: never treat it as Pi OS.
+        [[ "${ID:-}" == "ubuntu" ]] && return 1
+
         # Raspberry Pi OS reports ID=raspbian (older) or ID=debian with
         # ID_LIKE containing "raspbian" / "debian raspbian" (newer, incl.
         # Bookworm). Check both, plus common vendor markers.
