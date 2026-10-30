@@ -2,7 +2,7 @@
 
 EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.7.3**
+**Current version: 10.7.4**
 
 | Branch     | Contents                                                        |
 | ---------- | --------------------------------------------------------------- |
@@ -10,7 +10,7 @@ EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-ba
 | `version10` | Version 10.x line; fixes for version 10 gateways land here first |
 | `version9` | Previous version line (9.x)                                     |
 
-Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, `v10.6.1`, `v10.6.2`, `v10.7.0`, `v10.7.1`, `v10.7.2`, `v10.7.3`, ...).
+Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, `v10.6.1`, `v10.6.2`, `v10.7.0`, `v10.7.1`, `v10.7.2`, `v10.7.3`, `v10.7.4`, ...).
 
 ## What It Runs
 
@@ -43,6 +43,7 @@ PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 - **10.7.2 — Test SMS button:** each water level station with a SIM number has a **Test SMS** button. The service texts `WLPING` through the gateway; the station answers `WLPONG,<station>,<interval>,<distance_cm>,<battery_mV>` with a fresh reading, and the row shows "Replied in N s" with that reading, "Gateway could not send…", or "No reply after 5 min". Needs the updated station sketch and `php artisan migrate --force` (adds four `sms_test_*` columns to the water level `stations` table).
 - **10.7.2 — Seismic stations shown offline while MQTT has data:** `seismic_mqtt.py` now accepts Unix-epoch timestamps (seconds or milliseconds; the database rejected them before, so nothing was stored), and warns once per station per 30 min when a reading is stored more than 10 minutes away from the server clock, naming the station and the timestamp it sent. The usual cause is a time without a time zone (e.g. `2026-10-26 07:40:00` in UTC) read as local time and stored 8 h in the past. Insert errors are logged once per station per 30 min instead of on every message.
 - **10.7.3 — Installs into `/var/www/EMS`:** `sudo ./install.sh` copies the project to `/var/www/EMS` and continues from there (an existing install keeps its `.env` files, storage and dependencies), so nginx serves `/var/www/EMS/Dashboard/public` and the services, cron job and sudo rules use `/var/www/EMS`. It then applies the file permissions on every run (see Quick Start). The Dashboard no longer assumes `/home/system/EMS`: it finds `scripts/.env` next to its own folder. `install_services.sh` checks the service scripts in `scripts/`, where they are (it warned that they were missing before). Ubuntu installed on a Raspberry Pi is no longer mistaken for Raspberry Pi OS, so its netplan networking isn't offered the Pi network steps.
+- **10.7.4 — API service starts on Ubuntu again:** `api_server.py` crashed at startup with `cannot import name 'ServerProtocol' from 'websockets.server'` when a pip-installed uvicorn met Ubuntu's older apt `websockets`. The API has no WebSocket routes, so uvicorn now runs without WebSocket support (`ws="none"`) and never imports that library.
 
 ## What's New in Version 10.6
 
@@ -147,6 +148,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.7.4  | API service no longer crashes at startup on Ubuntu (uvicorn runs without WebSocket support; the API has none). |
 | 10.7.3  | `install.sh` installs into `/var/www/EMS` and applies file permissions; nginx and services follow; Dashboard finds `scripts/.env` next to its folder. |
 | 10.7.2  | GSM Gateway (USB) panel works on Windows, Ubuntu and Raspberry Pi OS (detected system shown): port dropdown + Connect, COM port scan, script running check. Test SMS button per station (WLPING/WLPONG round trip; needs migrate). Seismic: epoch timestamps accepted, clock-skew warning, throttled insert errors. |
 | 10.7.1  | Station power-on SMS (`WLON`), 3-minute default interval, live USB readout with SMS result, steadier URM06 readings (200 ms echo wait, 3 of 5 pings must agree). |

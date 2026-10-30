@@ -2154,4 +2154,7 @@ if __name__ == "__main__":
     initialize_api_keys_table()
     initialize_ip_allowlist_table()
     logger.info(f"Monitoring API starting on {API_BIND_HOST}:{API_PORT}")
-    uvicorn.run(app, host=API_BIND_HOST, port=API_PORT, log_level="warning")
+    # ws="none": the API has no WebSocket routes. Loading uvicorn's WebSocket
+    # support imports `websockets`, and a pip uvicorn with Ubuntu's older apt
+    # websockets crashes at startup ("cannot import name 'ServerProtocol").
+    uvicorn.run(app, host=API_BIND_HOST, port=API_PORT, log_level="warning", ws="none")
