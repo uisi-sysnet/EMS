@@ -253,12 +253,12 @@ class WaterLevelStationController extends Controller
 
     /** USB serial chips the gateway Nano usually has. vendor:product => name */
     private const KNOWN_USB_SERIAL = [
-        '1a86:7523' => 'CH340 (most Arduino Nano clones)',
-        '1a86:55d4' => 'CH9102 (newer Nano clones)',
-        '0403:6001' => 'FTDI FT232R (original Arduino Nano)',
+        '1a86:7523' => 'CH340',
+        '1a86:55d4' => 'CH9102',
+        '0403:6001' => 'FTDI FT232R',
         '10c4:ea60' => 'CP2102',
-        '2341:0043' => 'Arduino Uno',
-        '2341:0058' => 'Arduino Nano Every',
+        '2341:0043' => 'Arduino board',
+        '2341:0058' => 'Arduino board',
     ];
 
     /**
@@ -296,6 +296,8 @@ class WaterLevelStationController extends Controller
                     'at'      => $last->created_at?->timestamp,
                     'time'    => $last->created_at?->timezone('Asia/Manila')->format('M j, H:i:s'),
                     'message' => $last->message,
+                    // Logged by water_level_gsm.py as "... SIM +639171234567)."; absent when the SIM doesn't store its number.
+                    'sim_number' => preg_match('/SIM (\+?\d{6,})/', $last->message, $m) ? $m[1] : null,
                 ];
             }
         } catch (\Throwable $e) {
@@ -524,10 +526,10 @@ class WaterLevelStationController extends Controller
     {
         $warnings = [];
         if (in_array($this->unitState('brltty.service'), ['active', 'activating'], true) || is_file('/usr/bin/brltty')) {
-            $warnings[] = 'brltty (a braille display service) is installed. On Ubuntu it takes over CH340 USB chips, used on most Nano clones, and the port disappears. Remove it: sudo apt remove brltty';
+            $warnings[] = 'brltty (a braille display service) is installed. On Ubuntu it takes over CH340 USB chips and the port disappears. Remove it: sudo apt remove brltty';
         }
         if (in_array($this->unitState('ModemManager.service'), ['active', 'activating'], true)) {
-            $warnings[] = 'ModemManager is running. It sends modem commands to new serial ports and can upset the SIM800L. Stop it: sudo systemctl disable --now ModemManager';
+            $warnings[] = 'ModemManager is running. It sends modem commands to new serial ports and can upset the GSM modem. Stop it: sudo systemctl disable --now ModemManager';
         }
         return $warnings;
     }

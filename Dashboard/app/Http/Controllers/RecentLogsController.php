@@ -10,8 +10,8 @@ class RecentLogsController extends Controller
 {
     /**
      * The notification bell only lists logs that need the user's attention
-     * (SystemLog::needsAttention(): service errors and devices going
-     * offline). API request logs are routine traffic, so they are left on
+     * (SystemLog::needsAttention(): errors only; warnings and info stay
+     * on the Logs page). API request logs are routine traffic, so they are left on
      * the API Logs page and never notify.
      */
     public function index(Request $request)

@@ -30,7 +30,7 @@
  * (interval settings) uses the gateway SIM's load.
  *
  * SERIAL PROTOCOL (one line each, '|' separated) — see water_level_gsm.py
- *   Nano -> server:  +READY|<fw>   +SMS|<idx>|<sender>|<timestamp>|<body>
+ *   Nano -> server:  +READY|<fw>|<own SIM number, empty if not stored>   +SMS|<idx>|<sender>|<timestamp>|<body>
  *                    +SENT|<ref>   +FAIL|<ref>|<reason>
  *                    +STATUS|<csq>|<registered 0/1>   +PONG   +ERR|<text>
  *   Server -> Nano:  ACK|<idx>   SEND|<ref>|<number>|<text>   PING
@@ -42,7 +42,7 @@
 #include <avr/wdt.h>
 
 // ---------------------------------------------------------------- settings --
-#define FW_VERSION        "gw-1.1"
+#define FW_VERSION        "gw-1.2"
 #define GATEWAY_BAUD      57600UL   // USB serial to the server (WATER_GSM_BAUDRATE)
 #define MODEM_BAUD        9600UL    // SoftwareSerial is reliable up to 9600
 #define PIN_MODEM_RX      8         // Nano receives on D8  (from SIM800L TXD)
@@ -337,6 +337,22 @@ void reportStatus() {
   hostSend("+STATUS", csq, registered ? "1" : "0");
 }
 
+// Own number from the SIM: +CNUM: "","+639171234567",145,7,4. Many prepaid
+// SIMs don't store it, so `out` stays empty then.
+void readSimNumber(char *out, size_t size) {
+  out[0] = '\0';
+  modem.println(F("AT+CNUM"));
+  if (!waitFor("+CNUM:", 3000)) return;
+  const char *start = strchr(modemLine, ',');
+  start = start ? strchr(start, '"') : nullptr;
+  const char *end = start ? strchr(start + 1, '"') : nullptr;
+  if (end && (size_t)(end - start - 1) < size) {
+    memcpy(out, start + 1, end - start - 1);
+    out[end - start - 1] = '\0';
+  }
+  waitFor("OK", 1000);
+}
+
 // -------------------------------------------------------------- main loop --
 void setup() {
   wdt_disable();
@@ -350,7 +366,9 @@ void setup() {
     if (!initModem()) hostSend("+ERR", "modem still not responding - check power and wiring");
   }
   memset(forwardedAt, 0, sizeof(forwardedAt));
-  hostSend("+READY", FW_VERSION);
+  char simNumber[20];
+  readSimNumber(simNumber, sizeof(simNumber));
+  hostSend("+READY", FW_VERSION, simNumber);
   reportStatus();
   rescanSim();            // anything that arrived while we were off
   lastRescan = lastStatus = millis();

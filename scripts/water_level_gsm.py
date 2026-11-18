@@ -39,7 +39,7 @@ SMS FORMAT (sensor firmware: firmware/water_level_sensor/water_level_sensor.ino)
 
 SERIAL PROTOCOL (Nano <-> this service, one line each, '|' separated)
 ---------------------------------------------------------------------
-  Nano -> server:  +READY|<fw>              modem initialised
+  Nano -> server:  +READY|<fw>|<sim number> modem initialised (number empty if the SIM doesn't store it)
                    +SMS|<idx>|<sender>|<timestamp>|<body>
                    +SENT|<ref>  /  +FAIL|<ref>|<reason>
                    +STATUS|<csq>|<registered 0/1>
@@ -505,7 +505,11 @@ class Gateway:
                 self.store.mark_sent(station_id, retry_in_minutes=FAIL_RETRY_MINUTES)
 
         elif line.startswith("+READY"):
-            logger.info(f"GSM gateway ready ({line}).", extra=DEVICE)
+            parts = line.split("|")
+            fw = parts[1] if len(parts) > 1 else "?"
+            sim = parts[2].strip() if len(parts) > 2 else ""
+            # The dashboard reads the gateway's number from "SIM <number>" in this message.
+            logger.info(f"GSM gateway ready (firmware {fw}, SIM {sim or 'number not stored on the SIM'}).", extra=DEVICE)
             self.pending_sends.clear()
             self.last_status = None
 

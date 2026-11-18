@@ -1553,7 +1553,8 @@
         initCollapsible('system-health-toggle', 'system-health-body', 'system-health-chevron', 'dashboard.system-health.collapsed');
         initCollapsible('system-summary-toggle', 'system-summary-body', 'system-summary-chevron', 'dashboard.system-summary.collapsed');
 
-        // Auto-refresh every 20 seconds
-        setInterval(refreshDashboard, 20000);
+        // Auto-refresh every 10 seconds, and at once when the tab comes back into view
+        setInterval(() => { if (!document.hidden) refreshDashboard(); }, 10000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshDashboard(); });
     });
 </script>
