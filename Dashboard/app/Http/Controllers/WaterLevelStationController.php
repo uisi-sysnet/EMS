@@ -224,6 +224,48 @@ class WaterLevelStationController extends Controller
         return $this->smsTestStatus($station_mn);
     }
 
+    /** Restart the GSM gateway (its SIM800L, then the Nano through USB). */
+    public function gatewayRestart()
+    {
+        return $this->queueCommand(null);
+    }
+
+    /** Restart a station: the gateway texts it WLRESTART; done when its power-on SMS arrives. */
+    public function stationRestart($station_mn)
+    {
+        $station = WaterLevel::where('station_mn', $station_mn)->firstOrFail();
+        if (blank($station->sim_number)) {
+            return response()->json(['message' => 'This station has no SIM number, so it can\'t be restarted by SMS.'], 422);
+        }
+        return $this->queueCommand($station->station_mn);
+    }
+
+    private function queueCommand(?string $stationMn)
+    {
+        $id = \Illuminate\Support\Facades\DB::connection('water_level')->table('gsm_commands')->insertGetId([
+            'station_mn'   => $stationMn,
+            'command'      => 'restart',
+            'requested_at' => now(),
+            'result'       => 'Waiting for the GSM gateway service.',
+        ]);
+        return $this->commandStatus($id);
+    }
+
+    /** Status of a queued command, polled by the Restart buttons. */
+    public function commandStatus($id)
+    {
+        $c = \Illuminate\Support\Facades\DB::connection('water_level')->table('gsm_commands')->find($id);
+        abort_unless($c, 404);
+        $state = $c->failed ? 'failed' : ($c->done_at ? 'done' : ($c->sent_at ? 'sent' : 'waiting'));
+
+        return response()->json([
+            'id'     => $c->id,
+            'state'  => $state,
+            'result' => $c->result,
+            'age'    => (int) \Carbon\Carbon::parse($c->requested_at)->diffInSeconds(now()),
+        ]);
+    }
+
     /** Status of the station's latest SMS test, polled by the Test SMS button. */
     public function smsTestStatus($station_mn)
     {

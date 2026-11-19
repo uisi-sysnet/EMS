@@ -77,6 +77,9 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
     Route::get('/inventory/water-level-stations/{station_mn}/check-data', [WaterLevelStationController::class, 'checkData'])->name('inventory.water-level-stations.check-data');
     Route::post('/inventory/water-level-stations/{station_mn}/sms-test', [WaterLevelStationController::class, 'smsTest'])->name('inventory.water-level-stations.sms-test');
     Route::get('/inventory/water-level-stations/{station_mn}/sms-test', [WaterLevelStationController::class, 'smsTestStatus'])->name('inventory.water-level-stations.sms-test-status');
+    Route::post('/inventory/water-level-stations/{station_mn}/restart', [WaterLevelStationController::class, 'stationRestart'])->name('inventory.water-level-stations.restart');
+    Route::post('/inventory/water-level-gateway/restart', [WaterLevelStationController::class, 'gatewayRestart'])->name('inventory.water-level-gateway.restart');
+    Route::get('/inventory/water-level-commands/{id}', [WaterLevelStationController::class, 'commandStatus'])->whereNumber('id')->name('inventory.water-level-commands.status');
     Route::get('/inventory/water-level-gateway', [WaterLevelStationController::class, 'gateway'])->name('inventory.water-level-gateway');
     Route::post('/inventory/water-level-gateway', [WaterLevelStationController::class, 'gatewaySave'])->name('inventory.water-level-gateway.save');
 

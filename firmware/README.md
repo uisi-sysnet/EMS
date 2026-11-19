@@ -113,6 +113,15 @@ On **Stations › Water Level**, click the **Test SMS** (speech bubble) button o
 
 A test that couldn't be sent within 10 minutes is dropped, so an old test isn't texted after an outage.
 
+## Restarting the gateway or a station
+
+On **Stations › Water Level**:
+
+- **Restart gateway** (GSM Gateway panel): the service sends `REBOOT`, the gateway (gw-1.3+) restarts its SIM800L, then the service resets the Nano through USB with a DTR pulse (this part works with any firmware). Done when the gateway reports `+READY` again, usually within a minute.
+- **Restart** on a station row (stations with a SIM number): the gateway texts the station `WLRESTART`. The station (only from `GATEWAY_NUMBER`) restarts its modem and then itself, and its `WLON` power-on SMS confirms it, usually 1–2 minutes later.
+
+The station restarts itself with the watchdog. A Nano with the **old bootloader** can hang after a watchdog reset; if a restarted station never comes back, flash it with the new bootloader (or power-cycle it).
+
 ## Changing the interval
 
 Edit the station in **Stations › Water Level** and change **Reporting Interval**. The Interval column shows:

@@ -42,7 +42,7 @@
 #include <avr/wdt.h>
 
 // ---------------------------------------------------------------- settings --
-#define FW_VERSION        "gw-1.2"
+#define FW_VERSION        "gw-1.3"
 #define GATEWAY_BAUD      57600UL   // USB serial to the server (WATER_GSM_BAUDRATE)
 #define MODEM_BAUD        9600UL    // SoftwareSerial is reliable up to 9600
 #define PIN_MODEM_RX      8         // Nano receives on D8  (from SIM800L TXD)
@@ -273,6 +273,12 @@ void sendSms(const char *ref, const char *number, const char *text) {
 void handleHostLine(char *line) {
   if (strcmp(line, "PING") == 0) {
     hostSend("+PONG");
+  } else if (strcmp(line, "REBOOT") == 0) {
+    // Dashboard Restart button: restart the SIM800L (by command, and by RST if
+    // wired). The server then resets this Nano through USB (DTR pulse).
+    hostSend("+REBOOTING");
+    modem.println(F("AT+CFUN=1,1"));
+    resetModem();
   } else if (strncmp(line, "ACK|", 4) == 0) {
     int idx = atoi(line + 4);
     if (idx >= 1 && idx <= SIM_SLOTS) {

@@ -31,6 +31,7 @@ SMS FORMAT (sensor firmware: firmware/water_level_sensor/water_level_sensor.ino)
   SMS test (gateway -> sensor):  WLPING                             (dashboard Test SMS button)
   Test reply (sensor -> gateway): WLPONG,<station_mn>,<interval_min>,<distance_cm>,<battery_mV>
   Setting  (gateway -> sensor):  WLCFG,<interval_min>
+  Restart  (gateway -> sensor):  WLRESTART      (dashboard Restart button; done when its WLON arrives)
 
   distance_cm is the ultrasonic distance from the sensor down to the water.
   Water level = station installation_height (m, sensor height above the
@@ -44,9 +45,12 @@ SERIAL PROTOCOL (Nano <-> this service, one line each, '|' separated)
                    +SENT|<ref>  /  +FAIL|<ref>|<reason>
                    +STATUS|<csq>|<registered 0/1>
                    +PONG  /  +ERR|<text>
+                   +REBOOTING               (gw-1.3+) restarting its modem
   Server -> Nano:  ACK|<idx>                delete SMS <idx> from the SIM
                    SEND|<ref>|<number>|<text>
                    PING
+                   REBOOT                   restart the modem (gw-1.3+); the service then
+                                            resets the Nano with a DTR pulse and waits for +READY
 
 CONFIGURATION (scripts/.env)
 ----------------------------
@@ -73,6 +77,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import psycopg2
+import psycopg2.errors
 import psycopg2.extras
 import serial
 from log_throttle import throttled
@@ -355,6 +360,7 @@ class Store:
             logger.info(f"{station['station_mn']} answered the SMS test: {pong_summary(msg)}", extra=DEVICE)
         elif msg["type"] == "power_on":
             logger.info(f"{station['station_mn']} powered on (interval {msg['interval']} min)", extra=DEVICE)
+            self.restart_done(station["station_mn"])
         else:
             logger.info(f"{station['station_mn']} confirmed interval {msg['interval']} min", extra=DEVICE)
 
@@ -412,6 +418,52 @@ class Store:
                 (result, station_id))
         self.conn.commit()
 
+    def commands_due(self):
+        """Restart commands from the dashboard not sent yet (station_mn NULL = the gateway).
+        Returns [] until the gsm_commands migration has run."""
+        try:
+            with self._cur() as cur:
+                cur.execute("""
+                    SELECT c.id, c.station_mn, c.command, s.sim_number
+                    FROM gsm_commands c
+                    LEFT JOIN stations s ON s.station_mn = c.station_mn AND s.deleted_at IS NULL
+                    WHERE c.sent_at IS NULL AND NOT c.failed
+                      AND c.requested_at > NOW() - INTERVAL '10 minutes'   -- don't act on a stale request after an outage
+                    ORDER BY c.id
+                """)
+                rows = cur.fetchall()
+            self.conn.commit()
+            return rows
+        except psycopg2.errors.UndefinedTable:
+            self.conn.rollback()
+            if throttled("gsm-commands-missing", minutes=60):
+                logger.warning("Restart buttons need the gsm_commands table: run php artisan migrate --force in Dashboard/.")
+            return []
+
+    def update_command(self, command_id, result, sent=False, done=False, failed=False):
+        with self._cur() as cur:
+            cur.execute("""
+                UPDATE gsm_commands
+                SET result = %s,
+                    sent_at = CASE WHEN %s THEN NOW() ELSE sent_at END,
+                    done_at = CASE WHEN %s THEN NOW() ELSE done_at END,
+                    failed = failed OR %s
+                WHERE id = %s
+            """, (result, sent, done, failed, command_id))
+        self.conn.commit()
+
+    def restart_done(self, station_mn):
+        """A station sent its power-on SMS: completes a pending restart of it, if any."""
+        try:
+            with self._cur() as cur:
+                cur.execute("""
+                    UPDATE gsm_commands SET done_at = NOW(), result = 'Station restarted and powered on.'
+                    WHERE station_mn = %s AND command = 'restart' AND sent_at IS NOT NULL AND done_at IS NULL AND NOT failed
+                """, (station_mn,))
+            self.conn.commit()
+        except psycopg2.errors.UndefinedTable:
+            self.conn.rollback()
+
     def mark_sent(self, station_id, retry_in_minutes=None):
         """Records a send. With retry_in_minutes (failed send), backdates
         interval_sent_at so settings_to_send() picks it up again sooner."""
@@ -434,7 +486,8 @@ class Gateway:
         self.store = store
         self.port_factory = port_factory or (lambda: serial.Serial(SERIAL_PORT, BAUDRATE, timeout=1))
         self.port = None
-        self.pending_sends = {}          # ref -> ("interval" | "test", station id)
+        self.pending_sends = {}          # ref -> ("interval" | "test" | "restart", station id or command id)
+        self.pending_reboot = None       # gateway restart in progress: {"id", "at", "pulsed"}
         self.last_status = None          # (registered, weak signal) last logged
         self.next_ref = 1
         self.last_heard = 0.0
@@ -490,7 +543,14 @@ class Gateway:
             kind, station_id = self.pending_sends.pop(ref, (None, None))
             if station_id is None:
                 return
-            if kind == "test":
+            if kind == "restart":       # station_id holds the command id here
+                if line.startswith("+SENT|"):
+                    self.store.update_command(station_id, "Restart SMS sent; waiting for the station to power on (1–2 minutes).")
+                else:
+                    reason = parts[2] if len(parts) > 2 else "unknown"
+                    self.store.update_command(station_id, f"Gateway could not send the restart SMS: {reason}.", failed=True)
+                    logger.warning(f"Restart SMS (command {station_id}) not sent: {reason}", extra=DEVICE)
+            elif kind == "test":
                 if line.startswith("+SENT|"):
                     self.store.set_test_status(station_id, "SMS sent to the station; waiting for its reply.")
                 else:
@@ -512,6 +572,12 @@ class Gateway:
             logger.info(f"GSM gateway ready (firmware {fw}, SIM {sim or 'number not stored on the SIM'}).", extra=DEVICE)
             self.pending_sends.clear()
             self.last_status = None
+            if self.pending_reboot and self.pending_reboot["pulsed"]:
+                self.store.update_command(self.pending_reboot["id"], f"Gateway restarted (firmware {fw}).", done=True)
+                self.pending_reboot = None
+
+        elif line == "+REBOOTING":
+            logger.info("GSM gateway is restarting its modem (Restart button).", extra=DEVICE)
 
         elif line.startswith("+STATUS|"):
             # Sent every minute: log only when registration or weak/OK signal
@@ -557,12 +623,45 @@ class Gateway:
             self.store.set_test_status(row["id"], "Test SMS handed to the gateway; sending…", sent=True)
             self.write(f"SEND|{ref}|{row['sim_number']}|WLPING")
             logger.info(f"Sending SMS test to {row['station_mn']} ({row['sim_number']}).", extra=DEVICE)
+        for row in self.store.commands_due():
+            if row["station_mn"] is None:
+                if self.pending_reboot is None:
+                    self.store.update_command(row["id"], "Restarting the gateway's modem…", sent=True)
+                    self.write("REBOOT")   # gw-1.3+ restarts its SIM800L; older firmware ignores it
+                    self.pending_reboot = {"id": row["id"], "at": time.monotonic(), "pulsed": False}
+                    logger.info("Restarting the GSM gateway (Restart button).", extra=DEVICE)
+            elif not row["sim_number"]:
+                self.store.update_command(row["id"], "This station has no SIM number.", failed=True)
+            else:
+                ref = self._new_ref("restart", row["id"])
+                self.store.update_command(row["id"], "Restart SMS handed to the gateway; sending…", sent=True)
+                self.write(f"SEND|{ref}|{row['sim_number']}|WLRESTART")
+                logger.info(f"Sending restart to {row['station_mn']} ({row['sim_number']}).", extra=DEVICE)
+
+    def reboot_step(self, now):
+        """Gateway restart: 3 s after REBOOT (time for the modem restart), reset the
+        Nano through USB with a DTR pulse — its auto-reset works with any firmware.
+        Done when it reports +READY again."""
+        r = self.pending_reboot
+        if not r["pulsed"] and now - r["at"] >= 3:
+            self.port.dtr = False
+            time.sleep(0.2)
+            self.port.dtr = True
+            r["pulsed"] = True
+            self.last_heard = now          # it stays quiet while it boots
+            self.store.update_command(r["id"], "Resetting the gateway; waiting for it to report back…")
+        elif r["pulsed"] and now - r["at"] > 120:
+            self.store.update_command(r["id"], "The gateway didn't report back within 2 minutes. Check its USB cable and power.", failed=True)
+            logger.warning("GSM gateway didn't report back within 2 minutes of the restart.", extra=DEVICE)
+            self.pending_reboot = None
 
     def tick(self):
         now = time.monotonic()
         if now - self.last_send_check >= SEND_CHECK_SEC:
             self.last_send_check = now
             self.send_due_settings()
+        if self.pending_reboot:
+            self.reboot_step(now)
         if now - self.last_ping >= PING_SEC:
             self.last_ping = now
             self.write("PING")

@@ -13,6 +13,8 @@
  *   Power-on: WLON,<station_mn>,<interval_min>   (once after each power-up/reset)
  *   Test:     gateway sends WLPING (dashboard Test SMS button); reply
  *             WLPONG,<station_mn>,<interval_min>,<distance_cm>,<battery_mV>
+ *   Restart:  gateway sends WLRESTART (dashboard Restart button): restarts the
+ *             modem and this Nano; the WLON after start-up confirms it
  * The server turns distance into water level using the station's
  * installation height set in the dashboard, so the sensor never needs
  * reprogramming when the mounting height changes.
@@ -406,7 +408,7 @@ bool sendPowerOn() {
   return sendSms(GATEWAY_NUMBER, text);
 }
 
-// Reads SMS `idx`; from the gateway, answers "WLPING" or applies "WLCFG,<minutes>"; deletes it.
+// Reads SMS `idx`; from the gateway, answers "WLPING", restarts on "WLRESTART" or applies "WLCFG,<minutes>"; deletes it.
 void handleSms(uint8_t idx) {
   char cmd[16];
   snprintf(cmd, sizeof(cmd), "AT+CMGR=%u", idx);
@@ -433,6 +435,15 @@ void handleSms(uint8_t idx) {
     snprintf(pong, sizeof(pong), "WLPONG,%s,%u,%ld,%ld", STATION_MN, settings.intervalMin, lastDistanceCm, lastBatteryMv);
     sendSms(GATEWAY_NUMBER, pong);
     return;
+  }
+  if (strncmp(body, "WLRESTART", 9) == 0) {         // dashboard Restart button
+#if SERIAL_DEBUG
+    Serial.println(F("Restart requested by the gateway: restarting the modem, then this Nano."));
+    Serial.flush();
+#endif
+    resetModem();                                   // the SMS is already deleted, so it can't repeat
+    wdt_enable(WDTO_15MS);                          // reboot; WLON goes out after start-up
+    for (;;) {}
   }
   if (strncmp(body, "WLCFG,", 6) != 0) return;
 

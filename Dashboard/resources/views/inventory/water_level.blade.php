@@ -869,6 +869,16 @@
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
                                                         </svg>
                                                     </button>
+
+                                                    <!-- Restart Button: the gateway texts the station WLRESTART -->
+                                                    <button type="button"
+                                                            onclick="restartStation(this, '{{ $station->station_mn }}')"
+                                                            class="p-1.5 rounded-lg text-text-400 hover:text-munti-yellow-400 hover:bg-surface-700/70 transition-all duration-200 disabled:opacity-50"
+                                                            title="Restart the station (by SMS through the gateway)">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                                        </svg>
+                                                    </button>
                                                     @endif
 
                                                     <!-- Edit Button -->
@@ -908,8 +918,17 @@
 
             <!-- GSM gateway: the master Nano + SIM800L on a USB serial port -->
             <div class="mt-6 bg-surface-800 rounded-xl border border-border-700 overflow-hidden shadow-sm">
-                <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40">
+                <div class="px-5 py-3 border-b border-border-700 bg-surface-900/40 flex flex-wrap items-center justify-between gap-2">
                     <h3 class="text-sm font-bold text-text-100 uppercase tracking-wider">GSM Gateway (USB)</h3>
+                    <div class="flex items-center gap-3">
+                        <span id="gw-restart-msg" class="text-xs text-text-400" role="status"></span>
+                        <button type="button" id="gw-restart" onclick="restartGateway(this)"
+                                class="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md transition whitespace-nowrap disabled:opacity-50 text-text-200 bg-surface-700/40 border border-border-600/30 hover:bg-surface-700/60"
+                                title="Restart the gateway's SIM800L and Nano">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            Restart gateway
+                        </button>
+                    </div>
                 </div>
                 <div class="p-5 space-y-4 text-sm">
                     <p class="text-text-400">Stations text their readings to the GSM gateway, which passes them to this server over USB. Plug the gateway in, then at the top of the page click <span class="text-text-100">Scan</span>, pick its port and click <span class="text-text-100">Connect</span>.</p>
@@ -1188,6 +1207,46 @@ async function smsTest(btn, stationMn) {
     } finally {
         btn.disabled = false;
     }
+}
+
+// Restart buttons: queue the command, then follow it (every 5 s, up to 4 min).
+async function runGsmCommand(btn, startUrl, show, waitingText) {
+    btn.disabled = true;
+    try {
+        let res = await fetch(startUrl, { method: 'POST', headers: { Accept: 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } });
+        let d = await res.json();
+        if (!res.ok) return show(d.message || 'Could not start the restart.', 'text-munti-red-400');
+        const statusUrl = '{{ url('/inventory/water-level-commands') }}/' + d.id;
+        for (let i = 0; i < 48; i++) {
+            if (d.state === 'done') return show(d.result, 'text-munti-green-400');
+            if (d.state === 'failed') return show(d.result, 'text-munti-red-400');
+            show(d.state === 'sent' ? `${d.result} (${d.age} s)` : `Waiting for the gateway service… (${d.age} s)`, 'text-radar-400');
+            await new Promise(r => setTimeout(r, 5000));
+            d = await (await fetch(statusUrl, { headers: { Accept: 'application/json' } })).json();
+        }
+        show(d.state === 'sent' ? waitingText : 'Not carried out after 4 min. Check that the GSM gateway is connected and water_level_gsm.py is running.', 'text-munti-yellow-400');
+    } catch (e) {
+        show('Could not check the restart.', 'text-munti-red-400');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function restartStation(btn, stationMn) {
+    if (!confirm(`Restart station ${stationMn}? The gateway texts it a restart command; it comes back in 1–2 minutes and sends its power-on SMS.`)) return;
+    const msg = btn.closest('td').querySelector('.sms-test-msg');
+    const show = (text, color) => { msg.className = 'sms-test-msg mt-1 text-[11px] whitespace-normal max-w-[240px] mx-auto ' + color; msg.textContent = text; };
+    runGsmCommand(btn, '{{ url('/inventory/water-level-stations') }}/' + encodeURIComponent(stationMn) + '/restart', show,
+        'No power-on SMS after 4 min. The restart SMS left the gateway; check the station\'s power, signal and SIM load (it needs the 10.7.7 station sketch).');
+}
+
+function restartGateway(btn) {
+    if (!confirm('Restart the GSM gateway? Its modem and Nano restart; SMS are paused for about a minute.')) return;
+    const msg = document.getElementById('gw-restart-msg');
+    const show = (text, color) => { msg.className = 'text-xs ' + color; msg.textContent = text; };
+    runGsmCommand(btn, '{{ route('inventory.water-level-gateway.restart') }}', show,
+        'The gateway hasn\'t reported back after 4 min. Check its USB cable and power.');
 }
 
 function deleteStation(stationMn, stationName) {
