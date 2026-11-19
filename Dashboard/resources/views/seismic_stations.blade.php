@@ -29,6 +29,24 @@
                 </div>
             @endif
 
+            <!-- Readings dated in the future (wrong station clock), shown only when there are any -->
+            <div id="future-panel" class="hidden mb-6 rounded-xl border border-munti-yellow-500/30 bg-munti-yellow-600/10 p-4 sm:p-5">
+                <h3 class="text-sm font-bold text-munti-yellow-400 uppercase tracking-wider mb-1">Readings dated in the future</h3>
+                <p class="text-xs text-text-300 mb-3">These stations sent readings with a wrong clock. They make a station look online until that date and show the wrong latest time. New ones are no longer stored; delete these to correct the dashboard, then fix the station's clock.</p>
+                <div class="overflow-x-auto thin-scrollbar">
+                    <table class="min-w-full text-xs">
+                        <thead class="text-text-500 uppercase tracking-wider text-[11px]">
+                            <tr><th class="text-left py-1.5 pr-4 font-medium">Station</th><th class="text-right py-1.5 pr-4 font-medium">Readings</th><th class="text-left py-1.5 pr-4 font-medium">Earliest date</th><th class="text-left py-1.5 font-medium">Latest date</th></tr>
+                        </thead>
+                        <tbody id="future-rows" class="text-text-200"></tbody>
+                    </table>
+                </div>
+                <div class="mt-3 flex flex-wrap items-center gap-3">
+                    <button type="button" id="future-delete" class="hidden px-3.5 py-2 text-xs font-semibold rounded-lg bg-munti-red-600 hover:bg-munti-red-500 text-white transition disabled:opacity-50"></button>
+                    <span id="future-msg" class="text-xs text-text-300" role="status"></span>
+                </div>
+            </div>
+
             <div class="bg-surface-800 rounded-xl border border-border-700 overflow-hidden flex flex-col shadow-sm">
 
                 <!-- Form Section -->
@@ -393,6 +411,65 @@ function deleteStation(stationId, stationName) {
         }
     });
 }
+
+// Readings dated in the future: list them, and let a super admin delete them.
+(() => {
+    const url = '{{ route('seismic-stations.future') }}';
+    const panel = document.getElementById('future-panel');
+    const rows = document.getElementById('future-rows');
+    const btn = document.getElementById('future-delete');
+    const msg = document.getElementById('future-msg');
+    const esc = s => { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; };
+    let total = 0;
+
+    async function load() {
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!res.ok) return;
+        const d = await res.json();
+        total = d.stations.reduce((n, s) => n + s.readings, 0);
+        panel.classList.toggle('hidden', total === 0);
+        rows.innerHTML = d.stations.map(s => `<tr class="border-t border-border-700/60">
+            <td class="py-1.5 pr-4 font-mono text-munti-green-400">${esc(s.station_id)}</td>
+            <td class="py-1.5 pr-4 text-right tabular-nums">${s.readings.toLocaleString()}</td>
+            <td class="py-1.5 pr-4">${esc(s.first)}</td><td class="py-1.5">${esc(s.last)}</td></tr>`).join('');
+        btn.classList.toggle('hidden', !d.can_delete);
+        btn.textContent = `Delete ${total.toLocaleString()} future-dated reading${total === 1 ? '' : 's'}`;
+        if (!d.can_delete) msg.textContent = 'Ask a super admin to delete these.';
+    }
+
+    btn.addEventListener('click', () => {
+        Swal.fire({
+            title: 'Delete future-dated readings?',
+            html: `This deletes <strong>${total.toLocaleString()}</strong> seismic reading(s) dated more than 10 minutes in the future.<br><span style="color: #ef4444;">This cannot be undone.</span>`,
+            icon: 'warning', showCancelButton: true,
+            confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Yes, delete them', cancelButtonText: 'Cancel',
+            background: '#1f2937', color: '#f3f4f6', iconColor: '#f59e0b'
+        }).then(async result => {
+            if (!result.isConfirmed) return;
+            btn.disabled = true; msg.textContent = 'Deleting…';
+            try {
+                const res = await fetch(url, { method: 'DELETE', headers: { Accept: 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } });
+                const d = await res.json();
+                msg.textContent = d.message || (res.ok ? 'Done.' : 'Could not delete the readings.');
+                if (res.ok) {
+                    await load();
+                    if (total === 0) {   // keep the panel up so the result stays visible
+                        panel.classList.remove('hidden');
+                        btn.classList.add('hidden');
+                    }
+                }
+            } catch (e) {
+                msg.textContent = 'Could not delete the readings.';
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    });
+
+    load();
+})();
 
 // Close modal on ESC key
 document.addEventListener('keydown', function(event) {

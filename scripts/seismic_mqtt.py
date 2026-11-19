@@ -289,12 +289,22 @@ def skew_warning(station_id, sent_timestamp, behind_sec):
             f"Repeats are not logged for 30 minutes.")
 
 
+FUTURE_LIMIT_SEC = 600   # readings dated further ahead than this are refused
+
+
+class FutureTimestamp(ValueError):
+    """A reading dated in the future (wrong device clock). Stored, it would make
+    the station look online until that date and show e.g. 2036 as its latest time."""
+
+
 def insert_station_metrics(data: dict, source: str):
     """Shared insert path for both ingestion channels. `data` uses the same
     shape as the MQTT JSON payload: station_id, timestamp, location{},
     measurements{acceleration{},velocity{},displacement{}}, pga, peis.
     `source` is 'mqtt' or 'sms', recorded per-row for traceability.
-    Returns how many seconds the stored time is behind the DB clock."""
+    Returns how many seconds the stored time is behind the DB clock.
+    Raises FutureTimestamp (nothing stored) for a reading dated over
+    FUTURE_LIMIT_SEC ahead of the DB clock."""
     loc = data.get('location', {}) or {}
     measurements = data.get('measurements', {}) or {}
     acc = measurements.get('acceleration', {}) or {}
@@ -321,8 +331,7 @@ def insert_station_metrics(data: dict, source: str):
             disp_x, disp_y, disp_z,
             graph_x, graph_y, graph_z, graph_scale, graph_center,
             pga, peis, source
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING EXTRACT(EPOCH FROM (now() - time));
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
     """
     params = (
         timestamp_value,
@@ -343,13 +352,23 @@ def insert_station_metrics(data: dict, source: str):
     try:
         conn = get_data_connection()
         with conn.cursor() as cur:
+            # The DB parses the timestamp exactly as the insert will, so the check matches what would be stored.
+            cur.execute("SELECT EXTRACT(EPOCH FROM (now() - %s::timestamptz))", (timestamp_value,))
+            behind = cur.fetchone()[0]
+            behind = float(behind) if behind is not None else None
+            if behind is not None and behind < -FUTURE_LIMIT_SEC:
+                conn.rollback()
+                raise FutureTimestamp(
+                    f"reading from station {station_identity} is dated {timestamp_value!r}, "
+                    f"{-behind / 86400:.1f} days ahead of the server clock; not stored. Check the device clock.")
             cur.execute(query, params)
-            row = cur.fetchone()
         conn.commit()
+    except FutureTimestamp:
+        raise
     except Exception as e:
         reset_data_connection()
         raise RuntimeError(f"station_metrics insert failed: {e}") from e
-    return float(row[0]) if row and row[0] is not None else None
+    return behind
 
 
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -391,6 +410,9 @@ def on_message(client, userdata, msg):
         if warning and throttled(f"skew:{data['station_id']}"):
             logging.warning(warning, extra=DEVICE)
 
+    except FutureTimestamp as e:
+        if throttled(f"future:{data.get('station_id', 'UNKNOWN')}"):
+            logging.warning(f"Seismic {e} Repeats are not logged for 30 minutes.", extra=DEVICE)
     except json.JSONDecodeError:
         if throttled(f"bad-json:{msg.topic}"):
             logging.error(f"Payload failed parsing: message on {msg.topic} is not valid JSON. Repeats are not logged for 30 minutes.")

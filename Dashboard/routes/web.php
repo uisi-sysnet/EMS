@@ -122,6 +122,8 @@ Route::middleware(['role:superAdmin,admin'])->group(function () {
 
     Route::get('/seismic-stations', [SeismicStationController::class, 'index'])->name('seismic-stations.index');
     Route::post('/seismic-stations', [SeismicStationController::class, 'store'])->name('seismic-stations.store');
+    Route::get('/seismic-stations/future-readings', [SeismicStationController::class, 'futureReadings'])->name('seismic-stations.future');
+    Route::delete('/seismic-stations/future-readings', [SeismicStationController::class, 'deleteFutureReadings'])->name('seismic-stations.future.delete');
     Route::get('/seismic-stations/{station_id}/edit', [SeismicStationController::class, 'edit']);
     Route::put('/seismic-stations/{station_id}', [SeismicStationController::class, 'update'])->name('seismic-stations.update');
     Route::delete('/seismic-stations/{station_id}', [SeismicStationController::class, 'destroy'])->name('seismic-stations.destroy');

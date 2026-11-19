@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\SeismicStation;
+use App\Services\SeismicFutureReadings;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class SeismicStationController extends Controller
 {
@@ -70,6 +72,44 @@ class SeismicStationController extends Controller
 
         return redirect()->route('seismic-stations.index')
                          ->with('success', 'Seismic station updated successfully.');
+    }
+
+    /** Future-dated readings per station (wrong station clock), for the panel on this page. */
+    public function futureReadings()
+    {
+        try {
+            $rows = SeismicFutureReadings::summary();
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['message' => 'Could not read the seismic database.'], 500);
+        }
+
+        $manila = fn ($t) => \Carbon\Carbon::parse($t)->timezone('Asia/Manila')->format('M j, Y g:i A');
+        return response()->json([
+            'stations' => array_map(fn ($r) => [
+                'station_id' => $r->station_id,
+                'readings'   => (int) $r->readings,
+                'first'      => $manila($r->first_time),
+                'last'       => $manila($r->last_time),
+            ], $rows),
+            'can_delete' => session('role') === 'superAdmin',
+        ]);
+    }
+
+    /** Deletes the future-dated readings (super admins only, like Delete All Logs). */
+    public function deleteFutureReadings()
+    {
+        abort_unless(session('role') === 'superAdmin', 403);
+
+        try {
+            $deleted = SeismicFutureReadings::delete();
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['message' => 'Could not delete the readings: ' . $e->getMessage()], 500);
+        }
+
+        Log::warning('Deleted future-dated seismic readings', ['deleted' => $deleted, 'user' => session('username')]);
+        return response()->json(['deleted' => $deleted, 'message' => "Deleted {$deleted} future-dated reading(s)."]);
     }
 
     /**
