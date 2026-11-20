@@ -24,7 +24,9 @@
  *   SIM800L          same as the gateway: TXD -> D8, RXD <- D9 via 1k/2k
  *                    divider, GND common, VCC from a 3.7-4.2 V / 2 A supply
  *                    (Li-ion cell), 470-1000 uF capacitor at the module.
- *                    RST is not used (a hung modem is restarted with AT+CFUN=1,1).
+ *                    RST <- D5 (recommended): a hardware reset revives a modem
+ *                    that no longer answers AT. Optional: without it the modem
+ *                    is still restarted with AT+CFUN=1,1 while it answers.
  *   TTL-to-RS485     RO -> D0 (RX), DI <- D1 (TX), DE + RE tied together <- D4,
  *   (MAX485 module)  VCC 5 V, GND. A/B to the RS485 bus; 120 ohm terminator at
  *                    each end of the bus. Unplug the module (or its RO wire)
@@ -81,6 +83,7 @@
 #define PIN_MODEM_RX        8          // Nano receives on D8 (from SIM800L TXD)
 #define PIN_MODEM_TX        9          // Nano transmits on D9 (to SIM800L RXD, via divider)
 #define PIN_RS485_DE        4          // DE + RE of the RS485 module (HIGH = transmit)
+#define PIN_MODEM_RST       5          // SIM800L RST (active low); optional, see resetModem()
 #define PIN_TRIG            2
 #define PIN_ECHO            3
 #define PIN_DS18B20         7
@@ -190,11 +193,17 @@ bool at(const char *cmd, const char *expect = "OK", unsigned long timeoutMs = 20
   return waitFor(expect, timeoutMs);
 }
 
-// RST isn't wired (D4 drives the RS485 module), so restart the modem by
-// command. shortcut: can't revive a modem that stops answering AT at all;
-// wire RST to a free pin (e.g. D5) if that happens in the field.
+// Hardware reset on D5 (revives a modem that no longer answers AT), then the
+// AT+CFUN=1,1 command as well. With RST not wired the pulse does nothing.
+// RST is pulled low, then released (input) for the module's own pull-up:
+// never driven HIGH, the SIM800L's RST line is below 5 V.
 void resetModem() {
-  modem.println(F("AT+CFUN=1,1"));
+  pinMode(PIN_MODEM_RST, OUTPUT);
+  digitalWrite(PIN_MODEM_RST, LOW);
+  delay(200);
+  pinMode(PIN_MODEM_RST, INPUT);
+  idle(3000);                       // modem boots
+  modem.println(F("AT+CFUN=1,1"));  // also restarts one that ignored RST
   idle(10000);
 }
 

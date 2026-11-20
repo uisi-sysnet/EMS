@@ -34,7 +34,7 @@ Both devices connect the SIM800L the same way:
 | ------- | ---- | ----- |
 | TXD | D8 | |
 | RXD | D9 | Through a divider: D9 → 1 kΩ → RXD, and RXD → 2 kΩ → GND |
-| RST | D4 (gateway only, optional) | Lets the gateway Nano restart a hung modem. Not used on the stations: their D4 drives the RS485 module, and they restart the modem with `AT+CFUN=1,1` |
+| RST | Gateway **D4**, station **D5** (optional, recommended) | Hardware reset: revives a modem that no longer answers AT commands. Without it the modem is restarted with `AT+CFUN=1,1`, which only works while it still answers. RST is pulled low and released, never driven to 5 V |
 | VCC | — | Separate 3.7–4.2 V / 2 A supply, **not** the Nano's 5V or 3V3 pin |
 | GND | GND | Common ground with the Nano and the supply |
 

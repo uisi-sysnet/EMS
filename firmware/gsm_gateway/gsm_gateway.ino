@@ -127,8 +127,7 @@ void resetModem() {
   pinMode(PIN_MODEM_RST, OUTPUT);
   digitalWrite(PIN_MODEM_RST, LOW);
   delay(200);
-  digitalWrite(PIN_MODEM_RST, HIGH);
-  pinMode(PIN_MODEM_RST, INPUT);   // let the module's pull-up hold RST high
+  pinMode(PIN_MODEM_RST, INPUT);   // release: the module's pull-up holds RST high (never drive it to 5 V)
   for (uint8_t i = 0; i < 10; i++) { wdt_reset(); delay(500); }   // boot time
 }
 
