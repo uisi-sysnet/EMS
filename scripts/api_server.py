@@ -1372,10 +1372,8 @@ def _apply_temporary_fallback(conn, row):
             logger.warning(f"[fallback] {FALLBACK_TARGET_MN}: source {FALLBACK_SOURCE_MN} has no sensor_data rows at all — skipping.")
         return False
 
-    # data_time is naive Manila local time (see map_aq_station_row_to_json) —
-    # tag it before comparing against a tz-aware UTC "now".
-    manila_tz = ZoneInfo("Asia/Manila")
-    source_time_utc = source["data_time"].replace(tzinfo=manila_tz).astimezone(timezone.utc)
+    # data_time is naive UTC (see map_aq_station_row_to_json).
+    source_time_utc = source["data_time"].replace(tzinfo=timezone.utc)
     age_sec = (datetime.now(timezone.utc) - source_time_utc).total_seconds()
     if age_sec > FALLBACK_MAX_SOURCE_AGE_SEC:
         if throttled("fallback-stale"):  # every request otherwise
@@ -1406,13 +1404,10 @@ def map_aq_station_row_to_json(row, now):
     status = "offline"
     last_update_str = None
     if row['data_time']:
-        # data_time is stored as naive Manila local time (Postgres session
-        # TimeZone converts tz-aware UTC values to local on insert into a
-        # `timestamp without time zone` column) — do NOT tag it as UTC.
-        manila_tz = ZoneInfo("Asia/Manila")
-        last_update_manila = row['data_time'].replace(tzinfo=manila_tz)
-        last_update_str = format_api_datetime(last_update_manila)
-        last_update_utc = last_update_manila.astimezone(timezone.utc)
+        # data_time is stored as naive UTC (ingest writes datetime.now(utc);
+        # the Dashboard reads it the same way) — tag it as UTC, then shift.
+        last_update_utc = row['data_time'].replace(tzinfo=timezone.utc)
+        last_update_str = format_api_datetime(last_update_utc)
         if (now - last_update_utc).total_seconds() < 900:
             status = "online"
 
@@ -1480,12 +1475,10 @@ def aq_latest_all(api_key: str = Depends(verify_api_key)):
 
         # Top-level "timestamp" = the actual latest saved reading across all
         # stations (max data_time), not the moment this request was handled.
-        # data_time is naive Manila local time — tag it as such, don't shift it.
-        manila_tz = ZoneInfo("Asia/Manila")
+        # data_time is naive UTC — tag it, format_api_datetime shifts to Manila.
         data_times = [r['data_time'] for r in rows if r['data_time']]
         if data_times:
-            latest_manila = max(data_times).replace(tzinfo=manila_tz)
-            response_timestamp = format_api_datetime(latest_manila)
+            response_timestamp = format_api_datetime(max(data_times).replace(tzinfo=timezone.utc))
         else:
             response_timestamp = format_api_datetime(now)
 
