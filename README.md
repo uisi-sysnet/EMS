@@ -2,7 +2,7 @@
 
 EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-based Linux server. It ingests air quality and seismic telemetry, tracks water level stations, stores readings in PostgreSQL/TimescaleDB, exposes a FastAPI REST API, and includes a Laravel dashboard for operations, live station mapping, CCTV, station management, logs, and maintenance.
 
-**Current version: 10.7.7**
+**Current version: 10.7.8**
 
 | Branch     | Contents                                                        |
 | ---------- | --------------------------------------------------------------- |
@@ -10,7 +10,7 @@ EMS Gateway is an environmental monitoring stack for a Raspberry Pi or Debian-ba
 | `version10` | Version 10.x line; fixes for version 10 gateways land here first |
 | `version9` | Previous version line (9.x)                                     |
 
-Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, `v10.6.1`, `v10.6.2`, `v10.7.0`, `v10.7.1`, `v10.7.2`, `v10.7.3`, `v10.7.4`, `v10.7.5`, `v10.7.6`, `v10.7.7`, ...).
+Releases are tagged (`v10.0.0`, `v10.1.0`, `v10.2.0`, `v10.3.0`, `v10.3.1`, `v10.3.2`, `v10.3.3`, `v10.4.0`, `v10.5.0`, `v10.6.0`, `v10.6.1`, `v10.6.2`, `v10.7.0`, `v10.7.1`, `v10.7.2`, `v10.7.3`, `v10.7.4`, `v10.7.5`, `v10.7.6`, `v10.7.7`, `v10.7.8`, ...).
 
 ## What It Runs
 
@@ -45,6 +45,7 @@ PostgreSQL + TimescaleDB, Mosquitto MQTT, MediaMTX, nginx + PHP-FPM, systemd
 - **10.7.3 — Installs into `/var/www/EMS`:** `sudo ./install.sh` copies the project to `/var/www/EMS` and continues from there (an existing install keeps its `.env` files, storage and dependencies), so nginx serves `/var/www/EMS/Dashboard/public` and the services, cron job and sudo rules use `/var/www/EMS`. It then applies the file permissions on every run (see Quick Start). The Dashboard no longer assumes `/home/system/EMS`: it finds `scripts/.env` next to its own folder. `install_services.sh` checks the service scripts in `scripts/`, where they are (it warned that they were missing before). Ubuntu installed on a Raspberry Pi is no longer mistaken for Raspberry Pi OS, so its netplan networking isn't offered the Pi network steps.
 - **10.7.5 — Live updates without reloading:** the dashboard refreshes every 10 s (was 20 s) and straight away when you return to its tab. On **Stations › Water Level**, the GSM gateway status and its latest messages now update on their own every 5 s; the port list is only rebuilt when you click Scan, so a port you are choosing isn't reset. The gateway port dropdown with its **Scan** and **Connect** buttons moved to the top right of the page, and the gateway messages show in a terminal-style log (newest at the bottom) instead of a collapsed list.
 - **10.7.4 — API service starts on Ubuntu again:** `api_server.py` crashed at startup with `cannot import name 'ServerProtocol' from 'websockets.server'` when a pip-installed uvicorn met Ubuntu's older apt `websockets`. The API has no WebSocket routes, so uvicorn now runs without WebSocket support (`ws="none"`) and never imports that library.
+- **10.7.8 — Change a station's gateway number by SMS:** text `WLGW,<PIN>,<new number>` to a station from any phone and it saves the new gateway number (it survives power loss), so a new gateway SIM no longer means re-uploading every station. `WLGW,<PIN>,DEFAULT` goes back to the number in the sketch. The station confirms with `WLGWOK` to the new gateway (logged as "<station> now sends its readings to gateway …") and to the phone that sent it. Set the PIN as `STATION_PIN` in the station sketch; while it's empty the command is off, and a wrong PIN is ignored.
 - **10.7.7 — Restart buttons for the GSM gateway and the stations:** on **Stations › Water Level**, **Restart gateway** (GSM Gateway panel) restarts the gateway's SIM800L and then its Nano through USB; it is done when the gateway reports back. Each station with a SIM number has a **Restart** button: the gateway texts it `WLRESTART`, the station restarts its modem and itself, and its power-on SMS marks it done. Both show their progress on the page. Needs `php artisan migrate --force` (new `gsm_commands` table), the gw-1.3 gateway sketch for the modem restart (older gateways still get the Nano reset) and the updated station sketch. The station sketch now also resets the SIM800L through its **RST pin on D5** (optional wiring) before the `AT+CFUN=1,1` command, so a modem that has stopped answering is revived instead of leaving the station offline until a power cycle; the gateway's RST (D4) is no longer driven to 5 V.
 - **10.7.6 — Seismic readings dated in the future:** a station with a wrong clock (e.g. 2036) looked online until that date and showed the wrong latest time. `seismic_mqtt.py` now refuses readings dated more than 10 minutes ahead of the server clock (MQTT and SMS), and logs which station sent them once per 30 min. Readings already stored are listed on **Stations › Seismic** (per station: how many, earliest and latest date), and a super admin can delete them there; the same from a terminal: `php artisan seismic:prune-future` (`--dry-run` to only list).
 
@@ -151,6 +152,7 @@ A new **Stations › Water Level** inventory (`/inventory/water-level-stations`)
 
 | Version | Changes |
 | ------- | ------- |
+| 10.7.8  | Station gateway number changeable by SMS: `WLGW,<STATION_PIN>,<number|DEFAULT>` from any phone, saved in EEPROM, confirmed with `WLGWOK`. |
 | 10.7.7  | Restart buttons: GSM gateway (modem + Nano via USB) and each station (WLRESTART by SMS, confirmed by its power-on SMS). Needs migrate and the new sketches. |
 | 10.7.6  | Seismic: readings dated in the future refused at ingestion; existing ones listed and deletable (Stations › Seismic, `seismic:prune-future`). |
 | 10.7.5  | Dashboard refreshes every 10 s and on returning to the tab; GSM gateway status and messages update on their own; gateway port picker moved to the page header; messages shown as a terminal log. |

@@ -92,11 +92,12 @@ mbpoll -m rtu -a 1 -b 9600 -P none -t 3 -r 1 -c 6 /dev/ttyUSB0
 
 1. **Install the Arduino IDE** and select **Tools › Board › Arduino Nano**, **Processor › ATmega328P**. (Many clone Nanos need **ATmega328P (Old Bootloader)** — use that if the upload fails.)
 2. **Gateway:** open `gsm_gateway/gsm_gateway.ino` and upload it. Nothing to edit.
-3. **Sensor:** open `water_level_sensor/water_level_sensor.ino`, set the four `>>>` settings at the top, and upload (with the RS485 module unplugged):
+3. **Sensor:** open `water_level_sensor/water_level_sensor.ino`, set the five `>>>` settings at the top, and upload (with the RS485 module unplugged):
    - `STATION_MN` — the station's Station MN in the dashboard
    - `GATEWAY_NUMBER` — the gateway SIM's number, e.g. `+639171234567`
    - `DEFAULT_INTERVAL` — interval used until the dashboard sends one
    - `MODBUS_ID` — this station's Modbus address on the RS485 bus (different for each station)
+   - `STATION_PIN` — PIN for changing the gateway number by SMS (6+ letters/digits, no commas; empty = off). Keep it private
    For the DS18B20 probe, set `USE_DS18B20 1` and install the **OneWire** and **DallasTemperature** libraries first.
 4. **Dashboard:** in **Stations › Water Level**, add the station with the sensor's **SIM number** (the IP address can stay empty), **Installation Height**, and **Reporting Interval**.
 5. **Server:** plug the gateway Nano into a USB port of the EMS server. In **Stations › Water Level**, scroll to **GSM Gateway (USB)**, click **Scan ports**, then **Connect** on the Nano's port (a CH340 / FTDI chip is marked as the likely gateway). This saves `WATER_GSM_SERIAL_PORT` (the stable `/dev/serial/by-id/...` name) and `WATER_GSM_ENABLED=true` in `scripts/.env` and restarts `ems-water-level-gsm.service`. The panel also warns if **brltty** (takes over CH340 ports on Ubuntu) or **ModemManager** (disturbs the SIM800L) is present.
@@ -121,6 +122,20 @@ On **Stations › Water Level**:
 - **Restart** on a station row (stations with a SIM number): the gateway texts the station `WLRESTART`. The station (only from `GATEWAY_NUMBER`) restarts its modem and then itself, and its `WLON` power-on SMS confirms it, usually 1–2 minutes later.
 
 The station restarts itself with the watchdog. A Nano with the **old bootloader** can hang after a watchdog reset; if a restarted station never comes back, flash it with the new bootloader (or power-cycle it).
+
+## Changing a station's gateway number by SMS
+
+When the gateway gets a new SIM, point each station at it without re-uploading: from any phone, text the station
+
+```text
+WLGW,<STATION_PIN>,<new gateway number>
+```
+
+for example `WLGW,739214,09171234567` (local `09…` or `+63…` format). The station saves the number (it survives power loss) and confirms with `WLGWOK,<station>,<interval>,<number>` to the new gateway, which logs "<station> now sends its readings to gateway …", and to your phone. `WLGW,<STATION_PIN>,DEFAULT` goes back to the `GATEWAY_NUMBER` in the sketch.
+
+- The PIN is `STATION_PIN` in the sketch. While it's empty, the command is turned off. A wrong PIN is ignored without a reply.
+- Anyone with the PIN can redirect a station's readings, so use 6 or more characters and keep it private.
+- The station's start-up line on the USB Serial Monitor shows which gateway number it uses and whether it was set by SMS.
 
 ## Changing the interval
 

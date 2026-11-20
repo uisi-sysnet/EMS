@@ -11,6 +11,9 @@
  *   Reading:  WL1,<station_mn>,<seq>,<distance_cm>,<battery_mV>,<temp_tenths_C|NA>,<interval_min>
  *   Ack:      WLACK,<station_mn>,<interval_min>
  *   Power-on: WLON,<station_mn>,<interval_min>   (once after each power-up/reset)
+ *   Gateway:  WLGW,<STATION_PIN>,<number|DEFAULT> from any phone changes the
+ *             gateway number (saved, survives power loss); confirmed with
+ *             WLGWOK,<station_mn>,<interval_min>,<number> to the new gateway
  *   Test:     gateway sends WLPING (dashboard Test SMS button); reply
  *             WLPONG,<station_mn>,<interval_min>,<distance_cm>,<battery_mV>
  *   Restart:  gateway sends WLRESTART (dashboard Restart button): restarts the
@@ -54,7 +57,7 @@
  *   Measured every second, and before each SMS. While the station is busy
  *   sending an SMS (up to about a minute) it doesn't answer Modbus requests.
  *
- * Fill in the four settings marked >>> below before uploading.
+ * Fill in the five settings marked >>> below before uploading.
  * The SIM needs its PIN lock disabled and load / an unlimited-text promo:
  * this SIM pays for every reading it sends.
  */
@@ -66,8 +69,13 @@
 // >>> Station code — must match "Station MN" in the dashboard (max 14 chars).
 #define STATION_MN          "WLS001"
 // >>> The GSM gateway's SIM number. Readings go here, and settings are only
-//     accepted from here.
+//     accepted from here. Can be changed later by SMS without re-uploading:
+//     WLGW,<STATION_PIN>,<new number>   (WLGW,<STATION_PIN>,DEFAULT = back to this one)
 #define GATEWAY_NUMBER      "+639667891619"
+// >>> PIN for the WLGW command above (6+ characters, letters/digits, no commas).
+//     Empty = the command is turned off. Keep it private: with it, anyone can
+//     point this station at another number.
+#define STATION_PIN         ""
 // >>> Interval used until the dashboard sends one (minutes, 1-1440).
 #define DEFAULT_INTERVAL    3
 // >>> Modbus slave address on the RS485 bus (1-247, different for every station).
@@ -109,9 +117,23 @@ struct Settings {
   uint16_t magic;
   uint16_t intervalMin;
   uint32_t seq;
+  char gateway[17];   // set by WLGW ("+639..."); empty = GATEWAY_NUMBER. Appended: older saves keep interval/seq.
 };
 const uint16_t SETTINGS_MAGIC = 0x574C;   // "WL"
 Settings settings;
+
+// "+" and 9-15 digits.
+bool validNumber(const char *n) {
+  size_t len = strnlen(n, 17);
+  if (len < 10 || len > 16 || n[0] != '+') return false;
+  for (size_t i = 1; i < len; i++) if (n[i] < '0' || n[i] > '9') return false;
+  return true;
+}
+
+// The gateway readings go to: the one set by SMS, else the uploaded one.
+const char *gatewayNumber() {
+  return settings.gateway[0] ? settings.gateway : GATEWAY_NUMBER;
+}
 
 char modemLine[200];
 uint8_t modemLen = 0;
@@ -141,8 +163,10 @@ void loadSettings() {
     settings.magic = SETTINGS_MAGIC;
     settings.intervalMin = DEFAULT_INTERVAL;
     settings.seq = 0;
+    settings.gateway[0] = '\0';
     EEPROM.put(0, settings);
   }
+  if (!validNumber(settings.gateway)) settings.gateway[0] = '\0';   // blank EEPROM (0xFF) or a save from before WLGW
 }
 
 void saveSettings() {
@@ -403,7 +427,7 @@ bool sendReading() {
 
   bool ok = false;
   if (!waitForNetwork(30000)) smsResult(F("no network"), text);
-  else ok = sendSms(GATEWAY_NUMBER, text);
+  else ok = sendSms(gatewayNumber(), text);
   if (ok) saveSettings();          // persist seq only after a successful send
   else settings.seq--;
   return ok;
@@ -414,10 +438,54 @@ bool sendPowerOn() {
   char text[48];
   snprintf(text, sizeof(text), "WLON,%s,%u", STATION_MN, settings.intervalMin);
   if (!waitForNetwork(30000)) { smsResult(F("no network"), text); return false; }
-  return sendSms(GATEWAY_NUMBER, text);
+  return sendSms(gatewayNumber(), text);
 }
 
-// Reads SMS `idx`; from the gateway, answers "WLPING", restarts on "WLRESTART" or applies "WLCFG,<minutes>"; deletes it.
+// WLGW: "<pin>,<new number>" or "<pin>,DEFAULT". Saves the gateway number and
+// confirms with WLGWOK,<station>,<interval>,<number> to the new gateway (and to
+// the phone that sent it, if that's another number). A wrong PIN is ignored.
+void changeGateway(const char *args, const char *sender) {
+  const char *comma = strchr(args, ',');
+  size_t pinLen = strlen(STATION_PIN);
+  if (pinLen == 0 || !comma || (size_t)(comma - args) != pinLen || strncmp(args, STATION_PIN, pinLen) != 0) {
+#if SERIAL_DEBUG
+    Serial.println(F("WLGW ignored: wrong PIN, or STATION_PIN not set."));
+    Serial.flush();
+#endif
+    return;
+  }
+  const char *number = comma + 1;
+  while (*number == ' ') number++;
+  if (strncmp(number, "DEFAULT", 7) == 0 || strncmp(number, "default", 7) == 0) {
+    settings.gateway[0] = '\0';
+  } else {
+    char normalized[24];
+    normalizeNumber(number, normalized, sizeof(normalized));
+    if (!validNumber(normalized)) {
+#if SERIAL_DEBUG
+      Serial.print(F("WLGW ignored: not a phone number: ")); Serial.println(number);
+      Serial.flush();
+#endif
+      return;
+    }
+    strncpy(settings.gateway, normalized, sizeof(settings.gateway) - 1);
+    settings.gateway[sizeof(settings.gateway) - 1] = '\0';
+  }
+  saveSettings();
+#if SERIAL_DEBUG
+  Serial.print(F("Gateway number changed by SMS to ")); Serial.println(gatewayNumber());
+  Serial.flush();
+#endif
+
+  char ok[64];
+  snprintf(ok, sizeof(ok), "WLGWOK,%s,%u,%s", STATION_MN, settings.intervalMin, gatewayNumber());
+  sendSms(gatewayNumber(), ok);
+  char gw[24];
+  normalizeNumber(gatewayNumber(), gw, sizeof(gw));
+  if (strcmp(sender, gw) != 0) sendSms(sender, ok);   // a technician's phone gets the confirmation too
+}
+
+// Reads SMS `idx`; WLGW (any sender, PIN) changes the gateway number; from the gateway, answers "WLPING", restarts on "WLRESTART" or applies "WLCFG,<minutes>"; deletes it.
 void handleSms(uint8_t idx) {
   char cmd[16];
   snprintf(cmd, sizeof(cmd), "AT+CMGR=%u", idx);
@@ -427,7 +495,7 @@ void handleSms(uint8_t idx) {
   char senderRaw[24] = "", sender[24], gateway[24];
   quotedField(modemLine, 1, senderRaw, sizeof(senderRaw));
   normalizeNumber(senderRaw, sender, sizeof(sender));
-  normalizeNumber(GATEWAY_NUMBER, gateway, sizeof(gateway));
+  normalizeNumber(gatewayNumber(), gateway, sizeof(gateway));
 
   char body[170] = "";
   if (waitFor("", 3000)) strncpy(body, modemLine, sizeof(body) - 1);   // first body line
@@ -436,13 +504,19 @@ void handleSms(uint8_t idx) {
   snprintf(cmd, sizeof(cmd), "AT+CMGD=%u", idx);   // delete every SMS (promos too)
   at(cmd, "OK", 5000);
 
-  if (strcmp(sender, gateway) != 0) return;         // settings only from the gateway
+  // WLGW,<pin>,<number|DEFAULT>: accepted from any number with the right PIN,
+  // since the old gateway SIM may be gone when its number has to change.
+  if (strncmp(body, "WLGW,", 5) == 0) {
+    changeGateway(body + 5, sender);
+    return;
+  }
+  if (strcmp(sender, gateway) != 0) return;         // other settings only from the gateway
 
   if (strncmp(body, "WLPING", 6) == 0) {            // dashboard SMS test: answer with a fresh reading
     measure();
     char pong[64];
     snprintf(pong, sizeof(pong), "WLPONG,%s,%u,%ld,%ld", STATION_MN, settings.intervalMin, lastDistanceCm, lastBatteryMv);
-    sendSms(GATEWAY_NUMBER, pong);
+    sendSms(gatewayNumber(), pong);
     return;
   }
   if (strncmp(body, "WLRESTART", 9) == 0) {         // dashboard Restart button
@@ -465,7 +539,7 @@ void handleSms(uint8_t idx) {
 
   char ack[48];
   snprintf(ack, sizeof(ack), "WLACK,%s,%u", STATION_MN, settings.intervalMin);
-  sendSms(GATEWAY_NUMBER, ack);
+  sendSms(gatewayNumber(), ack);
 
   // Apply right away: next reading one new interval from now.
   if (changed) nextSendAt = millis() + (unsigned long)settings.intervalMin * 60000UL;
@@ -588,6 +662,9 @@ void setup() {
   Serial.print(F("\nEMS water level station ")); Serial.print(F(STATION_MN));
   Serial.print(F("  Modbus ID ")); Serial.print(MODBUS_ID);
   Serial.print(F("  interval ")); Serial.print(settings.intervalMin); Serial.println(F(" min"));
+  Serial.print(F("Gateway ")); Serial.print(gatewayNumber());
+  Serial.println(settings.gateway[0] ? F(" (set by SMS)") : F(" (from the sketch)"));
+  if (strlen(STATION_PIN) == 0) Serial.println(F("STATION_PIN not set: changing the gateway number by SMS is off."));
   Serial.flush();
 #endif
   measure();                       // first reading right away, before the slow modem start

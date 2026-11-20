@@ -32,6 +32,8 @@ SMS FORMAT (sensor firmware: firmware/water_level_sensor/water_level_sensor.ino)
   Test reply (sensor -> gateway): WLPONG,<station_mn>,<interval_min>,<distance_cm>,<battery_mV>
   Setting  (gateway -> sensor):  WLCFG,<interval_min>
   Restart  (gateway -> sensor):  WLRESTART      (dashboard Restart button; done when its WLON arrives)
+  Gateway number (any phone -> sensor): WLGW,<STATION_PIN>,<number|DEFAULT>
+  Gateway changed (sensor -> new gateway): WLGWOK,<station_mn>,<interval_min>,<number>
 
   distance_cm is the ultrasonic distance from the sensor down to the water.
   Water level = station installation_height (m, sensor height above the
@@ -211,6 +213,12 @@ def parse_sensor_sms(body: str) -> dict:
             "interval": _int(interval, "interval", 1, 1440),
         }
 
+    if kind == "WLGWOK":   # the station's gateway number was changed by SMS (WLGW)
+        if len(parts) != 4:
+            raise ParseError(f"WLGWOK needs 4 fields, got {len(parts)}")
+        return {"type": "gateway_changed", "station_mn": parts[1],
+                "interval": _int(parts[2], "interval", 1, 1440), "gateway": parts[3]}
+
     if kind == "WLPONG":   # answer to the dashboard's SMS test (WLPING)
         if len(parts) != 5:
             raise ParseError(f"WLPONG needs 5 fields, got {len(parts)}")
@@ -358,6 +366,8 @@ class Store:
                 logger.debug(f"Reading from {station['station_mn']}: distance {msg['distance_m']} m, battery {msg['battery_v']} V, seq {msg['seq']}", extra=DEVICE)
         elif msg["type"] == "pong":
             logger.info(f"{station['station_mn']} answered the SMS test: {pong_summary(msg)}", extra=DEVICE)
+        elif msg["type"] == "gateway_changed":
+            logger.info(f"{station['station_mn']} now sends its readings to gateway {msg['gateway']} (changed by SMS).", extra=DEVICE)
         elif msg["type"] == "power_on":
             logger.info(f"{station['station_mn']} powered on (interval {msg['interval']} min)", extra=DEVICE)
             self.restart_done(station["station_mn"])
@@ -789,6 +799,7 @@ def _self_check():
     now = datetime(2026, 10, 20, 1, 0, tzinfo=timezone.utc)
     assert parse_sensor_sms("WLON,WLS001,3") == {"type": "power_on", "station_mn": "WLS001", "interval": 3}
     assert parse_sensor_sms("WLACK,WLS001,3")["type"] == "ack"
+    assert parse_sensor_sms("WLGWOK,WLS001,3,+639171234567") == {"type": "gateway_changed", "station_mn": "WLS001", "interval": 3, "gateway": "+639171234567"}
     pong = parse_sensor_sms("WLPONG,WLS001,3,161,8750")
     assert pong == {"type": "pong", "station_mn": "WLS001", "interval": 3, "distance_m": 1.61, "battery_v": 8.75}
     assert pong_summary(pong) == "Station WLS001: distance 1.61 m, battery 8.75 V, interval 3 min."
