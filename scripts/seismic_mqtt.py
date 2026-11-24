@@ -134,6 +134,9 @@ def initialize_database():
                     logging.info("Optimizing data table via TimescaleDB hypertable engine partitioning...")
                     cur.execute("SELECT create_hypertable('station_metrics', by_range('time'), if_not_exists => TRUE);")
 
+                # Lets the API's "latest per station" DISTINCT ON queries use SkipScan instead of sorting all history.
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_station_metrics_station_time ON station_metrics (station_id, time DESC);")
+
                 required_columns = {
                     "station_name": "VARCHAR(100)",
                     "latitude": "DOUBLE PRECISION",
