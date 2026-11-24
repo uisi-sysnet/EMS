@@ -119,14 +119,15 @@
                     <div class="flex gap-3">
                         <div class="flex-1">
                             <label for="modal_installation_height" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                Installation Height
+                                Installation Height (m)
                             </label>
                             <input type="number"
                                 step="any"
                                 id="modal_installation_height"
                                 name="installation_height"
                                 class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition"
-                                placeholder="e.g. 3.50">
+                                placeholder="Sensor to river bed, e.g. 5.50">
+                            <p class="mt-1 text-[10px] text-text-500 leading-snug">Sensor down to river bed = (sensor to lowest bank point) + (bank to river bed).</p>
                         </div>
                         <div class="flex-1">
                             <label for="modal_elevation_height" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
@@ -356,13 +357,14 @@
                     <div class="flex gap-3">
                         <div class="flex-1">
                             <label for="edit_installation_height" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">
-                                Installation Height
+                                Installation Height (m)
                             </label>
                             <input type="number"
                                 step="any"
                                 id="edit_installation_height"
                                 name="installation_height"
                                 class="w-full px-3.5 py-2.5 border border-border-600 rounded-lg bg-surface-900 text-text-100 placeholder-text-500 focus:ring-2 focus:ring-radar-500/40 focus:border-radar-500 text-sm transition">
+                            <p class="mt-1 text-[10px] text-text-500 leading-snug">Sensor down to river bed = (sensor to lowest bank point) + (bank to river bed).</p>
                         </div>
                         <div class="flex-1">
                             <label for="edit_elevation_height" class="block text-xs font-medium text-text-400 mb-1.5 uppercase tracking-wide">

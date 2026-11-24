@@ -321,7 +321,7 @@ class WaterLevelStation(BaseModel):
     last_update: Optional[str] = Field(None, examples=["2026-10-15T09:15:32.000+08:00"])
     water_level_m: Optional[float] = Field(None, examples=[2.35], description="Installation height minus measured distance. Null when the sensor got no echo or no installation height is set.")
     distance_m: Optional[float] = Field(None, examples=[3.15], description="Distance from the sensor down to the water. Null when the sensor got no echo.")
-    installation_height_m: Optional[float] = Field(None, examples=[5.5])
+    installation_height_m: Optional[float] = Field(None, examples=[5.5], description="Sensor height above the river bed: (sensor to lowest bank point) + (bank to river bed). Null when not set.")
     battery_v: Optional[float] = Field(None, examples=[3.91])
     temperature_c: Optional[float] = Field(None, examples=[28.1])
 
